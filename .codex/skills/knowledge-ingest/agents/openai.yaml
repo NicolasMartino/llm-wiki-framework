@@ -1,0 +1,4 @@
+interface:
+  display_name: "Knowledge Ingest"
+  short_description: "Compile raw sources into wiki pages."
+  default_prompt: "Ingest new raw source material into the project wiki."

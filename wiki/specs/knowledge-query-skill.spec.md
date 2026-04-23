@@ -4,13 +4,16 @@
 - Status: Active
 - Date: 2026-04-23
 - Category: Tooling
-- Scope: The /knowledge-query skill for querying a project's wiki with citations and optional save-back.
+- Scope: The `knowledge-query` skill for querying a project's wiki with citations and optional save-back.
 - Related: wiki/specs/documentation-model.spec.md, wiki/specs/init-project-skill.spec.md
 
 ## What It Does
 
-`/knowledge-query <question>` searches the current project's wiki, synthesizes
-an answer with citations, and optionally saves durable answers back as wiki pages.
+The knowledge-query skill searches the current project's wiki, synthesizes an
+answer with citations, and optionally saves durable answers back as wiki pages.
+In Codex, it triggers from normal requests to check the wiki or answer from
+documented project knowledge. It also supports explicit invocation through
+`$knowledge-query` and the namespace alias `$knowledge query`.
 
 ## Scope
 
@@ -19,8 +22,11 @@ directory. Does not search across multiple projects.
 
 ## Location
 
-Skill definition: `.claude/skills/knowledge-query/SKILL.md`
-Global access: symlinked to `~/.claude/skills/knowledge-query`
+Claude skill definition: `.claude/skills/knowledge-query/SKILL.md`
+Codex skill definition: `.codex/skills/knowledge-query/SKILL.md`
+Claude global access: symlinked to `~/.claude/skills/knowledge-query`
+Codex global access: symlinked to `~/.codex/skills/knowledge-query`
+Codex namespace alias: `$knowledge query`
 
 ## How It Works
 
@@ -42,8 +48,11 @@ Global access: symlinked to `~/.claude/skills/knowledge-query`
 
 ## Proven By
 
-- Skill file exists at `.claude/skills/knowledge-query/SKILL.md`
-- Global symlink exists at `~/.claude/skills/knowledge-query`
+- Claude skill file exists at `.claude/skills/knowledge-query/SKILL.md`
+- Codex skill file exists at `.codex/skills/knowledge-query/SKILL.md`
+- Codex global symlink exists at `~/.codex/skills/knowledge-query`
+- Codex dispatcher skill exists at `.codex/skills/knowledge/SKILL.md`
+- Claude global symlink exists at `~/.claude/skills/knowledge-query`
 - Not yet tested with a real query (see roadmap D4)
 
 ## Limitations

@@ -26,6 +26,13 @@ Three core operations:
 2. **Query** - answer questions using the wiki, file durable answers back
 3. **Lint** - scan for contradictions, stale content, orphans; fix directly
 
+In Codex, lint can be exposed through a dedicated skill (`knowledge-lint`) or
+through the dispatcher alias `$knowledge lint`.
+
+Research is a supporting acquisition step, not a fourth core mutation
+operation. Research gathers candidate material into `raw/`, then ingest
+compiles those explicit raw sources into `wiki/`.
+
 ## Document Types
 
 Nine typed document roles, each with distinct truth relationship:
@@ -47,7 +54,7 @@ Nine typed document roles, each with distinct truth relationship:
 
 ## Promotion Flow
 
-raw/ -> ingest -> proposal/reference -> roadmap -> plan -> evidence -> spec/decision -> archive
+research -> raw/ -> ingest -> proposal/reference -> roadmap -> plan -> evidence -> spec/decision -> archive
 
 ## Proven By
 

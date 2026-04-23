@@ -93,3 +93,45 @@ unprocessed files. Supports markdown, text, PDF, images, URLs, transcripts,
 code. Symlinked to global skills.
 Pages created: .claude/skills/knowledge-ingest/SKILL.md, wiki/specs/knowledge-ingest-skill.spec.md
 Pages updated: wiki/index.md
+
+## [2026-04-23] create | Codex skill translations
+
+Translated the three Claude framework skills into Codex skill folders under
+`.codex/skills/` and exposed them globally through symlinks in
+`~/.codex/skills/`.
+Pages created: .codex/skills/init-project/SKILL.md, .codex/skills/knowledge-query/SKILL.md, .codex/skills/knowledge-ingest/SKILL.md, wiki/decisions/project-local-codex-skills.decision.md
+Pages updated: wiki/specs/init-project-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/index.md
+
+## [2026-04-23] create | Knowledge namespace and research skill
+
+Added a Codex-only `/knowledge` dispatcher skill so framework operations share
+one slash-style command surface. Added `knowledge-research` as the pre-ingest
+acquisition step for gathering source material into `raw/` from local paths,
+explicit URLs, one site, or broader web search.
+
+Refined `knowledge-ingest` to operate on explicit raw sources only, with web
+or site discovery routed through research first. Updated the framework docs to
+record the `/knowledge` namespace and the new raw acquisition workflow.
+
+Pages created: .codex/skills/knowledge/SKILL.md, .codex/skills/knowledge/agents/openai.yaml, .codex/skills/knowledge-research/SKILL.md, .codex/skills/knowledge-research/agents/openai.yaml, wiki/decisions/knowledge-command-namespace.decision.md, wiki/specs/knowledge-research-skill.spec.md
+Pages updated: .codex/skills/init-project/SKILL.md, .codex/skills/knowledge-query/SKILL.md, .codex/skills/knowledge-ingest/SKILL.md, wiki/specs/init-project-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/documentation-model.spec.md, wiki/decisions/project-local-codex-skills.decision.md, wiki/index.md
+
+## [2026-04-23] correct | Knowledge invocation surface
+
+Corrected the Codex command surface after discovering that custom `/...`
+strings are intercepted by the product and produce an unrecognized command
+error before skills can run. Updated the framework to use explicit skill
+invocation with `$knowledge`, `$knowledge-research`, and existing direct skill
+names instead of claiming support for custom slash commands.
+
+Pages updated: .codex/skills/knowledge/SKILL.md, .codex/skills/knowledge/agents/openai.yaml, .codex/skills/knowledge-research/SKILL.md, .codex/skills/knowledge-research/agents/openai.yaml, .codex/skills/init-project/SKILL.md, .codex/skills/knowledge-query/SKILL.md, .codex/skills/knowledge-ingest/SKILL.md, wiki/decisions/knowledge-command-namespace.decision.md, wiki/specs/init-project-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-research-skill.spec.md, wiki/index.md
+
+## [2026-04-23] create | Knowledge lint skill
+
+Promoted lint into a dedicated Codex skill so `$knowledge lint` routes to a
+real skill instead of an inline dispatcher note. Added `knowledge-lint`
+metadata, updated the dispatcher to call it directly, and documented the new
+skill in the framework wiki.
+
+Pages created: .codex/skills/knowledge-lint/SKILL.md, .codex/skills/knowledge-lint/agents/openai.yaml, wiki/specs/knowledge-lint-skill.spec.md
+Pages updated: .codex/skills/knowledge/SKILL.md, wiki/specs/documentation-model.spec.md, wiki/decisions/knowledge-command-namespace.decision.md, wiki/decisions/project-local-codex-skills.decision.md, wiki/index.md

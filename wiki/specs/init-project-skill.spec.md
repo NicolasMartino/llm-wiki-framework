@@ -10,8 +10,11 @@
 
 ## What It Does
 
-`/init-project [path]` is a Claude Code skill that scaffolds a new project
-or updates an existing one with the LLM Wiki project management framework.
+The init-project skill scaffolds a new project or updates an existing one with
+the LLM Wiki project management framework.
+
+In Codex, it can be invoked through normal language, `$init-project`, or the
+namespace alias `$knowledge init`.
 
 Two modes:
 - **Create**: asks questions, generates tailored project_guidelines.md + CLAUDE.md,
@@ -22,13 +25,21 @@ Two modes:
 
 ## Location
 
-Skill definition: `.claude/skills/init-project.md`
+Claude skill definition: `.claude/skills/init-project/SKILL.md`
+Codex skill definition: `.codex/skills/init-project/SKILL.md`
 Template: `project_guidelines.template.md`
 
-For global access, symlink the skill to `~/.claude/skills/`:
+For Claude global access, symlink the skill to `~/.claude/skills/`:
 ```bash
-ln -s /path/to/framework/.claude/skills/init-project.md ~/.claude/skills/init-project.md
+ln -s /path/to/framework/.claude/skills/init-project ~/.claude/skills/init-project
 ```
+
+For Codex global access, symlink the project-local skill to `~/.codex/skills/`:
+```bash
+ln -s /path/to/framework/.codex/skills/init-project ~/.codex/skills/init-project
+```
+
+Namespace alias: `$knowledge init`
 
 ## Question Flow
 
@@ -60,7 +71,10 @@ Answers determine which template sections are included:
 
 ## Proven By
 
-- Skill file exists at `.claude/skills/init-project.md`
+- Claude skill file exists at `.claude/skills/init-project/SKILL.md`
+- Codex skill file exists at `.codex/skills/init-project/SKILL.md`
+- Codex global symlink exists at `~/.codex/skills/init-project`
+- Codex dispatcher skill exists at `.codex/skills/knowledge/SKILL.md`
 - Template file exists at `project_guidelines.template.md`
 - Not yet tested on a real project spawn (see roadmap D5)
 

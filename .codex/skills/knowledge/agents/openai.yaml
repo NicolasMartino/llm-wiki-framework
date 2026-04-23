@@ -1,0 +1,4 @@
+interface:
+  display_name: "Knowledge"
+  short_description: "Route wiki operations through $knowledge."
+  default_prompt: "Use $knowledge to query what is currently documented."
