@@ -1,18 +1,20 @@
-# Project Guidelines - Software / AI Engineering
+# Project Guidelines - {{PROJECT_NAME}}
 
 - Document Class: Spec
 - Status: Active
-- Date: 2026-04-23
+- Date: {{DATE}}
 - Category: Documentation and execution model
-- Scope: Project documentation, knowledge management, and execution rules based on the LLM Wiki pattern.
+- Scope: Project documentation, knowledge management, and execution rules.
 
 ## Purpose
 
-This file defines the documentation and execution model for software projects.
+This file defines the documentation and execution model for {{PROJECT_NAME}}.
+
+{{PROJECT_DESCRIPTION}}
 
 The model combines the LLM Wiki pattern (Karpathy, 2026) with typed document
-roles from a prior documentation framework. The agent owns the wiki layer. The
-human curates raw sources and makes judgment calls.
+roles. The agent owns the wiki layer. The human curates raw sources and makes
+judgment calls.
 
 ## Architecture
 
@@ -88,6 +90,39 @@ Contents:
 The index must fit in a single context window. If it grows beyond ~50,000
 tokens, split into a root index with per-type sub-indexes.
 
+<!-- SECTION:QMD - include for medium/large scale projects -->
+### QMD Search (scale beyond index.md)
+
+For wikis that grow beyond ~100 pages, supplement index.md navigation with
+QMD hybrid search. QMD indexes all wiki/ markdown files locally and provides
+BM25 keyword search, vector semantic search, and LLM re-ranking in a single
+pipeline. All processing runs on-device.
+
+Setup:
+
+```bash
+npm install -g @tobilu/qmd
+qmd collection add wiki/ --name wiki
+qmd context add qmd://wiki "Project wiki: specs, decisions, proposals, plans"
+qmd embed
+```
+
+The agent uses `qmd query` to find relevant pages when the index is
+insufficient, then reads those pages directly. QMD exposes an MCP server
+(`qmd mcp`) for direct agent integration.
+
+Navigation strategy becomes tiered:
+1. Read `wiki/index.md` first for orientation
+2. If the index does not surface the needed page, use `qmd query`
+3. Read the identified pages
+
+Auto-reindex after ingest or lint:
+
+```bash
+qmd embed -f
+```
+<!-- END:QMD -->
+
 ### log.md
 
 `wiki/log.md` is an append-only chronological record of all wiki mutations.
@@ -154,6 +189,8 @@ in `wiki/log.md`.
 
 Use the document type by role, not by convenience.
 
+### Core Document Types (all projects)
+
 | Document type | Core question | Purpose |
 | --- | --- | --- |
 | `*.spec.md` | What is validated truth? | Accepted baseline: interfaces, schemas, behavior, architecture, measured properties |
@@ -161,10 +198,17 @@ Use the document type by role, not by convenience.
 | `*.proposal.md` | Should we do this? | Future direction not yet accepted or validated |
 | `*.roadmap.md` | In what order will we deliver? | Ordered orchestration of deliverables, dependencies, and proof gates |
 | `*.plan.md` | How do we execute one deliverable? | Tactical execution with steps, ownership, and verification |
-| `*.experiment.md` | What uncertain question are we testing? | Investigation: setup, observations, measurements, conclusion |
-| `*.eval.md` | How did a candidate perform? | Evaluation report: metrics, failure analysis, recommendation |
 | `*.checklist.md` | What repeatable procedure must be followed? | Operational, release, deployment, or incident procedure |
 | `*.reference.md` | What external evidence exists? | Source notes for papers, APIs, vendor docs, benchmarks |
+
+<!-- SECTION:ML_AI - include for ML/AI projects -->
+### ML/AI Document Types (ML/AI projects only)
+
+| Document type | Core question | Purpose |
+| --- | --- | --- |
+| `*.experiment.md` | What uncertain question are we testing? | Investigation: setup, observations, measurements, conclusion |
+| `*.eval.md` | How did a candidate perform? | Evaluation report: metrics, failure analysis, recommendation |
+<!-- END:ML_AI -->
 
 Short version:
 
@@ -173,8 +217,8 @@ Short version:
 3. Proposal - direction
 4. Roadmap - ordering
 5. Plan - execution
-6. Experiment - uncertainty
-7. Eval - measured performance
+6. Experiment - uncertainty <!-- CONDITIONAL:ML_AI -->
+7. Eval - measured performance <!-- CONDITIONAL:ML_AI -->
 8. Checklist - repeatable procedure
 9. Reference - raw evidence
 
@@ -185,23 +229,14 @@ wiki/
   index.md                    Master catalog, agent reads first
   log.md                      Append-only mutation log
   specs/                      Validated truth
-    *.spec.md
   decisions/                  Durable choices
-    *.decision.md
   proposals/                  Future direction
-    *.proposal.md
   roadmaps/                   Deliverable orchestration
-    *.roadmap.md
   plans/                      Tactical execution
-    *.plan.md
-  experiments/                Investigation records
-    *.experiment.md
-  evals/                      Evaluation reports
-    *.eval.md
   checklists/                 Repeatable procedures
-    *.checklist.md
   references/                 External evidence synthesis
-    *.reference.md
+  experiments/                Investigation records       <!-- CONDITIONAL:ML_AI -->
+  evals/                      Evaluation reports           <!-- CONDITIONAL:ML_AI -->
   archive/                    Completed, superseded, or rejected documents
 ```
 
@@ -221,23 +256,25 @@ wiki/
     proposals/
     roadmaps/
     plans/
-    experiments/
-    evals/
     checklists/
     references/
+    experiments/              <!-- CONDITIONAL:ML_AI -->
+    evals/                    <!-- CONDITIONAL:ML_AI -->
     archive/
   src/                        Application code
   tests/                      Automated tests
-  models/                     Model artifacts, configs, lineage
-  data/                       Datasets, schemas, pipeline definitions
-  notebooks/                  Exploratory analysis and prototyping
-  evals/                      Evaluation suites and benchmark harnesses (code)
   scripts/                    Utilities and automation
   infra/                      Infrastructure definitions
+  models/                     Model artifacts, configs     <!-- CONDITIONAL:ML_AI -->
+  data/                       Datasets, schemas, pipelines <!-- CONDITIONAL:ML_AI -->
+  notebooks/                  Exploratory analysis         <!-- CONDITIONAL:ML_AI -->
+  evals/                      Evaluation harnesses (code)  <!-- CONDITIONAL:ML_AI -->
 ```
 
+<!-- SECTION:ML_AI -->
 Note: `evals/` at root contains evaluation code and harnesses. `wiki/evals/`
 contains evaluation report documents. Code and documentation are separate.
+<!-- END:ML_AI -->
 
 ## Naming And Metadata
 
@@ -379,6 +416,7 @@ A plan answers:
 7. What wiki pages should be updated when done?
 8. What closes the plan?
 
+<!-- SECTION:ML_AI -->
 ## Experiment Template
 
 An experiment captures:
@@ -403,6 +441,7 @@ An eval captures:
 5. Failure analysis
 6. Resource profile
 7. Recommendation
+<!-- END:ML_AI -->
 
 ## Spec Template
 
