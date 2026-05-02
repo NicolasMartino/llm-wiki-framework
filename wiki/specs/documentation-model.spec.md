@@ -67,7 +67,6 @@ research -> raw/ -> ingest -> proposal/reference -> roadmap -> plan -> evidence 
 ## Limitations
 
 - Not yet tested on a second project (framework portability unproven)
-- Lint operation not yet exercised
 - Scale beyond ~50 pages untested
 - Multi-agent coordination not yet addressed
 - No automated tooling for ingest or lint (manual agent operations only)

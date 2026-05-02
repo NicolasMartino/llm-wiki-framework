@@ -94,10 +94,10 @@ Unlocks:
 
 ### D3 - Lint Operation
 
-Status: Draft
+Status: Completed
 Promise: The agent runs a lint pass over the wiki and finds at least one real issue (contradiction, orphan, stale status, missing cross-reference). The issue is fixed and logged.
 Depends On: D1
-Execution Plan: Not created yet
+Execution Plan: Not needed (single-session lint pass)
 
 Included:
 - Full wiki scan
@@ -158,12 +158,12 @@ Unlocks:
 ### D5 - Framework Spawns a New Project
 
 Status: Draft
-Promise: The /init-project skill creates a new project end-to-end. A fresh agent in the new repo, with only the generated project_guidelines.md and CLAUDE.md, bootstraps a self-managing wiki and is immediately productive.
+Promise: The `init-project` skill creates a new project end-to-end. A fresh agent in the new repo, with only the generated project_guidelines.md and CLAUDE.md, bootstraps a self-managing wiki and is immediately productive.
 Depends On: D2, D3, D4
 Execution Plan: Not created yet
 
 Included:
-- Run `/init-project /path/to/new-project` on a real project
+- Run `init-project` on a real project
 - Skill asks questions, generates tailored guidelines and CLAUDE.md
 - Scaffolds raw/ + wiki/ with correct profile (ML_AI, QMD flags)
 - Agent in the new project ingests first raw sources

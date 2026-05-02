@@ -47,6 +47,5 @@ explicit invocation with `$knowledge-lint`, or through the namespace alias
 
 ## Limitations
 
-- Not yet exercised on a real lint pass in this project
 - Cannot resolve substantive contradictions without a documented source of
   truth or user judgment

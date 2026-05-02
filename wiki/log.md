@@ -135,3 +135,25 @@ skill in the framework wiki.
 
 Pages created: .codex/skills/knowledge-lint/SKILL.md, .codex/skills/knowledge-lint/agents/openai.yaml, wiki/specs/knowledge-lint-skill.spec.md
 Pages updated: .codex/skills/knowledge/SKILL.md, wiki/specs/documentation-model.spec.md, wiki/decisions/knowledge-command-namespace.decision.md, wiki/decisions/project-local-codex-skills.decision.md, wiki/index.md
+
+## [2026-04-23] lint | wiki consistency pass
+
+Scanned the wiki for contradictions, stale claims, orphan pages, and missing
+cross-references.
+Issues found: orphaned reference page `wiki/references/llm-wiki-ecosystem.reference.md` missing from `wiki/index.md`; stale claim that lint had not yet been exercised; stale namespace language claiming `/init-project` remained an acceptable alias.
+Pages updated: wiki/index.md, wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-lint-skill.spec.md, wiki/decisions/knowledge-command-namespace.decision.md, wiki/decisions/project-local-codex-skills.decision.md, wiki/specs/init-project-skill.spec.md, wiki/roadmaps/framework-v1.roadmap.md
+Outstanding questions: none
+
+## [2026-04-23] ingest | Web sources on three-phase ingest pipeline
+
+Saved two primary web source snapshots under `raw/web/`:
+- `raw/web/gist.github.com/2026-04-23-karpathy-llm-wiki.md`
+- `raw/web/github.com/2026-04-23-niharshrotri-llm-wiki-readme.md`
+
+Synthesized a new reference page that explains the three-phase ingest pipeline
+in detail using web sources only. The page distinguishes the conceptual ingest
+responsibilities in Karpathy's gist from the explicit three-pass implementation
+described in NiharShrotri's README.
+
+Pages created: wiki/references/three-phase-ingest-pipeline.reference.md
+Pages updated: wiki/index.md

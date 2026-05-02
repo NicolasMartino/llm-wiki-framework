@@ -4,7 +4,7 @@
 - Status: Active
 - Date: 2026-04-23
 - Category: Tooling
-- Scope: The /init-project skill that creates or updates projects using the LLM Wiki framework.
+- Scope: The `init-project` skill that creates or updates projects using the LLM Wiki framework.
 - Sources: wiki/references/niharshrotri-llm-wiki.reference.md
 - Related: wiki/specs/documentation-model.spec.md, wiki/decisions/three-layer-architecture.decision.md
 

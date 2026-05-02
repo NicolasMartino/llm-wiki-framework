@@ -5,8 +5,8 @@
 - Date: 2026-04-23
 - Category: Tooling
 - Scope: Keep Codex skill definitions inside this framework repo and expose them globally through symlinks.
-- Sources: .claude/skills/init-project/SKILL.md, .claude/skills/knowledge-query/SKILL.md, .claude/skills/knowledge-ingest/SKILL.md
-- Related: wiki/specs/init-project-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md
+- Sources: .codex/skills/init-project/SKILL.md, .codex/skills/knowledge/SKILL.md, .codex/skills/knowledge-query/SKILL.md, .codex/skills/knowledge-ingest/SKILL.md, .codex/skills/knowledge-lint/SKILL.md, .codex/skills/knowledge-research/SKILL.md
+- Related: wiki/specs/init-project-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-lint-skill.spec.md, wiki/specs/knowledge-research-skill.spec.md, wiki/decisions/knowledge-command-namespace.decision.md
 
 ## Choice
 

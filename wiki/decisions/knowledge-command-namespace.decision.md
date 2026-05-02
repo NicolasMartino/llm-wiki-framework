@@ -38,8 +38,8 @@ compiles explicit raw sources into `wiki/`.
   skill invocation.
 - Existing skill docs must stay behaviorally aligned with the namespace.
 - Natural language requests remain first-class and should continue to work.
-- Legacy direct commands such as `/init-project` and direct skill names remain
-  acceptable aliases.
+- Existing direct skill names remain acceptable aliases alongside the
+  dispatcher namespace.
 
 ## Revisit When
 
