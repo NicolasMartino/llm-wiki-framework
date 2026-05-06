@@ -157,3 +157,87 @@ described in NiharShrotri's README.
 
 Pages created: wiki/references/three-phase-ingest-pipeline.reference.md
 Pages updated: wiki/index.md
+
+## [2026-05-02] create | Knowledge intake command proposal
+
+Recorded a proposal for a possible `knowledge-intake` skill and
+`$knowledge intake` namespace entry. The proposal keeps the accepted boundary
+between source acquisition (`knowledge-research`) and wiki compilation
+(`knowledge-ingest`), and defines intake as a user-facing orchestration layer
+above those two operations.
+
+Pages created: wiki/proposals/knowledge-intake-command.proposal.md
+Pages updated: wiki/index.md
+
+## [2026-05-02] update | Knowledge research intake direction
+
+Refined the earlier intake proposal after clarifying the intended behavior.
+The recommendation now is to improve `knowledge-research` itself into a guided
+research-intake flow that asks what to research, gathers material from local
+and web sources, saves coherent bundles under `raw/research/`, and leaves
+`knowledge-ingest` as a separate explicit step.
+
+Pages updated: wiki/proposals/knowledge-intake-command.proposal.md, wiki/index.md
+
+## [2026-05-02] update | Per-source research summaries
+
+Extended the knowledge research intake proposal to require one summary file
+per collected source inside each research bundle. This makes the research
+output more legible and creates a cleaner handoff into later ingest work while
+preserving raw-source provenance.
+
+Pages updated: wiki/proposals/knowledge-intake-command.proposal.md
+
+## [2026-05-02] update | Bundle-level research summary
+
+Revised the proposal again to use one `research-summary.md` per research
+bundle instead of one summary per source. The bundle now centers on three
+artifacts: raw source files, a manifest for provenance and inventory, and a
+single synthesis file for the overall research run.
+
+Pages updated: wiki/proposals/knowledge-intake-command.proposal.md
+
+## [2026-05-02] create | Knowledge research intake implementation plan
+
+Created a plan for implementing the proposed `knowledge-research` upgrade.
+The plan covers spec and skill updates, bundle structure under
+`raw/research/`, dispatcher wording review, one exercised research run, and
+the verification needed before treating the new behavior as accepted truth.
+
+Pages created: wiki/plans/knowledge-research-intake.plan.md
+Pages updated: wiki/index.md
+
+## [2026-05-02] update | Claude research skill added to plan scope
+
+Expanded the implementation plan after confirming that `knowledge-research`
+exists only on the Codex side today. The plan now explicitly includes creating
+the missing Claude `knowledge-research` skill and aligning its invocation and
+workflow shape with the existing Claude `knowledge-ingest` skill.
+
+Pages updated: wiki/plans/knowledge-research-intake.plan.md
+
+## [2026-05-02] create | Knowledge research skill implementation
+
+Implemented the guided research-intake workflow across the framework surfaces.
+Updated the research spec, rewrote the Codex `knowledge-research` skill around
+research bundles, created the missing Claude `knowledge-research` skill, and
+refined the Codex `$knowledge` dispatcher wording so research is clearly the
+pre-ingest intake path.
+
+Exercised the workflow with a local path-based proof run and created:
+- `raw/research/2026-05-02-knowledge-research-intake-proof/manifest.md`
+- `raw/research/2026-05-02-knowledge-research-intake-proof/research-summary.md`
+- `raw/research/2026-05-02-knowledge-research-intake-proof/sources/...`
+
+Pages updated: wiki/specs/knowledge-research-skill.spec.md, wiki/proposals/knowledge-intake-command.proposal.md, wiki/plans/knowledge-research-intake.plan.md, wiki/index.md, wiki/log.md
+Files created: .claude/skills/knowledge-research/SKILL.md, raw/research/2026-05-02-knowledge-research-intake-proof/manifest.md, raw/research/2026-05-02-knowledge-research-intake-proof/research-summary.md
+Files updated: .codex/skills/knowledge-research/SKILL.md, .codex/skills/knowledge/SKILL.md
+
+## [2026-05-02] update | Research spec verification correction
+
+Corrected the `knowledge-research` spec after verification to remove a Claude
+global symlink claim that was not actually present on disk. The spec now only
+asserts the repo-local Claude skill, the existing Codex global symlink, and
+the proof bundle artifact that were verified directly.
+
+Pages updated: wiki/specs/knowledge-research-skill.spec.md, wiki/log.md

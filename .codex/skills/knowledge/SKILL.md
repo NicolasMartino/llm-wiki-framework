@@ -18,6 +18,7 @@ Examples:
 - `Use $knowledge to query what is D5 on the roadmap?`
 - `Use $knowledge to ingest raw/meeting-notes.md`
 - `Use $knowledge to research docs.example.com auth tokens`
+- `Use $knowledge to research authentication rollback risks for the new SDK`
 - `Use $knowledge to lint the wiki`
 
 If the user invokes bare `$knowledge`, list the supported operations and ask
@@ -34,7 +35,8 @@ Parse the requested operation after `$knowledge` and route as follows:
 - `ingest`: read `../knowledge-ingest/SKILL.md` and follow it. Treat remaining
   text as an optional explicit source path.
 - `research`: read `../knowledge-research/SKILL.md` and follow it. Treat
-  remaining text as the research request, mode, or query.
+  remaining text as the research request, mode, or query. This is the guided
+  intake path for gathering source material before ingest.
 - `lint`: read `../knowledge-lint/SKILL.md` and follow it.
 
 If the subcommand is unknown, report the valid options: `init`, `query`,
@@ -43,7 +45,7 @@ If the subcommand is unknown, report the valid options: `init`, `query`,
 ## Notes
 
 - Direct skill names such as `init-project`, `knowledge-query`, and
-  `knowledge-ingest`, and `knowledge-lint` remain valid.
+  `knowledge-ingest`, `knowledge-research`, and `knowledge-lint` remain valid.
 - Normal language requests remain valid.
 - `$knowledge` exists to give the framework one predictable explicit command
   surface without relying on unsupported product slash commands.

@@ -2,7 +2,7 @@
 
 Project: Software Project Management Framework
 Stage: D1 Bootstrap (Completed), D2 Ingest Cycle (Completed), D3 Lint Operation (Completed)
-Updated: 2026-04-23
+Updated: 2026-05-02
 
 ## Specs
 
@@ -11,7 +11,7 @@ Updated: 2026-04-23
 - [Knowledge Query Skill](specs/knowledge-query-skill.spec.md) — Active — `knowledge-query` skill for querying the wiki with citations and save-back
 - [Knowledge Ingest Skill](specs/knowledge-ingest-skill.spec.md) — Active — `knowledge-ingest` skill for processing raw sources into wiki pages with 3-phase pipeline
 - [Knowledge Lint Skill](specs/knowledge-lint-skill.spec.md) — Active — `knowledge-lint` skill for scanning and fixing wiki consistency issues
-- [Knowledge Research Skill](specs/knowledge-research-skill.spec.md) — Active — `$knowledge research` skill for gathering candidate sources into raw/ before ingest
+- [Knowledge Research Skill](specs/knowledge-research-skill.spec.md) — Active — Guided research intake skill that writes bundles under `raw/research/` with manifest and summary
 
 ## Decisions
 
@@ -35,11 +35,11 @@ Updated: 2026-04-23
 
 ## Proposals
 
-(none yet)
+- [Knowledge Research Intake](proposals/knowledge-intake-command.proposal.md) — Accepted — `knowledge-research` is the guided intake surface and saves research bundles under `raw/research/`
 
 ## Plans
 
-(none yet)
+- [Knowledge Research Intake Implementation](plans/knowledge-research-intake.plan.md) — Completed — Executed the `knowledge-research` upgrade into a guided intake workflow with research bundles
 
 ## Experiments
 
