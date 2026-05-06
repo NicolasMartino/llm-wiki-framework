@@ -890,3 +890,23 @@ wiki/specs/knowledge-research-skill.spec.md,
 wiki/specs/knowledge-lint-skill.spec.md,
 wiki/decisions/typed-documents.decision.md,
 wiki/plans/knowledge-research-intake.plan.md
+
+## [2026-05-06] create | Binary PATH bootstrap proposal
+
+Created `wiki/proposals/binary-path-bootstrap.proposal.md` to capture the
+manual-download install gap: `llm-wiki install` can install skills while the
+skills later fail because `llm-wiki` is not discoverable on `PATH`.
+
+The proposal recommends detecting PATH visibility with the `which` crate,
+using `std::env::current_exe()` for the running binary, offering an interactive
+choice between copy-to-user-bin, absolute-path fallback, and abort, and
+requiring explicit flags for non-interactive fallback behavior. It rejects
+silent shell profile edits and records `dirs-next::executable_dir()` as
+insufficient for macOS because it does not return a user executable directory
+there. It also incorporates future Windows compatibility: `.exe` naming,
+PATHEXT-aware lookup, Windows user-local bin guidance, PowerShell PATH
+instructions, and Windows-specific acceptance criteria before Windows release
+support is claimed.
+
+Pages created: wiki/proposals/binary-path-bootstrap.proposal.md
+Pages updated: wiki/index.md, wiki/log.md
