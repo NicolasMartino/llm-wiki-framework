@@ -1,165 +1,68 @@
 ---
 name: init-project
-description: Create or update a software project with the LLM Wiki project management framework. Use when Codex is asked to initialize a new project, scaffold a project knowledge base, add the framework to an existing codebase, update a project's framework files, or translate the framework bootstrap flow from Claude skills into Codex usage.
+description: Create or update a software project with the LLM Wiki project management framework. Use when Codex is asked to initialize a new project, scaffold a project knowledge base, add the framework to an existing codebase, update a project's framework files, or translate the framework bootstrap flow into runtime-specific usage.
 ---
 
 # Init Project
 
+## Purpose
+
 Create or update a project so an agent can manage project knowledge through
 `raw/`, `wiki/`, and project-specific agent instructions.
 
-## Invocation
+## Behavior
 
-Treat normal user requests as invocations. Support explicit `$init-project`
-or `$knowledge` invocation.
-
-Examples:
-
-- "Initialize this repo with the LLM Wiki framework"
-- "Set up `/path/to/project` as a self-managing wiki project"
-- "Update this project to the latest framework template"
-- "Use $init-project to set up /path/to/project"
-- "Use $knowledge to init /path/to/project"
-
-If no target path is provided, use the current working directory.
-
-## Framework Source
-
-Resolve the framework root from this skill file location; do not use a
-hardcoded absolute path. If this skill is reached through a global symlink,
-resolve the symlink target first. From either runtime output path:
-
-```text
-<framework-root>/.claude/skills/init-project/SKILL.md
-<framework-root>/.codex/skills/init-project/SKILL.md
-```
-
-the framework root is three directories up. Confirm the resolved root contains
-`project_guidelines.template.md`, then use:
-
-```text
-<framework-root>/project_guidelines.template.md
-```
-
-## State File
-
-Persist progress in `<target-path>/init.json`. Create it before asking the
-first question and update it after every answer so interrupted setup can
-resume.
-
-```json
-{
-  "status": "in_progress | completed | failed",
-  "current_step": 1,
-  "created_at": "YYYY-MM-DD",
-  "updated_at": "YYYY-MM-DD",
-  "answers": {
-    "project_name": null,
-    "description": null,
-    "project_type": null,
-    "existing_or_new": null,
-    "scale": null,
-    "initial_sources": null
-  },
-  "profile": {
-    "INCLUDE_ML_AI": null,
-    "INCLUDE_QMD": null,
-    "IS_EXISTING": null
-  },
-  "generated_files": []
-}
-```
-
-## Mode Selection
-
-1. Check whether `<target-path>/init.json` exists.
-2. If `status` is `in_progress`, resume from `current_step`.
-3. If `status` is `completed`, use update mode.
-4. If there is no state file, check for `wiki/` or `project_guidelines.md`.
-5. If framework files already exist, use update mode; otherwise use create mode.
-
-## Create Mode
-
-1. Create the target directory if needed.
-2. Create `init.json` with `status: in_progress`, `current_step: 1`, and
-   today's date.
-3. Ask only missing questions, one at a time:
-   - Project name
-   - One-sentence project description
-   - Project type: `web`, `api`, `cli`, `ml`, `data`, `lib`, or `other`
-   - Whether this is a new project or an existing codebase
-   - Expected documentation scale: `small`, `medium`, or `large`
-   - Optional initial raw sources to ingest
-4. After each answer, update `init.json` and increment `current_step`.
-5. Compute profile flags:
-   - `INCLUDE_ML_AI`: true for `ml` or `data`
-   - `INCLUDE_QMD`: true for `medium` or `large`
-   - `IS_EXISTING`: true when adding to an existing codebase
-6. Resolve the framework root from this skill file and read `<framework-root>/project_guidelines.template.md`.
+1. If no target path is provided, use the current working directory.
+2. Persist progress in `<target-path>/init.json`. Create it before asking the
+   first question and update it after every answer so interrupted setup can
+   resume.
+3. Select mode from existing state. If `init.json` exists with
+   `status: in_progress`, resume from `current_step`. If it is completed, or
+   if `wiki/` or `project_guidelines.md` already exists, use update mode.
+   Otherwise use create mode.
+4. In create mode, create the target directory if needed, create `init.json`,
+   and ask only missing questions: project name, one-sentence description,
+   project type (`web`, `api`, `cli`, `ml`, `data`, `lib`, `other`), whether
+   this is new or existing code, expected documentation scale (`small`,
+   `medium`, `large`), and optional initial raw sources.
+5. Compute profile flags: `INCLUDE_ML_AI` for `ml` or `data`, `INCLUDE_QMD`
+   for `medium` or `large`, and `IS_EXISTING` when adding to an existing
+   codebase.
+6. Resolve the framework root from the rendered skill file location, following
+   symlinks when needed. Confirm it contains `project_guidelines.template.md`.
 7. Generate `project_guidelines.md` by replacing template variables and
    removing inactive conditional sections.
-8. Generate `CLAUDE.md` with project-specific agent instructions. If the
-   target project should support Codex directly, also generate `AGENTS.md`
-   with the same operational rules adapted for Codex.
-9. Scaffold:
-   - `raw/`
-   - `wiki/specs/`
-   - `wiki/decisions/`
-   - `wiki/proposals/`
-   - `wiki/roadmaps/`
-   - `wiki/plans/`
-   - `wiki/checklists/`
-   - `wiki/references/`
-   - `wiki/archive/`
-10. If `INCLUDE_ML_AI`, also create `wiki/experiments/`, `wiki/evals/`,
-    `models/`, `data/`, `notebooks/`, and `evals/`.
-11. For new projects, create `src/`, `tests/`, `scripts/`, and `infra/`.
-    For existing codebases, leave existing source layout alone.
-12. Create `wiki/index.md` with empty sections for every active document type.
-13. Create `wiki/log.md` with a project bootstrap entry.
-14. Initialize git only if the target is not already in a git repository.
-15. Create or update `.gitignore` with `.wiki/`, `*.sqlite`, and `.cache/`.
-16. If initial raw sources were provided, copy them into `raw/` and run an
-    ingest operation on each source.
-17. Set `init.json.status` to `completed`, update `updated_at`, and record
-    generated files.
+8. Generate project-specific `CLAUDE.md`; generate `AGENTS.md` when Codex
+   support is needed.
+9. Scaffold `raw/`, `wiki/index.md`, `wiki/log.md`, `wiki/specs/`,
+   `wiki/decisions/`, `wiki/proposals/`, `wiki/roadmaps/`, `wiki/plans/`,
+   `wiki/checklists/`, `wiki/references/`, and `wiki/archive/`. Include
+   `wiki/experiments/` and `wiki/evals/` for ML/AI profiles.
+10. For new projects, create basic source-support directories. For existing
+    codebases, leave unrelated source layout untouched.
+11. Initialize git only if the target is not already in a git repository, and
+    add framework cache entries to `.gitignore`.
+12. If initial raw sources were provided, copy them into `raw/` and run an
+    ingest operation for each source.
+13. In update mode, compare current framework files with the latest template,
+    summarize proposed changes, ask before applying them, preserve project
+    customizations, and append the update to `wiki/log.md`.
 
-## Template Processing
+## Invocation
 
-Replace:
+Use normal language or an explicit skill invocation:
 
-- `{{PROJECT_NAME}}` with the project name
-- `{{PROJECT_DESCRIPTION}}` with the project description
-- `{{DATE}}` with today's date
+- `$init-project /path/to/project`
+- `$init-project /path/to/project --update`
+- `$init-project` to initialize the current directory
 
-Conditional sections:
+Dispatcher aliases:
+- `$knowledge init`
 
-- If `INCLUDE_ML_AI` is false, remove content between
-  `<!-- SECTION:ML_AI -->` and `<!-- END:ML_AI -->`, and remove lines with
-  `<!-- CONDITIONAL:ML_AI -->`.
-- If `INCLUDE_QMD` is false, remove content between
-  `<!-- SECTION:QMD -->` and `<!-- END:QMD -->`.
-- Remove remaining HTML comment markers and clean extra blank lines.
 
-## Update Mode
+## Notes
 
-1. Read the target project's `init.json` if present.
-2. Read `project_guidelines.md`, `CLAUDE.md`, `AGENTS.md` if present, and
-   `wiki/index.md`.
-3. Resolve the framework root from this skill file and read the latest `<framework-root>/project_guidelines.template.md`.
-4. Compare current files with the template and identify missing sections,
-   outdated conventions, and structural drift.
-5. Summarize proposed changes and ask before applying them.
-6. Preserve project-specific customizations while applying approved updates.
-7. Append the update to `wiki/log.md`.
-
-## Completion Report
-
-Report the generated or updated files, profile flags, folder structure, and
-any initial sources ingested. If QMD was included, provide the setup commands:
-
-```bash
-npm install -g @tobilu/qmd
-qmd collection add wiki/ --name wiki
-qmd embed
-```
+Report generated or updated files, profile flags, folder structure, and any
+initial sources ingested. If QMD was included, provide the setup commands:
+`npm install -g @tobilu/qmd`, `qmd collection add wiki/ --name wiki`, and
+`qmd embed`.

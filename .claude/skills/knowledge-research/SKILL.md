@@ -1,168 +1,57 @@
 ---
 name: knowledge-research
-description: Gather source material into raw/research through a guided intake flow. Use when the user asks what to research, wants web or site research, provides local files or URLs to collect, or wants to prepare a research bundle for later ingest.
+description: Gather source material into raw/research/ through a guided intake flow. Use when Claude Code is asked what to research, wants web or site research, provides local files or URLs to collect, or wants to prepare a research bundle for later ingest.
 ---
 
 # /knowledge-research
 
-Gather source material into the project's `raw/research/` directory so it can
-be ingested later.
+## Purpose
 
-## Usage
-
-```text
-/knowledge-research <topic-or-source>
-```
-
-Examples:
-
-```text
-/knowledge-research ./notes
-/knowledge-research https://example.com/spec
-/knowledge-research docs.example.com auth tokens
-/knowledge-research vector database benchmarks
-```
+Gather source material into `raw/research/` so it can be ingested later. This
+skill is the framework's guided intake surface for pre-ingest research. It
+does research and source acquisition; it does not update `wiki/` directly.
 
 ## Behavior
 
-### Step 1: Locate the wiki
+1. Require `wiki/index.md` and `raw/` in the current working directory. If
+   they are missing, tell the user to initialize the project first.
+2. If the request is broad or the source mode is unclear, ask one short intake
+   exchange to determine the research question, goal, source constraints, and
+   whether to shortlist or auto-select sources.
+3. Before gathering sources, read `wiki/index.md`,
+   `project_guidelines.md` if needed, and the one to three most relevant wiki
+   pages when the request is topical enough to identify them.
+4. Create or extend one bundle at `raw/research/YYYY-MM-DD-topic-slug/` with
+   `manifest.md`, `research-summary.md`, and numbered files under `sources/`.
+5. Path mode: copy the provided file or directory into `sources/`, record the
+   original path and acquisition method in `manifest.md`, and include it in
+   `research-summary.md`.
+6. URL mode: fetch each explicit URL, save it as markdown under `sources/`,
+   prefix source metadata, record it in `manifest.md`, and summarize it.
+7. Site mode: search only within the specified domain, shortlist relevant
+   pages, ask which to save unless delegated, then save approved pages with
+   domain/query metadata.
+8. Web mode: search broadly, prefer primary sources when source quality
+   matters, shortlist relevant pages, ask which to save unless delegated, then
+   save approved pages with query metadata.
+9. `manifest.md` records the research question, goal, date, source modes,
+   inventory, retrieval date when applicable, selection rationale, and gaps.
+10. `research-summary.md` captures the question, scope, source set reviewed,
+    key findings, disagreements, caveats, open questions, and ingest readiness.
+11. Do not ingest automatically unless the user explicitly asks for ingest as a
+    follow-up step.
 
-Check for `wiki/index.md` in the current working directory.
+## Invocation
 
-If it does not exist, tell the user:
-> No wiki found in the current directory. Run /init-project first.
+Use normal language or an explicit skill invocation:
 
-### Step 2: Read existing wiki state
+- `/knowledge-research on path ./notes`
+- `/knowledge-research on url https://example.com/spec`
+- `/knowledge-research site docs.example.com auth tokens`
+- `/knowledge-research web vector database benchmarks`
 
-Before gathering sources, read:
+## Notes
 
-1. `wiki/index.md` — current catalog of all pages
-2. `project_guidelines.md` if present, otherwise
-   `project_guidelines.template.md` — documentation model and conventions
-   when needed
-3. the 1-3 most relevant wiki pages for the topic when the request is topical
-
-Use that context to avoid redundant collection and to sharpen search terms.
-
-### Step 3: Clarify the intake request
-
-If the request is broad or ambiguous, ask one short intake exchange to
-determine:
-
-- the research question
-- the goal of the research
-- any source or scope constraints
-- whether to shortlist or auto-select sources
-
-Then determine the source mode:
-
-- `path`
-- `url`
-- `site`
-- `web`
-
-### Step 4: Create the research bundle
-
-Create one bundle for the research run:
-
-```text
-raw/research/YYYY-MM-DD-topic-slug/
-  manifest.md
-  research-summary.md
-  sources/
-```
-
-This bundle is the research handoff artifact. It preserves provenance and
-keeps the run coherent for later ingest.
-
-### Step 5: Gather and save sources
-
-**Path mode**
-
-1. Copy the given file or directory into `sources/` using numbered,
-   descriptive names.
-2. Record the original path and selection rationale in `manifest.md`.
-
-**URL mode**
-
-1. Fetch each explicit URL.
-2. Save each fetched page as markdown in `sources/`.
-3. Prefix each saved file with:
-
-   ```markdown
-   # Source Snapshot
-
-   - Title: ...
-   - URL: ...
-   - Retrieved: YYYY-MM-DD
-   - Method: url
-   ```
-
-4. Record each URL in `manifest.md`.
-
-**Site mode**
-
-1. Search only within the specified domain.
-2. Build a compact shortlist of relevant pages.
-3. Show the shortlist with title, URL, and one-line reason each.
-4. Ask which results to save unless the user already gave a clear selection
-   rule.
-5. Save approved pages in `sources/` with source metadata.
-6. Record the query, domain, and selected pages in `manifest.md`.
-
-**Web mode**
-
-1. Search the web for the topic.
-2. Prefer primary sources when source quality matters.
-3. Build a shortlist of candidate pages.
-4. Show the shortlist with title, URL, source, and one-line reason each.
-5. Ask which results to save unless the user already gave a clear selection
-   rule.
-6. Save approved pages in `sources/` with source metadata.
-7. Record the query and selected pages in `manifest.md`.
-
-### Step 6: Write bundle files
-
-Write `manifest.md` with:
-
-- research question
-- research goal
-- date
-- source mode or modes used
-- source inventory with original path or URL
-- retrieval date when applicable
-- selection rationale for each source
-- notable gaps or exclusions
-
-Write `research-summary.md` with:
-
-- research question
-- scope and constraints
-- source set reviewed
-- key findings across the saved sources
-- important disagreements, caveats, or open questions
-- whether the bundle appears ready for ingest
-
-### Step 7: Report
-
-Tell the user:
-
-- what research mode was used
-- how many candidate sources were reviewed when applicable
-- which bundle path was created or updated
-- which source files were saved
-- that `manifest.md` and `research-summary.md` were written
-- any notable gaps or ambiguous sources
-- whether the material is ready for `/knowledge-ingest`
-
-## Rules
-
-1. Keep `raw/` as the source of truth. Do not write research findings straight
-   into `wiki/`.
-2. Preserve provenance for every saved source.
-3. Save only sources the user approved or clearly delegated you to select.
-4. Prefer official docs, standards, maintainers, repositories, and first-party
-   announcements over commentary when source quality matters.
-5. Do not ingest automatically unless the user explicitly asks for ingest as a
-   follow-up step.
-6. Produce one `research-summary.md` per research run by default.
+Report the research mode used, candidate source count when applicable, bundle
+path, saved source files, manifest and summary files, notable gaps, and
+whether the material is ready for ingest.
