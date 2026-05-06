@@ -1,10 +1,12 @@
 mod build;
 mod cli;
+mod doctor;
 mod embed;
 mod init;
 mod install;
 mod manifest;
 mod paths;
+mod status;
 mod uninstall;
 
 use anyhow::Result;
@@ -18,6 +20,8 @@ fn main() -> Result<()> {
         Command::Build(args) => build::run(args),
         Command::Install(args) => install::run(args.force),
         Command::Init(args) => init::run(args),
+        Command::Status => status::run(),
+        Command::Doctor => doctor::run(),
         Command::Uninstall => uninstall::run(),
     }
 }

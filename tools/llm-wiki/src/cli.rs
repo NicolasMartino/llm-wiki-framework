@@ -14,6 +14,8 @@ pub enum Command {
     Build(BuildArgs),
     Install(InstallArgs),
     Init(InitArgs),
+    Status,
+    Doctor,
     Uninstall,
 }
 
