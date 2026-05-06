@@ -40,7 +40,7 @@ Updated: 2026-05-06
 - [LLM Wiki Framework Binary](proposals/llm-wiki-binary.proposal.md) — Accepted — Single Rust binary owns global skill installation, project scaffolding, and skill projection; promoted to decision and roadmap D8
 - [Project Registry and Search Artifacts](proposals/project-registry-search-artifacts.proposal.md) — Proposed — Post-D8 project registration, centralized per-project search artifacts, and explicit `search-all` cross-project search
 - [Search Backend Selection](proposals/search-backend-selection.proposal.md) — Proposed — Separate backend decision for future `llm-wiki search` and `search-all` commands
-- [Binary PATH Bootstrap](proposals/binary-path-bootstrap.proposal.md) — Proposed — Improve manual binary download UX when `llm-wiki install` cannot find `llm-wiki` on PATH
+- [Managed Binary Install and PATH Guidance](proposals/binary-path-bootstrap.proposal.md) — Proposed — Make `llm-wiki install` copy the binary into a managed runtime home and guide optional PATH setup
 
 ## Plans
 

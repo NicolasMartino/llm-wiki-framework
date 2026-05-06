@@ -891,22 +891,20 @@ wiki/specs/knowledge-lint-skill.spec.md,
 wiki/decisions/typed-documents.decision.md,
 wiki/plans/knowledge-research-intake.plan.md
 
-## [2026-05-06] create | Binary PATH bootstrap proposal
+## [2026-05-06] create | Managed binary install proposal
 
 Created `wiki/proposals/binary-path-bootstrap.proposal.md` to capture the
 manual-download install gap: `llm-wiki install` can install skills while the
 skills later fail because `llm-wiki` is not discoverable on `PATH`.
 
-The proposal recommends detecting PATH visibility with the `which` crate,
-using `std::env::current_exe()` for the running binary, offering an interactive
-choice between copy-to-user-bin, absolute-path fallback, and abort, and
-requiring explicit flags for non-interactive fallback behavior. It rejects
-silent shell profile edits and records `dirs-next::executable_dir()` as
-insufficient for macOS because it does not return a user executable directory
-there. It also incorporates future Windows compatibility: `.exe` naming,
-PATHEXT-aware lookup, Windows user-local bin guidance, PowerShell PATH
-instructions, and Windows-specific acceptance criteria before Windows release
-support is claimed.
+The proposal now recommends that `llm-wiki install` always create and verify a
+managed runtime home (`~/.llm_wiki/bin/llm-wiki` on Unix-like systems, future
+`%LOCALAPPDATA%\llm_wiki\bin\llm-wiki.exe` on Windows), render installed skills
+to call that managed absolute path, and only then check PATH as a convenience
+diagnostic. It rejects silent shell profile edits, moves the manifest target to
+`~/.llm_wiki/manifest.json` with migration from the D8 manifest path, and
+includes future Windows compatibility requirements for `.exe` naming,
+PATHEXT-aware lookup, PowerShell PATH guidance, and Windows-specific tests.
 
 Pages created: wiki/proposals/binary-path-bootstrap.proposal.md
 Pages updated: wiki/index.md, wiki/log.md
