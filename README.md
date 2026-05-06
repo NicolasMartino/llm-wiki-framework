@@ -1,0 +1,34 @@
+# LLM Wiki Framework
+
+The LLM Wiki framework is a project management system where `raw/` contains
+human-curated source material and `wiki/` contains agent-maintained compiled
+knowledge.
+
+## Install
+
+Install the binary from a release, then install the framework skills globally:
+
+```bash
+curl -L https://github.com/nicolasmartino/llm-wiki-framework/releases/latest/download/llm-wiki-installer.sh | sh
+llm-wiki install
+```
+
+Users with a Rust toolchain can install from crates.io after the package is
+published:
+
+```bash
+cargo install llm-wiki-framework
+llm-wiki install
+```
+
+## Create a Project
+
+```bash
+llm-wiki init /path/to/project --non-interactive \
+  --name "My Project" \
+  --description "One sentence description." \
+  --type web \
+  --scale small
+```
+
+Run `llm-wiki --help` for the full command surface.

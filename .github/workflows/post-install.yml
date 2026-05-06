@@ -1,0 +1,20 @@
+name: Post Install Verification
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Verify redirected HOME install
+        run: |
+          cargo run -p llm-wiki-framework -- install
+          cargo run -p llm-wiki-framework -- status
+        env:
+          HOME: ${{ runner.temp }}/llm-wiki-home

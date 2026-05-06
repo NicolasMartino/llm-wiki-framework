@@ -1,0 +1,23 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  cargo-dist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@cargo-dist
+      - name: Plan Release
+        run: cargo dist plan
+      - name: Build Release Artifacts
+        run: cargo dist build
+      - name: Upload Release
+        run: cargo dist host

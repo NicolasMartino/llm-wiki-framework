@@ -25,3 +25,15 @@ serde_yaml = "0.9"
 sha2 = "0.10"
 tempfile = "3.14"
 thiserror = "2.0"
+
+[workspace.metadata.dist]
+cargo-dist-version = "0.28.0"
+ci = ["github"]
+installers = ["shell"]
+targets = [
+  "aarch64-apple-darwin",
+  "x86_64-apple-darwin",
+  "x86_64-unknown-linux-gnu",
+  "aarch64-unknown-linux-gnu",
+]
+pr-run-mode = "plan"
