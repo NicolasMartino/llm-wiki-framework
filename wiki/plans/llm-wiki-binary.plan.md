@@ -1,7 +1,7 @@
 # Plan: `llm-wiki` Binary Implementation (D8)
 
 - Document Class: Plan
-- Status: Draft
+- Status: Active
 - Date: 2026-05-06
 - Category: Tooling, framework distribution
 - Scope: Implement the `llm-wiki` Rust binary that owns global skill installation, project scaffolding, and skill projection per the accepted D8 deliverable.

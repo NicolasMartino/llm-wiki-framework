@@ -1,0 +1,3 @@
+[report]
+# Placeholder exclusions live here as platform-specific code is added.
+exclude-files = []

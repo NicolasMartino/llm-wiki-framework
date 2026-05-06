@@ -677,3 +677,12 @@ New §6 verification gates (No-Legacy Audit, gates 17-22):
    implicit `.gitignore` walking. Predictability over convenience.
 
 Pages updated: wiki/plans/llm-wiki-binary.plan.md, wiki/log.md
+## [2026-05-06] update | D8 binary implementation started
+
+Started implementation of `wiki/plans/llm-wiki-binary.plan.md` on branch
+`d8-llm-wiki-binary`. Added the Rust workspace scaffold with the
+`llm-wiki-schema` library crate and `llm-wiki-framework` binary crate,
+baseline CI workflow, and coverage configuration. The D8 implementation plan
+is now Active.
+
+Pages updated: wiki/plans/llm-wiki-binary.plan.md, wiki/index.md, wiki/log.md

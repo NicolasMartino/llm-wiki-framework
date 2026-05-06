@@ -45,7 +45,7 @@ Updated: 2026-05-06
 
 - [Knowledge Research Intake Implementation](plans/knowledge-research-intake.plan.md) — Completed — Executed the `knowledge-research` upgrade into a guided intake workflow with research bundles
 - [Single Source Skills](plans/single-source-skills.plan.md) — Active — Repo-local consolidation implemented; smoke-test gates pending and will be folded into D8 rather than discharged separately
-- [LLM Wiki Binary Implementation](plans/llm-wiki-binary.plan.md) — Draft — Implementation plan for D8: Rust crate at `tools/llm-wiki/` with thirteen sequenced stages, sixteen verification gates, golden-file and property tests, `cargo-dist` multi-arch release
+- [LLM Wiki Binary Implementation](plans/llm-wiki-binary.plan.md) — Active — Implementation plan for D8: Rust crate at `tools/llm-wiki/` with thirteen sequenced stages, sixteen verification gates, golden-file and property tests, `cargo-dist` multi-arch release
 
 ## Experiments
 
