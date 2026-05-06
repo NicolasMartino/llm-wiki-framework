@@ -35,6 +35,30 @@ impl Paths {
     }
 
     pub fn manifest(&self) -> PathBuf {
-        self.home.join(".local/share/llm-wiki/manifest.json")
+        self.managed_home().join("manifest.json")
+    }
+
+    pub fn managed_home(&self) -> PathBuf {
+        self.home.join(".llm_wiki")
+    }
+
+    pub fn managed_bin_dir(&self) -> PathBuf {
+        self.managed_home().join("bin")
+    }
+
+    pub fn managed_binary(&self) -> PathBuf {
+        self.managed_bin_dir().join(managed_binary_name())
+    }
+
+    pub fn partial_install(&self) -> PathBuf {
+        self.managed_home().join("install.partial.json")
+    }
+}
+
+pub fn managed_binary_name() -> &'static str {
+    if cfg!(windows) {
+        "llm-wiki.exe"
+    } else {
+        "llm-wiki"
     }
 }

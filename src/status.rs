@@ -15,16 +15,17 @@ pub fn run() -> Result<()> {
     };
 
     println!("llm-wiki {}", env!("CARGO_PKG_VERSION"));
-    println!("installed version: {}", manifest.binary_version);
+    println!("installed version: {}", manifest.binary.version);
     println!("installed at: {}", manifest.installed_at);
-    println!("manifest files: {}", manifest.files.len());
+    println!("managed binary: {}", manifest.binary.path.display());
+    println!("manifest files: {}", manifest.skills.len());
 
-    for entry in &manifest.files {
+    for entry in &manifest.skills {
         let status = if !entry.path.exists() {
             "Missing"
         } else {
             let current = sha256_hex(&fs::read(&entry.path)?);
-            if current == entry.sha256 {
+            if current == entry.hash {
                 "OK"
             } else {
                 "Drifted"

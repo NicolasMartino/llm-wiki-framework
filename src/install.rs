@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -9,23 +10,184 @@ use llm_wiki_schema::{ClaudeProjector, CodexProjector, Projector, Runtime, parse
 use crate::embed;
 use crate::manifest::collision::{Collision, classify};
 use crate::manifest::hash::sha256_hex;
-use crate::manifest::{FileKind, Manifest, ManifestEntry, RuntimeName};
+use crate::manifest::{
+    BackupEntry, BinaryEntry, FileKind, HashAlgorithm, Manifest, ManifestEntry, Ownership,
+    PartialInstall, RuntimeName,
+};
 use crate::paths::Paths;
 
 pub fn run(force: bool) -> Result<()> {
     let paths = Paths::from_env()?;
+    let current_exe = env::current_exe().context("failed to resolve current executable")?;
+    let current_exe_bytes = fs::read(&current_exe).with_context(|| {
+        format!(
+            "failed to read current executable {}",
+            current_exe.display()
+        )
+    })?;
+    let current_exe_hash = sha256_hex(&current_exe_bytes);
+    let manifest = Manifest::read(&paths.manifest())?;
+
+    recover_or_reject_partial(&paths, manifest.as_ref(), &current_exe_hash, force)?;
+
+    let partial = PartialInstall::new(
+        current_exe.clone(),
+        paths.managed_binary(),
+        current_exe_hash.clone(),
+    );
+    partial.write_atomic(&paths.partial_install())?;
+
+    let binary =
+        install_managed_binary(&paths, &current_exe, &current_exe_bytes, &manifest, force)?;
     let files = render_install_files(&paths)?;
-    install_files(&paths, files, force)
+    let skill_entries = install_files(files, manifest.as_ref(), force)?;
+    Manifest::new(binary, skill_entries, Vec::<BackupEntry>::new())
+        .write_atomic(&paths.manifest())?;
+    if paths.partial_install().exists() {
+        fs::remove_file(paths.partial_install()).with_context(|| {
+            format!(
+                "failed to remove partial install marker {}",
+                paths.partial_install().display()
+            )
+        })?;
+    }
+    Ok(())
 }
 
-fn install_files(paths: &Paths, files: Vec<InstallFile>, force: bool) -> Result<()> {
-    let manifest_path = paths.manifest();
-    let manifest = Manifest::read(&manifest_path)?;
+fn recover_or_reject_partial(
+    paths: &Paths,
+    manifest: Option<&Manifest>,
+    current_exe_hash: &str,
+    force: bool,
+) -> Result<()> {
+    let partial_path = paths.partial_install();
+    let Some(partial) = PartialInstall::read(&partial_path)? else {
+        return Ok(());
+    };
+
+    let managed_binary = paths.managed_binary();
+    if let Some(manifest) = manifest {
+        if manifest.binary.path == managed_binary
+            && managed_binary.exists()
+            && sha256_hex(&fs::read(&managed_binary)?) == manifest.binary.hash
+        {
+            fs::remove_file(&partial_path).with_context(|| {
+                format!(
+                    "failed to remove leaked partial install marker {}",
+                    partial_path.display()
+                )
+            })?;
+            return Ok(());
+        }
+    }
+    if partial.target_binary != managed_binary && !force {
+        bail!(
+            "stale partial install targets {}; rerun with --force to replace it",
+            partial.target_binary.display()
+        );
+    }
+    if partial.current_exe_hash != current_exe_hash && !force {
+        bail!(
+            "stale partial install was started by a different binary; rerun with --force to replace it"
+        );
+    }
+    Ok(())
+}
+
+fn install_managed_binary(
+    paths: &Paths,
+    current_exe: &Path,
+    current_exe_bytes: &[u8],
+    manifest: &Option<Manifest>,
+    force: bool,
+) -> Result<BinaryEntry> {
+    let managed_binary = paths.managed_binary();
+    if let Some(parent) = managed_binary.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("failed to create {}", parent.display()))?;
+    }
+
+    let current_hash = sha256_hex(current_exe_bytes);
+    if same_file_when_possible(current_exe, &managed_binary) {
+        let managed_hash = sha256_hex(&fs::read(&managed_binary).with_context(|| {
+            format!("failed to read managed binary {}", managed_binary.display())
+        })?);
+        if managed_hash != current_hash {
+            bail!(
+                "managed binary {} differs from current executable",
+                managed_binary.display()
+            );
+        }
+    } else if managed_binary.exists() {
+        let managed_hash = sha256_hex(&fs::read(&managed_binary)?);
+        let manifest_owned = manifest
+            .as_ref()
+            .is_some_and(|manifest| manifest.binary.path == managed_binary);
+        if managed_hash != current_hash && !manifest_owned && !force {
+            bail!(
+                "refusing to replace unmanaged binary {}; rerun with --force to replace it",
+                managed_binary.display()
+            );
+        }
+        if managed_hash != current_hash {
+            copy_current_exe(current_exe, &managed_binary)?;
+        }
+    } else {
+        copy_current_exe(current_exe, &managed_binary)?;
+    }
+
+    let managed_hash = sha256_hex(&fs::read(&managed_binary)?);
+    if managed_hash != current_hash {
+        bail!(
+            "managed binary hash mismatch after copy: {}",
+            managed_binary.display()
+        );
+    }
+
+    Ok(BinaryEntry {
+        path: managed_binary,
+        version: env!("CARGO_PKG_VERSION").to_string(),
+        hash_algorithm: HashAlgorithm::Sha256,
+        hash: managed_hash,
+        ownership: Ownership::ManifestOwned,
+    })
+}
+
+fn same_file_when_possible(left: &Path, right: &Path) -> bool {
+    if !right.exists() {
+        return left == right;
+    }
+    match (fs::canonicalize(left), fs::canonicalize(right)) {
+        (Ok(left), Ok(right)) => left == right,
+        _ => left == right,
+    }
+}
+
+fn copy_current_exe(current_exe: &Path, managed_binary: &Path) -> Result<()> {
+    fs::copy(current_exe, managed_binary).with_context(|| {
+        format!(
+            "failed to copy {} to {}",
+            current_exe.display(),
+            managed_binary.display()
+        )
+    })?;
+    let permissions = fs::metadata(current_exe)
+        .with_context(|| format!("failed to inspect {}", current_exe.display()))?
+        .permissions();
+    fs::set_permissions(managed_binary, permissions)
+        .with_context(|| format!("failed to set permissions on {}", managed_binary.display()))?;
+    Ok(())
+}
+
+fn install_files(
+    files: Vec<InstallFile>,
+    manifest: Option<&Manifest>,
+    force: bool,
+) -> Result<Vec<ManifestEntry>> {
     let manifest_by_path: HashMap<PathBuf, ManifestEntry> = manifest
-        .as_ref()
         .map(|manifest| {
             manifest
-                .files
+                .skills
                 .iter()
                 .cloned()
                 .map(|entry| (entry.path.clone(), entry))
@@ -45,7 +207,7 @@ fn install_files(paths: &Paths, files: Vec<InstallFile>, force: bool) -> Result<
         };
         let manifest_hash = manifest_by_path
             .get(&file.path)
-            .map(|entry| entry.sha256.as_str());
+            .map(|entry| entry.hash.as_str());
         let collision = classify(
             current_hash.as_deref(),
             manifest_hash,
@@ -83,7 +245,7 @@ fn install_files(paths: &Paths, files: Vec<InstallFile>, force: bool) -> Result<
         new_entries.push(file.entry());
     }
 
-    Manifest::new(new_entries).write_atomic(&manifest_path)
+    Ok(new_entries)
 }
 
 fn render_install_files(paths: &Paths) -> Result<Vec<InstallFile>> {
@@ -198,7 +360,9 @@ impl InstallFile {
             skill: self.skill.clone(),
             runtime: self.runtime,
             kind: self.kind,
-            sha256: self.sha256.clone(),
+            hash_algorithm: HashAlgorithm::Sha256,
+            hash: self.sha256.clone(),
+            ownership: Ownership::ManifestOwned,
             installed_by_version: env!("CARGO_PKG_VERSION").to_string(),
         }
     }

@@ -13,10 +13,10 @@ pub fn run() -> Result<()> {
         return Ok(());
     };
 
-    for entry in &manifest.files {
+    for entry in &manifest.skills {
         if entry.path.exists() {
             let current = sha256_hex(&fs::read(&entry.path)?);
-            if current != entry.sha256 {
+            if current != entry.hash {
                 anyhow::bail!(
                     "refusing to uninstall drifted file {}; restore it or move it aside first",
                     entry.path.display()
@@ -25,7 +25,7 @@ pub fn run() -> Result<()> {
         }
     }
 
-    for entry in manifest.files.iter().rev() {
+    for entry in manifest.skills.iter().rev() {
         if entry.path.exists() {
             fs::remove_file(&entry.path)
                 .with_context(|| format!("failed to remove {}", entry.path.display()))?;

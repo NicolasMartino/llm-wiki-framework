@@ -53,7 +53,7 @@ fn doctor_reports_missing_and_unknown_files() {
     .expect("write");
     let unknown = home.path().join(".claude/skills/knowledge-lint/SKILL.md");
     fs::remove_file(&unknown).expect("remove");
-    let manifest = home.path().join(".local/share/llm-wiki/manifest.json");
+    let manifest = home.path().join(".llm_wiki/manifest.json");
     fs::remove_file(manifest).expect("remove manifest");
     fs::write(&unknown, "unknown").expect("write");
 

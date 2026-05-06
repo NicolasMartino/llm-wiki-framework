@@ -16,7 +16,7 @@ pub fn run() -> Result<()> {
         .as_ref()
         .map(|manifest| {
             manifest
-                .files
+                .skills
                 .iter()
                 .map(|entry| entry.path.clone())
                 .collect()
@@ -25,12 +25,26 @@ pub fn run() -> Result<()> {
 
     let mut findings = Vec::new();
     if let Some(manifest) = &manifest {
-        for entry in &manifest.files {
+        if !manifest.binary.path.exists() {
+            findings.push(format!(
+                "Missing managed binary: {}",
+                manifest.binary.path.display()
+            ));
+        } else {
+            let current = sha256_hex(&fs::read(&manifest.binary.path)?);
+            if current != manifest.binary.hash {
+                findings.push(format!(
+                    "Drifted managed binary: {} (run `llm-wiki install` to refresh)",
+                    manifest.binary.path.display()
+                ));
+            }
+        }
+        for entry in &manifest.skills {
             if !entry.path.exists() {
                 findings.push(format!("Missing manifest file: {}", entry.path.display()));
             } else {
                 let current = sha256_hex(&fs::read(&entry.path)?);
-                if current != entry.sha256 {
+                if current != entry.hash {
                     findings.push(format!(
                         "Drifted manifest file: {} (run `llm-wiki install --force` to replace)",
                         entry.path.display()
@@ -38,6 +52,14 @@ pub fn run() -> Result<()> {
                 }
             }
         }
+    }
+
+    let partial = paths.partial_install();
+    if partial.exists() {
+        findings.push(format!(
+            "Stale partial install marker: {}",
+            partial.display()
+        ));
     }
 
     for asset in embed::SKILLS {

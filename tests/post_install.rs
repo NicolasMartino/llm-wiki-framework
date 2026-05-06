@@ -18,18 +18,18 @@ fn redirected_home_install_manifest_matches_filesystem() {
         .assert()
         .success();
 
-    let manifest_path = home.path().join(".local/share/llm-wiki/manifest.json");
+    let manifest_path = home.path().join(".llm_wiki/manifest.json");
     let manifest_raw = fs::read_to_string(&manifest_path).expect("manifest");
     let manifest: Value = serde_json::from_str(&manifest_raw).expect("manifest json");
-    let files = manifest["files"].as_array().expect("manifest files");
+    let files = manifest["skills"].as_array().expect("manifest files");
 
-    assert_eq!(manifest["binary_version"], env!("CARGO_PKG_VERSION"));
+    assert_eq!(manifest["binary"]["version"], env!("CARGO_PKG_VERSION"));
     assert_eq!(files.len(), installed_files(home.path()).len());
 
     let mut manifest_paths = BTreeSet::new();
     for entry in files {
         let path = PathBuf::from(entry["path"].as_str().expect("path"));
-        let expected_hash = entry["sha256"].as_str().expect("sha256");
+        let expected_hash = entry["hash"].as_str().expect("sha256");
         assert!(path.exists(), "manifest path exists: {}", path.display());
         assert!(
             path.starts_with(home.path()),

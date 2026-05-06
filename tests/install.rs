@@ -29,11 +29,29 @@ fn install_writes_files_and_manifest() {
             .exists()
     );
     let manifest = read_manifest(home.path());
-    assert_eq!(manifest["binary_version"], env!("CARGO_PKG_VERSION"));
+    assert_eq!(manifest["binary"]["version"], env!("CARGO_PKG_VERSION"));
+    assert!(home.path().join(".llm_wiki/bin/llm-wiki").exists());
+    assert!(!home.path().join(".llm_wiki/install.partial.json").exists());
     assert_eq!(
-        manifest["files"].as_array().expect("files").len(),
+        manifest["skills"].as_array().expect("files").len(),
         installed_files(home.path())
     );
+}
+
+#[cfg(unix)]
+#[test]
+fn install_managed_binary_is_executable() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path()).arg("install").assert().success();
+
+    let mode = fs::metadata(home.path().join(".llm_wiki/bin/llm-wiki"))
+        .expect("managed binary")
+        .permissions()
+        .mode();
+    assert_ne!(mode & 0o111, 0);
 }
 
 #[test]
@@ -41,15 +59,13 @@ fn install_is_idempotent() {
     let home = TempDir::new().expect("home");
 
     llm_wiki(home.path()).arg("install").assert().success();
-    let before = fs::read_to_string(home.path().join(".local/share/llm-wiki/manifest.json"))
-        .expect("manifest");
+    let before = fs::read_to_string(home.path().join(".llm_wiki/manifest.json")).expect("manifest");
     llm_wiki(home.path()).arg("install").assert().success();
-    let after = fs::read_to_string(home.path().join(".local/share/llm-wiki/manifest.json"))
-        .expect("manifest");
+    let after = fs::read_to_string(home.path().join(".llm_wiki/manifest.json")).expect("manifest");
 
     let before: Value = serde_json::from_str(&before).expect("json");
     let after: Value = serde_json::from_str(&after).expect("json");
-    assert_eq!(before["files"], after["files"]);
+    assert_eq!(before["skills"], after["skills"]);
 }
 
 #[test]
@@ -100,12 +116,7 @@ fn uninstall_removes_manifest_owned_files_only() {
     llm_wiki(home.path()).arg("uninstall").assert().success();
 
     assert!(user_file.exists());
-    assert!(
-        !home
-            .path()
-            .join(".local/share/llm-wiki/manifest.json")
-            .exists()
-    );
+    assert!(!home.path().join(".llm_wiki/manifest.json").exists());
     assert!(
         !home
             .path()
@@ -131,16 +142,11 @@ fn uninstall_refuses_drifted_manifest_file() {
         ));
 
     assert_eq!(fs::read_to_string(&path).expect("read"), "user edit");
-    assert!(
-        home.path()
-            .join(".local/share/llm-wiki/manifest.json")
-            .exists()
-    );
+    assert!(home.path().join(".llm_wiki/manifest.json").exists());
 }
 
 fn read_manifest(home: &Path) -> Value {
-    let raw = fs::read_to_string(home.join(".local/share/llm-wiki/manifest.json"))
-        .expect("manifest exists");
+    let raw = fs::read_to_string(home.join(".llm_wiki/manifest.json")).expect("manifest exists");
     serde_json::from_str(&raw).expect("manifest json")
 }
 
