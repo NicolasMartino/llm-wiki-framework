@@ -21,10 +21,10 @@ jobs:
       - name: Format
         run: cargo fmt --all --check
       - name: Clippy
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
-      - name: No Legacy Skill Markers
-        run: |
-          ! grep -R -E '<!-- (CLAUDE|CODEX|END) -->' assets/skills
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings -D dead_code
+      - uses: taiki-e/install-action@just
+      - name: No Legacy Audit
+        run: just audit-legacy
       - name: Test
         run: cargo test --workspace
       - name: Snapshot Tests
@@ -39,8 +39,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/rust-toolchain@nightly-2026-05-01
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@cargo-udeps
       - name: Unused Dependency Audit
-        run: cargo +nightly udeps --workspace
+        run: cargo +nightly-2026-05-01 udeps --workspace

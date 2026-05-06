@@ -2,6 +2,7 @@ use std::fs;
 use std::path::Path;
 
 use assert_cmd::Command;
+use predicates::prelude::*;
 use serde_json::Value;
 use tempfile::TempDir;
 
@@ -29,7 +30,10 @@ fn install_writes_files_and_manifest() {
     );
     let manifest = read_manifest(home.path());
     assert_eq!(manifest["binary_version"], env!("CARGO_PKG_VERSION"));
-    assert_eq!(manifest["files"].as_array().expect("files").len(), 17);
+    assert_eq!(
+        manifest["files"].as_array().expect("files").len(),
+        installed_files(home.path())
+    );
 }
 
 #[test]
@@ -110,8 +114,56 @@ fn uninstall_removes_manifest_owned_files_only() {
     );
 }
 
+#[test]
+fn uninstall_refuses_drifted_manifest_file() {
+    let home = TempDir::new().expect("home");
+    let path = home.path().join(".claude/skills/init-project/SKILL.md");
+
+    llm_wiki(home.path()).arg("install").assert().success();
+    fs::write(&path, "user edit").expect("write");
+
+    llm_wiki(home.path())
+        .arg("uninstall")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "refusing to uninstall drifted file",
+        ));
+
+    assert_eq!(fs::read_to_string(&path).expect("read"), "user edit");
+    assert!(
+        home.path()
+            .join(".local/share/llm-wiki/manifest.json")
+            .exists()
+    );
+}
+
 fn read_manifest(home: &Path) -> Value {
     let raw = fs::read_to_string(home.join(".local/share/llm-wiki/manifest.json"))
         .expect("manifest exists");
     serde_json::from_str(&raw).expect("manifest json")
+}
+
+fn installed_files(home: &Path) -> usize {
+    let mut count = 0;
+    for root in [home.join(".claude/skills"), home.join(".codex/skills")] {
+        count += count_files(&root);
+    }
+    count
+}
+
+fn count_files(path: &Path) -> usize {
+    let Ok(entries) = fs::read_dir(path) else {
+        return 0;
+    };
+    entries
+        .filter_map(Result::ok)
+        .map(|entry| {
+            if entry.path().is_dir() {
+                count_files(&entry.path())
+            } else {
+                1
+            }
+        })
+        .sum()
 }

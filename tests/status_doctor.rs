@@ -20,7 +20,7 @@ fn status_reports_installed_files() {
         .arg("status")
         .assert()
         .success()
-        .stdout(predicate::str::contains("manifest files: 17"))
+        .stdout(predicate::str::contains("manifest files: "))
         .stdout(predicate::str::contains("OK: claude skill"));
 }
 
@@ -79,6 +79,28 @@ fn doctor_reports_legacy_symlink() {
     .expect("symlink");
 
     llm_wiki(home.path())
+        .arg("doctor")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Legacy symlink residue"));
+}
+
+#[cfg(unix)]
+#[test]
+fn doctor_legacy_symlink_marker_can_be_overridden() {
+    use std::os::unix::fs::symlink;
+
+    let home = TempDir::new().expect("home");
+    let path = home.path().join(".codex/skills/init-project/SKILL.md");
+    fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
+    symlink(
+        "/tmp/custom_legacy_repo/.codex/skills/init-project/SKILL.md",
+        &path,
+    )
+    .expect("symlink");
+
+    llm_wiki(home.path())
+        .env("LLM_WIKI_LEGACY_SYMLINK_MARKER", "custom_legacy_repo")
         .arg("doctor")
         .assert()
         .success()

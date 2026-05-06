@@ -134,6 +134,10 @@ fn write_file(path: &Path, contents: &str) -> Result<()> {
 fn backup(path: &Path) -> Result<PathBuf> {
     let now = Utc::now();
     let suffix = format!("{}{:09}Z", now.format("%Y%m%dT%H%M%S"), now.nanosecond());
+    backup_with_suffix(path, &suffix)
+}
+
+fn backup_with_suffix(path: &Path, suffix: &str) -> Result<PathBuf> {
     for attempt in 0..100 {
         let candidate = if attempt == 0 {
             path.with_file_name(format!(
@@ -197,5 +201,33 @@ impl InstallFile {
             sha256: self.sha256.clone(),
             installed_by_version: env!("CARGO_PKG_VERSION").to_string(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use tempfile::TempDir;
+
+    use super::backup_with_suffix;
+
+    #[test]
+    fn backup_retries_when_first_candidate_exists() {
+        let temp = TempDir::new().expect("tempdir");
+        let path = temp.path().join("SKILL.md");
+        let first_backup = temp.path().join("SKILL.md.bak.fixed");
+        fs::write(&path, "current").expect("write current");
+        fs::write(&first_backup, "existing").expect("write first backup");
+
+        let backup = backup_with_suffix(&path, "fixed").expect("backup");
+
+        assert_eq!(backup, temp.path().join("SKILL.md.bak.fixed.1"));
+        assert_eq!(fs::read_to_string(backup).expect("read backup"), "current");
+        assert_eq!(
+            fs::read_to_string(first_backup).expect("read first backup"),
+            "existing"
+        );
+        assert!(!path.exists());
     }
 }

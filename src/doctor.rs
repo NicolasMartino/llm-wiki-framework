@@ -79,7 +79,7 @@ fn is_legacy_symlink(path: &Path) -> Result<bool> {
         return Ok(false);
     }
     let target = fs::read_link(path)?;
-    Ok(target
-        .to_string_lossy()
-        .contains("software_project_management"))
+    let marker = std::env::var("LLM_WIKI_LEGACY_SYMLINK_MARKER")
+        .unwrap_or_else(|_| "software_project_management".to_string());
+    Ok(target.to_string_lossy().contains(&marker))
 }

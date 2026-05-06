@@ -43,7 +43,9 @@ fn init_profiles_match_snapshots() {
         }
         init_project(temp.path(), project_type, scale, &extra);
         let snapshot = snapshot_project(temp.path());
-        insta::assert_snapshot!(format!("init_{name}"), snapshot);
+        insta::with_settings!({filters => vec![(r"\d{4}-\d{2}-\d{2}", "[date]")]}, {
+            insta::assert_snapshot!(format!("init_{name}"), snapshot);
+        });
     }
 }
 
@@ -76,9 +78,9 @@ fn init_refuses_framework_artifact_collision() {
 fn initial_sources_are_copied_without_ingest() {
     let temp = TempDir::new().expect("tempdir");
     let source_dir = TempDir::new().expect("sources");
-    let source_a = source_dir.path().join("a.md");
+    let source_a = source_dir.path().join("manifest.md");
     let source_b = source_dir.path().join("b.txt");
-    fs::write(&source_a, "# A").expect("write");
+    fs::write(&source_a, "# User Manifest").expect("write");
     fs::write(&source_b, "B").expect("write");
 
     Command::cargo_bin("llm-wiki")
@@ -106,8 +108,9 @@ fn initial_sources_are_copied_without_ingest() {
 
     let raw_initial = temp.path().join("raw/initial");
     assert!(raw_initial.exists());
-    assert!(find_file(&raw_initial, "a.md").is_some());
+    assert!(find_file_with_contents(&raw_initial, "manifest.md", "# User Manifest").is_some());
     assert!(find_file(&raw_initial, "b.txt").is_some());
+    assert!(find_file(&raw_initial, "manifest.md").is_some());
     assert!(
         !fs::read_to_string(temp.path().join("wiki/index.md"))
             .expect("index")
@@ -158,6 +161,23 @@ fn find_file(path: &Path, name: &str) -> Option<PathBuf> {
                 return Some(found);
             }
         } else if entry.file_name() == name {
+            return Some(entry_path);
+        }
+    }
+    None
+}
+
+fn find_file_with_contents(path: &Path, name: &str, contents: &str) -> Option<PathBuf> {
+    for entry in fs::read_dir(path).ok()? {
+        let entry = entry.ok()?;
+        let entry_path = entry.path();
+        if entry_path.is_dir() {
+            if let Some(found) = find_file_with_contents(&entry_path, name, contents) {
+                return Some(found);
+            }
+        } else if entry.file_name() == name
+            && fs::read_to_string(&entry_path).ok().as_deref() == Some(contents)
+        {
             return Some(entry_path);
         }
     }

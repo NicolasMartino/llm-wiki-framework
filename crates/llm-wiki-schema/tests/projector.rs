@@ -67,6 +67,16 @@ fn codex_projection_uses_namespace_idiom_and_runtime_config() {
 }
 
 #[test]
+fn codex_projection_has_default_runtime_config() {
+    let doc = parse(canonical()).expect("canonical parses");
+    let rendered = CodexProjector::new().project(&doc).expect("project");
+    assert_eq!(
+        rendered.runtime_config.as_deref(),
+        Some("interface:\n  display_name: \"knowledge-query\"\n")
+    );
+}
+
+#[test]
 fn runtime_restrictions_are_enforced() {
     let mut doc = parse(canonical()).expect("canonical parses");
     doc.frontmatter.runtimes = vec![Runtime::Claude];

@@ -469,6 +469,7 @@ dependencies = [
  "console",
  "globset",
  "once_cell",
+ "regex",
  "similar",
  "tempfile",
  "walkdir",

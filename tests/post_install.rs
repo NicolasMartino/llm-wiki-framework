@@ -24,7 +24,7 @@ fn redirected_home_install_manifest_matches_filesystem() {
     let files = manifest["files"].as_array().expect("manifest files");
 
     assert_eq!(manifest["binary_version"], env!("CARGO_PKG_VERSION"));
-    assert_eq!(files.len(), 17);
+    assert_eq!(files.len(), installed_files(home.path()).len());
 
     let mut manifest_paths = BTreeSet::new();
     for entry in files {

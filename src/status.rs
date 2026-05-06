@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::fs;
 
 use anyhow::Result;
@@ -20,9 +19,7 @@ pub fn run() -> Result<()> {
     println!("installed at: {}", manifest.installed_at);
     println!("manifest files: {}", manifest.files.len());
 
-    let mut seen = HashSet::new();
     for entry in &manifest.files {
-        seen.insert(entry.path.clone());
         let status = if !entry.path.exists() {
             "Missing"
         } else {

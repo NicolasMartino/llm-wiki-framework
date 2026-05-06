@@ -82,6 +82,23 @@ fn rejects_missing_required_body_section() {
 }
 
 #[test]
+fn rejects_duplicate_body_section() {
+    let input = valid_doc().replace(
+        "## Behavior\n\n1. Read the index.\n2. Read relevant pages.\n\n",
+        "## Behavior\n\nFirst behavior.\n\n## Behavior\n\nSecond behavior.\n\n",
+    );
+    let err = parse(&input).expect_err("duplicate body section");
+    assert!(matches!(err, ParseError::DuplicateSection("Behavior")));
+}
+
+#[test]
+fn accepts_crlf_frontmatter_boundaries() {
+    let input = valid_doc().replace('\n', "\r\n");
+    let doc = parse(&input).expect("crlf doc parses");
+    assert_eq!(doc.frontmatter.name, "knowledge-query");
+}
+
+#[test]
 fn schema_field_set_is_locked() {
     insta::assert_debug_snapshot!(schema_field_names(), @r###"
     [

@@ -40,7 +40,6 @@ pub(super) fn create_project(
     fs::write(path.join("CLAUDE.md"), claude)?;
     fs::write(path.join("wiki/index.md"), index_md(&answers.name, profile))?;
     fs::write(path.join("wiki/log.md"), log_md(&answers.name))?;
-    append_gitignore(path)?;
 
     if let Some(bundle) = copy_initial_sources(path, initial_sources)? {
         println!(
@@ -117,24 +116,4 @@ fn log_md(project_name: &str) -> String {
         "# Wiki Log\n\n## [{}] create | project bootstrap\n\nInitialized `{project_name}` with the LLM Wiki framework.\n",
         Utc::now().date_naive()
     )
-}
-
-fn append_gitignore(path: &Path) -> Result<()> {
-    let gitignore = path.join(".gitignore");
-    let mut existing = if gitignore.exists() {
-        fs::read_to_string(&gitignore)?
-    } else {
-        String::new()
-    };
-    for entry in [".wiki/", "*.sqlite", ".cache/"] {
-        if !existing.lines().any(|line| line == entry) {
-            if !existing.ends_with('\n') && !existing.is_empty() {
-                existing.push('\n');
-            }
-            existing.push_str(entry);
-            existing.push('\n');
-        }
-    }
-    fs::write(gitignore, existing)?;
-    Ok(())
 }

@@ -18,11 +18,15 @@ pub fn parse(input: &str) -> Result<SkillDoc, ParseError> {
 }
 
 fn split_frontmatter(input: &str) -> Result<(&str, &str), ParseError> {
-    let input = input
-        .strip_prefix("---\n")
-        .ok_or(ParseError::MissingFrontmatter)?;
+    let (input, separator) = if let Some(input) = input.strip_prefix("---\n") {
+        (input, "\n---\n")
+    } else if let Some(input) = input.strip_prefix("---\r\n") {
+        (input, "\r\n---\r\n")
+    } else {
+        return Err(ParseError::MissingFrontmatter);
+    };
     let (frontmatter, body) = input
-        .split_once("\n---\n")
+        .split_once(separator)
         .ok_or(ParseError::UnclosedFrontmatter)?;
     Ok((frontmatter, body))
 }
@@ -39,6 +43,8 @@ pub enum ParseError {
     MissingSection(&'static str),
     #[error("unexpected body section: {0}")]
     UnexpectedSection(String),
+    #[error("duplicate body section: {0}")]
+    DuplicateSection(&'static str),
     #[error("validation error: {0}")]
     Validation(String),
 }

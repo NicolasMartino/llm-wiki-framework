@@ -3,7 +3,6 @@ source: tests/init.rs
 expression: snapshot
 ---
 # files
-- .gitignore
 - CLAUDE.md
 - package.json
 - project_guidelines.md
@@ -15,7 +14,7 @@ expression: snapshot
 
 - Document Class: Spec
 - Status: Active
-- Date: 2026-05-06
+- Date: [date]
 - Category: Documentation and execution model
 - Scope: Project documentation, knowledge management, and execution rules.
 
@@ -551,7 +550,7 @@ Periodically or on request:
 
 Project: Fixture Project
 Stage: Bootstrap
-Updated: 2026-05-06
+Updated: [date]
 
 ## Specs
 

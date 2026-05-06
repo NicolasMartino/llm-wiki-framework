@@ -9,12 +9,9 @@ pub fn copy_initial_sources(project_root: &Path, sources: &[PathBuf]) -> Result<
         return Ok(None);
     }
     let base = project_root.join("raw/initial");
-    let dest_dir = if sources.len() == 1 {
-        base
-    } else {
-        base.join(Utc::now().format("%Y-%m-%dT%H%M%SZ").to_string())
-    };
-    fs::create_dir_all(&dest_dir)
+    let dest_dir = base.join(Utc::now().format("%Y-%m-%dT%H%M%SZ").to_string());
+    let sources_dir = dest_dir.join("sources");
+    fs::create_dir_all(&sources_dir)
         .with_context(|| format!("failed to create {}", dest_dir.display()))?;
 
     let mut manifest = String::from("# Initial Sources Manifest\n\n");
@@ -30,7 +27,7 @@ pub fn copy_initial_sources(project_root: &Path, sources: &[PathBuf]) -> Result<
         let file_name = source
             .file_name()
             .context("initial source path has no file name")?;
-        let dest = dest_dir.join(file_name);
+        let dest = unique_dest(&sources_dir.join(file_name));
         if source.is_dir() {
             copy_dir(source, &dest)?;
         } else {
@@ -47,6 +44,31 @@ pub fn copy_initial_sources(project_root: &Path, sources: &[PathBuf]) -> Result<
     fs::write(dest_dir.join("manifest.md"), manifest)
         .with_context(|| format!("failed to write {}", dest_dir.join("manifest.md").display()))?;
     Ok(Some(dest_dir))
+}
+
+fn unique_dest(path: &Path) -> PathBuf {
+    if !path.exists() {
+        return path.to_path_buf();
+    }
+
+    let parent = path.parent().unwrap_or_else(|| Path::new(""));
+    let stem = path
+        .file_stem()
+        .map(|value| value.to_string_lossy())
+        .unwrap_or_default();
+    let extension = path.extension().map(|value| value.to_string_lossy());
+
+    for attempt in 2.. {
+        let file_name = match &extension {
+            Some(extension) => format!("{stem}-{attempt}.{extension}"),
+            None => format!("{stem}-{attempt}"),
+        };
+        let candidate = parent.join(file_name);
+        if !candidate.exists() {
+            return candidate;
+        }
+    }
+    unreachable!("unbounded retry loop always returns")
 }
 
 fn copy_dir(source: &Path, dest: &Path) -> Result<()> {
