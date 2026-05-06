@@ -1,14 +1,12 @@
 ---
-name: init-project
-description: Create or update a software project with the LLM Wiki project management framework. Use when {runtime} is asked to initialize a new project, scaffold a project knowledge base, add the framework to an existing codebase, update a project's framework files, or translate the framework bootstrap flow into runtime-specific usage.
-runtimes: [claude, codex]
-operations: [init]
-arguments:
-  - name: path
-    required: false
-    description: Target project path. Defaults to the current working directory.
-invocation_style: namespace
+source: crates/llm-wiki-schema/tests/real_skills.rs
+expression: snapshot
 ---
+---
+name: init-project
+description: Create or update a software project with the LLM Wiki project management framework. Use when Codex is asked to initialize a new project, scaffold a project knowledge base, add the framework to an existing codebase, update a project's framework files, or translate the framework bootstrap flow into runtime-specific usage.
+---
+
 # Init Project
 
 ## Purpose
@@ -58,9 +56,13 @@ Create or update a project so an agent can manage project knowledge through
 
 Use normal language or an explicit skill invocation:
 
-- `<init-project> /path/to/project`
-- `<init-project> /path/to/project --update`
-- `<init-project>` to initialize the current directory
+- `$init-project /path/to/project`
+- `$init-project /path/to/project --update`
+- `$init-project` to initialize the current directory
+
+Dispatcher aliases:
+- `$knowledge init`
+
 
 ## Notes
 
@@ -68,3 +70,9 @@ Report generated or updated files, profile flags, folder structure, and any
 initial sources ingested. If QMD was included, provide the setup commands:
 `npm install -g @tobilu/qmd`, `qmd collection add wiki/ --name wiki`, and
 `qmd embed`.
+
+--- agents/openai.yaml ---
+interface:
+  display_name: "Init Project"
+  short_description: "Bootstrap or update an LLM Wiki project."
+  default_prompt: "Initialize or update this project with the LLM Wiki framework."

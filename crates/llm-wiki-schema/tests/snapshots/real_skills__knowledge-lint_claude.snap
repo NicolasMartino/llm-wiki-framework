@@ -1,11 +1,13 @@
 ---
-name: knowledge-lint
-description: Run a lint pass on an LLM Wiki project. Use when {runtime} is asked to lint the wiki, scan for contradictions, stale claims, orphan pages, missing cross-references, or fix wiki bookkeeping issues directly.
-runtimes: [claude, codex]
-operations: [lint]
-invocation_style: namespace
+source: crates/llm-wiki-schema/tests/real_skills.rs
+expression: rendered.skill_md
 ---
-# Knowledge Lint
+---
+name: knowledge-lint
+description: Run a lint pass on an LLM Wiki project. Use when Claude Code is asked to lint the wiki, scan for contradictions, stale claims, orphan pages, missing cross-references, or fix wiki bookkeeping issues directly.
+---
+
+# /knowledge-lint
 
 ## Purpose
 
@@ -35,8 +37,8 @@ problems directly.
 
 Use normal language or an explicit skill invocation:
 
-- `<knowledge-lint> lint the wiki`
-- `<knowledge-lint> scan for stale statuses`
+- `/knowledge-lint lint the wiki`
+- `/knowledge-lint scan for stale statuses`
 
 ## Notes
 

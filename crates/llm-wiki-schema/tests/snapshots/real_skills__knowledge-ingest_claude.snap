@@ -1,15 +1,13 @@
 ---
-name: knowledge-ingest
-description: Ingest explicit raw source material into an LLM Wiki project. Use when {runtime} is asked to process files or directories into the wiki, add new information from raw/ to project knowledge, compile notes, PRDs, specs, research, transcripts, code observations, images, or PDFs into typed wiki pages, or update wiki/index.md and wiki/log.md after new raw sources arrive.
-runtimes: [claude, codex]
-operations: [ingest]
-arguments:
-  - name: source
-    required: false
-    description: Optional raw source file or directory to ingest.
-invocation_style: namespace
+source: crates/llm-wiki-schema/tests/real_skills.rs
+expression: rendered.skill_md
 ---
-# Knowledge Ingest
+---
+name: knowledge-ingest
+description: Ingest explicit raw source material into an LLM Wiki project. Use when Claude Code is asked to process files or directories into the wiki, add new information from raw/ to project knowledge, compile notes, PRDs, specs, research, transcripts, code observations, images, or PDFs into typed wiki pages, or update wiki/index.md and wiki/log.md after new raw sources arrive.
+---
+
+# /knowledge-ingest
 
 ## Purpose
 
@@ -53,8 +51,8 @@ organized, cited knowledge instead of re-reading raw sources.
 
 Use normal language or an explicit skill invocation:
 
-- `<knowledge-ingest> raw/product/prd.md`
-- `<knowledge-ingest>` to find un-ingested sources under `raw/`
+- `/knowledge-ingest raw/product/prd.md`
+- `/knowledge-ingest` to find un-ingested sources under `raw/`
 
 ## Notes
 

@@ -1,14 +1,12 @@
 ---
-name: knowledge-query
-description: Query an LLM Wiki project knowledge base and answer with citations. Use when {runtime} is asked a question about the current project, specs, decisions, features, roadmap, plans, documented evidence, or when the user says to check the wiki, look up project knowledge, summarize what is known, find a decision, save a durable synthesis back into the wiki, or explicitly invokes the skill.
-runtimes: [claude, codex]
-operations: [query]
-arguments:
-  - name: question
-    required: true
-    description: Project question to answer from the wiki.
-invocation_style: namespace
+source: crates/llm-wiki-schema/tests/real_skills.rs
+expression: snapshot
 ---
+---
+name: knowledge-query
+description: Query an LLM Wiki project knowledge base and answer with citations. Use when Codex is asked a question about the current project, specs, decisions, features, roadmap, plans, documented evidence, or when the user says to check the wiki, look up project knowledge, summarize what is known, find a decision, save a durable synthesis back into the wiki, or explicitly invokes the skill.
+---
+
 # Knowledge Query
 
 ## Purpose
@@ -48,10 +46,20 @@ knowledge from the filesystem.
 
 Use normal language or an explicit skill invocation:
 
-- `<knowledge-query> what is D8 on the roadmap?`
-- `<knowledge-query> summarize the binary distribution decision`
+- `$knowledge-query what is D8 on the roadmap?`
+- `$knowledge-query summarize the binary distribution decision`
+
+Dispatcher aliases:
+- `$knowledge query`
+
 
 ## Notes
 
 Lead with the answer, then cite supporting pages. Keep the response clear
 about what is documented, what is missing, and what is inferred.
+
+--- agents/openai.yaml ---
+interface:
+  display_name: "Knowledge Query"
+  short_description: "Answer questions from the project wiki with citations."
+  default_prompt: "Query the project wiki and answer with citations."

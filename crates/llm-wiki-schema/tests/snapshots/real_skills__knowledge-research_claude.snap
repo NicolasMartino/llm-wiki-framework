@@ -1,15 +1,13 @@
 ---
-name: knowledge-research
-description: Gather source material into raw/research/ through a guided intake flow. Use when {runtime} is asked what to research, wants web or site research, provides local files or URLs to collect, or wants to prepare a research bundle for later ingest.
-runtimes: [claude, codex]
-operations: [research]
-arguments:
-  - name: request
-    required: false
-    description: Research question, source path, URL, site, or web-search request.
-invocation_style: namespace
+source: crates/llm-wiki-schema/tests/real_skills.rs
+expression: rendered.skill_md
 ---
-# Knowledge Research
+---
+name: knowledge-research
+description: Gather source material into raw/research/ through a guided intake flow. Use when Claude Code is asked what to research, wants web or site research, provides local files or URLs to collect, or wants to prepare a research bundle for later ingest.
+---
+
+# /knowledge-research
 
 ## Purpose
 
@@ -51,10 +49,10 @@ does research and source acquisition; it does not update `wiki/` directly.
 
 Use normal language or an explicit skill invocation:
 
-- `<knowledge-research> on path ./notes`
-- `<knowledge-research> on url https://example.com/spec`
-- `<knowledge-research> site docs.example.com auth tokens`
-- `<knowledge-research> web vector database benchmarks`
+- `/knowledge-research on path ./notes`
+- `/knowledge-research on url https://example.com/spec`
+- `/knowledge-research site docs.example.com auth tokens`
+- `/knowledge-research web vector database benchmarks`
 
 ## Notes
 

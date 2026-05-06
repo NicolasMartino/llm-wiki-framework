@@ -1,11 +1,12 @@
 # Skills Source
 
-This directory is the canonical source of framework skills.
+This directory contains the canonical source of framework skills.
 
-Edit `skills/<name>/SKILL.md`, then regenerate runtime-specific outputs:
+Edit `skills/<name>/SKILL.md`, then regenerate runtime-specific outputs with
+the `llm-wiki` binary:
 
 ```bash
-bash skills/build.sh
+cargo run -p llm-wiki-framework -- build --out .
 ```
 
 Generated outputs are committed for first-clone usability:
@@ -14,11 +15,5 @@ Generated outputs are committed for first-clone usability:
 - `.codex/skills/<name>/SKILL.md`
 - `.codex/skills/<name>/agents/openai.yaml`
 
-Conditional blocks:
-
-- `<!-- CLAUDE --> ... <!-- END -->` is kept only in Claude output.
-- `<!-- CODEX --> ... <!-- END -->` is kept only in Codex output.
-- Text outside conditional blocks is shared by both runtimes.
-
-The `knowledge` skill is Codex-only because it implements the `$knowledge`
-dispatcher namespace.
+Canonical skills use typed YAML frontmatter plus fixed markdown sections. The
+Rust projector owns runtime-specific invocation idioms.

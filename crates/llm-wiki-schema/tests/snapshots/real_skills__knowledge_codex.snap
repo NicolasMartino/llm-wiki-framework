@@ -1,11 +1,12 @@
 ---
+source: crates/llm-wiki-schema/tests/real_skills.rs
+expression: snapshot
+---
+---
 name: knowledge
 description: Dispatch knowledge operations for the LLM Wiki framework. Use when the user invokes the knowledge namespace, asks for knowledge init/query/ingest/research/lint, or wants one explicit command-like entry point for framework operations in Codex.
-runtimes: [codex]
-operations: [dispatch]
-invocation_style: dispatch
-dispatcher_for: [init, query, ingest, research, lint]
 ---
+
 # Knowledge
 
 ## Purpose
@@ -34,14 +35,20 @@ in Codex.
 
 Use the dispatcher explicitly:
 
-- `<knowledge> init /path/to/project`
-- `<knowledge> query what is D5 on the roadmap?`
-- `<knowledge> ingest raw/meeting-notes.md`
-- `<knowledge> research docs.example.com auth tokens`
-- `<knowledge> lint the wiki`
+- `$knowledge init /path/to/project`
+- `$knowledge query what is D5 on the roadmap?`
+- `$knowledge ingest raw/meeting-notes.md`
+- `$knowledge research docs.example.com auth tokens`
+- `$knowledge lint the wiki`
 
 ## Notes
 
 Direct skill names remain valid. The namespace exists to give the framework a
 predictable explicit command surface without relying on unsupported product
 slash commands.
+
+--- agents/openai.yaml ---
+interface:
+  display_name: "Knowledge"
+  short_description: "Route wiki operations through $knowledge."
+  default_prompt: "Use $knowledge to query what is currently documented."

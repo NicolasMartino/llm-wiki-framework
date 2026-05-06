@@ -1,10 +1,12 @@
 ---
-name: knowledge-lint
-description: Run a lint pass on an LLM Wiki project. Use when {runtime} is asked to lint the wiki, scan for contradictions, stale claims, orphan pages, missing cross-references, or fix wiki bookkeeping issues directly.
-runtimes: [claude, codex]
-operations: [lint]
-invocation_style: namespace
+source: crates/llm-wiki-schema/tests/real_skills.rs
+expression: snapshot
 ---
+---
+name: knowledge-lint
+description: Run a lint pass on an LLM Wiki project. Use when Codex is asked to lint the wiki, scan for contradictions, stale claims, orphan pages, missing cross-references, or fix wiki bookkeeping issues directly.
+---
+
 # Knowledge Lint
 
 ## Purpose
@@ -35,10 +37,20 @@ problems directly.
 
 Use normal language or an explicit skill invocation:
 
-- `<knowledge-lint> lint the wiki`
-- `<knowledge-lint> scan for stale statuses`
+- `$knowledge-lint lint the wiki`
+- `$knowledge-lint scan for stale statuses`
+
+Dispatcher aliases:
+- `$knowledge lint`
+
 
 ## Notes
 
 Prefer narrow edits over broad rewrites. Report residual risk or unanswered
 conflicts clearly.
+
+--- agents/openai.yaml ---
+interface:
+  display_name: "Knowledge Lint"
+  short_description: "Scan and fix wiki consistency issues."
+  default_prompt: "Use $knowledge-lint to scan the wiki for contradictions, stale claims, and missing cross-references."

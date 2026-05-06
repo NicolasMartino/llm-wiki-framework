@@ -1,14 +1,12 @@
 ---
-name: knowledge-research
-description: Gather source material into raw/research/ through a guided intake flow. Use when {runtime} is asked what to research, wants web or site research, provides local files or URLs to collect, or wants to prepare a research bundle for later ingest.
-runtimes: [claude, codex]
-operations: [research]
-arguments:
-  - name: request
-    required: false
-    description: Research question, source path, URL, site, or web-search request.
-invocation_style: namespace
+source: crates/llm-wiki-schema/tests/real_skills.rs
+expression: snapshot
 ---
+---
+name: knowledge-research
+description: Gather source material into raw/research/ through a guided intake flow. Use when Codex is asked what to research, wants web or site research, provides local files or URLs to collect, or wants to prepare a research bundle for later ingest.
+---
+
 # Knowledge Research
 
 ## Purpose
@@ -51,13 +49,23 @@ does research and source acquisition; it does not update `wiki/` directly.
 
 Use normal language or an explicit skill invocation:
 
-- `<knowledge-research> on path ./notes`
-- `<knowledge-research> on url https://example.com/spec`
-- `<knowledge-research> site docs.example.com auth tokens`
-- `<knowledge-research> web vector database benchmarks`
+- `$knowledge-research on path ./notes`
+- `$knowledge-research on url https://example.com/spec`
+- `$knowledge-research site docs.example.com auth tokens`
+- `$knowledge-research web vector database benchmarks`
+
+Dispatcher aliases:
+- `$knowledge research`
+
 
 ## Notes
 
 Report the research mode used, candidate source count when applicable, bundle
 path, saved source files, manifest and summary files, notable gaps, and
 whether the material is ready for ingest.
+
+--- agents/openai.yaml ---
+interface:
+  display_name: "Knowledge Research"
+  short_description: "Gather and save sources into raw/ before ingest."
+  default_prompt: "Use $knowledge-research to gather sources from docs.example.com about authentication."

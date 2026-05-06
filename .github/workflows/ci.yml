@@ -22,6 +22,9 @@ jobs:
         run: cargo fmt --all --check
       - name: Clippy
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - name: No Legacy Skill Markers
+        run: |
+          ! grep -R -E '<!-- CLAUDE -->|<!-- CODEX -->|<!-- END -->' skills
       - name: Test
         run: cargo test --workspace
       - name: Snapshot Tests
