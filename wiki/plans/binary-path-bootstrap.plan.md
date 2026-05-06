@@ -303,5 +303,25 @@ After implementation and tests pass:
 
 ## Implementation Notes
 
-Phase 0 will add the rendering entry point, test harness pattern, and rename
-touch list here before implementation code changes begin.
+Phase 0 findings:
+
+- Rendering entry point: `src/install.rs::render_install_files` parses each
+  `embed::SKILLS` entry, projects it through `llm-wiki-schema`, and constructs
+  the installed `InstallFile` list. Managed binary path injection should happen
+  in or immediately below this function by passing install context into
+  rendering; do not add a blind Markdown post-process after files are rendered.
+- Asset registry: `src/embed.rs` hard-codes each skill name and `include_str!`
+  path. The `knowledge-init` rename must update this registry.
+- Projector tests: `crates/llm-wiki-schema/tests/real_skills.rs` and snapshot
+  names include `init-project`; the rename must update fixtures and snapshots.
+- Integration harness: use the existing `assert_cmd` plus `tempfile::TempDir`
+  plus redirected `HOME` pattern from `tests/install.rs` and
+  `tests/post_install.rs`; add a sanitized `PATH` for the outside-PATH case.
+- Current manifest path: `src/paths.rs::manifest` still points at
+  `~/.local/share/llm-wiki/manifest.json`; D8.1 changes it to
+  `~/.llm_wiki/manifest.json`.
+- Rename touch list: `assets/skills/init-project/`, `src/embed.rs`,
+  `assets/skills/knowledge/SKILL.md`, `tests/build.rs`, `tests/compat.rs`,
+  `tests/install.rs`, `tests/post_install.rs`, `tests/properties.rs`,
+  `tests/status_doctor.rs`, `crates/llm-wiki-schema/tests/real_skills.rs`,
+  and the related snapshots.
