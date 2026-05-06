@@ -2,10 +2,10 @@
 
 - Document Class: Spec
 - Status: Active
-- Date: 2026-04-23
+- Date: 2026-05-06
 - Category: Tooling
 - Scope: The `knowledge-query` skill for querying a project's wiki with citations and optional save-back.
-- Related: wiki/specs/documentation-model.spec.md, wiki/specs/init-project-skill.spec.md
+- Related: wiki/specs/documentation-model.spec.md, wiki/specs/init-project-skill.spec.md, wiki/decisions/single-source-skills.decision.md
 
 ## What It Does
 
@@ -22,8 +22,10 @@ directory. Does not search across multiple projects.
 
 ## Location
 
-Claude skill definition: `.claude/skills/knowledge-query/SKILL.md`
-Codex skill definition: `.codex/skills/knowledge-query/SKILL.md`
+Canonical source: `skills/knowledge-query/SKILL.md`
+Claude generated skill: `.claude/skills/knowledge-query/SKILL.md`
+Codex generated skill: `.codex/skills/knowledge-query/SKILL.md`
+Codex UI metadata source: `skills/knowledge-query/codex/openai.yaml`
 Claude global access: symlinked to `~/.claude/skills/knowledge-query`
 Codex global access: symlinked to `~/.codex/skills/knowledge-query`
 Codex namespace alias: `$knowledge query`
@@ -50,6 +52,8 @@ Codex namespace alias: `$knowledge query`
 
 - Claude skill file exists at `.claude/skills/knowledge-query/SKILL.md`
 - Codex skill file exists at `.codex/skills/knowledge-query/SKILL.md`
+- Canonical skill source exists at `skills/knowledge-query/SKILL.md`
+- `bash skills/build.sh` renders the Claude and Codex outputs
 - Codex global symlink exists at `~/.codex/skills/knowledge-query`
 - Codex dispatcher skill exists at `.codex/skills/knowledge/SKILL.md`
 - Claude global symlink exists at `~/.claude/skills/knowledge-query`

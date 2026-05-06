@@ -2,7 +2,7 @@
 
 - Document Class: Spec
 - Status: Active
-- Date: 2026-04-23
+- Date: 2026-05-06
 - Category: Framework core
 - Scope: The validated documentation and execution model for projects using this framework.
 - Sources: raw/legacy/legacy-project-guidelines.md, raw/research/llm-wiki-pattern-research.md, raw/research/qmd-search-engine.md, raw/research/niharshrotri-llm-wiki-implementation.md
@@ -14,9 +14,11 @@ The framework uses a three-layer architecture:
 
 1. `raw/` - immutable source material, human-curated
 2. `wiki/` - compiled knowledge, agent-owned
-3. `CLAUDE.md` - schema defining conventions and agent workflows
+3. `CLAUDE.md` / `AGENTS.md` - schema defining conventions and agent workflows
 
-The canonical specification is `project_guidelines.md` at the repository root.
+In this framework repository, the canonical reusable specification template is
+`project_guidelines.template.md` at the repository root. Generated projects get
+a resolved `project_guidelines.md` derived from that template.
 
 ## Operations
 
@@ -58,8 +60,8 @@ research -> raw/ -> ingest -> proposal/reference -> roadmap -> plan -> evidence 
 
 ## Proven By
 
-- `project_guidelines.md` exists and defines all rules
-- `CLAUDE.md` exists and defines agent workflows
+- `project_guidelines.template.md` exists and defines the reusable rules
+- `CLAUDE.md` and `AGENTS.md` exist and define agent workflows for this repo
 - `wiki/index.md` exists and catalogs all wiki content
 - `wiki/log.md` records mutations
 - This project uses the framework to manage itself
@@ -71,4 +73,4 @@ research -> raw/ -> ingest -> proposal/reference -> roadmap -> plan -> evidence 
 - Multi-agent coordination not yet addressed
 - No automated tooling for ingest or lint (manual agent operations only)
 - QMD integration identified as the scale solution but not yet implemented
-- 3-pass ingest pipeline (extraction → drafting → bookkeeping) not yet adopted
+- 3-phase ingest pipeline is documented in skills, but not automated

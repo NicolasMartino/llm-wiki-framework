@@ -56,7 +56,7 @@ Periodically or on request:
 
 - Document types: spec, decision, proposal, roadmap, plan, experiment,
   eval, checklist, reference.
-- Use the type by role, not convenience. See `project_guidelines.md`.
+- Use the type by role, not convenience. See `project_guidelines.template.md`.
 - Every wiki page has a metadata block (Document Class, Status, Date,
   Category, Scope, Sources).
 - Filenames: `[slug].type.md` or `[index]-[slug].type.md`.

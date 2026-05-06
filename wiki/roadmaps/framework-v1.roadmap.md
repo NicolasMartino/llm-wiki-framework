@@ -32,7 +32,7 @@ Depends On: None
 Execution Plan: Not needed (single-session bootstrap)
 
 Included:
-- project_guidelines.md written
+- project_guidelines.template.md written
 - CLAUDE.md written
 - raw/, wiki/ structure scaffolded
 - Legacy guidelines and research moved to raw/
@@ -243,4 +243,58 @@ Promotion Target:
 - wiki/specs/documentation-model.spec.md (framework is proven self-replicating)
 
 Unlocks:
-- Future: multi-agent, automated lint, hybrid search, framework distribution
+- D8 (faster proof path), Future: multi-agent, automated lint, hybrid search
+
+---
+
+### D8 - Distribution Tooling (`llm-wiki` Binary)
+
+Status: Draft
+Promise: A single Rust binary (`llm-wiki`) installs framework skills globally for both Claude Code and Codex with one command, scaffolds new projects deterministically, and projects canonical skill markdown into per-runtime variants. No symlinks, no working tree dependency, no manual configuration. Spawned projects need no skill files of their own.
+Depends On: None (D8 ships independently; it makes D5 cheaper and D7's proof faster but is not blocked by either)
+Execution Plan: wiki/plans/llm-wiki-binary.plan.md (to be created)
+
+Included:
+- `llm-wiki install`: writes skills directly to `~/.claude/skills/` and `~/.codex/skills/` with an ownership manifest at `~/.local/share/llm-wiki/manifest.json`. Idempotent; refuses user-authored collisions; `--force` backs up to `<path>.bak.<UTC-ISO8601>` before overwriting.
+- `llm-wiki build [--target] [--out]`: renders canonical skills to a chosen directory without touching global state or writing a manifest. Used for self-dogfooding this repo (`build --out .`) and for CI snapshot tests.
+- `llm-wiki init <path>`: Create-mode scaffolding from embedded templates with conditional-section resolution (ML_AI, QMD, IS_EXISTING). Collision check is on framework artifacts only (`wiki/`, `raw/`, `CLAUDE.md`, `project_guidelines.md`), not on directory emptiness — preserving the IS_EXISTING profile for adding the framework to an existing codebase. Update mode is explicitly out of scope and remains agent-owned.
+- `llm-wiki status`, `doctor`, `uninstall`: state diagnostics and clean removal.
+- Canonical skill schema: clean markdown with typed YAML frontmatter (no `<!-- TAG -->` blocks). Embedded into the binary at compile time via `include_str!`.
+- Typed Rust projector with golden-file (`insta`) snapshot tests for all skill × runtime projections and all `init` profile outputs.
+- Compat fixtures under `tests/fixtures/wikis/v1/` exercising parseability, metadata extraction, template compatibility, and skill availability.
+- `cargo-dist` multi-arch release pipeline (macOS arm64, macOS x86_64, Linux x86_64, Linux arm64).
+- Full test strategy: unit, integration (with `tempfile::TempDir` and `HOME` redirection), golden-file, property (idempotency, totality), post-install verification. ≥ 80% line coverage gate via `cargo-llvm-cov`.
+
+Excluded:
+- `init` Update mode (remains agent-owned).
+- Automated runtime skill-discovery tests (no stable runtime API exists).
+- Auto-update (`llm-wiki self-update`).
+- Per-project skill overrides.
+- Runtime support beyond Claude and Codex (Cursor/Aider/Amp deferred to V2).
+- MCP-based skill exposure.
+- Network fetching of skills (all content embedded at compile time; only distribution acquisition is network-dependent).
+
+Proof:
+- `llm-wiki install` against a redirected `HOME` writes correct files with a manifest matching every entry; second run is a no-op.
+- `llm-wiki uninstall` removes only manifest-owned files, verified by integration test against a tempdir containing both framework and user-authored content.
+- `llm-wiki init <path>` produces the same project structure as today's `init-project` skill for equivalent answers (golden-file fixture).
+- `cargo insta test --check` passes in CI for all skill × runtime projections and all `init` profiles.
+- Compat fixture v1 wiki passes parseability, metadata, template, and skill-availability checks.
+- Binary builds on all four target platforms via `cargo-dist`.
+- End-to-end install path (`curl ... | sh && llm-wiki install`) verified by post-install file-and-manifest assertions in a release-gate workflow.
+
+Promotion Target:
+- wiki/specs/documentation-model.spec.md (distribution model recorded as proven)
+- wiki/specs/init-project-skill.spec.md (binary as the authority for scaffolding; agent retains intake)
+- wiki/specs/knowledge-*-skill.spec.md (canonical source location updated to `skills/<name>/SKILL.md`)
+- wiki/decisions/llm-wiki-binary-distribution.decision.md (already accepted; status confirmed as proven)
+
+Unlocks:
+- Faster D5 (`llm-wiki init` replaces today's manual scaffolding skill flow).
+- Cheaper D7 proof (two distinct projects scaffolded via `llm-wiki init`; agents bootstrap each one's wiki without manual symlink-and-copy work).
+- Future: V2 runtime targets (Cursor, Aider, Amp) via the projector trait.
+
+Closes:
+- review.md §9.1 (hardcoded skill paths) by construction — binary embeds its own content.
+- review.md §9.2 (broken global symlinks) by construction — no symlinks at all.
+- The bash renderer's content-loss class of bug — golden-file snapshot tests are the explicit defense.

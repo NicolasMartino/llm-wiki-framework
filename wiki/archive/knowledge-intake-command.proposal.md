@@ -1,12 +1,13 @@
 # Knowledge Research Intake
 
 - Document Class: Proposal
-- Status: Accepted
-- Date: 2026-05-02
+- Status: Archived
+- Date: 2026-05-06
 - Category: Tooling
 - Scope: Refine `knowledge-research` into a guided intake flow that asks what to research, gathers material from local and web sources, and saves the collected source set under `raw/research/`.
 - Sources: wiki/specs/knowledge-research-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/decisions/knowledge-command-namespace.decision.md, wiki/specs/documentation-model.spec.md
-- Related: wiki/specs/knowledge-research-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/decisions/knowledge-command-namespace.decision.md
+- Related: wiki/decisions/knowledge-research-intake.decision.md, wiki/specs/knowledge-research-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/decisions/knowledge-command-namespace.decision.md
+- Superseded By: wiki/decisions/knowledge-research-intake.decision.md
 
 ## Question
 

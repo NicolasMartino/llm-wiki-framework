@@ -2,11 +2,11 @@
 
 - Document Class: Spec
 - Status: Active
-- Date: 2026-04-23
+- Date: 2026-05-06
 - Category: Tooling
 - Scope: The `init-project` skill that creates or updates projects using the LLM Wiki framework.
 - Sources: wiki/references/niharshrotri-llm-wiki.reference.md
-- Related: wiki/specs/documentation-model.spec.md, wiki/decisions/three-layer-architecture.decision.md
+- Related: wiki/specs/documentation-model.spec.md, wiki/decisions/three-layer-architecture.decision.md, wiki/decisions/framework-path-resolution.decision.md
 
 ## What It Does
 
@@ -25,9 +25,13 @@ Two modes:
 
 ## Location
 
-Claude skill definition: `.claude/skills/init-project/SKILL.md`
-Codex skill definition: `.codex/skills/init-project/SKILL.md`
+Canonical source: `skills/init-project/SKILL.md`
+Claude generated skill: `.claude/skills/init-project/SKILL.md`
+Codex generated skill: `.codex/skills/init-project/SKILL.md`
+Codex UI metadata source: `skills/init-project/codex/openai.yaml`
 Template: `project_guidelines.template.md`
+Template source resolution: resolve the framework root relative to the
+project-local skill file and read `<framework-root>/project_guidelines.template.md`.
 
 For Claude global access, symlink the skill to `~/.claude/skills/`:
 ```bash
@@ -73,14 +77,17 @@ Answers determine which template sections are included:
 
 - Claude skill file exists at `.claude/skills/init-project/SKILL.md`
 - Codex skill file exists at `.codex/skills/init-project/SKILL.md`
-- Codex global symlink exists at `~/.codex/skills/init-project`
+- Canonical skill source exists at `skills/init-project/SKILL.md`
+- `bash skills/build.sh` renders the Claude and Codex outputs
+- Claude global symlink exists at `~/.claude/skills/init-project`
+- Codex global symlink exists at `~/.codex/skills/init-project` and resolves
+  to this repo's `.codex/skills/init-project`
 - Codex dispatcher skill exists at `.codex/skills/knowledge/SKILL.md`
 - Template file exists at `project_guidelines.template.md`
 - Not yet tested on a real project spawn (see roadmap D5)
 
 ## Limitations
 
-- Template path is hardcoded to this repo's location
 - Update mode not yet tested
 - No automated QMD setup (user runs commands manually)
-- Symlink to global skills must be done manually
+- Symlink to global skills must be rebuilt when the repo moves

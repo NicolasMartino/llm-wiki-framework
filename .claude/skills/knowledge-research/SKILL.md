@@ -37,7 +37,9 @@ If it does not exist, tell the user:
 Before gathering sources, read:
 
 1. `wiki/index.md` — current catalog of all pages
-2. `project_guidelines.md` — documentation model and conventions when needed
+2. `project_guidelines.md` if present, otherwise
+   `project_guidelines.template.md` — documentation model and conventions
+   when needed
 3. the 1-3 most relevant wiki pages for the topic when the request is topical
 
 Use that context to avoid redundant collection and to sharpen search terms.

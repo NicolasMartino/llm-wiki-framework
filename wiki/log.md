@@ -241,3 +241,323 @@ asserts the repo-local Claude skill, the existing Codex global symlink, and
 the proof bundle artifact that were verified directly.
 
 Pages updated: wiki/specs/knowledge-research-skill.spec.md, wiki/log.md
+
+## [2026-05-06] update | Rename path and skill consistency repair
+
+Fixed framework rename drift after the project moved from
+`software_project_management` to `llm_wiki_framework`.
+
+Key changes:
+- Updated Codex and Claude `init-project` skills to resolve the framework root
+  from the skill file location instead of a hardcoded absolute path.
+- Added a durable decision for framework path resolution.
+- Rebuilt broken global framework symlinks for Codex and Claude to point at
+  this repository.
+- Made this framework repo consistently treat `project_guidelines.template.md`
+  as its canonical reusable schema while generated projects still receive
+  `project_guidelines.md`.
+- Aligned Claude ingest with the research-first URL/site/web acquisition
+  boundary.
+- Promoted the accepted research-intake choice into a decision and archived
+  the old proposal.
+
+Pages created: wiki/decisions/framework-path-resolution.decision.md, wiki/decisions/knowledge-research-intake.decision.md
+Pages moved: wiki/proposals/knowledge-intake-command.proposal.md -> wiki/archive/knowledge-intake-command.proposal.md
+Pages updated: wiki/index.md, wiki/specs/documentation-model.spec.md, wiki/specs/init-project-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-research-skill.spec.md, wiki/decisions/project-local-codex-skills.decision.md, wiki/decisions/typed-documents.decision.md, wiki/roadmaps/framework-v1.roadmap.md, wiki/plans/knowledge-research-intake.plan.md, wiki/log.md
+Files updated: .codex/skills/init-project/SKILL.md, .claude/skills/init-project/SKILL.md, .claude/skills/knowledge-ingest/SKILL.md, .claude/skills/knowledge-research/SKILL.md, CLAUDE.md, AGENTS.MD
+Contradictions found: stale path and canonical-file claims resolved
+
+## [2026-05-06] update | Single-source skill consolidation
+
+Implemented the skill consolidation plan.
+
+Key changes:
+- Created canonical skill sources under `skills/`.
+- Added `skills/build.sh` to render `.claude/skills/` and `.codex/skills/`
+  outputs from canonical sources.
+- Moved the root `plan.md` into `wiki/plans/single-source-skills.plan.md`
+  and marked it Active pending runtime smoke tests.
+- Added the accepted single-source skills decision.
+- Generated Claude and Codex variants for shared skills.
+- Added Claude `knowledge-lint` and its global symlink.
+- Kept the Codex-only `$knowledge` dispatcher generated only for Codex.
+- Updated skill specs to point at canonical `skills/` sources and generated
+  runtime outputs.
+- Superseded the older project-local Codex-only skills decision.
+- Rebuilt canonical skill sources from the full pre-consolidation runtime
+  baselines before rendering, avoiding instruction loss from shortened drafts.
+
+Pages created: wiki/decisions/single-source-skills.decision.md
+Pages moved: plan.md -> wiki/plans/single-source-skills.plan.md
+Pages updated: wiki/index.md, wiki/log.md, wiki/specs/init-project-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-research-skill.spec.md, wiki/specs/knowledge-lint-skill.spec.md, wiki/decisions/project-local-codex-skills.decision.md
+Files created: skills/README.md, skills/build.sh, skills/init-project/SKILL.md, skills/knowledge-ingest/SKILL.md, skills/knowledge-query/SKILL.md, skills/knowledge-research/SKILL.md, skills/knowledge-lint/SKILL.md, skills/knowledge/SKILL.md, skills/*/codex/openai.yaml, .claude/skills/knowledge-lint/SKILL.md
+Files regenerated: .claude/skills/*/SKILL.md, .codex/skills/*/SKILL.md, .codex/skills/*/agents/openai.yaml
+Verification: `bash skills/build.sh` is idempotent; no skill body contains an absolute `/Users/...` path; URL routing is research-first in both runtimes; every indexed skill has a canonical source under `skills/`. Runtime smoke tests in Claude Code and Codex remain pending.
+
+## [2026-05-06] create | LLM Wiki framework binary proposal
+
+Proposed packaging the framework as a single Rust binary (`llm-wiki`) with
+embedded canonical skill content, `clap`-driven subcommands (install, build,
+init, status, doctor, uninstall), and direct global writes to
+`~/.claude/skills/` and `~/.codex/skills/` instead of symlinks. Folds in the
+agent-vs-binary split for `init-project` (agent owns intake, binary owns
+file generation), the `--env local|global` target flag for self-dogfooding,
+`cargo-dist` multi-arch distribution, and a `git`-style backward-compat
+versioning model (no per-project pinning).
+
+Rationale: closes review.md §9.2 (broken global symlinks) by construction,
+eliminates per-runtime skill drift via a typed projector with `insta`
+snapshot tests, and is the operational form of D7 (self-replicating
+framework) — `llm-wiki init <path>` becomes the single bootstrap operation.
+
+If accepted, this proposal supersedes the bash renderer in
+`wiki/plans/single-source-skills.plan.md` and the symlink-based installation
+model recorded in `wiki/decisions/project-local-codex-skills.decision.md`
+and `wiki/decisions/framework-path-resolution.decision.md`.
+
+Pages created: wiki/proposals/llm-wiki-binary.proposal.md
+Pages updated: wiki/index.md
+
+## [2026-05-06] update | Revise llm-wiki binary proposal per external review
+
+Applied reviewer-blocking fixes and high-value improvements to
+`wiki/proposals/llm-wiki-binary.proposal.md`:
+
+- Added Roadmap Position section: proposal now explicitly recommends adding
+  D8 to the roadmap rather than reframing D7. Resolves the contradiction
+  with `framework-v1.roadmap.md:246` "GUI or CLI tooling" exclusion.
+- Added Install State And Manifest section: defines manifest schema
+  (`~/.local/share/llm-wiki/manifest.json`), collision policy table
+  (path-absent, manifest-owned/match, manifest-owned/drift, user-authored,
+  symlink), and `--force` backup-and-overwrite behavior.
+- Narrowed `init` to Create mode only; Update mode marked out of scope and
+  remains agent-owned. Binary refuses `init` against a non-empty `wiki/`.
+- Removed staged-delivery row from risk table (V1 ships only install+build,
+  init in V1.1) which contradicted Acceptance Criterion requiring init
+  golden-file fixtures. `init` is now non-negotiable for V1.
+- Replaced placeholder canonical-schema example with a real schema:
+  required/optional frontmatter fields with types, fixed body section
+  shape, projection rules, schema snapshot test commitment.
+- Defined "wiki shape" precisely (document type suffixes, metadata block
+  fields, folder layout, status vocabulary, three-layer architecture
+  invariant) and committed to compat fixtures under `tests/fixtures/wikis/`.
+- Replaced the muddy E2E test claim ("claude --version discovers skills")
+  with concrete post-install file-and-manifest verification. Manual smoke
+  testing documented but not automated; no runtime exposes a stable
+  skill-listing API.
+- Cited measured line-loss deltas (init-project Claude 369 -> 155;
+  knowledge-research Codex 200 -> 124) instead of "~400 lines" handwave.
+- Reworded "no network dependency" to clarify it applies to operations
+  after install, not to distribution acquisition.
+- Softened "per-runtime skill drift eliminated" claim: projector
+  eliminates cross-runtime drift on the same canonical content, not
+  authoring drift in the canonical itself; golden-file tests are the
+  discipline against the second class.
+- Added two new risk rows: user-authored skill collision; manifest-vs-FS
+  desync. Mitigations documented (refuse default, --force backup, atomic
+  manifest writes via temp-file + rename).
+- Acceptance Criteria reorganized into Functional / Test / Distribution /
+  Roadmap groupings; expanded from 12 items to 16; manifest, collision
+  matrix, compat fixture, and roadmap update added as explicit gates.
+
+Pages updated: wiki/proposals/llm-wiki-binary.proposal.md, wiki/log.md
+
+## [2026-05-06] update | Address second-round review of llm-wiki binary proposal
+
+Fixed five reviewer findings on `wiki/proposals/llm-wiki-binary.proposal.md`:
+
+1. Compat fixture / agent-driven contradiction: rewrote the fixture
+   contract so it asserts only what the binary can actually verify
+   (parseability, metadata extraction, template compatibility, skill
+   availability). Operations-level compatibility (ingest/query/lint
+   succeed) moved to a separate agent-driven smoke-test checklist at
+   `wiki/checklists/v1-fixture-smoke.checklist.md` (to be created when
+   the fixture lands), run manually as part of release gating. Dropped
+   the round-trip identity gate because the binary does not write into
+   `wiki/` content.
+2. Bad citations corrected: `plan.md` -> `wiki/plans/single-source-skills.plan.md`
+   (Sources, Implementation Outline x2). Imaginary `review.md §11`
+   replaced with the real `wiki/log.md` 2026-05-06 entry plus `review.md
+   §10` for the audit wording. Sources field updated.
+3. D7 proof overcompression: reworded "the proof becomes" to "the setup
+   step becomes" and added explicit text noting that `init` produces
+   scaffolding, not a navigable self-managing wiki — the latter requires
+   the agent to run end-to-end against the scaffolded project.
+4. Local-dev manifest collision edge case eliminated by removing
+   `install --env local` entirely. New surface: `install` is global-only
+   and manifest-tracked; `build [--target] [--out]` covers all local
+   rendering (snapshot tests, self-dogfooding) without a manifest.
+   Self-dogfooding now uses `llm-wiki build --out .`. Updated the
+   subcommand surface, the install/build/uninstall descriptions, the
+   self-referential dev workflow section, the test sections, the
+   non-goals, the revisit-when triggers, and the implementation outline.
+5. Fixed `<path>.bak` collision risk: switched to timestamped backup
+   suffix `<path>.bak.<UTC-ISO8601>` (e.g. `<path>.bak.20260506T123456Z`),
+   so repeated `--force` runs never overwrite an earlier backup. Updated
+   the manifest collision-policy table, the risk table, and the
+   acceptance criteria.
+
+Pages updated: wiki/proposals/llm-wiki-binary.proposal.md, wiki/log.md
+
+## [2026-05-06] promote | Accept llm-wiki binary proposal; add D8; supersede predecessors
+
+Formal acceptance pass per the framework promotion rule
+(`project_guidelines.template.md:344-356`). Status flips, decision page,
+roadmap addition, and supersession bookkeeping for the binary proposal.
+
+Created:
+- `wiki/decisions/llm-wiki-binary-distribution.decision.md` — records the
+  choice, six rejected alternatives (status quo, bash renderer +
+  conditional blocks, Python script, per-project install, MCP, agent-only
+  scaffolding), consequences, and the bounded backward-compatibility
+  promise.
+
+Status changes:
+- `wiki/proposals/llm-wiki-binary.proposal.md`: Proposed -> Accepted; added
+  Promoted To pointing at the new decision and roadmap D8.
+- `wiki/decisions/single-source-skills.decision.md`: Accepted -> Superseded
+  (Superseded By: binary distribution). Bash renderer + conditional-block
+  approach is replaced by the binary's typed projector.
+- `wiki/decisions/framework-path-resolution.decision.md`: Accepted ->
+  Superseded. Binary embeds canonical content, eliminating the framework-
+  root path-resolution problem entirely.
+- `wiki/decisions/project-local-codex-skills.decision.md`: already
+  Superseded by single-source-skills; now transitively superseded by binary
+  distribution. Chronological chain preserved.
+- `wiki/plans/single-source-skills.plan.md`: Active -> Superseded. Repo-
+  local consolidation work landed but the smoke-test gates from §6 will be
+  discharged by the D8 implementation rather than by completing this plan.
+
+Roadmap:
+- `wiki/roadmaps/framework-v1.roadmap.md`: D8 added with full Promise,
+  Included, Excluded, Proof, Promotion Target, Unlocks, Closes sections.
+  D7 unchanged; D7's Unlocks updated to note D8 as the faster proof path.
+
+Index:
+- `wiki/index.md`: Stage line updated to include D8 (Draft); proposal
+  status flipped to Accepted; new decision listed; three predecessor
+  decisions and one plan marked Superseded with reasons.
+
+No skill files, canonical sources, or repo-local skill outputs were
+modified by this pass. The bash renderer continues to operate the repo's
+self-dogfooding workflow until D8 ships.
+
+Next step: write `wiki/plans/llm-wiki-binary.plan.md` to execute D8.
+
+Pages created: wiki/decisions/llm-wiki-binary-distribution.decision.md
+Pages updated: wiki/proposals/llm-wiki-binary.proposal.md, wiki/decisions/single-source-skills.decision.md, wiki/decisions/framework-path-resolution.decision.md, wiki/plans/single-source-skills.plan.md, wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
+
+## [2026-05-06] update | Normalize acceptance pass per third-round review
+
+Reviewer caught five issues in the prior acceptance pass. All addressed.
+
+**Premature supersession (high).** Predecessor decisions were marked
+`Superseded` while the binary that supersedes them does not yet exist.
+The new decision's own consequences section even said the bash renderer
+remains in operation. Reverted statuses to reflect what is actually
+running:
+
+- `wiki/decisions/single-source-skills.decision.md`: Superseded -> Accepted.
+  Added forward-pointing `Successor:` field.
+- `wiki/decisions/framework-path-resolution.decision.md`: Superseded ->
+  Accepted. Added `Successor:` field.
+- `wiki/plans/single-source-skills.plan.md`: Superseded -> Active. Added
+  `Successor:` field. Smoke-test gates from §6 will be folded into D8
+  rather than discharged separately.
+- `wiki/decisions/project-local-codex-skills.decision.md`: unchanged
+  (already Superseded by single-source; chain stays chronologically
+  accurate; will collapse forward when D8 ships).
+- Index lines updated to match the reverted statuses with explicit
+  "in operation now, will be superseded by binary distribution when D8
+  ships" annotations.
+
+The binary-distribution decision's metadata changed `Supersedes:` to
+`Will Supersede On D8 Completion:`. The `Consequences` section was split
+into **Immediately** (forward-pointing annotations only) and **On D8
+completion (planned, not yet effected)** (the actual flips, file
+removals, and spec updates). This makes the deferred-supersession model
+explicit instead of implied.
+
+**Invalid AC #11 (high).** Compat-fixture acceptance criterion still
+required "framework operations succeed" and "round-trip is byte-identical"
+even though the proposal's Compat Fixtures section had already dropped
+both claims (binary does not own ingest/query/lint; binary does not
+write into `wiki/` content). Rewrote AC #11 to match: parseability,
+metadata extraction against hand-coded structs, template compatibility
+via `init` re-render, skill-availability cross-check. Operations-level
+compatibility is the agent's checklist responsibility.
+
+**Install upgrade semantics underspecified (high).** The collision-policy
+table used a two-way comparison (current file vs manifest) that
+conflated "no-op" with "upgrade." Rewrote the table as a three-way hash
+comparison: `current` (file on disk) vs `manifest` (last installed) vs
+`bundled` (this binary). Eight cases now distinguished:
+- absent + no manifest entry = fresh install
+- absent + manifest entry = recovery
+- match + match = no-op
+- match + differ = upgrade (file untouched, framework moved on)
+- differ + match = user edited the framework file (refuse default)
+- differ + differ = user edited AND framework moved on
+- non-manifest path = collision (refuse default)
+- symlink = pre-binary residue (refuse default; suggest doctor)
+
+**`init` non-empty-dir contradiction (medium).** Earlier wording
+("refuses against a non-empty `wiki/`") contradicted the existing
+`init-project` spec's IS_EXISTING profile. Rewrote: the binary's `init`
+collision check is on framework artifacts only (`wiki/`, `raw/`,
+`CLAUDE.md`, `project_guidelines.md`), not on directory emptiness.
+IS_EXISTING happy path preserved: existing source code, configs, and
+tests are left untouched. D8 roadmap entry updated to match.
+
+**"Seven deliverables" stale text (low).** Index line updated to "Eight
+deliverables: bootstrap through self-replicating framework, plus D8
+distribution tooling."
+
+**Untracked decision file note.** `wiki/decisions/llm-wiki-binary-
+distribution.decision.md` remains untracked in git. Not added in this
+pass — staging and commit are the user's call. Flagging here so it is
+not lost in the next commit.
+
+Knowledge base now coherent: the operating model is the bash renderer +
+canonical `skills/` source; the binary is an accepted future direction
+recorded as D8; predecessor decisions show their forward path without
+misrepresenting current state.
+
+Next step (unchanged): write `wiki/plans/llm-wiki-binary.plan.md` to
+execute D8.
+
+Pages updated: wiki/proposals/llm-wiki-binary.proposal.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/single-source-skills.decision.md, wiki/decisions/framework-path-resolution.decision.md, wiki/plans/single-source-skills.plan.md, wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
+
+## [2026-05-06] create | D8 implementation plan for the llm-wiki binary
+
+Wrote `wiki/plans/llm-wiki-binary.plan.md` to execute the accepted D8
+deliverable. Plan is `Status: Draft` until stage 5.1 begins.
+
+Structure:
+- 13 sequenced stages (5.1 scaffold + CI -> 5.13 cleanup and supersession
+  bookkeeping)
+- Crate lives at `tools/llm-wiki/` with explicit module layout (schema,
+  projector, manifest, install/build/init/status/doctor/uninstall)
+- 16 verification gates mapped one-to-one to the proposal's acceptance
+  criteria
+- Tightest-first ordering inside the implementation phase: schema ->
+  projector -> canonical migration (the bug-prevention spine that would
+  have caught the bash renderer's content-loss class), then manifest,
+  init, diagnostics
+- Stage 5.4 (canonical migration) is explicitly a content-completeness
+  audit with PR review of every diff between today's rendered outputs
+  and the new projector output. The bug we just hit is the headline
+  reason this stage exists.
+- Stage 5.13 collapses the deferred-supersession wording recorded
+  earlier today into effective supersession when D8 ships
+- Implementation risks separated from design risks (design risks live
+  in the proposal); seven implementation-specific risks documented
+- Four open implementation questions flagged as sequencing details, not
+  design forks: crate name for crates.io, workspace vs standalone
+  Cargo.toml, dirs crate vs hand-rolled HOME resolution, git2 for
+  .gitignore awareness in IS_EXISTING profile
+
+Index updated to list the new plan.
+
+Pages created: wiki/plans/llm-wiki-binary.plan.md
+Pages updated: wiki/index.md, wiki/log.md

@@ -2,10 +2,10 @@
 
 - Document Class: Spec
 - Status: Active
-- Date: 2026-04-23
+- Date: 2026-05-06
 - Category: Tooling
 - Scope: The `knowledge-lint` skill and `$knowledge lint` namespace entry for scanning and fixing wiki consistency issues.
-- Related: wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/decisions/knowledge-command-namespace.decision.md
+- Related: wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/decisions/knowledge-command-namespace.decision.md, wiki/decisions/single-source-skills.decision.md
 
 ## What It Does
 
@@ -16,7 +16,15 @@ directly.
 
 In Codex, it can trigger from normal requests to lint the wiki, through direct
 explicit invocation with `$knowledge-lint`, or through the namespace alias
-`$knowledge lint`.
+`$knowledge lint`. In Claude, it can trigger through direct `/knowledge-lint`
+invocation or normal language.
+
+## Location
+
+Canonical source: `skills/knowledge-lint/SKILL.md`
+Claude generated skill: `.claude/skills/knowledge-lint/SKILL.md`
+Codex generated skill: `.codex/skills/knowledge-lint/SKILL.md`
+Codex UI metadata source: `skills/knowledge-lint/codex/openai.yaml`
 
 ## Workflow
 
@@ -40,9 +48,13 @@ explicit invocation with `$knowledge-lint`, or through the namespace alias
 
 ## Proven By
 
+- Claude skill file exists at `.claude/skills/knowledge-lint/SKILL.md`
 - Codex skill file exists at `.codex/skills/knowledge-lint/SKILL.md`
+- Canonical skill source exists at `skills/knowledge-lint/SKILL.md`
+- `bash skills/build.sh` renders the Claude and Codex outputs
 - Codex UI metadata exists at `.codex/skills/knowledge-lint/agents/openai.yaml`
 - Codex global symlink exists at `~/.codex/skills/knowledge-lint`
+- Claude global symlink exists at `~/.claude/skills/knowledge-lint`
 - Codex dispatcher skill routes `$knowledge lint` to `knowledge-lint`
 
 ## Limitations

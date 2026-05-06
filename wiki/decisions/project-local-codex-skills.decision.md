@@ -1,12 +1,13 @@
 # Project-Local Codex Skills
 
 - Document Class: Decision
-- Status: Accepted
-- Date: 2026-04-23
+- Status: Superseded
+- Date: 2026-05-06
 - Category: Tooling
 - Scope: Keep Codex skill definitions inside this framework repo and expose them globally through symlinks.
 - Sources: .codex/skills/init-project/SKILL.md, .codex/skills/knowledge/SKILL.md, .codex/skills/knowledge-query/SKILL.md, .codex/skills/knowledge-ingest/SKILL.md, .codex/skills/knowledge-lint/SKILL.md, .codex/skills/knowledge-research/SKILL.md
-- Related: wiki/specs/init-project-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-lint-skill.spec.md, wiki/specs/knowledge-research-skill.spec.md, wiki/decisions/knowledge-command-namespace.decision.md
+- Related: wiki/specs/init-project-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-lint-skill.spec.md, wiki/specs/knowledge-research-skill.spec.md, wiki/decisions/knowledge-command-namespace.decision.md, wiki/decisions/framework-path-resolution.decision.md, wiki/decisions/single-source-skills.decision.md
+- Superseded By: wiki/decisions/single-source-skills.decision.md
 
 ## Choice
 
@@ -22,6 +23,10 @@ Current symlinks:
 - `~/.codex/skills/knowledge-ingest` -> `.codex/skills/knowledge-ingest`
 - `~/.codex/skills/knowledge-lint` -> `.codex/skills/knowledge-lint`
 - `~/.codex/skills/knowledge-research` -> `.codex/skills/knowledge-research`
+
+After the 2026-05 rename to `llm_wiki_framework`, these symlinks were rebuilt
+to target this repository rather than the old `software_project_management`
+path.
 
 ## Why
 
@@ -39,6 +44,8 @@ truth and the globally available skill definitions.
 - Updating a project-local Codex skill immediately updates the globally exposed
   skill through the symlink.
 - Symlink targets must remain valid when the repo is moved.
+- Skill instructions must resolve framework source files relative to their own
+  symlink-resolved location, not from hardcoded absolute repository paths.
 - The Claude and Codex skill variants need to be kept behaviorally aligned
   when framework workflows change.
 

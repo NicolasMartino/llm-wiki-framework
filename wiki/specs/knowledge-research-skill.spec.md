@@ -2,10 +2,10 @@
 
 - Document Class: Spec
 - Status: Active
-- Date: 2026-05-02
+- Date: 2026-05-06
 - Category: Tooling
 - Scope: The `knowledge-research` skill as the guided intake surface for gathering source material into `raw/research/` before ingest.
-- Related: wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/decisions/knowledge-command-namespace.decision.md, wiki/proposals/knowledge-intake-command.proposal.md, wiki/plans/knowledge-research-intake.plan.md
+- Related: wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/decisions/knowledge-command-namespace.decision.md, wiki/decisions/knowledge-research-intake.decision.md, wiki/plans/knowledge-research-intake.plan.md
 
 ## What It Does
 
@@ -31,8 +31,11 @@ directory of the current working directory.
 
 ## Location
 
-Claude skill definition: `.claude/skills/knowledge-research/SKILL.md`
-Codex skill definition: `.codex/skills/knowledge-research/SKILL.md`
+Canonical source: `skills/knowledge-research/SKILL.md`
+Claude generated skill: `.claude/skills/knowledge-research/SKILL.md`
+Codex generated skill: `.codex/skills/knowledge-research/SKILL.md`
+Codex UI metadata source: `skills/knowledge-research/codex/openai.yaml`
+Claude global access: symlinked to `~/.claude/skills/knowledge-research`
 Codex global access: symlinked to `~/.codex/skills/knowledge-research`
 Codex namespace alias: `$knowledge research`
 
@@ -156,6 +159,9 @@ first, not `knowledge-ingest`.
 
 - Claude skill file exists at `.claude/skills/knowledge-research/SKILL.md`
 - Codex skill file exists at `.codex/skills/knowledge-research/SKILL.md`
+- Canonical skill source exists at `skills/knowledge-research/SKILL.md`
+- `bash skills/build.sh` renders the Claude and Codex outputs
+- Claude global symlink exists at `~/.claude/skills/knowledge-research`
 - Codex UI metadata exists at `.codex/skills/knowledge-research/agents/openai.yaml`
 - Codex global symlink exists at `~/.codex/skills/knowledge-research`
 - The dispatcher namespace includes `$knowledge research`

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Knowledge Lint"
+  short_description: "Scan and fix wiki consistency issues."
+  default_prompt: "Use $knowledge-lint to scan the wiki for contradictions, stale claims, and missing cross-references."

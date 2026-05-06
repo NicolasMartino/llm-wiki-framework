@@ -25,13 +25,21 @@ If no target path is provided, use the current working directory.
 
 ## Framework Source
 
-This skill is maintained inside the framework repo at:
+Resolve the framework root from this skill file location; do not use a
+hardcoded absolute path. If this skill is reached through a global symlink,
+resolve the symlink target first. From either runtime output path:
 
-`/Users/nicolasmartino/Documents/local_llm_wiki/software_project_management`
+```text
+<framework-root>/.claude/skills/init-project/SKILL.md
+<framework-root>/.codex/skills/init-project/SKILL.md
+```
 
-Use that repo's `project_guidelines.template.md` as the template source. When
-running from a symlinked skill, resolve the symlink target if needed; do not
-assume `~/.codex/skills` is the framework repo.
+the framework root is three directories up. Confirm the resolved root contains
+`project_guidelines.template.md`, then use:
+
+```text
+<framework-root>/project_guidelines.template.md
+```
 
 ## State File
 
@@ -87,7 +95,7 @@ resume.
    - `INCLUDE_ML_AI`: true for `ml` or `data`
    - `INCLUDE_QMD`: true for `medium` or `large`
    - `IS_EXISTING`: true when adding to an existing codebase
-6. Read `project_guidelines.template.md` from the framework source repo.
+6. Resolve the framework root from this skill file and read `<framework-root>/project_guidelines.template.md`.
 7. Generate `project_guidelines.md` by replacing template variables and
    removing inactive conditional sections.
 8. Generate `CLAUDE.md` with project-specific agent instructions. If the
@@ -138,7 +146,7 @@ Conditional sections:
 1. Read the target project's `init.json` if present.
 2. Read `project_guidelines.md`, `CLAUDE.md`, `AGENTS.md` if present, and
    `wiki/index.md`.
-3. Read the latest `project_guidelines.template.md` from the framework repo.
+3. Resolve the framework root from this skill file and read the latest `<framework-root>/project_guidelines.template.md`.
 4. Compare current files with the template and identify missing sections,
    outdated conventions, and structural drift.
 5. Summarize proposed changes and ask before applying them.

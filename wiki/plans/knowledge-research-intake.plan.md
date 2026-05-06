@@ -5,8 +5,8 @@
 - Date: 2026-05-02
 - Category: Tooling
 - Scope: Execute the proposed upgrade of `knowledge-research` into a guided intake workflow with `raw/research/` bundles, `manifest.md`, and `research-summary.md`.
-- Sources: wiki/proposals/knowledge-intake-command.proposal.md, wiki/specs/knowledge-research-skill.spec.md, wiki/decisions/knowledge-command-namespace.decision.md, project_guidelines.template.md
-- Related: wiki/proposals/knowledge-intake-command.proposal.md, wiki/specs/knowledge-research-skill.spec.md, .codex/skills/knowledge-research/SKILL.md, .codex/skills/knowledge/SKILL.md, .claude/skills/knowledge-ingest/SKILL.md
+- Sources: wiki/archive/knowledge-intake-command.proposal.md, wiki/specs/knowledge-research-skill.spec.md, wiki/decisions/knowledge-command-namespace.decision.md, project_guidelines.template.md
+- Related: wiki/decisions/knowledge-research-intake.decision.md, wiki/specs/knowledge-research-skill.spec.md, .codex/skills/knowledge-research/SKILL.md, .codex/skills/knowledge/SKILL.md, .claude/skills/knowledge-ingest/SKILL.md
 
 ## Deliverable
 
@@ -83,7 +83,7 @@ bundle under `raw/research/` with provenance plus one bundle-level summary.
 ## Wiki Updates When Done
 
 - `wiki/specs/knowledge-research-skill.spec.md`
-- `wiki/proposals/knowledge-intake-command.proposal.md`
+- `wiki/archive/knowledge-intake-command.proposal.md`
 - `wiki/index.md`
 - `wiki/log.md`
 

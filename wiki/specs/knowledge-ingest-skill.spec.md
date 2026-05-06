@@ -2,10 +2,10 @@
 
 - Document Class: Spec
 - Status: Active
-- Date: 2026-04-23
+- Date: 2026-05-06
 - Category: Tooling
 - Scope: The `knowledge-ingest` skill for processing raw sources into wiki pages.
-- Related: wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/init-project-skill.spec.md
+- Related: wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/init-project-skill.spec.md, wiki/decisions/knowledge-research-intake.decision.md
 
 ## What It Does
 
@@ -25,8 +25,10 @@ directory.
 
 ## Location
 
-Claude skill definition: `.claude/skills/knowledge-ingest/SKILL.md`
-Codex skill definition: `.codex/skills/knowledge-ingest/SKILL.md`
+Canonical source: `skills/knowledge-ingest/SKILL.md`
+Claude generated skill: `.claude/skills/knowledge-ingest/SKILL.md`
+Codex generated skill: `.codex/skills/knowledge-ingest/SKILL.md`
+Codex UI metadata source: `skills/knowledge-ingest/codex/openai.yaml`
 Claude global access: symlinked to `~/.claude/skills/knowledge-ingest`
 Codex global access: symlinked to `~/.codex/skills/knowledge-ingest`
 Codex namespace alias: `$knowledge ingest`
@@ -63,9 +65,13 @@ files. URL or web discovery belongs to `knowledge-research`.
 
 - Claude skill file exists at `.claude/skills/knowledge-ingest/SKILL.md`
 - Codex skill file exists at `.codex/skills/knowledge-ingest/SKILL.md`
+- Canonical skill source exists at `skills/knowledge-ingest/SKILL.md`
+- `bash skills/build.sh` renders the Claude and Codex outputs
 - Codex global symlink exists at `~/.codex/skills/knowledge-ingest`
 - Codex dispatcher skill exists at `.codex/skills/knowledge/SKILL.md`
 - Claude global symlink exists at `~/.claude/skills/knowledge-ingest`
+- Claude and Codex ingest skills both route URL, site, and web discovery to
+  `knowledge-research` before ingest
 - The ingest operations performed earlier in this project (QMD, NiharShrotri,
   ecosystem survey) followed this same workflow manually
 

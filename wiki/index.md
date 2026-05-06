@@ -1,8 +1,8 @@
 # Wiki Index
 
 Project: Software Project Management Framework
-Stage: D1 Bootstrap (Completed), D2 Ingest Cycle (Completed), D3 Lint Operation (Completed)
-Updated: 2026-05-02
+Stage: D1 Bootstrap (Completed), D2 Ingest Cycle (Completed), D3 Lint Operation (Completed), D8 Distribution Tooling (Draft)
+Updated: 2026-05-06
 
 ## Specs
 
@@ -19,11 +19,15 @@ Updated: 2026-05-02
 - [Agent Owns Wiki](decisions/agent-owns-wiki.decision.md) — Accepted — Agent has full control of wiki/, humans curate raw/
 - [Typed Documents](decisions/typed-documents.decision.md) — Accepted — Nine document types with distinct truth relationships
 - [Knowledge Command Namespace](decisions/knowledge-command-namespace.decision.md) — Accepted — `$knowledge` is the shared Codex command surface for init/query/ingest/research/lint
-- [Project-Local Codex Skills](decisions/project-local-codex-skills.decision.md) — Accepted — Codex translations live in `.codex/skills/` and are exposed globally through `~/.codex/skills/` symlinks
+- [Project-Local Codex Skills](decisions/project-local-codex-skills.decision.md) — Superseded — Codex translations live in `.codex/skills/`; superseded by single-source skills
+- [Framework Path Resolution](decisions/framework-path-resolution.decision.md) — Accepted — Skill-relative path resolution; in operation now, will be superseded by binary distribution when D8 ships
+- [Knowledge Research Intake](decisions/knowledge-research-intake.decision.md) — Accepted — `knowledge-research` is the guided intake surface; no separate `knowledge-intake` command
+- [Single Source Skills](decisions/single-source-skills.decision.md) — Accepted — Canonical `skills/` + bash renderer model; in operation now, will be superseded by binary distribution when D8 ships
+- [LLM Wiki Binary Distribution](decisions/llm-wiki-binary-distribution.decision.md) — Accepted — Single Rust binary will own global skill installation, project scaffolding, and skill projection; takes effect on D8 completion
 
 ## Roadmaps
 
-- [Framework V1](roadmaps/framework-v1.roadmap.md) — Active — Seven deliverables: bootstrap through self-replicating framework
+- [Framework V1](roadmaps/framework-v1.roadmap.md) — Active — Eight deliverables: bootstrap through self-replicating framework, plus D8 distribution tooling
 
 ## References
 
@@ -35,11 +39,13 @@ Updated: 2026-05-02
 
 ## Proposals
 
-- [Knowledge Research Intake](proposals/knowledge-intake-command.proposal.md) — Accepted — `knowledge-research` is the guided intake surface and saves research bundles under `raw/research/`
+- [LLM Wiki Framework Binary](proposals/llm-wiki-binary.proposal.md) — Accepted — Single Rust binary owns global skill installation, project scaffolding, and skill projection; promoted to decision and roadmap D8
 
 ## Plans
 
 - [Knowledge Research Intake Implementation](plans/knowledge-research-intake.plan.md) — Completed — Executed the `knowledge-research` upgrade into a guided intake workflow with research bundles
+- [Single Source Skills](plans/single-source-skills.plan.md) — Active — Repo-local consolidation implemented; smoke-test gates pending and will be folded into D8 rather than discharged separately
+- [LLM Wiki Binary Implementation](plans/llm-wiki-binary.plan.md) — Draft — Implementation plan for D8: Rust crate at `tools/llm-wiki/` with thirteen sequenced stages, sixteen verification gates, golden-file and property tests, `cargo-dist` multi-arch release
 
 ## Experiments
 
@@ -52,3 +58,7 @@ Updated: 2026-05-02
 ## Checklists
 
 (none yet)
+
+## Archive
+
+- [Knowledge Research Intake Proposal](archive/knowledge-intake-command.proposal.md) — Archived — Superseded by the accepted Knowledge Research Intake decision
