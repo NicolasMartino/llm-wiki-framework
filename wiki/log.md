@@ -1026,3 +1026,31 @@ state.
 Pages updated: wiki/plans/binary-path-bootstrap.plan.md,
 wiki/decisions/binary-path-bootstrap.decision.md,
 wiki/proposals/binary-path-bootstrap.proposal.md, wiki/log.md
+
+## [2026-05-06] implement | D8.1 managed runtime bootstrap
+
+Implemented the D8.1 managed runtime bootstrap on branch
+`d8-1-managed-runtime-bootstrap` with staged commits. The installer now copies
+or verifies the running binary at `~/.llm_wiki/bin/llm-wiki`, writes manifest v2
+under `~/.llm_wiki/manifest.json`, uses `install.partial.json` transaction
+state, writes scoped backup manifests, and renders installed skills to call the
+managed binary path directly. `llm-wiki path` prints optional PATH guidance,
+`doctor` checks managed binary and PATH drift, and `uninstall --include-binary`
+is the explicit managed-binary removal path.
+
+The pre-release `init-project` skill was renamed to `knowledge-init` across
+canonical assets, embedded Rust references, dispatcher routing, and projection
+snapshots. Specs were promoted after verification: the documentation model now
+records the managed runtime home and manifest v2, and the initialization skill
+spec now points at `knowledge-init`.
+
+Verification run: `cargo test --workspace`; `cargo insta test --workspace
+--accept`.
+
+Pages updated: README.md, wiki/index.md,
+wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-init-skill.spec.md,
+wiki/decisions/binary-path-bootstrap.decision.md,
+wiki/decisions/llm-wiki-binary-distribution.decision.md,
+wiki/decisions/knowledge-command-namespace.decision.md,
+wiki/plans/binary-path-bootstrap.plan.md, wiki/roadmaps/framework-v1.roadmap.md,
+wiki/log.md

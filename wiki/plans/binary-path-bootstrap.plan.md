@@ -1,12 +1,12 @@
 # Plan: Managed Binary Runtime Install
 
 - Document Class: Plan
-- Status: Planned
+- Status: Completed
 - Date: 2026-05-06
 - Category: Distribution tooling, install UX
 - Scope: Implement D8.1 managed binary install behavior so runtime skills call `~/.llm_wiki/bin/llm-wiki` by absolute path and PATH setup is only convenience guidance.
 - Sources: wiki/proposals/binary-path-bootstrap.proposal.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/decisions/llm-wiki-binary-distribution.decision.md
-- Related: wiki/roadmaps/framework-v1.roadmap.md (D8.1), wiki/specs/documentation-model.spec.md, wiki/specs/init-project-skill.spec.md
+- Related: wiki/roadmaps/framework-v1.roadmap.md (D8.1), wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-init-skill.spec.md
 
 ## Deliverable
 
@@ -26,8 +26,8 @@ cargo install llm-wiki-framework
 llm-wiki install
 ```
 
-This plan executes the accepted decision. It does not promote specs until the
-implementation lands and verification passes.
+This plan executed the accepted decision. Specs were promoted after the
+implementation landed and verification passed.
 
 ## Existing Implementation Touchpoints
 
@@ -237,7 +237,7 @@ manifest-owned state unless `--include-binary` is passed.
 5. Run `rg -n "init-project" wiki assets src crates tests` and classify every
    remaining mention as historical documentation, current spec text pending
    promotion, or a bug to fix. This explicitly includes
-   `wiki/specs/init-project-skill.spec.md` and any `Sources` / `Related`
+   `wiki/specs/knowledge-init-skill.spec.md` and any `Sources` / `Related`
    metadata that names it.
 
 Verification: no runtime asset, generated skill, embed path, dispatcher route,
@@ -284,7 +284,7 @@ After implementation and tests pass:
 
 1. Update `wiki/specs/documentation-model.spec.md` with the managed binary
    runtime home and manifest v2 as validated behavior.
-2. Replace `wiki/specs/init-project-skill.spec.md` with the validated
+2. Replace `wiki/specs/knowledge-init-skill.spec.md` with the validated
    `knowledge-init` skill spec.
 3. Update affected `knowledge-*` skill specs if dispatcher or installed path
    behavior changes.

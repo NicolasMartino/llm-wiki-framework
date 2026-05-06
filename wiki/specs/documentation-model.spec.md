@@ -23,7 +23,13 @@ In this framework repository, the canonical reusable specification template is
 Framework distribution is binary-owned. The `llm-wiki` Rust binary embeds the
 canonical skill sources and templates, renders runtime skill variants, installs
 global skills with a manifest, and scaffolds new projects deterministically.
-Spawned projects do not need project-local framework skill copies.
+`llm-wiki install` manages runtime state under `~/.llm_wiki/`: the executable is
+copied or verified at `~/.llm_wiki/bin/llm-wiki`, install ownership is recorded
+in `~/.llm_wiki/manifest.json`, interrupted installs use
+`~/.llm_wiki/install.partial.json`, and scoped backup snapshots live under
+`~/.llm_wiki/backups/`. Installed skills call the managed binary by absolute
+path; shell `PATH` setup is terminal convenience only. Spawned projects do not
+need project-local framework skill copies.
 
 ## Operations
 
@@ -69,8 +75,9 @@ research -> raw/ -> ingest -> proposal/reference -> roadmap -> plan -> evidence 
 - `CLAUDE.md` and `AGENTS.md` exist and define agent workflows for this repo
 - `wiki/index.md` exists and catalogs all wiki content
 - `wiki/log.md` records mutations
-- `llm-wiki install` writes global runtime skills with a manifest and
-  uninstall symmetry
+- `llm-wiki install` writes global runtime skills with managed-binary manifest
+  ownership, scoped backup snapshots, and uninstall symmetry
+- `llm-wiki path` prints managed-bin PATH guidance without reinstalling skills
 - `llm-wiki init` produces project scaffolds from embedded templates with
   profile-specific golden tests
 - `llm-wiki build --out .` regenerates this repo's committed runtime skill

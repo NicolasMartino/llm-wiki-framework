@@ -21,6 +21,10 @@ cargo install llm-wiki-framework
 llm-wiki install
 ```
 
+`llm-wiki install` copies or verifies the runtime binary at
+`~/.llm_wiki/bin/llm-wiki` and renders installed skills to call that managed
+path directly. Run `llm-wiki path` for optional shell `PATH` guidance.
+
 ## Create a Project
 
 ```bash

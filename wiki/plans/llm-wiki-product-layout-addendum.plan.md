@@ -6,7 +6,7 @@
 - Category: Tooling, repository layout
 - Scope: Completed post-D8 repository layout correction that makes the `llm-wiki` binary the root product crate and moves embedded product assets under `assets/`.
 - Sources: wiki/plans/llm-wiki-binary.plan.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, README.md, Cargo.toml, src/, assets/, tests/
-- Related: wiki/specs/documentation-model.spec.md, wiki/specs/init-project-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-research-skill.spec.md, wiki/specs/knowledge-lint-skill.spec.md
+- Related: wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-init-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-research-skill.spec.md, wiki/specs/knowledge-lint-skill.spec.md
 
 ## Purpose
 

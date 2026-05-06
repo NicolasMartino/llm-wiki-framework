@@ -1,16 +1,16 @@
-# Init Project Skill
+# Knowledge Init Skill
 
 - Document Class: Spec
 - Status: Active
 - Date: 2026-05-06
 - Category: Tooling
-- Scope: The `init-project` agent skill as a thin conversational wrapper over the `llm-wiki init` binary command.
-- Sources: assets/skills/init-project/SKILL.md, src/init/mod.rs, wiki/decisions/llm-wiki-binary-distribution.decision.md
+- Scope: The `knowledge-init` agent skill as a thin conversational wrapper over the `llm-wiki init` binary command.
+- Sources: assets/skills/knowledge-init/SKILL.md, src/init/mod.rs, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md
 - Related: wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-ingest-skill.spec.md
 
 ## Contract
 
-`init-project` collects setup answers and delegates deterministic project
+`knowledge-init` collects setup answers and delegates deterministic project
 scaffolding to the binary:
 
 ```bash
@@ -38,7 +38,7 @@ Each initial source becomes one `--initial-sources <path>` flag.
 
 ## Runtime Projection
 
-Canonical source: `assets/skills/init-project/SKILL.md`.
+Canonical source: `assets/skills/knowledge-init/SKILL.md`.
 Rendered runtime outputs are produced by:
 
 ```bash
@@ -51,9 +51,14 @@ Global installation is produced by:
 llm-wiki install
 ```
 
+Installed global skills render the binary invocation through the managed
+runtime path (`~/.llm_wiki/bin/llm-wiki` on Unix-like systems) so the wrapper
+does not require `llm-wiki` to be discoverable on shell `PATH`.
+
 ## Proven By
 
 - `llm-wiki init` has golden tests for baseline, ML/AI, QMD, combined ML/AI+QMD, and existing-code profiles.
 - `llm-wiki init` refuses paths containing framework artifacts.
 - Initial-source tests assert files are copied into `raw/initial/` and no ingest results appear in `wiki/`.
-- The `init-project` canonical is embedded at compile time and projection snapshots lock both runtime variants.
+- The `knowledge-init` canonical is embedded at compile time and projection snapshots lock both runtime variants.
+- Post-install integration tests assert installed skills contain the managed binary path and that the managed binary executes under a sanitized `PATH`.

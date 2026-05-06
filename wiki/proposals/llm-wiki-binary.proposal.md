@@ -6,8 +6,8 @@
 - Promoted To: wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/roadmaps/framework-v1.roadmap.md (D8)
 - Category: Tooling, framework distribution
 - Scope: Replace the current symlink-and-skill-copy distribution model with a single Rust binary (`llm-wiki`) that installs framework skills globally, scaffolds new projects, and projects canonical skill definitions into per-runtime variants.
-- Sources: review.md §9-10, wiki/log.md (line-loss audit, 2026-05-06), wiki/plans/single-source-skills.plan.md, wiki/decisions/single-source-skills.decision.md, wiki/decisions/framework-path-resolution.decision.md, wiki/decisions/project-local-codex-skills.decision.md, wiki/specs/init-project-skill.spec.md, wiki/roadmaps/framework-v1.roadmap.md
-- Related: wiki/specs/documentation-model.spec.md, wiki/specs/init-project-skill.spec.md, all `wiki/specs/knowledge-*-skill.spec.md`
+- Sources: review.md §9-10, wiki/log.md (line-loss audit, 2026-05-06), wiki/plans/single-source-skills.plan.md, wiki/decisions/single-source-skills.decision.md, wiki/decisions/framework-path-resolution.decision.md, wiki/decisions/project-local-codex-skills.decision.md, wiki/specs/knowledge-init-skill.spec.md, wiki/roadmaps/framework-v1.roadmap.md
+- Related: wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-init-skill.spec.md, all `wiki/specs/knowledge-*-skill.spec.md`
 
 ## Question
 
@@ -75,12 +75,12 @@ Scaffolds a new project at `<path>`. **Create mode only in V1** — `Update` mod
 
 Create mode produces: `raw/`, `wiki/` (with `index.md` and `log.md`), `CLAUDE.md`, `project_guidelines.md` from embedded templates with conditional-section resolution per project profile (ML_AI, QMD, IS_EXISTING).
 
-- Interactive mode (default): prompts for the six questions documented in `wiki/specs/init-project-skill.spec.md:44-51` (name, description, type, new/existing, scale, optional initial sources).
+- Interactive mode (default): prompts for the six questions documented in `wiki/specs/knowledge-init-skill.spec.md:44-51` (name, description, type, new/existing, scale, optional initial sources).
 - `--non-interactive`: requires all answer flags. Used by the `init-project` skill (which still owns the conversational intake) and by CI.
 
 The `init-project` skill remains as a thin wrapper: agent conducts the question flow, validates answers, then shells out to `llm-wiki init --non-interactive ...`. Agent owns judgment and conversation; binary owns deterministic file generation.
 
-**Update mode** (compare an existing project against the latest template, propose and apply changes — see `wiki/specs/init-project-skill.spec.md:21-23`) involves judgment calls about which template diffs to apply to a project that may have intentional customizations. That kind of judgment belongs with the agent. The agent retains the existing `init-project` skill prose for Update flows.
+**Update mode** (compare an existing project against the latest template, propose and apply changes — see `wiki/specs/knowledge-init-skill.spec.md:21-23`) involves judgment calls about which template diffs to apply to a project that may have intentional customizations. That kind of judgment belongs with the agent. The agent retains the existing `init-project` skill prose for Update flows.
 
 **The binary's `init` collision check is on framework-owned files only, not on the directory's emptiness.** This preserves the IS_EXISTING profile (adding the framework to an existing codebase). Specifically:
 

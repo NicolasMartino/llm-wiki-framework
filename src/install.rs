@@ -77,19 +77,18 @@ fn recover_or_reject_partial(
     };
 
     let managed_binary = paths.managed_binary();
-    if let Some(manifest) = manifest {
-        if manifest.binary.path == managed_binary
-            && managed_binary.exists()
-            && sha256_hex(&fs::read(&managed_binary)?) == manifest.binary.hash
-        {
-            fs::remove_file(&partial_path).with_context(|| {
-                format!(
-                    "failed to remove leaked partial install marker {}",
-                    partial_path.display()
-                )
-            })?;
-            return Ok(());
-        }
+    if let Some(manifest) = manifest
+        && manifest.binary.path == managed_binary
+        && managed_binary.exists()
+        && sha256_hex(&fs::read(&managed_binary)?) == manifest.binary.hash
+    {
+        fs::remove_file(&partial_path).with_context(|| {
+            format!(
+                "failed to remove leaked partial install marker {}",
+                partial_path.display()
+            )
+        })?;
+        return Ok(());
     }
     if partial.target_binary != managed_binary && !force {
         bail!(

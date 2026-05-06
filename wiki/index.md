@@ -1,13 +1,13 @@
 # Wiki Index
 
 Project: Software Project Management Framework
-Stage: D1 Bootstrap (Completed), D2 Ingest Cycle (Completed), D3 Lint Operation (Completed), D8 Distribution Tooling (Completed), D8.1 Managed Runtime Bootstrap (Planned)
+Stage: D1 Bootstrap (Completed), D2 Ingest Cycle (Completed), D3 Lint Operation (Completed), D8 Distribution Tooling (Completed), D8.1 Managed Runtime Bootstrap (Completed)
 Updated: 2026-05-06
 
 ## Specs
 
 - [Documentation Model](specs/documentation-model.spec.md) — Active — Three-layer architecture, operations, document types, binary distribution, navigation, QMD scale strategy
-- [Init Project Skill](specs/init-project-skill.spec.md) — Active — `init-project` wrapper over `llm-wiki init --non-interactive`
+- [Knowledge Init Skill](specs/knowledge-init-skill.spec.md) — Active — `knowledge-init` wrapper over `llm-wiki init --non-interactive`
 - [Knowledge Query Skill](specs/knowledge-query-skill.spec.md) — Active — `knowledge-query` skill for querying the wiki with citations and save-back
 - [Knowledge Ingest Skill](specs/knowledge-ingest-skill.spec.md) — Active — `knowledge-ingest` skill for processing raw sources into wiki pages with 3-phase pipeline
 - [Knowledge Lint Skill](specs/knowledge-lint-skill.spec.md) — Active — `knowledge-lint` skill for scanning and fixing wiki consistency issues
@@ -48,7 +48,7 @@ Updated: 2026-05-06
 - [Knowledge Research Intake Implementation](plans/knowledge-research-intake.plan.md) — Completed — Executed the `knowledge-research` upgrade into a guided intake workflow with research bundles
 - [LLM Wiki Binary Implementation](plans/llm-wiki-binary.plan.md) — Completed — Implemented D8 Rust binary with staged commits, manifest install, deterministic init, projection snapshots, fixtures, and release config
 - [LLM Wiki Product Layout Addendum](plans/llm-wiki-product-layout-addendum.plan.md) — Completed — Moved `llm-wiki` to the root product crate layout and embedded assets under `assets/`
-- [Managed Binary Runtime Install](plans/binary-path-bootstrap.plan.md) — Planned — D8.1 tactical execution for managed runtime home, manifest v2, outside-PATH install proof, and `knowledge-init` rename
+- [Managed Binary Runtime Install](plans/binary-path-bootstrap.plan.md) — Completed — D8.1 tactical execution for managed runtime home, manifest v2, outside-PATH install proof, and `knowledge-init` rename
 
 ## Experiments
 

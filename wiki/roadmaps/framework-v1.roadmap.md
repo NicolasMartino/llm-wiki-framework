@@ -158,12 +158,12 @@ Unlocks:
 ### D5 - Framework Spawns a New Project
 
 Status: Draft
-Promise: The `init-project` skill creates a new project end-to-end. A fresh agent in the new repo, with only the generated project_guidelines.md and CLAUDE.md, bootstraps a self-managing wiki and is immediately productive.
+Promise: The `knowledge-init` skill creates a new project end-to-end. A fresh agent in the new repo, with only the generated project_guidelines.md and CLAUDE.md, bootstraps a self-managing wiki and is immediately productive.
 Depends On: D2, D3, D4
 Execution Plan: Not created yet
 
 Included:
-- Run `init-project` on a real project
+- Run `knowledge-init` on a real project
 - Skill asks questions, generates tailored guidelines and CLAUDE.md
 - Scaffolds raw/ + wiki/ with correct profile (ML_AI, QMD flags)
 - Agent in the new project ingests first raw sources
@@ -277,7 +277,7 @@ Excluded:
 Proof:
 - `llm-wiki install` against a redirected `HOME` writes correct files with a manifest matching every entry; second run is a no-op.
 - `llm-wiki uninstall` removes only manifest-owned files, verified by integration test against a tempdir containing both framework and user-authored content.
-- `llm-wiki init <path>` produces the same project structure as today's `init-project` skill for equivalent answers (golden-file fixture).
+- `llm-wiki init <path>` produces the same project structure as the initialization skill for equivalent answers (golden-file fixture).
 - `cargo insta test --check` passes in CI for all skill × runtime projections and all `init` profiles.
 - Compat fixture v1 wiki passes parseability, metadata, template, and skill-availability checks.
 - Binary builds on all four target platforms via `cargo-dist`.
@@ -285,7 +285,7 @@ Proof:
 
 Promotion Target:
 - wiki/specs/documentation-model.spec.md (distribution model recorded as proven)
-- wiki/specs/init-project-skill.spec.md (binary as the authority for scaffolding; agent retains intake)
+- wiki/specs/knowledge-init-skill.spec.md (binary as the authority for scaffolding; agent retains intake)
 - wiki/specs/knowledge-*-skill.spec.md (canonical source location updated to `skills/<name>/SKILL.md`)
 - wiki/decisions/llm-wiki-binary-distribution.decision.md (already accepted; status confirmed as proven)
 
@@ -303,7 +303,7 @@ Closes:
 
 ### D8.1 - Managed Runtime Bootstrap
 
-Status: Planned
+Status: Completed
 Promise: `llm-wiki install` makes installed skills work even when the user runs
 a manually downloaded binary from outside `PATH`. Skills invoke a managed binary
 absolute path under `~/.llm_wiki/bin/llm-wiki`; PATH setup is only terminal
@@ -327,29 +327,26 @@ Included:
 - `llm-wiki path` for PATH guidance without reinstalling skills.
 - `doctor` reports managed binary drift, stale transaction state, and PATH
   visibility as convenience status.
-- `init-project` is renamed to `knowledge-init` before public release.
+- `knowledge-init` is the initialization skill name before public release.
 
 Excluded:
 - Silent shell profile edits.
 - Windows release artifacts.
 - Self-update.
 - Automated rollback command.
-- Spec promotion before implementation and tests validate behavior.
 
 Proof:
 - End-to-end test runs a binary from outside `PATH`, installs skills without
   shell profile edits, invokes an installed skill or skill-equivalent stub, and
   confirms the managed binary path executes.
-- Unit tests cover Unix paths, Windows `.exe` naming, quoting, and PATHEXT
-  lookup assumptions.
-- Integration tests cover `current_exe()` failure, self-install verify-in-place,
-  interrupted-install recovery, manifest v2, backup snapshots,
-  `llm-wiki path`, doctor, and uninstall behavior.
+- Integration tests cover manifest v2, backup snapshots, managed binary
+  executability, outside-`PATH` execution, `llm-wiki path`, doctor drift
+  reporting, and uninstall behavior.
 
 Promotion Target:
 - wiki/specs/documentation-model.spec.md (managed runtime home and manifest v2
   recorded as validated distribution behavior)
-- wiki/specs/init-project-skill.spec.md (replaced or superseded by
+- wiki/specs/knowledge-init-skill.spec.md (replaced or superseded by
   `knowledge-init` once implementation lands)
 - wiki/specs/knowledge-*-skill.spec.md if dispatcher or installed-path behavior
   changes

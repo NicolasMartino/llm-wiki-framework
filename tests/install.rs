@@ -79,6 +79,38 @@ fn install_is_idempotent() {
 }
 
 #[test]
+fn install_cleans_leaked_partial_marker_after_completed_manifest() {
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .args(["install", "--skip-path-guidance"])
+        .assert()
+        .success();
+    let manifest = read_manifest(home.path());
+    let partial = serde_json::json!({
+        "schema_version": 1,
+        "started_at": "2026-05-06T12:00:00Z",
+        "current_exe": manifest["binary"]["path"],
+        "target_binary": manifest["binary"]["path"],
+        "current_exe_hash_algorithm": "sha256",
+        "current_exe_hash": manifest["binary"]["hash"],
+        "phase": "binary-copy"
+    });
+    fs::write(
+        home.path().join(".llm_wiki/install.partial.json"),
+        serde_json::to_string_pretty(&partial).expect("partial json"),
+    )
+    .expect("partial");
+
+    llm_wiki(home.path())
+        .args(["install", "--skip-path-guidance"])
+        .assert()
+        .success();
+
+    assert!(!home.path().join(".llm_wiki/install.partial.json").exists());
+}
+
+#[test]
 fn install_refuses_user_authored_collision_by_default() {
     let home = TempDir::new().expect("home");
     let path = home.path().join(".claude/skills/knowledge-init/SKILL.md");

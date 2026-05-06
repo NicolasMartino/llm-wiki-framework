@@ -5,8 +5,8 @@
 - Date: 2026-04-23
 - Category: Tooling
 - Scope: Use `$knowledge` as the primary explicit command-like namespace for LLM Wiki operations in Codex.
-- Sources: .codex/skills/knowledge/SKILL.md, .codex/skills/init-project/SKILL.md, .codex/skills/knowledge-query/SKILL.md, .codex/skills/knowledge-ingest/SKILL.md, .codex/skills/knowledge-research/SKILL.md, .codex/skills/knowledge-lint/SKILL.md
-- Related: wiki/specs/init-project-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-research-skill.spec.md, wiki/specs/knowledge-lint-skill.spec.md, wiki/decisions/project-local-codex-skills.decision.md
+- Sources: assets/skills/knowledge/SKILL.md, assets/skills/knowledge-init/SKILL.md, assets/skills/knowledge-query/SKILL.md, assets/skills/knowledge-ingest/SKILL.md, assets/skills/knowledge-research/SKILL.md, assets/skills/knowledge-lint/SKILL.md
+- Related: wiki/specs/knowledge-init-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-research-skill.spec.md, wiki/specs/knowledge-lint-skill.spec.md, wiki/decisions/project-local-codex-skills.decision.md
 
 ## Choice
 

@@ -41,18 +41,17 @@ pub fn run() -> Result<()> {
                 ));
             }
         }
-        if let Some(path_binary) = find_on_path(managed_binary_name()) {
-            if !same_path(&path_binary, &manifest.binary.path)
-                && path_binary.exists()
-                && manifest.binary.path.exists()
-            {
-                let path_hash = sha256_hex(&fs::read(&path_binary)?);
-                if path_hash != manifest.binary.hash {
-                    findings.push(format!(
-                        "PATH llm-wiki differs from managed binary: {} (rerun `llm-wiki install` after upgrading)",
-                        path_binary.display()
-                    ));
-                }
+        if let Some(path_binary) = find_on_path(managed_binary_name())
+            && !same_path(&path_binary, &manifest.binary.path)
+            && path_binary.exists()
+            && manifest.binary.path.exists()
+        {
+            let path_hash = sha256_hex(&fs::read(&path_binary)?);
+            if path_hash != manifest.binary.hash {
+                findings.push(format!(
+                    "PATH llm-wiki differs from managed binary: {} (rerun `llm-wiki install` after upgrading)",
+                    path_binary.display()
+                ));
             }
         }
         let expected_binary = managed_binary_invocation(&manifest.binary.path);

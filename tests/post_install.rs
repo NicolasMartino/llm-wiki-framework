@@ -72,8 +72,8 @@ fn managed_binary_runs_without_path_after_install() {
         .assert()
         .success();
 
-    let skill =
-        fs::read_to_string(home.path().join(".codex/skills/knowledge-init/SKILL.md")).expect("skill");
+    let skill = fs::read_to_string(home.path().join(".codex/skills/knowledge-init/SKILL.md"))
+        .expect("skill");
     assert!(skill.contains(".llm_wiki/bin/llm-wiki"));
     assert!(!skill.contains("`llm-wiki init "));
 
@@ -84,6 +84,24 @@ fn managed_binary_runs_without_path_after_install() {
         .assert()
         .success()
         .stdout(predicate::str::contains("managed binary:"));
+}
+
+#[test]
+fn managed_binary_can_self_install() {
+    let home = TempDir::new().expect("home");
+
+    Command::cargo_bin("llm-wiki")
+        .expect("binary")
+        .env("HOME", home.path())
+        .args(["install", "--skip-path-guidance"])
+        .assert()
+        .success();
+
+    Command::new(home.path().join(".llm_wiki/bin/llm-wiki"))
+        .env("HOME", home.path())
+        .args(["install", "--skip-path-guidance"])
+        .assert()
+        .success();
 }
 
 fn installed_files(home: &Path) -> BTreeSet<PathBuf> {

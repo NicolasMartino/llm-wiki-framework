@@ -7,7 +7,7 @@
 - Category: Distribution tooling, install UX
 - Scope: Make `llm-wiki install` create a stable managed binary location for runtime skills, then guide users when `llm-wiki` is not discoverable on `PATH`.
 - Sources: user discussion 2026-05-06, proposal review 2026-05-06, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/plans/llm-wiki-binary.plan.md, wiki/plans/llm-wiki-product-layout-addendum.plan.md, https://docs.rs/which/latest/which/, https://docs.rs/dirs-next/latest/dirs_next/fn.executable_dir.html, https://docs.rs/dialoguer/latest/dialoguer/, https://docs.rs/is-terminal/latest/is_terminal/, https://doc.rust-lang.org/stable/cargo/commands/cargo-install.html
-- Related: wiki/decisions/binary-path-bootstrap.decision.md, wiki/plans/binary-path-bootstrap.plan.md, wiki/specs/init-project-skill.spec.md, wiki/specs/documentation-model.spec.md, wiki/proposals/llm-wiki-binary.proposal.md
+- Related: wiki/decisions/binary-path-bootstrap.decision.md, wiki/plans/binary-path-bootstrap.plan.md, wiki/specs/knowledge-init-skill.spec.md, wiki/specs/documentation-model.spec.md, wiki/proposals/llm-wiki-binary.proposal.md
 
 ## Question
 

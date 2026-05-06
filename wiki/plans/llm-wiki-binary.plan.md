@@ -5,7 +5,7 @@
 - Date: 2026-05-06
 - Category: Tooling, framework distribution
 - Scope: Implement the `llm-wiki` Rust binary that owns global skill installation, project scaffolding, and skill projection per the accepted D8 deliverable.
-- Sources: wiki/proposals/llm-wiki-binary.proposal.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/roadmaps/framework-v1.roadmap.md (D8), wiki/decisions/single-source-skills.decision.md, wiki/decisions/framework-path-resolution.decision.md, wiki/specs/init-project-skill.spec.md
+- Sources: wiki/proposals/llm-wiki-binary.proposal.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/roadmaps/framework-v1.roadmap.md (D8), wiki/decisions/single-source-skills.decision.md, wiki/decisions/framework-path-resolution.decision.md, wiki/specs/knowledge-init-skill.spec.md
 - Related: wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-research-skill.spec.md, wiki/specs/knowledge-lint-skill.spec.md, skills/README.md
 
 ## 1. Deliverable
@@ -47,7 +47,7 @@ D8 is a clean-slate replacement, not an additive evolution. The pre-binary rende
 1. **Single source of truth at any moment.** During implementation, the pre-binary renderer remains the operating model. At the merge that ships D8, the pre-binary renderer is gone. There is no main-branch state in which both systems coexist.
 2. **Dead code is a release blocker.** No code paths in the binary that parse `runtime-specific marker` / `runtime-specific marker` blocks, no fallback for "old canonical format," no compatibility shims for the pre-binary skill layout. Every line in the binary serves the current spec; CI enforces this.
 3. **Old prose is deleted, not migrated.** The current `skills/init-project/SKILL.md` contains hundreds of lines describing the question flow, profile resolution, scaffolding behavior, etc. After stage 5.11, that prose is gone — not moved into a comment, not preserved in `archive/`. The wrapper is short and self-contained.
-4. **Spec rewrites, not spec patches.** `wiki/specs/init-project-skill.spec.md` and the `knowledge-*-skill.spec.md` family are rewritten from scratch under the binary's authority. The old text is discarded, not edited.
+4. **Spec rewrites, not spec patches.** `wiki/specs/knowledge-init-skill.spec.md` and the `knowledge-*-skill.spec.md` family are rewritten from scratch under the binary's authority. The old text is discarded, not edited.
 5. **Superseded predecessors move to `wiki/archive/`.** Per `project_guidelines.template.md:327`, archived documents leave the active index. Predecessor decisions and the bash-renderer plan get archived at the D8 merge — not left in `wiki/decisions/` or `wiki/plans/` with a stale `Superseded` status accumulating.
 6. **Open questions resolve before stage 5.1.** §12's four implementation questions are decided before the scaffold step. No "we'll figure it out during implementation" hedge — that's how dead code paths get committed.
 7. **Backward compatibility is bounded.** The binary preserves compat for *external project wikis* (the `wiki/` shape promise from the proposal). It does **not** preserve compat for the *internal bash-renderer canonical format*. Those are different surfaces; the first is a feature, the second is dead code.
@@ -312,7 +312,7 @@ Per the No-Legacy Discipline (§2a), this stage lands as **one merge** that cont
 
 **Spec rewrites** (delete-then-rewrite per §2a, not edit-in-place):
 
-10. `wiki/specs/init-project-skill.spec.md` — old text deleted; new text describes the agent skill as a thin wrapper over `llm-wiki init`, with the binary as the authority for scaffolding behavior. Question flow lives in the spec only as a reference to the binary's flag set, not as duplicated prose.
+10. `wiki/specs/knowledge-init-skill.spec.md` — old text deleted; new text describes the agent skill as a thin wrapper over `llm-wiki init`, with the binary as the authority for scaffolding behavior. Question flow lives in the spec only as a reference to the binary's flag set, not as duplicated prose.
 11. `wiki/specs/knowledge-{ingest,query,research,lint}-skill.spec.md` — old text deleted; new text describes the canonical source location (`skills/<name>/SKILL.md`), the rendering path (binary), and the runtime invocation. Hardcoded path references and bash-renderer mentions are gone.
 12. `wiki/specs/documentation-model.spec.md` — distribution model recorded as proven; the operations table no longer mentions skill rendering as a separate concern (it's now binary-owned implementation detail).
 
@@ -388,7 +388,7 @@ Each gate maps to one or more acceptance criteria from the proposal (cited in pa
 - `wiki/plans/single-source-skills.plan.md` — `Active` → `Superseded`.
 - `wiki/plans/llm-wiki-binary.plan.md` (this file) — `Draft` → `Active` (on stage 5.1) → `Completed`.
 - `wiki/roadmaps/framework-v1.roadmap.md` — D8 → `Completed`.
-- `wiki/specs/init-project-skill.spec.md` — binary as scaffolding authority.
+- `wiki/specs/knowledge-init-skill.spec.md` — binary as scaffolding authority.
 - `wiki/specs/knowledge-{ingest,query,research,lint}-skill.spec.md` — canonical source location and renderer updated.
 - `wiki/specs/documentation-model.spec.md` — distribution model proven.
 - `wiki/index.md` — every status flip reflected; new checklist listed.

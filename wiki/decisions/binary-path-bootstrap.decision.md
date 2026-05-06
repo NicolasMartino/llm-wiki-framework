@@ -6,7 +6,7 @@
 - Category: Distribution tooling, install UX
 - Scope: Amend `llm-wiki install` so installed skills invoke a managed binary by absolute path and `PATH` is only terminal convenience.
 - Sources: wiki/proposals/binary-path-bootstrap.proposal.md, proposal review 2026-05-06, wiki/decisions/llm-wiki-binary-distribution.decision.md
-- Related: wiki/roadmaps/framework-v1.roadmap.md (D8.1), wiki/plans/binary-path-bootstrap.plan.md, wiki/specs/documentation-model.spec.md, wiki/specs/init-project-skill.spec.md
+- Related: wiki/roadmaps/framework-v1.roadmap.md (D8.1), wiki/plans/binary-path-bootstrap.plan.md, wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-init-skill.spec.md
 - Amends: wiki/decisions/llm-wiki-binary-distribution.decision.md
 
 ## Choice
@@ -107,8 +107,9 @@ The rename is implemented as a separable phase inside D8.1. Managed binary
 installation must remain coherent if the rename phase finds a collision, but
 there is no public `init-project` compatibility surface to preserve.
 
-Until implementation lands and specs are updated, current specs may still name
-`init-project` as the active skill.
+The validated spec is now `wiki/specs/knowledge-init-skill.spec.md`; historical
+proposal and log text may still mention `init-project` when describing
+pre-release state.
 
 ## Why
 
