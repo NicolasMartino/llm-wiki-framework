@@ -755,6 +755,31 @@ wiki/specs/knowledge-research-skill.spec.md, wiki/specs/knowledge-lint-skill.spe
 wiki/archive/single-source-skills.decision.md, wiki/archive/framework-path-resolution.decision.md,
 wiki/archive/project-local-codex-skills.decision.md, wiki/archive/single-source-skills.plan.md
 
+## [2026-05-06] update | Sharpen project registry search proposal
+
+Applied review feedback to
+`wiki/proposals/project-registry-search-artifacts.proposal.md`.
+
+Changes:
+- Split Tobi QMD and the Rust `qmd` crate into distinct concepts. Added
+  `wiki/references/qmd-rs-search-crate.reference.md` for the Rust crate and
+  updated the proposal to call it qmd-rs.
+- Made qmd-rs feature parity with Tobi QMD explicitly unconfirmed and part of
+  the required eval before backend acceptance.
+- Defined stale-index detection: store `last_indexed_wiki_max_mtime` and
+  `indexed_file_count`, then compare against current `wiki/**/*.md` state.
+- Fixed project registration validation to accept `project_guidelines.md`,
+  `CLAUDE.md`, or `AGENTS.md`.
+- Promoted cross-project result fusion from optional wording to a default:
+  federated per-project retrieval followed by RRF with `k=60`.
+- Added the required future `documentation-model.spec.md` update so D9's
+  search surface becomes `llm-wiki search` / `search-all`, not direct QMD MCP.
+- Made `knowledge-query` integration explicitly out of scope unless a later
+  accepted plan chooses to add it.
+
+Pages created: wiki/references/qmd-rs-search-crate.reference.md
+Pages updated: wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/index.md, wiki/log.md
+
 ## [2026-05-06] update | D8 review verification gaps closed
 
 Addressed review findings against the D8 implementation. CI now runs the
@@ -770,6 +795,39 @@ above the configured threshold, so no status rollback was needed.
 
 Pages updated: .github/workflows/ci.yml, .github/workflows/post-install.yml,
 tools/llm-wiki/tests/post_install.rs, justfile, wiki/log.md
+
+## [2026-05-06] update | Split search backend selection from registry proposal
+
+Applied second-round review feedback to the D9 search direction.
+
+Changed `wiki/proposals/project-registry-search-artifacts.proposal.md` to keep
+it focused on registry, command surface, lifecycle, cache ownership, and output
+contracts. Backend choice is no longer part of that proposal's acceptance
+criteria.
+
+Added `wiki/proposals/search-backend-selection.proposal.md` to evaluate qmd-rs,
+Tobi QMD shell-out, direct SQLite FTS5/BM25, or deferring D9 if no backend clears
+the bar.
+
+Registry proposal revisions:
+- Added `forget`, `register --update`, project ID derivation, and D9-era
+  `init --no-register` with default auto-registration after successful init.
+- Documented uninstall behavior: `llm-wiki uninstall` leaves registry, indexes,
+  and model caches untouched.
+- Added host-local registry note for absolute paths.
+- Added per-project lockfile, temp index build, atomic swap, and crash handling.
+- Pinned `--include` / `--exclude` to repeated project-ID flags.
+- Pinned output formats to `--format text|json`, with stable JSON for agents.
+- Defined snippet semantics: 200 characters around best match span with
+  ellipses.
+- Tied `--class` and `--status` filters to
+  `wiki/specs/documentation-model.spec.md`.
+- Added RRF top-20-per-project cap before global fusion.
+- Added transitional note that documentation-model search wording remains
+  current until D9 lands, then must point at `llm-wiki search` / `search-all`.
+
+Pages created: wiki/proposals/search-backend-selection.proposal.md
+Pages updated: wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/index.md, wiki/log.md
 
 ## [2026-05-06] create | D8 product layout addendum
 
