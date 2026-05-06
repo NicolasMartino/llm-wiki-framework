@@ -14,6 +14,15 @@ D8: `llm-wiki` Rust binary. Single-command install of framework skills globally 
 
 This plan executes the binary's V1 (D8 v0.1). It does not re-litigate design choices — those are in `wiki/decisions/llm-wiki-binary-distribution.decision.md` and the accepted proposal.
 
+## Post-Completion Addendum
+
+D8 is behaviorally completed. A follow-up layout correction is tracked in
+`wiki/plans/llm-wiki-product-layout-addendum.plan.md`: move the binary from
+`tools/llm-wiki/` to the root package layout and move embedded product assets
+from root `skills/` and `project_guidelines.template.md` into `assets/`.
+The addendum does not change D8 CLI behavior, manifest schema, or generated
+runtime outputs.
+
 ## 2. In Scope
 
 - New Rust workspace at the repo root with two crates: `crates/llm-wiki-schema/` (the parsing and projection library — pure, no I/O) and `tools/llm-wiki/` (the binary, depending on `llm-wiki-schema` as both a normal dep and a build-dep so the binary's `build.rs` can validate embedded canonicals at compile time).

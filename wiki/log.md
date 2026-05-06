@@ -770,3 +770,24 @@ above the configured threshold, so no status rollback was needed.
 
 Pages updated: .github/workflows/ci.yml, .github/workflows/post-install.yml,
 tools/llm-wiki/tests/post_install.rs, justfile, wiki/log.md
+
+## [2026-05-06] create | D8 product layout addendum
+
+Created a post-D8 layout addendum. D8 remains completed behaviorally; the
+addendum corrects repository shape so the binary is the root product crate and
+embedded product assets live under `assets/` instead of root `skills/` or root
+`project_guidelines.template.md`.
+
+Target layout:
+
+- root `Cargo.toml` is both workspace root and `llm-wiki-framework` package
+- root `src/` contains the `llm-wiki` binary
+- root `build.rs` validates embedded assets
+- `assets/skills/` contains canonical skill assets
+- `assets/templates/` contains scaffold templates
+- `crates/llm-wiki-schema/` remains the pure parser/projector library
+- generated `.claude/skills/` and `.codex/skills/` outputs remain convenience
+  outputs
+
+Pages created: wiki/plans/llm-wiki-product-layout-addendum.plan.md
+Pages updated: wiki/plans/llm-wiki-binary.plan.md, wiki/index.md, wiki/log.md
