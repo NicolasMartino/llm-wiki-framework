@@ -51,8 +51,8 @@ agent follows the schema.
 - Wiki pages are organized by type in subdirectories (`wiki/specs/`, `wiki/decisions/`, etc.)
 - Each type has its own status vocabulary
 - The agent must classify every piece of knowledge into the correct type
-- Templates exist for each type in `project_guidelines.template.md` in this
-  framework repo and in generated projects' `project_guidelines.md`
+- Templates exist for each type in `assets/templates/project_guidelines.md` in
+  this framework repo and in generated projects' `project_guidelines.md`
 
 ## Revisit When
 

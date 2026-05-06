@@ -56,14 +56,24 @@ predicates.workspace = true
 proptest.workspace = true
 tempfile.workspace = true
 
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
+
+# Config for 'dist'
 [workspace.metadata.dist]
+# The preferred dist version to use in CI (Cargo.toml SemVer syntax)
 cargo-dist-version = "0.28.0"
-ci = ["github"]
+# CI backends to support
+ci = "github"
+# The installers to generate for each app
 installers = ["shell"]
-targets = [
-  "aarch64-apple-darwin",
-  "x86_64-apple-darwin",
-  "x86_64-unknown-linux-gnu",
-  "aarch64-unknown-linux-gnu",
-]
+# Target platforms to build apps for (Rust target-triple syntax)
+targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu"]
+# Which actions to run on pull requests
 pr-run-mode = "plan"
+# Path that installers should place binaries in
+install-path = "CARGO_HOME"
+# Whether to install an updater program
+install-updater = false

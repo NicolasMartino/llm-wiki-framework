@@ -11,7 +11,7 @@ Humans curate `raw/` and make judgment calls. You handle the bookkeeping.
 
 ## How To Orient
 
-1. Read `project_guidelines.template.md` for the documentation model and rules.
+1. Read `assets/templates/project_guidelines.md` for the documentation model and rules.
 2. Read `wiki/index.md` for the catalog of all project knowledge.
 3. Read specific wiki pages identified from the index.
 4. Read `raw/` sources only when wiki content is insufficient.
@@ -56,7 +56,7 @@ Periodically or on request:
 
 - Document types: spec, decision, proposal, roadmap, plan, experiment,
   eval, checklist, reference.
-- Use the type by role, not convenience. See `project_guidelines.template.md`.
+- Use the type by role, not convenience. See `assets/templates/project_guidelines.md`.
 - Every wiki page has a metadata block (Document Class, Status, Date,
   Category, Scope, Sources).
 - Filenames: `[slug].type.md` or `[index]-[slug].type.md`.

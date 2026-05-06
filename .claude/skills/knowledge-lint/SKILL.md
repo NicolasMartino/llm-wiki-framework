@@ -15,9 +15,8 @@ problems directly.
 1. Require `wiki/index.md` in the current working directory. If it is missing,
    tell the user the project has not been initialized with the LLM Wiki
    framework.
-2. Before changing anything, read `wiki/index.md`,
-   `project_guidelines.md` if present, otherwise `project_guidelines.template.md`,
-   and the relevant wiki pages implicated by candidate issues.
+2. Before changing anything, read `wiki/index.md`, `project_guidelines.md`
+   when present, and the relevant wiki pages implicated by candidate issues.
 3. Look for contradictions between wiki pages, stale statuses or claims,
    orphan pages not linked from `wiki/index.md`, missing cross-references
    between related pages, and index entries that are missing, wrong, or stale.

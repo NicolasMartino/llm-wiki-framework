@@ -5,7 +5,7 @@
 - Date: 2026-05-06
 - Category: Tooling
 - Scope: The `init-project` agent skill as a thin conversational wrapper over the `llm-wiki init` binary command.
-- Sources: skills/init-project/SKILL.md, tools/llm-wiki/src/init/mod.rs, wiki/decisions/llm-wiki-binary-distribution.decision.md
+- Sources: assets/skills/init-project/SKILL.md, src/init/mod.rs, wiki/decisions/llm-wiki-binary-distribution.decision.md
 - Related: wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-ingest-skill.spec.md
 
 ## Contract
@@ -38,7 +38,7 @@ Each initial source becomes one `--initial-sources <path>` flag.
 
 ## Runtime Projection
 
-Canonical source: `skills/init-project/SKILL.md`.
+Canonical source: `assets/skills/init-project/SKILL.md`.
 Rendered runtime outputs are produced by:
 
 ```bash

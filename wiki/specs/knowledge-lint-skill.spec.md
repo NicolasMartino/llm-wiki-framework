@@ -5,7 +5,7 @@
 - Date: 2026-05-06
 - Category: Tooling
 - Scope: Scan the wiki for bookkeeping issues and fix them directly.
-- Sources: skills/knowledge-lint/SKILL.md, wiki/decisions/llm-wiki-binary-distribution.decision.md
+- Sources: assets/skills/knowledge-lint/SKILL.md, wiki/decisions/llm-wiki-binary-distribution.decision.md
 - Related: wiki/specs/documentation-model.spec.md
 
 ## Contract
@@ -20,7 +20,7 @@ confirm or repair specific issues.
 
 ## Runtime Projection
 
-Canonical source: `skills/knowledge-lint/SKILL.md`.
+Canonical source: `assets/skills/knowledge-lint/SKILL.md`.
 Runtime variants are rendered by `llm-wiki build` and globally installed by
 `llm-wiki install`.
 

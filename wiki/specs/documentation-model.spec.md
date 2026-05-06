@@ -17,8 +17,8 @@ The framework uses a three-layer architecture:
 3. `CLAUDE.md` / `AGENTS.md` - schema defining conventions and agent workflows
 
 In this framework repository, the canonical reusable specification template is
-`project_guidelines.template.md` at the repository root. Generated projects get
-a resolved `project_guidelines.md` derived from that template.
+`assets/templates/project_guidelines.md`. Generated projects get a resolved
+`project_guidelines.md` derived from that embedded template.
 
 Framework distribution is binary-owned. The `llm-wiki` Rust binary embeds the
 canonical skill sources and templates, renders runtime skill variants, installs
@@ -65,7 +65,7 @@ research -> raw/ -> ingest -> proposal/reference -> roadmap -> plan -> evidence 
 
 ## Proven By
 
-- `project_guidelines.template.md` exists and defines the reusable rules
+- `assets/templates/project_guidelines.md` exists and defines the reusable rules
 - `CLAUDE.md` and `AGENTS.md` exist and define agent workflows for this repo
 - `wiki/index.md` exists and catalogs all wiki content
 - `wiki/log.md` records mutations

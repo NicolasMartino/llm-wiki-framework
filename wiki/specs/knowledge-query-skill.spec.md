@@ -5,7 +5,7 @@
 - Date: 2026-05-06
 - Category: Tooling
 - Scope: Query the project wiki and answer with citations.
-- Sources: skills/knowledge-query/SKILL.md, wiki/decisions/llm-wiki-binary-distribution.decision.md
+- Sources: assets/skills/knowledge-query/SKILL.md, wiki/decisions/llm-wiki-binary-distribution.decision.md
 - Related: wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-ingest-skill.spec.md
 
 ## Contract
@@ -19,10 +19,10 @@ the entry point. QMD may supplement navigation when available and useful.
 
 ## Runtime Projection
 
-Canonical source: `skills/knowledge-query/SKILL.md`.
+Canonical source: `assets/skills/knowledge-query/SKILL.md`.
 Claude and Codex runtime variants are rendered by the `llm-wiki` binary.
 Codex also receives `agents/openai.yaml` from
-`skills/knowledge-query/codex/openai.yaml`.
+`assets/skills/knowledge-query/codex/openai.yaml`.
 
 Invocation:
 

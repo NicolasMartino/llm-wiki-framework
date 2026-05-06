@@ -5,7 +5,7 @@
 - Date: 2026-05-06
 - Category: Tooling
 - Scope: Gather source material into `raw/research/` before ingest.
-- Sources: skills/knowledge-research/SKILL.md, wiki/decisions/llm-wiki-binary-distribution.decision.md
+- Sources: assets/skills/knowledge-research/SKILL.md, wiki/decisions/llm-wiki-binary-distribution.decision.md
 - Related: wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/documentation-model.spec.md
 
 ## Contract
@@ -20,7 +20,7 @@ asks for it.
 
 ## Runtime Projection
 
-Canonical source: `skills/knowledge-research/SKILL.md`.
+Canonical source: `assets/skills/knowledge-research/SKILL.md`.
 Runtime variants are rendered by `llm-wiki build` and globally installed by
 `llm-wiki install`.
 

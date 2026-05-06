@@ -69,10 +69,10 @@ init path name type="web" scale="small" description="One sentence description.":
     cargo run -- init "{{path}}" --non-interactive --name "{{name}}" --description "{{description}}" --type "{{type}}" --scale "{{scale}}"
 
 release-plan:
-    cargo dist plan
+    dist plan
 
 release-build:
-    cargo dist build
+    dist build
 
 git-summary:
     git status --short --branch

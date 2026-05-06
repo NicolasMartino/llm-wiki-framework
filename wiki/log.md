@@ -849,3 +849,44 @@ Target layout:
 
 Pages created: wiki/plans/llm-wiki-product-layout-addendum.plan.md
 Pages updated: wiki/plans/llm-wiki-binary.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-06] update | Complete D8 product layout correction
+
+Moved `llm-wiki` into the root product crate layout and moved embedded product
+assets under `assets/`. The root package is now `llm-wiki-framework`, with the
+installed binary still named `llm-wiki`; `src/` contains the binary, root
+`build.rs` validates embedded assets, `tests/` contains binary integration
+tests and fixtures, `assets/skills/` contains canonical skill assets, and
+`assets/templates/` contains scaffold templates.
+
+Regenerated committed Claude/Codex runtime outputs from the moved canonical
+assets. While doing that, removed stale references to the retired template
+filename from the ingest and lint canonical skill text and accepted the
+corresponding projection snapshots.
+
+Verification run locally:
+
+- `cargo fmt --all --check`
+- `cargo test --workspace`
+- `cargo clippy --workspace --all-targets --all-features -- -D warnings -D dead_code`
+- `cargo insta test --workspace --accept`
+- `cargo run -- build --out .`
+- `cargo llvm-cov --workspace --fail-under-lines 80`
+- `cargo +nightly udeps --workspace`
+- `cargo install --path . --force`
+- `dist plan` using pinned cargo-dist 0.28.0
+
+The cargo-dist workflow was regenerated with the pinned generator. Nontrivial
+implementation was also moved out of `mod.rs` files into named modules so
+`mod.rs` files only declare and re-export modules.
+
+Pages updated: wiki/plans/llm-wiki-product-layout-addendum.plan.md,
+wiki/index.md, wiki/log.md, wiki/roadmaps/framework-v1.roadmap.md,
+wiki/checklists/v1-fixture-smoke.checklist.md,
+wiki/specs/documentation-model.spec.md, wiki/specs/init-project-skill.spec.md,
+wiki/specs/knowledge-query-skill.spec.md,
+wiki/specs/knowledge-ingest-skill.spec.md,
+wiki/specs/knowledge-research-skill.spec.md,
+wiki/specs/knowledge-lint-skill.spec.md,
+wiki/decisions/typed-documents.decision.md,
+wiki/plans/knowledge-research-intake.plan.md

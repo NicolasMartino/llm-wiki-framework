@@ -28,9 +28,9 @@ organized, cited knowledge instead of re-reading raw sources.
 4. If no path is provided, read `wiki/log.md`, identify raw files that do not
    appear in prior ingest log entries, and ask whether to ingest all or a
    subset.
-5. Before processing sources, read `wiki/index.md`,
-   `project_guidelines.md` or `project_guidelines.template.md`, and existing
-   wiki pages that appear to cover the source topic.
+5. Before processing sources, read `wiki/index.md`, `project_guidelines.md`
+   when present, and existing wiki pages that appear to cover the source
+   topic.
 6. Process one source completely before moving to the next. Extract key facts,
    claims, entities, systems, APIs, relationships, implied decisions, open
    questions, uncertainties, and status information.

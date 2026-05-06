@@ -5,7 +5,7 @@
 - Date: 2026-05-06
 - Category: Tooling
 - Scope: Ingest raw source material into typed wiki pages.
-- Sources: skills/knowledge-ingest/SKILL.md, wiki/decisions/llm-wiki-binary-distribution.decision.md
+- Sources: assets/skills/knowledge-ingest/SKILL.md, wiki/decisions/llm-wiki-binary-distribution.decision.md
 - Related: wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-research-skill.spec.md
 
 ## Contract
@@ -20,7 +20,7 @@ Web, URL, or site acquisition is not owned by ingest. Those requests route to
 
 ## Runtime Projection
 
-Canonical source: `skills/knowledge-ingest/SKILL.md`.
+Canonical source: `assets/skills/knowledge-ingest/SKILL.md`.
 Runtime variants are rendered by `llm-wiki build` and globally installed by
 `llm-wiki install`.
 

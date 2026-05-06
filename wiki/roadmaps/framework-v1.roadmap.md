@@ -32,7 +32,7 @@ Depends On: None
 Execution Plan: Not needed (single-session bootstrap)
 
 Included:
-- project_guidelines.template.md written
+- reusable project guidelines template written
 - CLAUDE.md written
 - raw/, wiki/ structure scaffolded
 - Legacy guidelines and research moved to raw/
