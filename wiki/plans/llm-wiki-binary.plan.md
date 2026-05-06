@@ -16,18 +16,34 @@ This plan executes the binary's V1 (D8 v0.1). It does not re-litigate design cho
 
 ## 2. In Scope
 
-- New Rust crate at `tools/llm-wiki/` (workspace member; the framework repo gains a `Cargo.toml` workspace at the root if not already present).
+- New Rust workspace at the repo root with two crates: `crates/llm-wiki-schema/` (the parsing and projection library — pure, no I/O) and `tools/llm-wiki/` (the binary, depending on `llm-wiki-schema` as both a normal dep and a build-dep so the binary's `build.rs` can validate embedded canonicals at compile time).
 - All six subcommands: `install`, `build`, `init`, `status`, `doctor`, `uninstall`.
 - Embedded canonical skill content (`skills/<name>/SKILL.md`) via `include_str!` after migrating those files from `<!-- CLAUDE --> / <!-- CODEX -->` block markers to the typed schema.
 - Embedded project templates (`project_guidelines.template.md`, embedded `CLAUDE.md` template).
 - Manifest at `~/.local/share/llm-wiki/manifest.json` with the three-way hash policy from the proposal.
 - Golden-file (`insta`) snapshot tests, integration tests with `tempfile::TempDir` and `HOME` redirection, property tests with `proptest`, post-install verification tests.
-- Compat fixtures at `tests/fixtures/wikis/v1/` plus the agent-driven `wiki/checklists/v1-fixture-smoke.checklist.md`.
+- Compat fixtures at `tools/llm-wiki/tests/fixtures/wikis/v1/` plus the agent-driven `wiki/checklists/v1-fixture-smoke.checklist.md`. (One canonical path; all references in this plan use it.)
 - `cargo-dist` configuration for the four target platforms.
 - CI: GitHub Actions running `cargo test`, `cargo clippy -- -D warnings`, `cargo fmt --check`, `cargo insta test --check`, `cargo-llvm-cov` with the 80% gate.
 - Update of the `init-project` agent skill (markdown) to be a thin conversational wrapper that shells out to `llm-wiki init --non-interactive`.
 - Cleanup pass: remove `skills/build.sh`, drop `<!-- TAG -->` markers from canonical skills, update specs.
 - Wiki bookkeeping: flip predecessor decisions and the bash-renderer plan to `Superseded` after the binary is in operation; update `documentation-model.spec.md` to record the distribution model as proven; mark D8 `Completed` on the roadmap.
+
+## 2a. No-Legacy Discipline (Load-Bearing)
+
+D8 is a clean-slate replacement, not an additive evolution. The bash renderer, the conditional-block canonical format, the project-local-skill model, and the markdown-driven scaffolding skill are all replaced — not preserved alongside the binary. This section is non-negotiable; it shapes stages 5.4, 5.11, 5.12, and 5.13.
+
+**Principles:**
+
+1. **Single source of truth at any moment.** During implementation, the bash renderer remains the operating model. At the merge that ships D8, the bash renderer is gone. There is no main-branch state in which both systems coexist.
+2. **Dead code is a release blocker.** No code paths in the binary that parse `<!-- CLAUDE -->` / `<!-- CODEX -->` blocks, no fallback for "old canonical format," no compatibility shims for the pre-binary skill layout. Every line in the binary serves the current spec; CI enforces this.
+3. **Old prose is deleted, not migrated.** The current `skills/init-project/SKILL.md` contains hundreds of lines describing the question flow, profile resolution, scaffolding behavior, etc. After stage 5.11, that prose is gone — not moved into a comment, not preserved in `archive/`. The wrapper is short and self-contained.
+4. **Spec rewrites, not spec patches.** `wiki/specs/init-project-skill.spec.md` and the `knowledge-*-skill.spec.md` family are rewritten from scratch under the binary's authority. The old text is discarded, not edited.
+5. **Superseded predecessors move to `wiki/archive/`.** Per `project_guidelines.template.md:327`, archived documents leave the active index. Predecessor decisions and the bash-renderer plan get archived at the D8 merge — not left in `wiki/decisions/` or `wiki/plans/` with a stale `Superseded` status accumulating.
+6. **Open questions resolve before stage 5.1.** §12's four implementation questions are decided before the scaffold step. No "we'll figure it out during implementation" hedge — that's how dead code paths get committed.
+7. **Backward compatibility is bounded.** The binary preserves compat for *external project wikis* (the `wiki/` shape promise from the proposal). It does **not** preserve compat for the *internal bash-renderer canonical format*. Those are different surfaces; the first is a feature, the second is dead code.
+
+**Enforcement:** §6 adds a "No-Legacy Audit" gate. CI runs `cargo +nightly udeps` (unused dependencies), `cargo clippy --all-targets -- -D warnings -D dead_code` (dead code as a hard error), and a custom grep that fails the build if any of the legacy markers (`<!-- CLAUDE -->`, `<!-- CODEX -->`, `<!-- END -->`, `skills/build.sh`, references to "bash renderer" outside `wiki/archive/`) appears anywhere in the working tree at v0.1.0.
 
 ## 3. Out Of Scope
 
@@ -41,106 +57,131 @@ This plan executes the binary's V1 (D8 v0.1). It does not re-litigate design cho
 - Windows builds in V1 (`cargo install` available; `cargo-dist` matrix can add Windows later).
 - Configuration files (`~/.config/llm-wiki/config.toml`) — no V1 use case.
 
-## 4. Crate Layout
+## 4. Workspace Layout
+
+The Rust workspace lives alongside the framework's existing files. Two crates, separated so the binary's `build.rs` can validate embedded canonicals at compile time (a build script cannot depend on the package being built, so the schema/projector logic must live in a separate crate that the binary uses both as a normal dep and a build-dep).
 
 ```text
-tools/llm-wiki/
-  Cargo.toml
-  build.rs                          # compile-time validation: every embedded skill parses
-  src/
-    main.rs                         # clap entry point, subcommand dispatch
-    cli.rs                          # clap derive structs
-    schema/
-      mod.rs                        # SkillFrontmatter, SkillBody, parse()
+Cargo.toml                          # workspace root
+crates/
+  llm-wiki-schema/                  # pure library: parsing + projection
+    Cargo.toml                      # name = "llm-wiki-schema"
+    src/
+      lib.rs                        # re-exports
       frontmatter.rs                # YAML deserialization with serde
       body.rs                       # markdown section parsing
       validation.rs                 # field validation, required-section checks
-    projector/
-      mod.rs                        # trait Projector
-      claude.rs                     # ClaudeProjector impl
-      codex.rs                      # CodexProjector impl
-      idiom.rs                      # invocation-syntax rewriting (slash vs $ namespace)
-    embed.rs                        # include_str!-based access to skills/ content
-    manifest/
-      mod.rs                        # Manifest struct, atomic read/write
-      hash.rs                       # SHA-256 helpers
-      collision.rs                  # three-way comparison logic
-    install.rs                      # install subcommand
-    build.rs                        # build subcommand
-    init/
-      mod.rs                        # init subcommand
-      profile.rs                    # ML_AI, QMD, IS_EXISTING resolution
-      template.rs                   # conditional-section resolution
-      collision.rs                  # framework-artifact detection
-    status.rs
-    doctor.rs
-    uninstall.rs
-    paths.rs                        # platform-aware path resolution (HOME-redirectable)
-  tests/
-    install.rs                      # integration: HOME redirection, idempotency, --force
-    init.rs                         # integration: profiles, framework-artifact collision
-    uninstall.rs                    # integration: manifest-only deletion
-    doctor.rs                       # integration: drift detection, broken-symlink reporting
-    build.rs                        # integration: --out, --target
-    properties.rs                   # proptest: idempotency, totality
-    fixtures/
-      wikis/v1/                     # full v1-shaped wiki
-      wikis/v1-expected.rs          # hand-coded expected metadata structs
-    snapshots/                      # insta snapshots (committed)
+      doc.rs                        # SkillDoc = Frontmatter + Body
+      projector/
+        mod.rs                      # trait Projector
+        claude.rs                   # ClaudeProjector impl
+        codex.rs                    # CodexProjector impl
+        idiom.rs                    # invocation-syntax rewriting (slash vs $ namespace)
+    tests/
+      schema.rs                     # unit tests on tiny inline canonicals
+      projector.rs                  # unit tests with hand-coded SkillDoc inputs
+tools/
+  llm-wiki/                         # the binary
+    Cargo.toml                      # name = "llm-wiki-framework", [[bin]] name = "llm-wiki"
+                                    # depends on llm-wiki-schema (normal + build-dep)
+    build.rs                        # uses llm-wiki-schema to parse every embedded skill
+                                    # at compile time; build fails on malformed canonical
+    src/
+      main.rs                       # clap entry point, subcommand dispatch
+      cli.rs                        # clap derive structs
+      embed.rs                      # include_str!-based access to skills/ content
+      manifest/
+        mod.rs                      # Manifest struct, atomic read/write
+        hash.rs                     # SHA-256 helpers
+        collision.rs                # three-way comparison logic
+      install.rs                    # install subcommand
+      build.rs                      # build subcommand (NB: this is src/build.rs, not the
+                                    # crate's build.rs at the crate root)
+      init/
+        mod.rs                      # init subcommand
+        profile.rs                  # ML_AI, QMD, IS_EXISTING resolution
+        template.rs                 # conditional-section resolution
+        collision.rs                # framework-artifact detection
+        sources.rs                  # initial-source copying (binary owns the copy; ingest
+                                    # stays with the agent)
+      status.rs
+      doctor.rs
+      uninstall.rs
+      paths.rs                      # platform-aware path resolution (HOME-redirectable)
+    tests/
+      install.rs                    # integration: HOME redirection, idempotency, --force
+      init.rs                       # integration: profiles, framework-artifact collision
+      uninstall.rs                  # integration: manifest-only deletion
+      doctor.rs                     # integration: drift detection, broken-symlink reporting
+      build.rs                      # integration: --out, --target
+      properties.rs                 # proptest: idempotency, totality
+      fixtures/
+        wikis/v1/                   # full v1-shaped wiki
+        wikis/v1-expected.rs        # hand-coded expected metadata structs
+      snapshots/                    # insta snapshots (committed)
 ```
 
-The crate lives at `tools/llm-wiki/` rather than the repo root so the existing `skills/` directory and wiki content stay where they are. A workspace `Cargo.toml` at the repo root coordinates.
+**Package vs binary names** are distinct on purpose: the package on crates.io is `llm-wiki-framework`, the installed binary is `llm-wiki`. So `cargo install llm-wiki-framework` produces an `llm-wiki` executable on `$PATH`. This is a standard Cargo pattern.
 
 ## 5. Steps
 
 Stages run in order. Each stage produces a verifiable artifact and ends in a checkpoint commit.
 
-### 5.1 Crate scaffold and CI (foundation)
+### 5.1 Workspace scaffold and CI (foundation)
 
-1. Add a workspace `Cargo.toml` at the repo root pointing at `tools/llm-wiki`.
-2. `cargo new --bin tools/llm-wiki` with name `llm-wiki`.
-3. Add dependencies: `clap` (derive), `serde`, `serde_yaml`, `serde_json`, `sha2`, `chrono`, `dirs`, `anyhow`, `thiserror`. Dev: `tempfile`, `insta`, `proptest`, `assert_cmd`, `predicates`.
-4. Add `.github/workflows/ci.yml`: matrix over (macos-14 [arm64], macos-13 [x86_64], ubuntu-latest [x86_64], ubuntu-latest-arm). Steps: fmt check, clippy with `-D warnings`, `cargo test`, `cargo insta test --check`, `cargo-llvm-cov` with 80% gate.
-5. Add `.cargo-llvm-cov.toml` with platform-specific exclusions placeholder.
+1. Add a workspace `Cargo.toml` at the repo root listing both crates as members.
+2. `cargo new --lib crates/llm-wiki-schema`. Set `name = "llm-wiki-schema"`. Pure library.
+3. `cargo new --bin tools/llm-wiki`. Set package `name = "llm-wiki-framework"` and `[[bin]] name = "llm-wiki"` so `cargo install llm-wiki-framework` produces an `llm-wiki` executable.
+4. Reserve the `llm-wiki-framework` package name on crates.io.
+5. `tools/llm-wiki/Cargo.toml` lists `llm-wiki-schema` as both a normal dependency and a `[build-dependencies]` entry — required for `build.rs` to validate embedded canonicals at compile time.
+6. Schema crate dependencies: `serde`, `serde_yaml`, `serde_json`, `pulldown-cmark` (or hand-rolled section parser), `thiserror`. Binary crate dependencies (in addition to `llm-wiki-schema`): `clap` (derive), `sha2`, `chrono`, `anyhow`. Dev: `tempfile`, `insta`, `proptest`, `assert_cmd`, `predicates`.
+7. Add `.github/workflows/ci.yml`: matrix over (macos-14 [arm64], macos-13 [x86_64], ubuntu-latest [x86_64], ubuntu-latest-arm). Steps: fmt check, clippy with `-D warnings`, `cargo test --workspace`, `cargo insta test --check`, `cargo-llvm-cov --workspace` with 80% gate.
+8. Add `.cargo-llvm-cov.toml` with platform-specific exclusions placeholder.
 
-**Verification:** CI passes on all four platforms with an empty crate (just `fn main() {}`).
+**Verification:** CI passes on all four platforms with both crates empty (lib has `pub fn nothing() {}`, bin has `fn main() {}`).
 
-### 5.2 Schema and parser (everything depends on this)
+### 5.2 Schema and parser (lives in `llm-wiki-schema`)
 
 1. Define `SkillFrontmatter` struct mirroring the proposal's canonical schema (name, description, runtimes, operations, arguments, invocation_style, dispatcher_for). All required-vs-optional and field types match the table in `wiki/proposals/llm-wiki-binary.proposal.md`.
 2. Define `SkillBody` with the fixed-shape sections (Title, Purpose, Behavior, Invocation, optional Notes).
 3. Implement `parse(input: &str) -> Result<SkillDoc, ParseError>` splitting frontmatter (YAML) from body (markdown), validating required sections.
-4. Unit tests covering: valid input, malformed YAML, missing required field, unknown runtime value, conflicting fields, missing required body section, schema-snapshot test (`tests/snapshots/schema.snap` locks the accepted field set).
+4. Unit tests covering: valid input, malformed YAML, missing required field, unknown runtime value, conflicting fields, missing required body section, schema-snapshot test (`crates/llm-wiki-schema/tests/snapshots/schema.snap` locks the accepted field set).
 
-**Verification:** `cargo test schema::` green; schema snapshot committed.
+**Verification:** `cargo test -p llm-wiki-schema` green; schema snapshot committed.
 
-### 5.3 Projector and golden-file tests
+### 5.3 Projector logic with unit-test fixtures (no real skills yet)
 
-1. Define `trait Projector { fn project(&self, doc: &SkillDoc) -> Result<RenderedSkill, ProjectError>; }`.
+This stage proves the projector logic is correct on controlled inputs, before the real canonicals exist in their migrated form.
+
+1. Define `trait Projector { fn project(&self, doc: &SkillDoc) -> Result<RenderedSkill, ProjectError>; }` in `llm-wiki-schema`.
 2. Implement `ClaudeProjector`: rewrites `<skill-name>` invocation patterns to `/skill-name`, applies Claude-flavored frontmatter description, never emits `agents/openai.yaml`.
 3. Implement `CodexProjector`: rewrites to `$skill-name` and `$knowledge <op>`, applies Codex-flavored description, emits `agents/openai.yaml` from per-skill template.
-4. Golden-file tests under `tests/snapshots/` for all 11 skill × runtime combinations. Source canonical: the migrated `skills/<name>/SKILL.md` files (after stage 5.4).
+4. Unit tests use **hand-coded `SkillDoc` values** (or tiny inline canonical strings parsed via stage 5.2) as input — not the repo's real `skills/<name>/SKILL.md` files, which still have the legacy `<!-- TAG -->` markup at this point. Cover: every projection rule (slash vs `$`, frontmatter description templating, `agents/openai.yaml` emission), every runtime restriction (Claude-only, Codex-only, both), error cases (skill declares an unsupported runtime).
+5. The "snapshot tests against real skills" gate moves to stage 5.4, where the migrated canonicals exist.
 
-**Verification:** `cargo insta test --check` green for every skill × runtime; the `knowledge` dispatcher snapshot exists only for Codex.
+**Verification:** `cargo test -p llm-wiki-schema projector::` green; every projection rule exercised on a controlled input; no dependency on real skill content.
 
-### 5.4 Migrate canonical skills to clean schema
+### 5.4 Migrate canonical skills to clean schema (single-pass; no legacy residue)
 
-This is the content-completeness pass that the bash renderer skipped (the bug we just hit).
+This is the content-completeness pass that the bash renderer skipped (the bug we just hit), combined with the real-skill snapshot gate. Per the No-Legacy Discipline (§2a), this stage is single-pass: the migrated canonicals contain **zero** legacy markup. There is no follow-up cleanup stage that "removes the markers later."
 
 1. For each `skills/<name>/SKILL.md`, diff today's rendered Claude and Codex outputs (`.claude/skills/<name>/SKILL.md` and `.codex/skills/<name>/SKILL.md`) against the current canonical with `<!-- TAG -->` blocks. Identify all content present in either runtime output but absent from canonical.
-2. Rewrite each canonical as: typed YAML frontmatter (per stage 5.2 schema), fixed-shape body sections, no `<!-- TAG -->` blocks. Move runtime-specific deltas into the projector logic, not into the canonical text.
+2. Rewrite each canonical as: typed YAML frontmatter (per stage 5.2 schema), fixed-shape body sections, **no `<!-- CLAUDE -->`, `<!-- CODEX -->`, `<!-- END -->`, or any other HTML-comment markers**. Runtime-specific deltas live in the projector, not in the canonical.
 3. Per-skill `codex/openai.yaml` files stay where they are (no schema change needed).
-4. Run the projector against each canonical and diff against the current committed `.claude/skills/` and `.codex/skills/` outputs. **Every difference is a deliberate decision recorded in PR review** — this prevents recurrence of the silent-content-loss bug.
+4. Run the projector against each migrated canonical and diff against the current committed `.claude/skills/` and `.codex/skills/` outputs. **Every difference is a deliberate decision recorded in PR review** — this prevents recurrence of the silent-content-loss bug.
+5. Add `insta` snapshot tests under `tools/llm-wiki/tests/snapshots/` (or in `crates/llm-wiki-schema/tests/snapshots/` if the snapshot is purely a function of canonical → projection): all 11 skill × runtime combinations.
+6. Add a CI grep gate (a small shell script in `.github/workflows/`) asserting that no file under `skills/` contains the strings `<!-- CLAUDE -->`, `<!-- CODEX -->`, or `<!-- END -->`. This gate fires from this stage forward, so any accidental reintroduction breaks CI immediately.
 
-**Verification:** projector output for every skill matches a committed expected (golden-file). Any intentional simplification is captured in PR commentary, not silent.
+**Verification:** `cargo insta test --check` green for every skill × runtime. The `knowledge` dispatcher snapshot exists only for Codex. Any intentional simplification is captured in PR commentary, not silent. The grep gate passes — no legacy markers anywhere under `skills/`.
 
-### 5.5 Embed canonical content
+### 5.5 Embed canonical content with compile-time validation
 
-1. `src/embed.rs` uses `include_str!("../../../skills/<name>/SKILL.md")` for each skill (or a build-script-generated registry).
-2. `build.rs` (the crate's, not the bash one) runs the parser at compile time on every embedded skill; build fails if any skill is missing or malformed.
-3. Embedded `project_guidelines.template.md` and a `CLAUDE.md` template via the same pattern.
+1. `tools/llm-wiki/src/embed.rs` uses `include_str!("../../../skills/<name>/SKILL.md")` for each skill (or a build-script-generated registry of `(name, content)` pairs).
+2. `tools/llm-wiki/build.rs` imports `llm-wiki-schema` (declared in `[build-dependencies]` of `tools/llm-wiki/Cargo.toml`) and calls its `parse()` on every embedded skill. The build script fails (`cargo build` exits non-zero) if any skill is missing or malformed. This works because `llm-wiki-schema` is a separate crate, so the binary's `build.rs` is allowed to depend on it.
+3. Embedded `project_guidelines.template.md` and a `CLAUDE.md` template via the same pattern, with a similar build-time validation pass on the conditional-section markers.
+4. CI includes a **negative test**: a separate workflow run perturbs one canonical (e.g., removes a required field), runs `cargo build`, and asserts the build fails. Confirms the compile-time guarantee is real, not theoretical.
 
-**Verification:** crate builds cleanly; introducing a malformed canonical breaks the build (negative test in CI).
+**Verification:** crate builds cleanly with all canonicals present and valid; introducing a malformed canonical breaks the build (negative-test workflow asserts this).
 
 ### 5.6 `build` subcommand (simplest, no manifest)
 
@@ -179,9 +220,21 @@ This is the content-completeness pass that the bash renderer skipped (the bug we
 4. Interactive mode: clap-driven prompts for the six questions from the existing skill spec.
 5. `--non-interactive` mode: requires `--name`, `--type`, `--scale` (and optional `--existing`, `--initial-sources`); errors on missing required flags.
 6. Writes: `raw/`, `wiki/index.md`, `wiki/log.md`, `wiki/specs/`, `wiki/decisions/`, …, `CLAUDE.md`, `project_guidelines.md` per profile.
-7. Golden-file tests for all five profiles: baseline, ML_AI, QMD, ML_AI+QMD, IS_EXISTING (the IS_EXISTING profile asserts that pre-existing source code, configs, tests at `<path>` are untouched and only framework files are added).
 
-**Verification:** `cargo insta test --check` green for all five `init` profiles; framework-artifact collision is rejected even when the directory contains unrelated files.
+**Initial-source handling — agent-vs-binary split.** The existing `init-project` skill spec couples two operations: (a) copy initial source files into `raw/`, (b) ingest them into `wiki/`. Operation (a) is deterministic file copying; operation (b) is LLM-driven judgment. The binary owns (a) only:
+
+- `--initial-sources <paths>`: each path is copied into `<path>/raw/initial/<basename>` (or `raw/initial/<dated-subdir>/<basename>` when multiple sources are provided in one run, to avoid name collisions).
+- The binary writes a small `<path>/raw/initial/manifest.md` listing what was copied, when, and from which absolute source path.
+- The binary's stdout reports: "Sources copied to `raw/initial/`. Run `knowledge-ingest` to compile them into the wiki."
+- The binary does **not** invoke any ingest logic. Ingestion remains the agent's `knowledge-ingest` skill.
+- The `init-project` agent skill (the wrapper migrated in stage 5.11) is responsible for the conversational handoff: "Files copied. Should I run `knowledge-ingest` now?" and then dispatching to the ingest skill if the user agrees.
+
+This preserves the principle: deterministic file ops in the binary, LLM-driven judgment in the agent.
+
+7. Golden-file tests for all five profiles: baseline, ML_AI, QMD, ML_AI+QMD, IS_EXISTING (the IS_EXISTING profile asserts that pre-existing source code, configs, tests at `<path>` are untouched and only framework files are added).
+8. Additional fixture for `--initial-sources`: a list of three sample files copied into `raw/initial/`; manifest is checked; `wiki/` content is asserted to contain no ingest results (the binary did not ingest).
+
+**Verification:** `cargo insta test --check` green for all five `init` profiles plus the initial-source fixture. Framework-artifact collision is rejected even when the directory contains unrelated files. Initial-source copying never writes to `wiki/`.
 
 ### 5.9 `status` and `doctor`
 
@@ -196,45 +249,75 @@ This is the content-completeness pass that the bash renderer skipped (the bug we
 
 ### 5.10 Compat fixtures
 
-1. Build `tests/fixtures/wikis/v1/` from a snapshot of this repo's current `wiki/` (every document type, every status, archive entries, log file).
-2. Hand-code expected metadata structs in `tests/fixtures/wikis/v1-expected.rs`: one struct per fixture document with the fields the parser should produce.
+1. Build `tools/llm-wiki/tests/fixtures/wikis/v1/` from a snapshot of this repo's current `wiki/` (every document type, every status, archive entries, log file).
+2. Hand-code expected metadata structs in `tools/llm-wiki/tests/fixtures/wikis/v1-expected.rs`: one struct per fixture document with the fields the parser should produce.
 3. Tests assert: every fixture document parses; metadata extraction matches expected; `init` invoked with the fixture's recorded answers regenerates a matching `project_guidelines.md`; every skill name referenced in fixture index/log/specs has a current canonical entry under `skills/`.
 4. Create `wiki/checklists/v1-fixture-smoke.checklist.md` for the agent-driven operations-level smoke test (ingest a sample raw source against the fixture, query, lint).
 
 **Verification:** all four fixture assertions green; checklist exists and is referenced from the V1 release-gate workflow.
 
-### 5.11 `cargo-dist` and first release
+### 5.11 Replace `init-project` skill with thin wrapper (delete old prose; must happen before release)
+
+This stage runs **before** the cargo-dist release because skills are embedded at compile time (stage 5.5). If the release ships before the wrapper migration, the v0.1.0 binary embeds the old markdown-driven `init-project` skill and breaks the agent-vs-binary contract.
+
+Per the No-Legacy Discipline (§2a), the old prose is **deleted**, not preserved alongside the wrapper. The current `skills/init-project/SKILL.md` describes question flow, profile resolution, conditional sections, scaffolding behavior, file structure, and a six-question table — most of that detail is now the binary's job. The wrapper retains only what the agent does (intake + handoff). Anything the binary owns is gone from the canonical.
+
+1. **Delete** the current `skills/init-project/SKILL.md` body (the "Behavior", "Question Flow", "Project Profiles", "What Gets Generated" sections). They duplicate what the binary now owns; keeping them is dead documentation that will drift.
+2. Write a fresh canonical: typed YAML frontmatter, short body. Behavior is: ask the six questions (one section enumerating them), validate, shell out to `llm-wiki init --non-interactive --name X --type Y --scale Z ...`, optionally chain to `knowledge-ingest` for any `--initial-sources`. Aim for under 60 lines total.
+3. Re-run the projector; commit the regenerated runtime variants and updated golden-file snapshots. The Claude and Codex variants should each be similarly short.
+4. Recompile so the new canonical is re-embedded in the binary.
+5. Pre-release smoke check: in a fresh Claude Code session, invoke the `init-project` skill against a tempdir; verify the agent collects answers, calls `llm-wiki init`, and reports completion. Repeat in Codex via `$knowledge init`. Manual smoke tests, captured in the release-gate checklist.
+
+**Verification:** the embedded `init-project` skill (visible via `cargo run -- build --out <tempdir>` and inspecting the rendered output) is the wrapper version, not the legacy markdown-driven version. The canonical is under 60 lines. `git log -p skills/init-project/SKILL.md` shows a clean delete-then-rewrite, not an accumulating patch. Manual smoke tests pass in both runtimes. Spec rewrite lands in stage 5.13.
+
+### 5.12 `cargo-dist` and first release
 
 1. `cargo dist init`. Configure for macos-aarch64, macos-x86_64, linux-x86_64, linux-aarch64. Set up the GitHub Releases workflow.
-2. Tag `v0.1.0` once stages 5.1–5.10 have green CI.
+2. Tag `v0.1.0` once stages 5.1–5.11 have green CI **and** the smoke checks in stage 5.11 have passed in both runtimes.
 3. Release-gate workflow runs the post-install verification tests (HOME redirection, manifest cross-check) on every tag.
 4. Document install path in repo `README.md`: `curl -L .../llm-wiki-installer.sh | sh && llm-wiki install`.
 
-**Verification:** `v0.1.0` produces signed prebuilt binaries for all four platforms; `cargo install llm-wiki-framework` works; `curl ... | sh` install path completes without manual intervention.
+**Verification:** `v0.1.0` produces signed prebuilt binaries for all four platforms; `cargo install llm-wiki-framework` works; `curl ... | sh` install path completes without manual intervention. The shipped binary embeds the wrapper version of `init-project`, not the legacy version.
 
-### 5.12 Migrate `init-project` skill to thin wrapper
+### 5.13 Single-merge cleanup (delete legacy, archive superseded, rewrite specs)
 
-1. Update `skills/init-project/SKILL.md` (the canonical) to: conduct the six-question intake, validate answers, then shell out to `llm-wiki init --non-interactive --name X --type Y --scale Z ...`.
-2. Re-run the projector; commit the regenerated runtime variants.
-3. The `init-project` skill remains agent-driven for the conversation; the binary owns file generation. Update `wiki/specs/init-project-skill.spec.md` to reflect this.
+Per the No-Legacy Discipline (§2a), this stage lands as **one merge** that contains every removal, every archive move, and every rewrite. There is no main-branch state in which the bash renderer and the binary coexist. If this stage is split across multiple merges, the discipline fails — pick a tighter scope or revert.
 
-**Verification:** manual end-to-end test in Claude Code and Codex: invoke `init-project`, answer six questions, verify a complete and correct project structure is produced. Compare to a `cargo run -- init --non-interactive` baseline with the same answers.
+**Deletions** (`git rm`, not just edits):
 
-### 5.13 Cleanup and supersession bookkeeping
+1. `skills/build.sh` — bash renderer is gone.
+2. `skills/README.md` — rewritten from scratch under the binary's authority (instructions become "edit `skills/<name>/SKILL.md`, run `cargo run -- build --out .` to refresh local renders, run `llm-wiki install` to deploy globally").
+3. Any `<!-- CLAUDE -->`, `<!-- CODEX -->`, `<!-- END -->` markers anywhere in the working tree (verified by the CI grep gate added in stage 5.4 — this step is the final assert, not a hopeful sweep).
+4. Any references to "bash renderer" in active documents outside `wiki/archive/` (verified by a second grep gate).
 
-1. Remove `skills/build.sh`. Self-dogfooding now uses `llm-wiki build --out .`.
-2. Remove `<!-- CLAUDE -->`, `<!-- CODEX -->`, `<!-- END -->` markers from all canonical `skills/<name>/SKILL.md` files (already done in stage 5.4 if approached cleanly; this step is the verification pass).
-3. Flip `wiki/decisions/single-source-skills.decision.md` and `wiki/decisions/framework-path-resolution.decision.md` to `Superseded` with `Superseded By` linking to `wiki/decisions/llm-wiki-binary-distribution.decision.md`.
-4. Flip `wiki/plans/single-source-skills.plan.md` to `Superseded`.
-5. Update `wiki/decisions/llm-wiki-binary-distribution.decision.md`: change `Will Supersede On D8 Completion:` to `Supersedes:`; collapse the Consequences section's split into a single now-effective list.
-6. Update `wiki/specs/init-project-skill.spec.md`: binary is the authority for scaffolding; agent retains intake.
-7. Update `wiki/specs/knowledge-*-skill.spec.md` (five files): canonical source is `skills/<name>/SKILL.md`; rendering is via `llm-wiki build` / `llm-wiki install`.
-8. Update `wiki/specs/documentation-model.spec.md`: distribution model recorded as proven.
-9. Update `wiki/roadmaps/framework-v1.roadmap.md`: D8 status `Draft` → `Active` (on stage 5.1) → `Completed` (after all gates pass).
-10. Update `wiki/index.md` to reflect all status flips.
-11. Append `wiki/log.md` entry per the framework's logging convention.
+**Archive moves** (legacy documents leave `wiki/decisions/` and `wiki/plans/`, move into `wiki/archive/`, and drop out of the active index per `project_guidelines.template.md:327`):
 
-**Verification:** `wiki/index.md` and `wiki/log.md` are coherent; no stale "Successor" annotations remain on documents that are now Superseded; no stale "Will Supersede On D8 Completion" wording on the new decision.
+5. `wiki/decisions/single-source-skills.decision.md` → `wiki/archive/single-source-skills.decision.md`. Status flipped to `Superseded` with `Superseded By:` linking to the binary-distribution decision. Removed from active index.
+6. `wiki/decisions/framework-path-resolution.decision.md` → `wiki/archive/framework-path-resolution.decision.md`. Same flip and archive treatment.
+7. `wiki/decisions/project-local-codex-skills.decision.md` (already `Superseded` since 2026-05-06 acceptance pass) → `wiki/archive/project-local-codex-skills.decision.md`. The chain collapses forward: archive note records the path through `single-source-skills` → `llm-wiki-binary-distribution`.
+8. `wiki/plans/single-source-skills.plan.md` → `wiki/archive/single-source-skills.plan.md`. Status flipped to `Superseded`. Removed from active index.
+
+**Promotion**:
+
+9. Update `wiki/decisions/llm-wiki-binary-distribution.decision.md`: change `Will Supersede On D8 Completion:` to `Supersedes:`; collapse the Consequences section's split (Immediately + On D8 completion) into a single now-effective list. Drop the deferred-supersession framing entirely; it's history.
+
+**Spec rewrites** (delete-then-rewrite per §2a, not edit-in-place):
+
+10. `wiki/specs/init-project-skill.spec.md` — old text deleted; new text describes the agent skill as a thin wrapper over `llm-wiki init`, with the binary as the authority for scaffolding behavior. Question flow lives in the spec only as a reference to the binary's flag set, not as duplicated prose.
+11. `wiki/specs/knowledge-{ingest,query,research,lint}-skill.spec.md` — old text deleted; new text describes the canonical source location (`skills/<name>/SKILL.md`), the rendering path (binary), and the runtime invocation. Hardcoded path references and bash-renderer mentions are gone.
+12. `wiki/specs/documentation-model.spec.md` — distribution model recorded as proven; the operations table no longer mentions skill rendering as a separate concern (it's now binary-owned implementation detail).
+
+**Roadmap and bookkeeping**:
+
+13. `wiki/roadmaps/framework-v1.roadmap.md`: D8 status `Active` → `Completed`. D8's "Closes" list verified against actual state (review.md §9.1 closed by construction, §9.2 closed by `doctor` reporting on legacy symlinks during install).
+14. `wiki/index.md`: archived documents removed from active sections; new spec versions reflected; status lines for D8 updated.
+15. `wiki/log.md`: single entry recording the D8 ship — what was deleted, what was archived, what was rewritten, and the No-Legacy Audit gate result from §6.
+
+**Annotations cleanup**:
+
+16. Remove `Successor:` fields from any document — they were transitional. Once predecessors are archived and the new decision is `Supersedes:`, the forward-pointing annotations are dead metadata.
+
+**Verification:** the No-Legacy Audit gate (§6.17) passes. `wiki/index.md` and `wiki/log.md` are coherent. No stale `Successor:`, no stale `Will Supersede On D8 Completion:`, no stale `<!-- TAG -->` markers anywhere. `git diff main` for the merge that ships D8 shows: binary added, bash renderer deleted, legacy markers removed, predecessor decisions moved to archive, specs rewritten — all in one commit range.
 
 ## 6. Verification Gates
 
@@ -266,7 +349,16 @@ Each gate maps to one or more acceptance criteria from the proposal (cited in pa
 
 **Roadmap gate:**
 
-16. D8 entry in `wiki/roadmaps/framework-v1.roadmap.md` is `Completed`; predecessor decisions and the bash-renderer plan are `Superseded` with `Superseded By` links. (AC #16)
+16. D8 entry in `wiki/roadmaps/framework-v1.roadmap.md` is `Completed`; predecessor decisions and the bash-renderer plan are moved to `wiki/archive/` (per §2a No-Legacy Discipline) with `Superseded` status and `Superseded By` links. Active index no longer references them. (AC #16)
+
+**No-Legacy Audit gate (per §2a):**
+
+17. `cargo +nightly udeps` reports zero unused dependencies in either crate.
+18. `cargo clippy --all-targets --all-features -- -D warnings -D dead_code` passes with no exceptions; any `#[allow(dead_code)]` in the codebase has a one-line comment justifying it (and any such allow is considered a smell to be removed before tag).
+19. The CI grep gate added in stage 5.4 passes: no `<!-- CLAUDE -->`, `<!-- CODEX -->`, or `<!-- END -->` anywhere in the working tree.
+20. A second grep gate passes: the strings `bash renderer`, `build.sh`, `skills/build.sh` do not appear in any active wiki document (`wiki/specs/`, `wiki/decisions/`, `wiki/plans/`, `wiki/roadmaps/`, `wiki/index.md`, top-level `CLAUDE.md`/`AGENTS.MD`/`README.md`). They may appear only in `wiki/archive/` (history) and `wiki/log.md` (chronological record).
+21. No file in `tools/llm-wiki/src/` or `crates/llm-wiki-schema/src/` parses, accepts, or emits the legacy `<!-- TAG -->` canonical format. There is no `parse_legacy()` function, no `SchemaVersion` enum, no fallback path. The binary handles only the current schema.
+22. No `Successor:` field remains on any active wiki document; archived documents may carry `Superseded By` (current) but not `Successor:` (transitional).
 
 ## 7. Evidence To Record
 
@@ -274,7 +366,7 @@ Each gate maps to one or more acceptance criteria from the proposal (cited in pa
 - Schema snapshot (`tests/snapshots/schema.snap`) committed.
 - Per-skill golden-file snapshots (11 of them) committed.
 - Per-profile `init` snapshots (5 of them) committed.
-- Compat fixture (`tests/fixtures/wikis/v1/`) committed with hand-coded expected struct file.
+- Compat fixture (`tools/llm-wiki/tests/fixtures/wikis/v1/`) committed with hand-coded expected struct file.
 - `wiki/checklists/v1-fixture-smoke.checklist.md` committed and referenced from the release-gate workflow.
 - A short `review.md §11` entry recording the binary's V1 ship: which acceptance gates passed, which review.md items closed (§9.1, §9.2 by construction; bash renderer's content-loss class by golden-file tests), and any deferred items.
 
@@ -306,25 +398,38 @@ Each gate maps to one or more acceptance criteria from the proposal (cited in pa
 Stages run in order with these dependencies:
 
 ```
-5.1 (scaffold) ──┬─→ 5.2 (schema) ──→ 5.3 (projector) ──→ 5.4 (canonical migration) ──→ 5.5 (embed)
-                 │                                                                          │
-                 │                                                                          ├─→ 5.6 (build)
-                 │                                                                          │
-                 │                                                                          ├─→ 5.7 (install/uninstall)
-                 │                                                                          │
-                 │                                                                          ├─→ 5.8 (init)
-                 │                                                                          │
-                 │                                                                          └─→ 5.9 (status/doctor)
-                 │
-                 └─→ 5.10 (fixtures) ──┐
-                                       ├─→ 5.11 (cargo-dist + v0.1.0) ──→ 5.12 (init-project skill migration) ──→ 5.13 (cleanup)
-                                       │
-                                       (all functional stages must be green)
+5.1 (scaffold + workspace + CI)
+    │
+    └─→ 5.2 (schema, in llm-wiki-schema)
+            │
+            └─→ 5.3 (projector logic, unit-tested with inline fixtures)
+                    │
+                    └─→ 5.4 (canonical migration + golden-file snapshots)
+                            │
+                            └─→ 5.5 (embed canonical content with compile-time validation)
+                                    │
+                                    ├─→ 5.6 (build subcommand)
+                                    │
+                                    ├─→ 5.7 (manifest + install + uninstall)
+                                    │
+                                    ├─→ 5.8 (init subcommand, including --initial-sources copy)
+                                    │
+                                    └─→ 5.9 (status + doctor)
+
+5.10 (compat fixtures) — can run in parallel with 5.5–5.9
+
+After all functional stages pass:
+    5.11 (init-project skill wrapper migration)
+        │
+        └─→ 5.12 (cargo-dist + v0.1.0 release) ──→ 5.13 (cleanup + supersession bookkeeping)
 ```
+
+**Critical reordering note:** stage 5.11 (`init-project` skill wrapper migration) must precede stage 5.12 (release). Skills are embedded at compile time in stage 5.5, so the v0.1.0 binary cannot ship with the wrapper unless the canonical was migrated and the binary recompiled before tagging. Earlier drafts of this plan had the release before the wrapper migration; that ordering would have shipped the legacy markdown-driven skill in v0.1.0.
 
 Tightest-first ordering inside the implementation phase:
 
-- **5.2 → 5.3 → 5.4** is the bug-prevention spine: schema first so the parser is the contract, projector second so the renderer has tests, canonical migration last so content drift surfaces against committed snapshots. The bash renderer's content-loss bug would have been caught at stage 5.4 by this order.
+- **5.2 → 5.3 → 5.4** is the bug-prevention spine: schema first so the parser is the contract, projector logic second with controlled-input unit tests, canonical migration last so content drift surfaces against committed golden-file snapshots. The bash renderer's content-loss bug would have been caught at stage 5.4 by this order.
+- **5.3 deliberately uses inline fixtures** rather than the real `skills/<name>/SKILL.md` files. The migrated canonicals don't exist yet at 5.3; using inline fixtures keeps every stage independently verifiable and keeps the projector logic tests decoupled from canonical-content review.
 - **5.7 (manifest)** is the most complex piece; it gets the most test surface but happens after the renderer is solid so install and rendering bugs don't entangle.
 - **5.8 (init)** reuses the embed pattern from 5.5, so it lands cleanly after.
 - **5.9 (status/doctor)** are reads against stable manifest format; they come last among functional stages.
@@ -339,19 +444,22 @@ Design risks live in the proposal. These are implementation-specific.
 | --- | --- | --- | --- |
 | Stage 5.4 (canonical migration) loses content the same way the bash renderer did | Medium | High | The pass is explicitly a *content-completeness audit*: every difference between today's runtime outputs and the new projector output is reviewed in PR commentary. Golden-file tests then lock the result |
 | `HOME` redirection in tests proves portable on macOS but breaks on Linux (or vice versa) | Medium | Medium | CI matrix runs all four platforms from stage 5.1; redirection logic centralized in `paths.rs` so platform-specific behavior is one file, not scattered |
-| `cargo-dist` setup is more involved than the proposal implied | Medium | Medium | Reserve a stage-5.11 spike day before tagging; if blocked, manual `cargo build --release` per platform is the V0.1 fallback |
+| `cargo-dist` setup is more involved than the proposal implied | Medium | Medium | Reserve a stage-5.12 spike day before tagging; if blocked, manual `cargo build --release` per platform is the V0.1 fallback |
 | Manifest schema needs to evolve mid-implementation | Low | Medium | Manifest carries `binary_version`; reading an older manifest is a forward-compat case from day one. A simple `migrate_manifest()` per version transition keeps users from re-installing |
 | `clap` derive macros and `serde_yaml` interact badly with `include_str!` content (build-time vs run-time validation boundary unclear) | Low | Medium | Resolve at stage 5.5: `build.rs` runs the parser at compile time; any error is a build failure; this is itself one of the test gates |
-| Smoke testing in real Claude Code and Codex sessions reveals discovery quirks not present in golden-file tests | Medium | Medium | Stage 5.12 is the human verification step; failures here are roadmap blockers and feed back into the projector logic |
+| Smoke testing in real Claude Code and Codex sessions reveals discovery quirks not present in golden-file tests | Medium | Medium | Stage 5.11 is the human verification step (manual smoke checks of the migrated `init-project` wrapper in both runtimes); failures here are release blockers and feed back into the projector logic before tagging at 5.12 |
 | The IS_EXISTING profile's "leave unrelated files alone" guarantee is hard to test exhaustively | Low | Medium | Stage 5.8 golden-file fixture for IS_EXISTING includes a known set of unrelated files (sample `src/`, `tests/`, `package.json`, `.git/`); test asserts those files' hashes are unchanged after `init` |
 
-## 12. Open Implementation Questions
+## 12. Implementation Decisions (Pre-Stage-5.1)
 
-To resolve before or during stage 5.1; not blocking acceptance of this plan.
+Per the No-Legacy Discipline (§2a), all four open questions resolve **before** the scaffold step begins. "We'll figure it out during implementation" is how dead code paths get committed.
 
-- Crate name for `cargo install`: `llm-wiki-framework`, `llm-wiki`, `llm-wiki-cli`? Reserve on crates.io before tagging.
-- Workspace `Cargo.toml` at the repo root vs. nested `tools/llm-wiki/Cargo.toml` standalone: workspace is cleaner for future tooling crates; standalone is simpler today.
-- `dirs` crate vs hand-rolled `HOME` resolution: `dirs::data_local_dir()` is convenient but has macOS-vs-Linux quirks (`~/Library/Application Support/...` vs `~/.local/share/...`). The manifest is XDG-only per the proposal, so hand-rolled may be cleaner.
-- Use `git2` for the IS_EXISTING profile to detect-and-respect a `.gitignore`, or just operate on the literal directory contents? V1 likely the latter.
+1. **Crate naming.** Package on crates.io: `llm-wiki-framework`. Binary: `llm-wiki`. So `cargo install llm-wiki-framework` produces an `llm-wiki` executable on `$PATH`. Reserve the name on crates.io before stage 5.1.
 
-These are sequencing details, not design forks. The plan can begin without them resolved.
+2. **Workspace layout.** Workspace `Cargo.toml` at the repo root with two members (`crates/llm-wiki-schema` and `tools/llm-wiki`). Required by stage 5.5: the binary's `build.rs` uses `llm-wiki-schema` as a `[build-dependencies]` entry, which mandates the workspace structure.
+
+3. **`HOME` and XDG path resolution.** Hand-rolled, not `dirs` crate. The manifest is XDG-only (`~/.local/share/llm-wiki/manifest.json`), and the global skill paths are `~/.claude/skills/` and `~/.codex/skills/` — fixed under `HOME` regardless of platform. Hand-rolled is one file (`paths.rs`), test-redirectable, no platform-quirk surprises (`dirs::data_local_dir()` returns `~/Library/Application Support/...` on macOS, which is wrong for our case).
+
+4. **IS_EXISTING profile and `.gitignore`.** Operate on literal directory contents. The `--initial-sources` flag takes explicit paths; the binary copies what is named, nothing more. No `git2` dependency, no implicit `.gitignore` walking. Predictable behavior over convenience. If a user wants to import all unignored files, they invoke their shell's expansion before passing to `--initial-sources`.
+
+These four decisions are part of the plan as accepted; changing one requires revising the plan, not improvising during implementation.

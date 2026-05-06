@@ -561,3 +561,119 @@ Index updated to list the new plan.
 
 Pages created: wiki/plans/llm-wiki-binary.plan.md
 Pages updated: wiki/index.md, wiki/log.md
+
+## [2026-05-06] update | Revise D8 implementation plan per fourth-round review
+
+Fixed five reviewer findings on `wiki/plans/llm-wiki-binary.plan.md`:
+
+1. **Release-before-skill-migration ordering bug (high).** Earlier draft
+   tagged v0.1.0 in stage 5.11, then migrated `init-project` skill in
+   5.12. Since canonical skills are embedded at compile time (5.5), v0.1.0
+   would have shipped with the legacy markdown-driven skill, not the
+   wrapper. Reordered: 5.11 is now the wrapper migration (must precede
+   release); 5.12 is `cargo-dist` and v0.1.0; 5.13 is cleanup. Added an
+   explicit "Critical reordering note" in §10 documenting the constraint.
+
+2. **Stage 5.3 unverifiable as written (high).** Earlier draft said
+   stage-5.3 golden tests use canonicals "after stage 5.4," contradicting
+   the per-stage checkpoint commit rule. Split: 5.3 now uses hand-coded
+   `SkillDoc` values and tiny inline canonicals (decoupled from real skill
+   content) to verify projector logic; the "snapshot tests against real
+   skills" gate moved to 5.4 where the migrated canonicals exist.
+
+3. **`build.rs` cannot depend on the package being built (medium).** A
+   Rust build script cannot use items from the crate it is building.
+   Restructured into a workspace with two crates: `crates/llm-wiki-schema/`
+   (pure library — parsing + projection) and `tools/llm-wiki/` (binary).
+   The binary depends on `llm-wiki-schema` as both a normal dep and a
+   `[build-dependencies]` entry, so the binary's `build.rs` can validate
+   embedded canonicals at compile time. Added a CI negative test asserting
+   that a malformed canonical fails the build.
+
+4. **Initial-source handling agent/binary split (medium).** Earlier draft
+   accepted `--initial-sources` without specifying behavior. Clarified:
+   the binary copies sources into `<path>/raw/initial/` deterministically
+   and writes a manifest; it does not invoke ingest. The agent's wrapper
+   skill handles the conversational handoff to `knowledge-ingest`. This
+   preserves the principle: deterministic file ops in the binary,
+   LLM-driven judgment in the agent.
+
+5. **Fixture path inconsistency (medium).** Earlier draft alternated
+   between `tests/fixtures/wikis/v1/` and `tools/llm-wiki/tests/fixtures/
+   wikis/v1/`. Standardized on the qualified path everywhere, since
+   fixtures live next to the tests that use them per Rust convention.
+
+6. **Crate naming open question resolved (low).** Specified explicitly:
+   package name `llm-wiki-framework` (matches `cargo install llm-wiki-
+   framework` in the distribution gate); binary name `llm-wiki` (`[[bin]]
+   name = "llm-wiki"` in Cargo.toml). Open question struck through and
+   marked resolved.
+
+Also updated the §10 sequencing diagram to reflect new stage numbers,
+fixed two stragglers in §11 (risk references to old stage numbers), and
+fixed one straggler in stage 5.8 (cross-reference to wrapper migration
+updated from 5.12 to 5.11).
+
+Pages updated: wiki/plans/llm-wiki-binary.plan.md, wiki/log.md
+
+## [2026-05-06] update | D8 plan: nuclear no-legacy discipline
+
+User directive: D8 ships clean-slate; no dead code, no old features
+lingering, no main-branch state where bash renderer and binary coexist.
+
+Added §2a "No-Legacy Discipline (Load-Bearing)" to
+`wiki/plans/llm-wiki-binary.plan.md`. Seven principles, non-negotiable:
+
+1. Single source of truth at any moment. No coexistence of bash renderer
+   and binary on main.
+2. Dead code is a release blocker. No legacy parsing paths in the binary.
+3. Old prose is deleted, not migrated. The current `init-project` skill
+   prose is `git rm`-ed when the wrapper lands.
+4. Spec rewrites, not spec patches. The binary-relevant specs are
+   rewritten from scratch.
+5. Superseded predecessors move to `wiki/archive/`. Per the framework's
+   own rule (project_guidelines.template.md:327), they leave the active
+   index.
+6. Open questions resolve before stage 5.1. No "we'll figure it out
+   during implementation."
+7. Backward compatibility is bounded — external project wikis preserved,
+   internal bash-renderer canonical format is dead code.
+
+Stage updates to enforce the discipline:
+
+- **5.4** (canonical migration): explicit "no `<!-- TAG -->` markers
+  anywhere," CI grep gate added that fails the build on any reintroduction.
+  Removed the "if approached cleanly" hedge.
+- **5.11** (init-project wrapper): explicit `git rm` of the old prose;
+  fresh canonical under 60 lines; verification asserts `git log -p` shows
+  delete-then-rewrite, not an accumulating patch.
+- **5.13** (cleanup): reframed as a single-merge operation. Predecessors
+  archived (`git mv` to `wiki/archive/`), not just status-flipped.
+  Specs rewritten (delete-then-rewrite), not edited. Deferred-supersession
+  framing dropped from the binary-distribution decision once D8 lands.
+  `Successor:` annotations removed entirely.
+
+New §6 verification gates (No-Legacy Audit, gates 17-22):
+
+- 17: `cargo +nightly udeps` reports zero unused dependencies.
+- 18: `cargo clippy --all-targets -- -D warnings -D dead_code` passes;
+  no unjustified `#[allow(dead_code)]`.
+- 19: CI grep gate — no `<!-- CLAUDE -->`/`<!-- CODEX -->`/`<!-- END -->`
+  anywhere in the working tree.
+- 20: CI grep gate — no `bash renderer` / `build.sh` references in
+  active wiki docs (allowed only in `wiki/archive/` and `wiki/log.md`).
+- 21: No `parse_legacy()` / `SchemaVersion` enum / fallback paths in the
+  binary. The codebase handles only the current schema.
+- 22: No `Successor:` fields remain on active documents.
+
+§12 reframed from "open questions" to "implementation decisions
+(pre-stage-5.1)." All four resolved:
+
+1. Package: `llm-wiki-framework`; binary: `llm-wiki`. Reserve crates.io name.
+2. Workspace layout (mandated by `build.rs` build-dependency requirement).
+3. Hand-rolled `HOME`/XDG path resolution, not `dirs` crate (avoids the
+   macOS `~/Library/Application Support/` mismatch).
+4. IS_EXISTING profile operates on literal paths only; no `git2`, no
+   implicit `.gitignore` walking. Predictability over convenience.
+
+Pages updated: wiki/plans/llm-wiki-binary.plan.md, wiki/log.md
