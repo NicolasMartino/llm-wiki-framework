@@ -33,3 +33,14 @@ jobs:
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: Coverage Gate
         run: cargo llvm-cov --workspace --fail-under-lines 80
+
+  udeps:
+    name: unused dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@cargo-udeps
+      - name: Unused Dependency Audit
+        run: cargo +nightly udeps --workspace

@@ -12,9 +12,5 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: Verify redirected HOME install
-        run: |
-          cargo run -p llm-wiki-framework -- install
-          cargo run -p llm-wiki-framework -- status
-        env:
-          HOME: ${{ runner.temp }}/llm-wiki-home
+      - name: Verify redirected HOME install manifest
+        run: cargo test -p llm-wiki-framework --test post_install

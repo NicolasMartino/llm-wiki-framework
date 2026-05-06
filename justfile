@@ -35,6 +35,9 @@ verify: fmt test clippy-strict snapshots audit-legacy
 
 verify-full: verify coverage udeps
 
+post-install:
+    cargo test -p llm-wiki-framework --test post_install
+
 build-bin:
     cargo build -p llm-wiki-framework
 

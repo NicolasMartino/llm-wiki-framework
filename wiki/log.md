@@ -754,3 +754,19 @@ wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec
 wiki/specs/knowledge-research-skill.spec.md, wiki/specs/knowledge-lint-skill.spec.md,
 wiki/archive/single-source-skills.decision.md, wiki/archive/framework-path-resolution.decision.md,
 wiki/archive/project-local-codex-skills.decision.md, wiki/archive/single-source-skills.plan.md
+
+## [2026-05-06] update | D8 review verification gaps closed
+
+Addressed review findings against the D8 implementation. CI now runs the
+`cargo +nightly udeps --workspace` unused-dependency audit. The tag-triggered
+post-install workflow now runs a concrete redirected-HOME integration test
+that installs the binary output, reads the manifest, verifies the expected
+file count, verifies every manifest path exists, verifies each SHA-256 hash,
+and checks that installed skill files are manifest-owned.
+
+The reported coverage concern was reviewed against the actual local
+`cargo llvm-cov --workspace --fail-under-lines 80` gate: line coverage is
+above the configured threshold, so no status rollback was needed.
+
+Pages updated: .github/workflows/ci.yml, .github/workflows/post-install.yml,
+tools/llm-wiki/tests/post_install.rs, justfile, wiki/log.md
