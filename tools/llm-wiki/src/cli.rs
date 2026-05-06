@@ -12,6 +12,8 @@ pub struct Cli {
 #[derive(Debug, Subcommand)]
 pub enum Command {
     Build(BuildArgs),
+    Install(InstallArgs),
+    Uninstall,
 }
 
 #[derive(Debug, clap::Args)]
@@ -27,4 +29,10 @@ pub enum BuildTarget {
     Claude,
     Codex,
     Both,
+}
+
+#[derive(Debug, clap::Args)]
+pub struct InstallArgs {
+    #[arg(long)]
+    pub force: bool,
 }

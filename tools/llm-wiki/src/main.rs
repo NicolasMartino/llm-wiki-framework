@@ -1,6 +1,10 @@
 mod build;
 mod cli;
 mod embed;
+mod install;
+mod manifest;
+mod paths;
+mod uninstall;
 
 use anyhow::Result;
 use clap::Parser;
@@ -11,5 +15,7 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     match &cli.command {
         Command::Build(args) => build::run(args),
+        Command::Install(args) => install::run(args.force),
+        Command::Uninstall => uninstall::run(),
     }
 }
