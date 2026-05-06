@@ -1,0 +1,18 @@
+name: Embedded Canonical Negative Test
+
+on:
+  pull_request:
+  push:
+    branches: [master, main]
+
+jobs:
+  malformed-canonical-fails-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Break one canonical skill
+        run: perl -0pi -e 's/^name: init-project/name_removed: init-project/m' skills/init-project/SKILL.md
+      - name: Build Must Fail
+        run: "! cargo build -p llm-wiki-framework"
