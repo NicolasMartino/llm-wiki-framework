@@ -1,3 +1,3 @@
 fn main() {
-    llm_wiki_schema::nothing();
+    println!("llm-wiki");
 }
