@@ -1,8 +1,7 @@
 use crate::SkillDoc;
+use crate::projector::format::{description_for, render_frontmatter};
 use crate::projector::idiom::{rewrite_invocation, supports_runtime};
-use crate::projector::{
-    ProjectError, Projector, RenderedSkill, TargetRuntime, description_for, render_frontmatter,
-};
+use crate::projector::{ProjectError, Projector, RenderedSkill, TargetRuntime};
 
 #[derive(Clone, Debug, Default)]
 pub struct CodexProjector {
