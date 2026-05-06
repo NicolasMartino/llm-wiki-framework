@@ -298,3 +298,62 @@ Closes:
 - review.md §9.1 (hardcoded skill paths) by construction — binary embeds its own content.
 - review.md §9.2 (broken global symlinks) by construction — no symlinks at all.
 - The pre-binary renderer's content-loss class of bug — golden-file snapshot tests are the explicit defense.
+
+---
+
+### D8.1 - Managed Runtime Bootstrap
+
+Status: Planned
+Promise: `llm-wiki install` makes installed skills work even when the user runs
+a manually downloaded binary from outside `PATH`. Skills invoke a managed binary
+absolute path under `~/.llm_wiki/bin/llm-wiki`; PATH setup is only terminal
+convenience.
+Depends On: D8
+Execution Plan: wiki/plans/binary-path-bootstrap.plan.md
+
+Included:
+- Managed runtime home at `~/.llm_wiki/` on Unix-like systems and future
+  `%LOCALAPPDATA%\llm_wiki\` on Windows.
+- Managed binary copied or verified at `~/.llm_wiki/bin/llm-wiki`.
+- Manifest v2 at `~/.llm_wiki/manifest.json` with `sha256` hashes and explicit
+  binary, skill, and backup entries.
+- Pre-release correction from the D8 manifest path
+  `~/.local/share/llm-wiki/manifest.json`; no public migration required.
+- `install.partial.json` transaction marker for interrupted-install recovery.
+- Self-install behavior that skips copy-over-self and verifies in place.
+- Installed skills render managed absolute binary paths instead of bare
+  `llm-wiki`.
+- Scoped backup snapshots under `~/.llm_wiki/backups/`.
+- `llm-wiki path` for PATH guidance without reinstalling skills.
+- `doctor` reports managed binary drift, stale transaction state, and PATH
+  visibility as convenience status.
+- `init-project` is renamed to `knowledge-init` before public release.
+
+Excluded:
+- Silent shell profile edits.
+- Windows release artifacts.
+- Self-update.
+- Automated rollback command.
+- Spec promotion before implementation and tests validate behavior.
+
+Proof:
+- End-to-end test runs a binary from outside `PATH`, installs skills without
+  shell profile edits, invokes an installed skill or skill-equivalent stub, and
+  confirms the managed binary path executes.
+- Unit tests cover Unix paths, Windows `.exe` naming, quoting, and PATHEXT
+  lookup assumptions.
+- Integration tests cover `current_exe()` failure, self-install verify-in-place,
+  interrupted-install recovery, manifest v2, backup snapshots,
+  `llm-wiki path`, doctor, and uninstall behavior.
+
+Promotion Target:
+- wiki/specs/documentation-model.spec.md (managed runtime home and manifest v2
+  recorded as validated distribution behavior)
+- wiki/specs/init-project-skill.spec.md (replaced or superseded by
+  `knowledge-init` once implementation lands)
+- wiki/specs/knowledge-*-skill.spec.md if dispatcher or installed-path behavior
+  changes
+
+Unlocks:
+- Manual-download installation path that works without shell profile edits.
+- Cleaner Windows compatibility path before Windows release artifacts ship.

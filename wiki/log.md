@@ -931,3 +931,98 @@ testing, and keeps unresolved questions limited to cleanup and optional future
 behavior.
 
 Pages updated: wiki/proposals/binary-path-bootstrap.proposal.md, wiki/log.md
+
+## [2026-05-06] promote | Managed binary runtime install
+
+Accepted `wiki/proposals/binary-path-bootstrap.proposal.md` as the D8.1 managed
+runtime bootstrap direction and promoted it to
+`wiki/decisions/binary-path-bootstrap.decision.md` plus
+`wiki/plans/binary-path-bootstrap.plan.md`.
+
+The decision amends the completed D8 binary distribution model: future
+`llm-wiki install` behavior will manage `~/.llm_wiki/bin/llm-wiki`, migrate the
+D8 manifest once into `~/.llm_wiki/manifest.json`, render installed skills to
+call the managed binary by absolute path, keep PATH setup as convenience only,
+and rename `init-project` to `knowledge-init` in a separable migration phase.
+
+Added D8.1 to the Framework V1 roadmap as a planned follow-up deliverable. Specs
+were intentionally not updated because this behavior is accepted direction, not
+validated runtime behavior yet.
+
+Pages created: wiki/decisions/binary-path-bootstrap.decision.md,
+wiki/plans/binary-path-bootstrap.plan.md
+Pages updated: wiki/proposals/binary-path-bootstrap.proposal.md,
+wiki/decisions/llm-wiki-binary-distribution.decision.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
+
+## [2026-05-06] update | Clarify install acquisition convergence
+
+Updated the D8.1 decision and plan to make acquisition-path convergence
+explicit. `cargo install llm-wiki-framework` is documented as requiring a
+follow-up `llm-wiki install`, because Cargo does not provide a reliable
+package-defined post-install hook for mutating user home directories. The
+release installer may invoke or offer to invoke `llm-wiki install`, but must not
+duplicate skill-copy, manifest, backup, or managed-binary logic.
+
+Pages updated: wiki/decisions/binary-path-bootstrap.decision.md,
+wiki/plans/binary-path-bootstrap.plan.md, wiki/log.md
+
+## [2026-05-06] update | Tighten D8.1 implementation contract
+
+Applied follow-up review feedback to the D8.1 managed runtime plan and
+decision. The plan now includes manifest v2 and `install.partial.json` schema
+sketches, defines stale-marker and marker-leak semantics, names the current
+rendering implementation touchpoints, adds a Phase 0 rendering/test-harness
+spike, and states that managed path injection should happen at a structured
+rendering boundary rather than a blind Markdown post-process.
+
+The plan now also makes the `knowledge-init` rename explicitly cover Rust
+references and snapshots, adds a documentation update phase for Cargo and
+release installer guidance, requires `doctor` to warn when a `which`-resolved
+`llm-wiki` differs from the managed binary, clarifies default uninstall as
+removing manifest-owned skills while leaving the managed binary, and grounds the
+outside-PATH test in the existing `assert_cmd` plus redirected-`HOME`
+integration harness.
+
+Pages updated: wiki/plans/binary-path-bootstrap.plan.md,
+wiki/decisions/binary-path-bootstrap.decision.md, wiki/log.md
+
+## [2026-05-06] update | Remove D8.1 compatibility assumptions
+
+Revised the D8.1 managed runtime proposal, decision, plan, roadmap, and amended
+D8 decision to reflect that there is no public install surface yet. The
+active contract now treats the old D8 manifest location and `init-project` name
+as pre-release state corrected before public release, not compatibility surfaces
+that require migration machinery.
+
+The plan no longer requires one-way manifest migration from
+`~/.local/share/llm-wiki/manifest.json`, D8 manifest migration fixtures,
+`init-project` backup behavior, or doctor checks for D8 manifest compatibility
+state.
+Local dogfood and development state can be handled through normal fresh install
+or `install --force` behavior.
+
+Pages updated: wiki/proposals/binary-path-bootstrap.proposal.md,
+wiki/decisions/binary-path-bootstrap.decision.md,
+wiki/plans/binary-path-bootstrap.plan.md,
+wiki/decisions/llm-wiki-binary-distribution.decision.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/log.md
+
+## [2026-05-06] update | Resolve D8.1 consistency nits
+
+Tightened the accepted D8.1 docs after another consistency pass. The plan now
+names `wiki/plans/binary-path-bootstrap.plan.md` as the permanent home for the
+Phase 0 implementation note, explains that backups protect user-authored or
+local dogfood edits rather than public legacy state, names Codex
+`agents/openai.yaml` runtime config files in uninstall scope, and makes the
+Phase 7 grep sweep explicitly include `wiki/specs/init-project-skill.spec.md`
+and `Sources` / `Related` metadata.
+
+The decision now states that drift after `cargo install --force` or a release
+installer upgrade is the default until `llm-wiki install` is rerun. The proposal
+rename policy was also adjusted to call `init-project` outputs pre-release
+state.
+
+Pages updated: wiki/plans/binary-path-bootstrap.plan.md,
+wiki/decisions/binary-path-bootstrap.decision.md,
+wiki/proposals/binary-path-bootstrap.proposal.md, wiki/log.md

@@ -1,12 +1,13 @@
 # Managed Binary Install and PATH Guidance
 
 - Document Class: Proposal
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-05-06
+- Promoted To: wiki/decisions/binary-path-bootstrap.decision.md, wiki/roadmaps/framework-v1.roadmap.md (D8.1), wiki/plans/binary-path-bootstrap.plan.md
 - Category: Distribution tooling, install UX
 - Scope: Make `llm-wiki install` create a stable managed binary location for runtime skills, then guide users when `llm-wiki` is not discoverable on `PATH`.
 - Sources: user discussion 2026-05-06, proposal review 2026-05-06, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/plans/llm-wiki-binary.plan.md, wiki/plans/llm-wiki-product-layout-addendum.plan.md, https://docs.rs/which/latest/which/, https://docs.rs/dirs-next/latest/dirs_next/fn.executable_dir.html, https://docs.rs/dialoguer/latest/dialoguer/, https://docs.rs/is-terminal/latest/is_terminal/, https://doc.rust-lang.org/stable/cargo/commands/cargo-install.html
-- Related: wiki/specs/init-project-skill.spec.md, wiki/specs/documentation-model.spec.md, wiki/proposals/llm-wiki-binary.proposal.md
+- Related: wiki/decisions/binary-path-bootstrap.decision.md, wiki/plans/binary-path-bootstrap.plan.md, wiki/specs/init-project-skill.spec.md, wiki/specs/documentation-model.spec.md, wiki/proposals/llm-wiki-binary.proposal.md
 
 ## Question
 
@@ -65,9 +66,9 @@ Two path choices are resolved by this proposal:
 1. The managed runtime home is `~/.llm_wiki` on Unix-like systems and
    `%LOCALAPPDATA%\llm_wiki` on Windows. The underscore form matches the
    framework repository and avoids mixing two spellings in user-visible state.
-2. The new manifest at `~/.llm_wiki/manifest.json` replaces the D8 manifest
-   path. The old manifest is migrated once and reported as legacy state, but it
-   is not kept synchronized.
+2. The new manifest at `~/.llm_wiki/manifest.json` replaces the pre-release D8
+   manifest path before public release. No public migration semantics are
+   required yet.
 
 Managed locations:
 
@@ -221,13 +222,6 @@ user skill:
 ~/.codex/skills/knowledge/
 ```
 
-Legacy `init-project` paths should also be backed up during the rename window:
-
-```text
-~/.claude/skills/init-project/
-~/.codex/skills/init-project/
-```
-
 The backup manifest records:
 
 1. original path
@@ -300,49 +294,38 @@ $knowledge init
 
 but routes to `knowledge-init`.
 
-The old `init-project` installed paths are legacy targets. The rename is a
-separable migration phase inside the same release: managed binary install must
-remain rollbackable even if the rename step finds a conflict. During the first
-rename implementation, `install` should back up old paths before writing
-current skills.
+The old `init-project` name is pre-release state, not a public compatibility
+surface. The rename is a separable implementation phase inside the same release:
+managed binary install must remain coherent even if the rename step finds a
+local development collision.
 
 Proposed rename policy:
 
-1. Remove `init-project` when it is manifest-owned.
-2. Back up `init-project` before removal.
-3. Refuse to delete unknown user-authored `init-project` paths unless `--force`
+1. Remove pre-release `init-project` outputs when they are manifest-owned.
+2. Refuse to delete unknown user-authored `init-project` paths unless `--force`
    is provided.
-4. Do not install a temporary `init-project` alias by default. Keeping both
+3. Do not install a temporary `init-project` alias by default. Keeping both
    names active would weaken the clarity gained by the rename.
-5. Report unresolved legacy `init-project` paths in `doctor`.
-6. If the rename phase fails after managed binary installation succeeds, report
+4. If the rename phase fails after managed binary installation succeeds, report
    the rename as the failing phase and leave the managed binary manifest state
    coherent.
 
-## Manifest Migration
+## Manifest Path Correction
 
-The current D8 manifest lives at:
+The current pre-release D8 implementation writes a manifest at:
 
 ```text
 ~/.local/share/llm-wiki/manifest.json
 ```
 
-This proposal moves the manifest to:
+This proposal corrects the manifest path before public release:
 
 ```text
 ~/.llm_wiki/manifest.json
 ```
 
-Migration behavior:
-
-1. On install, read the new manifest path first.
-2. If missing, read the old D8 manifest path.
-3. If the old manifest exists, migrate entries into the new manifest schema and
-   write `~/.llm_wiki/manifest.json`.
-4. Do not delete the old manifest automatically in the first version; `doctor`
-   should report it as legacy state after successful migration.
-5. A later cleanup release may remove or archive the old manifest after a clear
-   deprecation period.
+No public migration is required yet. Local dogfood or development state at the
+old path can be replaced by rerunning install, using `--force` when necessary.
 
 The manifest should record the managed binary entry, including path, `sha256`
 hash, version, and ownership status, so `doctor` and `uninstall` can reason
@@ -351,8 +334,7 @@ about it.
 ## Manifest Schema
 
 The exact schema can evolve before implementation, but the first version should
-make binary ownership, skill ownership, backup provenance, and migrated state
-explicit. Sketch:
+make binary ownership, skill ownership, and backup provenance explicit. Sketch:
 
 ```json
 {
@@ -381,11 +363,7 @@ explicit. Sketch:
       "id": "install-20260506T123456Z",
       "path": "/Users/alice/.llm_wiki/backups/install-20260506T123456Z/backup-manifest.json"
     }
-  ],
-  "migration": {
-    "from_manifest": "/Users/alice/.local/share/llm-wiki/manifest.json",
-    "synchronized_with_legacy_manifest": false
-  }
+  ]
 }
 ```
 
@@ -525,11 +503,8 @@ Semantics:
 3. Installed skills invoke the managed binary path.
 4. Manifest lives at `~/.llm_wiki/manifest.json`.
 5. Known skill paths match the current expected framework set.
-6. Legacy `init-project` paths are absent, manifest-owned, or explicitly
-   reported as user-authored conflicts.
-7. Legacy D8 manifest state exists only when expected during migration.
-8. `llm-wiki` PATH visibility is reported as convenience status, not an error.
-9. Stale `install.partial.json` state is absent or recoverable.
+6. `llm-wiki` PATH visibility is reported as convenience status, not an error.
+7. Stale `install.partial.json` state is absent or recoverable.
 
 `llm-wiki uninstall` should remove manifest-owned skill files and manifest
 entries. Removing the managed binary should require an explicit flag such as:
@@ -567,16 +542,13 @@ command.
    verify-in-place.
 6. Existing managed binary collisions follow the same refusal/force discipline
    as skill file collisions.
-7. Existing D8 manifests under `~/.local/share/llm-wiki/manifest.json` are read
-   and migrated once into `~/.llm_wiki/manifest.json` without data loss; the old
-   manifest is not kept synchronized.
+7. The pre-release D8 manifest path is replaced by
+   `~/.llm_wiki/manifest.json`; no public migration is required.
 8. PATH guidance is printed after successful install when `llm-wiki` is not
    discoverable, and missing PATH is not treated as install failure.
 9. `init-project` is renamed to `knowledge-init` in canonical assets,
    installed paths, docs, and the Codex dispatcher.
-10. Legacy `init-project` installed paths are backed up and either removed when
-    manifest-owned or refused as user-authored conflicts unless `--force` is
-    provided.
+10. No temporary `init-project` alias is installed by default.
 11. `llm-wiki doctor` reports missing or drifted managed binary state.
 12. `llm-wiki uninstall` leaves the managed binary in place unless an explicit
     include-binary flag is provided.
