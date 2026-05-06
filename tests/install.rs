@@ -20,7 +20,7 @@ fn install_writes_files_and_manifest() {
 
     assert!(
         home.path()
-            .join(".claude/skills/init-project/SKILL.md")
+            .join(".claude/skills/knowledge-init/SKILL.md")
             .exists()
     );
     assert!(
@@ -42,7 +42,7 @@ fn install_writes_files_and_manifest() {
         manifest["skills"].as_array().expect("files").len(),
         installed_files(home.path())
     );
-    let skill = fs::read_to_string(home.path().join(".claude/skills/init-project/SKILL.md"))
+    let skill = fs::read_to_string(home.path().join(".claude/skills/knowledge-init/SKILL.md"))
         .expect("skill");
     assert!(skill.contains(".llm_wiki/bin/llm-wiki"));
     assert!(!skill.contains("`llm-wiki init "));
@@ -81,7 +81,7 @@ fn install_is_idempotent() {
 #[test]
 fn install_refuses_user_authored_collision_by_default() {
     let home = TempDir::new().expect("home");
-    let path = home.path().join(".claude/skills/init-project/SKILL.md");
+    let path = home.path().join(".claude/skills/knowledge-init/SKILL.md");
     fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
     fs::write(&path, "user skill").expect("write");
 
@@ -92,7 +92,7 @@ fn install_refuses_user_authored_collision_by_default() {
 #[test]
 fn force_install_backs_up_and_replaces_collision() {
     let home = TempDir::new().expect("home");
-    let path = home.path().join(".claude/skills/init-project/SKILL.md");
+    let path = home.path().join(".claude/skills/knowledge-init/SKILL.md");
     fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
     fs::write(&path, "user skill").expect("write");
 
@@ -146,7 +146,7 @@ fn uninstall_removes_manifest_owned_files_only() {
     assert!(
         !home
             .path()
-            .join(".claude/skills/init-project/SKILL.md")
+            .join(".claude/skills/knowledge-init/SKILL.md")
             .exists()
     );
 }
@@ -167,7 +167,7 @@ fn uninstall_include_binary_removes_managed_binary() {
 #[test]
 fn uninstall_refuses_drifted_manifest_file() {
     let home = TempDir::new().expect("home");
-    let path = home.path().join(".claude/skills/init-project/SKILL.md");
+    let path = home.path().join(".claude/skills/knowledge-init/SKILL.md");
 
     llm_wiki(home.path()).arg("install").assert().success();
     fs::write(&path, "user edit").expect("write");

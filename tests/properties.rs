@@ -21,6 +21,6 @@ proptest! {
         let manifest = fs::read_to_string(home.path().join(".llm_wiki/manifest.json"))
             .expect("manifest");
         prop_assert!(manifest.contains("\"skills\""));
-        prop_assert!(home.path().join(".claude/skills/init-project/SKILL.md").exists());
+        prop_assert!(home.path().join(".claude/skills/knowledge-init/SKILL.md").exists());
     }
 }

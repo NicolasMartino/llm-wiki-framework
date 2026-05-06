@@ -16,20 +16,20 @@ fn build_out_writes_both_runtime_trees() {
 
     assert!(
         temp.path()
-            .join(".claude/skills/init-project/SKILL.md")
+            .join(".claude/skills/knowledge-init/SKILL.md")
             .exists()
     );
     assert!(
         temp.path()
-            .join(".codex/skills/init-project/SKILL.md")
+            .join(".codex/skills/knowledge-init/SKILL.md")
             .exists()
     );
     assert!(
         temp.path()
-            .join(".codex/skills/init-project/agents/openai.yaml")
+            .join(".codex/skills/knowledge-init/agents/openai.yaml")
             .exists()
     );
-    let skill = fs::read_to_string(temp.path().join(".claude/skills/init-project/SKILL.md"))
+    let skill = fs::read_to_string(temp.path().join(".claude/skills/knowledge-init/SKILL.md"))
         .expect("skill");
     assert!(skill.contains("`llm-wiki init "));
     assert!(!skill.contains("{llm_wiki_binary}"));
@@ -59,7 +59,7 @@ fn build_target_claude_skips_codex_output() {
 
     assert!(
         temp.path()
-            .join(".claude/skills/init-project/SKILL.md")
+            .join(".claude/skills/knowledge-init/SKILL.md")
             .exists()
     );
     assert!(!temp.path().join(".codex").exists());

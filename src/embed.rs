@@ -6,9 +6,9 @@ pub struct SkillAsset {
 
 pub const SKILLS: &[SkillAsset] = &[
     SkillAsset {
-        name: "init-project",
-        skill_md: include_str!("../assets/skills/init-project/SKILL.md"),
-        codex_openai: include_str!("../assets/skills/init-project/codex/openai.yaml"),
+        name: "knowledge-init",
+        skill_md: include_str!("../assets/skills/knowledge-init/SKILL.md"),
+        codex_openai: include_str!("../assets/skills/knowledge-init/codex/openai.yaml"),
     },
     SkillAsset {
         name: "knowledge-query",

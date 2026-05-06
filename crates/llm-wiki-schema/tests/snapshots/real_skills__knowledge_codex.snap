@@ -19,7 +19,7 @@ in Codex.
 1. Support explicit knowledge-namespace invocation and normal language.
 2. If the user invokes the namespace without an operation, list the supported
    operations and ask which one they want.
-3. Route `init` to the `init-project` skill and treat remaining text as the
+3. Route `init` to the `knowledge-init` skill and treat remaining text as the
    optional target path or setup request.
 4. Route `query` to `knowledge-query` and treat remaining text as the required
    project question.

@@ -8,10 +8,10 @@ struct SkillFixture {
 
 const SKILLS: &[SkillFixture] = &[
     SkillFixture {
-        name: "init-project",
-        skill_md: include_str!("../../../assets/skills/init-project/SKILL.md"),
+        name: "knowledge-init",
+        skill_md: include_str!("../../../assets/skills/knowledge-init/SKILL.md"),
         codex_config: Some(include_str!(
-            "../../../assets/skills/init-project/codex/openai.yaml"
+            "../../../assets/skills/knowledge-init/codex/openai.yaml"
         )),
     },
     SkillFixture {

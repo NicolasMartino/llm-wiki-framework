@@ -51,7 +51,7 @@ fn v1_fixture_index_references_current_skills() {
     }
 
     for skill in [
-        "init-project",
+        "knowledge-init",
         "knowledge-query",
         "knowledge-ingest",
         "knowledge-research",

@@ -1,5 +1,5 @@
 ---
-name: init-project
+name: knowledge-init
 description: Create or update a software project with the LLM Wiki project management framework. Use when {runtime} is asked to initialize a new project, scaffold a project knowledge base, add the framework to an existing codebase, or run the framework bootstrap flow.
 runtimes: [claude, codex]
 operations: [init]
@@ -36,8 +36,8 @@ Collect project setup answers, then delegate deterministic scaffolding to the
 
 Use normal language or an explicit skill invocation:
 
-- `<init-project> /path/to/project`
-- `<init-project>` to initialize the current directory
+- `<knowledge-init> /path/to/project`
+- `<knowledge-init>` to initialize the current directory
 
 ## Notes
 

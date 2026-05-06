@@ -73,7 +73,7 @@ fn managed_binary_runs_without_path_after_install() {
         .success();
 
     let skill =
-        fs::read_to_string(home.path().join(".codex/skills/init-project/SKILL.md")).expect("skill");
+        fs::read_to_string(home.path().join(".codex/skills/knowledge-init/SKILL.md")).expect("skill");
     assert!(skill.contains(".llm_wiki/bin/llm-wiki"));
     assert!(!skill.contains("`llm-wiki init "));
 

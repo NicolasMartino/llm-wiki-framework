@@ -2,7 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 const SKILLS: &[&str] = &[
-    "init-project",
+    "knowledge-init",
     "knowledge-query",
     "knowledge-ingest",
     "knowledge-research",
