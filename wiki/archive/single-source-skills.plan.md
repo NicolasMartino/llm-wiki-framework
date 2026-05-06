@@ -1,13 +1,13 @@
 # Plan: Consolidate Skills Into a Single Source of Truth
 
 - Document Class: Plan
-- Status: Active
+- Status: Superseded
 - Date: 2026-05-06
 - Category: Tooling, framework infrastructure
 - Scope: Eliminate `.claude/skills/` ↔ `.codex/skills/` duplication by introducing one canonical `skills/` source and generating per-runtime variants from it.
 - Sources: review.md §9 (Codex follow-up findings), wiki/decisions/project-local-codex-skills.decision.md, wiki/specs/documentation-model.spec.md
-- Related: wiki/decisions/single-source-skills.decision.md, wiki/specs/init-project-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-research-skill.spec.md, wiki/specs/knowledge-lint-skill.spec.md
-- Successor: wiki/decisions/llm-wiki-binary-distribution.decision.md (will supersede this plan when D8 ships; pending smoke-test gates from §6 will be discharged by D8 rather than by completing this plan separately, but the bash renderer continues to operate the repo until then)
+- Related: wiki/archive/single-source-skills.decision.md, wiki/specs/init-project-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-research-skill.spec.md, wiki/specs/knowledge-lint-skill.spec.md
+- Superseded By: wiki/decisions/llm-wiki-binary-distribution.decision.md
 
 ## 1. Deliverable
 
@@ -31,9 +31,9 @@ Reuse the conditional-section pattern already proven in `project_guidelines.temp
 ```text
 skills/
   README.md                     One-page explanation of the build model
-  build.sh                      Render skills/ → .claude/ and .codex/
+  legacy render script          Render skills/ → .claude/ and .codex/
   init-project/
-    SKILL.md                    Canonical body with <!-- CLAUDE -->, <!-- CODEX --> blocks
+    SKILL.md                    Canonical body with legacy Claude runtime marker, legacy Codex runtime marker blocks
     codex/
       openai.yaml               Codex-only runtime config
   knowledge-ingest/
@@ -69,24 +69,24 @@ Generated outputs (gitignored or regenerated on demand):
 Conditional markers in canonical `SKILL.md`:
 
 ```markdown
-<!-- FRONTMATTER:CLAUDE -->
+legacy Claude frontmatter marker
 description: Ingest raw source material into the project wiki. ...
-<!-- END -->
+legacy end marker
 
-<!-- FRONTMATTER:CODEX -->
+legacy Codex frontmatter marker
 description: Ingest explicit raw source material into an LLM Wiki project. ...
-<!-- END -->
+legacy end marker
 
 ## Invocation
 
-<!-- CLAUDE -->
+legacy Claude runtime marker
 /knowledge-ingest <file-or-directory>
-<!-- END -->
+legacy end marker
 
-<!-- CODEX -->
+legacy Codex runtime marker
 $knowledge-ingest <file-or-directory>
 $knowledge ingest <file-or-directory>
-<!-- END -->
+legacy end marker
 ```
 
 ## 4. Out Of Scope
@@ -110,10 +110,10 @@ $knowledge ingest <file-or-directory>
 
 ### 5.2 Build script
 
-`skills/build.sh` (bash, no dependencies) does three things:
+`legacy skill render script` (bash, no dependencies) does three things:
 
 1. For each `skills/<name>/SKILL.md`:
-   - render Claude variant by keeping `<!-- CLAUDE -->` blocks, dropping `<!-- CODEX -->` blocks, and selecting `<!-- FRONTMATTER:CLAUDE -->` → write to `.claude/skills/<name>/SKILL.md`;
+   - render Claude variant by keeping `legacy Claude runtime marker` blocks, dropping `legacy Codex runtime marker` blocks, and selecting `legacy Claude frontmatter marker` → write to `.claude/skills/<name>/SKILL.md`;
    - render Codex variant analogously → write to `.codex/skills/<name>/SKILL.md`.
 2. Copy `skills/<name>/codex/openai.yaml` to `.codex/skills/<name>/agents/openai.yaml` when present.
 3. Skip Claude rendering for the Codex-only `knowledge` dispatcher.
@@ -124,8 +124,8 @@ The script is idempotent: running it twice produces identical output.
 
 Two acceptable triggers, pick one:
 
-- **Manual** — document `bash skills/build.sh` in `skills/README.md` and a checklist; the user runs it after editing a canonical skill. Simple, no hooks.
-- **Hooked** — a Claude Code post-edit hook in `.claude/settings.json` runs `skills/build.sh` whenever a `skills/**/SKILL.md` file is edited. Removes the "I forgot to rebuild" failure mode.
+- **Manual** — document `bash legacy skill render script` in `skills/README.md` and a checklist; the user runs it after editing a canonical skill. Simple, no hooks.
+- **Hooked** — a Claude Code post-edit hook in `.claude/settings.json` runs `legacy skill render script` whenever a `skills/**/SKILL.md` file is edited. Removes the "I forgot to rebuild" failure mode.
 
 Recommend manual for V1. Add a hook only if regeneration drift becomes a real issue.
 
@@ -150,7 +150,7 @@ Skill specs in `wiki/specs/` currently document only the Claude/Codex pair struc
 
 A `pass` requires all of:
 
-1. `bash skills/build.sh` exits 0 and produces no diff on a second run.
+1. `bash legacy skill render script` exits 0 and produces no diff on a second run.
 2. `diff -rq .claude/skills/ .codex/skills/` shows only expected runtime-specific differences (frontmatter descriptions, `agents/` subdirs, the Codex-only `knowledge` dispatcher).
 3. Every skill listed in `wiki/index.md` has a canonical source under `skills/`.
 4. `knowledge-lint` exists for both Claude and Codex (closing the drift gap).
@@ -191,7 +191,7 @@ A `pass` requires all of:
 Implementation completed on 2026-05-06 for all repo-local deliverables:
 
 - canonical `skills/` source tree exists
-- `skills/build.sh` renders runtime outputs
+- `legacy skill render script` renders runtime outputs
 - Claude and Codex skill outputs are generated and committed
 - Claude `knowledge-lint` exists
 - global framework symlinks point at this repo

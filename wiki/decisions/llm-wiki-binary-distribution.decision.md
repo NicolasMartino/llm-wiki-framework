@@ -5,9 +5,9 @@
 - Date: 2026-05-06
 - Category: Tooling, framework distribution
 - Scope: Distribute the framework as a single Rust binary (`llm-wiki`) that owns global skill installation, project scaffolding, and skill projection from canonical markdown.
-- Sources: wiki/proposals/llm-wiki-binary.proposal.md, wiki/decisions/single-source-skills.decision.md, wiki/decisions/framework-path-resolution.decision.md, wiki/decisions/project-local-codex-skills.decision.md, review.md §9-10, wiki/log.md (line-loss audit, 2026-05-06)
+- Sources: wiki/proposals/llm-wiki-binary.proposal.md, wiki/archive/single-source-skills.decision.md, wiki/archive/framework-path-resolution.decision.md, wiki/archive/project-local-codex-skills.decision.md, review.md §9-10, wiki/log.md (line-loss audit, 2026-05-06)
 - Related: wiki/roadmaps/framework-v1.roadmap.md (D8), wiki/specs/init-project-skill.spec.md, wiki/specs/documentation-model.spec.md
-- Will Supersede On D8 Completion: wiki/decisions/single-source-skills.decision.md, wiki/decisions/framework-path-resolution.decision.md, wiki/plans/single-source-skills.plan.md (`wiki/decisions/project-local-codex-skills.decision.md` is already superseded by single-source-skills; the chain will collapse forward when D8 ships)
+- Supersedes: wiki/archive/single-source-skills.decision.md, wiki/archive/framework-path-resolution.decision.md, wiki/archive/project-local-codex-skills.decision.md, wiki/archive/single-source-skills.plan.md
 
 ## Choice
 
@@ -15,7 +15,7 @@ The framework is distributed as a single Rust binary, `llm-wiki`. The binary own
 
 1. **Global skill installation**: `llm-wiki install` writes rendered framework skills directly to `~/.claude/skills/` and `~/.codex/skills/` with an ownership manifest at `~/.local/share/llm-wiki/manifest.json`. No symlinks.
 2. **Project scaffolding**: `llm-wiki init <path>` creates new project structure (Create mode only; Update mode remains agent-owned) deterministically from embedded templates.
-3. **Skill projection**: canonical markdown under `skills/<name>/SKILL.md` (clean, no `<!-- TAG -->` blocks) is embedded at compile time via `include_str!` and projected into Claude/Codex variants by typed Rust code.
+3. **Skill projection**: canonical markdown under `skills/<name>/SKILL.md` (clean, no `legacy tag marker` blocks) is embedded at compile time via `include_str!` and projected into Claude/Codex variants by typed Rust code.
 4. **State diagnostics**: `llm-wiki status` and `llm-wiki doctor` read the manifest plus filesystem to report install state, drift, and pre-binary symlink breakage.
 5. **Removal**: `llm-wiki uninstall` deletes only manifest-owned files in reverse install order.
 
@@ -28,7 +28,7 @@ Versioning follows the `git` model: one global install, the framework guarantees
 Three concrete fragilities in the current model drove this decision:
 
 1. **Broken global symlinks** (review.md §9.2). After the `software_project_management` → `llm_wiki_framework` rename, all `~/.codex/skills/` symlinks dangled silently. A binary that writes files directly to the global skill paths removes the indirection by construction.
-2. **Renderer drift loses content silently.** The bash renderer accepted by `single-source-skills.decision.md` shipped working idempotency but lacked golden-file regression tests. The first canonical-source draft measured `init-project` Claude variant 369 → 155 lines (−58%) and `knowledge-research` Codex variant 200 → 124 lines (−38%) — both detected only by stash-and-diff inspection, not by any automated gate. A typed Rust projector with `insta` snapshot tests catches the same class of regression in CI.
+2. **Renderer drift loses content silently.** The pre-binary renderer accepted by `single-source-skills.decision.md` shipped working idempotency but lacked golden-file regression tests. The first canonical-source draft measured `init-project` Claude variant 369 → 155 lines (−58%) and `knowledge-research` Codex variant 200 → 124 lines (−38%) — both detected only by stash-and-diff inspection, not by any automated gate. A typed Rust projector with `insta` snapshot tests catches the same class of regression in CI.
 3. **LLM-interpreted scaffolding cannot be tested.** `init-project` as a markdown skill produces non-deterministic output: the agent re-interprets the prose each invocation. Moving file generation to deterministic code with embedded templates and golden fixtures gives CI-checkable scaffolding output.
 
 The binary also collapses three previously-separate decisions (`project-local-codex-skills`, `framework-path-resolution`, `single-source-skills`) into one coherent distribution model. Path resolution is no longer a concern because the binary embeds its own content. Project-local skill exposure via symlinks is no longer a concern because skills are installed globally without symlinks. Single-source rendering is no longer a separate decision because the projector is part of the binary.
@@ -49,24 +49,20 @@ The binary also collapses three previously-separate decisions (`project-local-co
 
 ## Consequences
 
-This decision changes the destination, not the current operating model. Until D8 ships, the existing implementation (canonical `skills/`, bash renderer, skill-relative path resolution) remains in operation and the predecessor decisions remain `Accepted`.
+The binary is now the operating model:
 
-**Immediately:**
-
-- A new D8 deliverable is added to `wiki/roadmaps/framework-v1.roadmap.md` covering the binary's V1 acceptance criteria from the proposal.
-- `wiki/decisions/single-source-skills.decision.md` and `wiki/decisions/framework-path-resolution.decision.md` carry a forward-pointing `Successor:` field referencing this decision. Their `Status` remains `Accepted` because the rules they encode are still in effect.
-- `wiki/plans/single-source-skills.plan.md` carries the same forward-pointing `Successor:` field. Its `Status` remains `Active` because the bash renderer is the operating model and §6's smoke-test gates are still the verification surface for this implementation tier.
-- `wiki/decisions/project-local-codex-skills.decision.md` was already `Superseded` by `single-source-skills` and remains so; the chain will collapse forward when D8 ships.
-- The bash renderer (`skills/build.sh`) and the `<!-- CLAUDE --> / <!-- CODEX -->` block markers continue to operate the repo's self-dogfooding workflow.
-
-**On D8 completion (planned, not yet effected):**
-
-- `single-source-skills.decision.md`, `framework-path-resolution.decision.md`, and `single-source-skills.plan.md` flip to `Superseded` with `Superseded By` linking here.
-- `skills/build.sh` and the conditional-block markers in canonical skill files are removed; the binary's projector becomes the renderer.
-- Skill files in `.claude/skills/` and `.codex/skills/` continue to exist in this repo for first-clone usability and self-dogfooding, but are regenerated by `llm-wiki build --out .` instead of `bash skills/build.sh`.
-- `wiki/specs/init-project-skill.spec.md` and the `wiki/specs/knowledge-*-skill.spec.md` family are updated to reflect the binary as the authority for skill content and project scaffolding.
-- Spawned projects (D5/D7 outputs) become smaller: no `.claude/skills/` or `.codex/skills/` directories at all. The user runs `llm-wiki install` once globally, then `llm-wiki init <path>` per project.
-- `wiki/checklists/v1-fixture-smoke.checklist.md` is created to capture the agent-driven operations-level compatibility tests against committed fixtures.
+- Predecessor decisions and plans are archived as superseded.
+- Runtime skill files remain committed for first-clone usability and
+  self-dogfooding, but they are regenerated by `llm-wiki build --out .`.
+- `llm-wiki install` writes global Claude and Codex skills directly with an
+  ownership manifest. No symlinks are required.
+- `llm-wiki init <path>` owns deterministic Create-mode scaffolding.
+- The `init-project` skill is a thin conversational wrapper over
+  `llm-wiki init --non-interactive`.
+- Spawned projects need no framework skill directories. Users install skills
+  globally once, then scaffold each project with the binary.
+- `wiki/checklists/v1-fixture-smoke.checklist.md` captures the agent-driven
+  operations-level compatibility smoke test against the committed fixture.
 
 ## Backward Compatibility Promise
 

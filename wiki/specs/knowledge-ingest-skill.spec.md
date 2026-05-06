@@ -4,79 +4,33 @@
 - Status: Active
 - Date: 2026-05-06
 - Category: Tooling
-- Scope: The `knowledge-ingest` skill for processing raw sources into wiki pages.
-- Related: wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/init-project-skill.spec.md, wiki/decisions/knowledge-research-intake.decision.md
+- Scope: Ingest raw source material into typed wiki pages.
+- Sources: skills/knowledge-ingest/SKILL.md, wiki/decisions/llm-wiki-binary-distribution.decision.md
+- Related: wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-research-skill.spec.md
 
-## What It Does
+## Contract
 
-The knowledge-ingest skill processes raw source material into the project wiki.
-It reads sources, extracts knowledge, creates or updates wiki pages with the
-correct document types, checks for contradictions, and maintains the index and
-log. In Codex, it triggers from normal requests to ingest, process, or compile
-new raw material, and it also supports explicit invocation through
-`$knowledge-ingest` and the namespace alias `$knowledge ingest`.
+`knowledge-ingest` compiles explicit raw source material into `wiki/`.
+It reads `wiki/index.md`, project guidelines, and relevant existing pages
+before drafting updates. It processes one source at a time through extraction,
+page drafting, contradiction handling, index updates, and log updates.
 
-Called without arguments, it scans `raw/` for unprocessed files.
+Web, URL, or site acquisition is not owned by ingest. Those requests route to
+`knowledge-research` first so saved source snapshots exist under `raw/`.
 
-## Scope
+## Runtime Projection
 
-Single project only. Ingests into the `wiki/` of the current working
-directory.
+Canonical source: `skills/knowledge-ingest/SKILL.md`.
+Runtime variants are rendered by `llm-wiki build` and globally installed by
+`llm-wiki install`.
 
-## Location
+Invocation:
 
-Canonical source: `skills/knowledge-ingest/SKILL.md`
-Claude generated skill: `.claude/skills/knowledge-ingest/SKILL.md`
-Codex generated skill: `.codex/skills/knowledge-ingest/SKILL.md`
-Codex UI metadata source: `skills/knowledge-ingest/codex/openai.yaml`
-Claude global access: symlinked to `~/.claude/skills/knowledge-ingest`
-Codex global access: symlinked to `~/.codex/skills/knowledge-ingest`
-Codex namespace alias: `$knowledge ingest`
-
-## Three-Phase Pipeline
-
-Inspired by the NiharShrotri/llm-wiki 3-pass approach:
-
-1. **Extraction** — read source, identify facts, entities, relationships,
-   decisions, open questions, status
-2. **Page drafting** — for each finding, create new page or merge into
-   existing page using the correct document type
-3. **Bookkeeping** — update index.md, append to log.md, trigger QMD
-   reindex if available
-
-## Key Behaviors
-
-- **Merge, don't duplicate** — checks existing pages before creating new ones
-- **Correct document type** — classifies by role (spec, decision, proposal, etc.)
-- **Contradiction detection** — flags conflicts with existing wiki content,
-  asks user to resolve rather than silently overwriting
-- **Provenance** — every wiki page cites which raw sources informed it
-- **Auto-discovery** — when called without arguments, finds unprocessed
-  files by comparing raw/ against log.md entries
-- **Raw-only contract** — web or site discovery should use
-  `knowledge-research` first so explicit source snapshots exist in `raw/`
-
-## Source Types Supported
-
-Markdown, text, PDF, images (multimodal), conversation transcripts, code
-files. URL or web discovery belongs to `knowledge-research`.
+- Claude: `/knowledge-ingest [source]`
+- Codex: `$knowledge-ingest [source]` or `$knowledge ingest [source]`
 
 ## Proven By
 
-- Claude skill file exists at `.claude/skills/knowledge-ingest/SKILL.md`
-- Codex skill file exists at `.codex/skills/knowledge-ingest/SKILL.md`
-- Canonical skill source exists at `skills/knowledge-ingest/SKILL.md`
-- `bash skills/build.sh` renders the Claude and Codex outputs
-- Codex global symlink exists at `~/.codex/skills/knowledge-ingest`
-- Codex dispatcher skill exists at `.codex/skills/knowledge/SKILL.md`
-- Claude global symlink exists at `~/.claude/skills/knowledge-ingest`
-- Claude and Codex ingest skills both route URL, site, and web discovery to
-  `knowledge-research` before ingest
-- The ingest operations performed earlier in this project (QMD, NiharShrotri,
-  ecosystem survey) followed this same workflow manually
-
-## Limitations
-
-- No batch progress tracking (no equivalent of init.json for multi-file ingest)
-- No streaming/interactive entity confirmation (unlike NiharShrotri implementation)
-- No automated scheduling (manual trigger only)
+- Canonical schema parsing tests.
+- Runtime projection snapshots.
+- V1 fixture smoke checklist for ingest/query/lint behavior.

@@ -1,13 +1,13 @@
 # Single Source Skills
 
 - Document Class: Decision
-- Status: Accepted
+- Status: Superseded
 - Date: 2026-05-06
 - Category: Tooling
 - Scope: Maintain one canonical skill source tree and generate Claude/Codex runtime skill outputs from it.
-- Sources: wiki/plans/single-source-skills.plan.md, skills/README.md, skills/build.sh, wiki/decisions/project-local-codex-skills.decision.md
-- Related: wiki/specs/init-project-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-research-skill.spec.md, wiki/specs/knowledge-lint-skill.spec.md, wiki/decisions/framework-path-resolution.decision.md
-- Successor: wiki/decisions/llm-wiki-binary-distribution.decision.md (will supersede this decision when D8 ships; until then, the bash renderer remains the operating model)
+- Sources: wiki/archive/single-source-skills.plan.md, skills/README.md, wiki/archive/project-local-codex-skills.decision.md
+- Related: wiki/specs/init-project-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-research-skill.spec.md, wiki/specs/knowledge-lint-skill.spec.md, wiki/archive/framework-path-resolution.decision.md
+- Superseded By: wiki/decisions/llm-wiki-binary-distribution.decision.md
 
 ## Choice
 
@@ -19,11 +19,11 @@ Runtime-specific skill directories are generated:
 - `.claude/skills/`
 - `.codex/skills/`
 
-`skills/build.sh` renders canonical `skills/<name>/SKILL.md` files by keeping
+`legacy skill render script` renders canonical `skills/<name>/SKILL.md` files by keeping
 shared content and selecting runtime-specific conditional blocks:
 
-- `<!-- CLAUDE --> ... <!-- END -->`
-- `<!-- CODEX --> ... <!-- END -->`
+- `legacy Claude runtime marker ... legacy end marker`
+- `legacy Codex runtime marker ... legacy end marker`
 
 Codex UI metadata lives under `skills/<name>/codex/openai.yaml` and is copied
 to `.codex/skills/<name>/agents/openai.yaml`.
@@ -53,7 +53,7 @@ frontmatter descriptions, and Codex-only UI metadata.
 ## Consequences
 
 - Edit `skills/<name>/SKILL.md`, not the generated runtime outputs.
-- Run `bash skills/build.sh` after changing canonical skills.
+- Run `bash legacy skill render script` after changing canonical skills.
 - Claude and Codex now both have `knowledge-lint`.
 - The Codex-only `knowledge` dispatcher remains generated only for Codex.
 - Generated outputs should match canonical source after every skill edit.

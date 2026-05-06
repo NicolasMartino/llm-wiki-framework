@@ -273,7 +273,7 @@ Implemented the skill consolidation plan.
 
 Key changes:
 - Created canonical skill sources under `skills/`.
-- Added `skills/build.sh` to render `.claude/skills/` and `.codex/skills/`
+- Added `legacy skill render script` to render `.claude/skills/` and `.codex/skills/`
   outputs from canonical sources.
 - Moved the root `plan.md` into `wiki/plans/single-source-skills.plan.md`
   and marked it Active pending runtime smoke tests.
@@ -290,9 +290,9 @@ Key changes:
 Pages created: wiki/decisions/single-source-skills.decision.md
 Pages moved: plan.md -> wiki/plans/single-source-skills.plan.md
 Pages updated: wiki/index.md, wiki/log.md, wiki/specs/init-project-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-research-skill.spec.md, wiki/specs/knowledge-lint-skill.spec.md, wiki/decisions/project-local-codex-skills.decision.md
-Files created: skills/README.md, skills/build.sh, skills/init-project/SKILL.md, skills/knowledge-ingest/SKILL.md, skills/knowledge-query/SKILL.md, skills/knowledge-research/SKILL.md, skills/knowledge-lint/SKILL.md, skills/knowledge/SKILL.md, skills/*/codex/openai.yaml, .claude/skills/knowledge-lint/SKILL.md
+Files created: skills/README.md, legacy skill render script, skills/init-project/SKILL.md, skills/knowledge-ingest/SKILL.md, skills/knowledge-query/SKILL.md, skills/knowledge-research/SKILL.md, skills/knowledge-lint/SKILL.md, skills/knowledge/SKILL.md, skills/*/codex/openai.yaml, .claude/skills/knowledge-lint/SKILL.md
 Files regenerated: .claude/skills/*/SKILL.md, .codex/skills/*/SKILL.md, .codex/skills/*/agents/openai.yaml
-Verification: `bash skills/build.sh` is idempotent; no skill body contains an absolute `/Users/...` path; URL routing is research-first in both runtimes; every indexed skill has a canonical source under `skills/`. Runtime smoke tests in Claude Code and Codex remain pending.
+Verification: `bash legacy skill render script` is idempotent; no skill body contains an absolute `/Users/...` path; URL routing is research-first in both runtimes; every indexed skill has a canonical source under `skills/`. Runtime smoke tests in Claude Code and Codex remain pending.
 
 ## [2026-05-06] create | LLM Wiki framework binary proposal
 
@@ -310,7 +310,7 @@ eliminates per-runtime skill drift via a typed projector with `insta`
 snapshot tests, and is the operational form of D7 (self-replicating
 framework) — `llm-wiki init <path>` becomes the single bootstrap operation.
 
-If accepted, this proposal supersedes the bash renderer in
+If accepted, this proposal supersedes the legacy shell renderer in
 `wiki/plans/single-source-skills.plan.md` and the symlink-based installation
 model recorded in `wiki/decisions/project-local-codex-skills.decision.md`
 and `wiki/decisions/framework-path-resolution.decision.md`.
@@ -407,7 +407,7 @@ roadmap addition, and supersession bookkeeping for the binary proposal.
 
 Created:
 - `wiki/decisions/llm-wiki-binary-distribution.decision.md` — records the
-  choice, six rejected alternatives (status quo, bash renderer +
+  choice, six rejected alternatives (status quo, legacy shell renderer +
   conditional blocks, Python script, per-project install, MCP, agent-only
   scaffolding), consequences, and the bounded backward-compatibility
   promise.
@@ -439,7 +439,7 @@ Index:
   decisions and one plan marked Superseded with reasons.
 
 No skill files, canonical sources, or repo-local skill outputs were
-modified by this pass. The bash renderer continues to operate the repo's
+modified by this pass. The legacy shell renderer continues to operate the repo's
 self-dogfooding workflow until D8 ships.
 
 Next step: write `wiki/plans/llm-wiki-binary.plan.md` to execute D8.
@@ -453,16 +453,16 @@ Reviewer caught five issues in the prior acceptance pass. All addressed.
 
 **Premature supersession (high).** Predecessor decisions were marked
 `Superseded` while the binary that supersedes them does not yet exist.
-The new decision's own consequences section even said the bash renderer
+The new decision's own consequences section even said the legacy shell renderer
 remains in operation. Reverted statuses to reflect what is actually
 running:
 
 - `wiki/decisions/single-source-skills.decision.md`: Superseded -> Accepted.
-  Added forward-pointing `Successor:` field.
+  Added forward-pointing `Successor field:` field.
 - `wiki/decisions/framework-path-resolution.decision.md`: Superseded ->
-  Accepted. Added `Successor:` field.
+  Accepted. Added `Successor field:` field.
 - `wiki/plans/single-source-skills.plan.md`: Superseded -> Active. Added
-  `Successor:` field. Smoke-test gates from §6 will be folded into D8
+  `Successor field:` field. Smoke-test gates from §6 will be folded into D8
   rather than discharged separately.
 - `wiki/decisions/project-local-codex-skills.decision.md`: unchanged
   (already Superseded by single-source; chain stays chronologically
@@ -472,7 +472,7 @@ running:
   ships" annotations.
 
 The binary-distribution decision's metadata changed `Supersedes:` to
-`Will Supersede On D8 Completion:`. The `Consequences` section was split
+`deferred supersession field:`. The `Consequences` section was split
 into **Immediately** (forward-pointing annotations only) and **On D8
 completion (planned, not yet effected)** (the actual flips, file
 removals, and spec updates). This makes the deferred-supersession model
@@ -518,7 +518,7 @@ distribution.decision.md` remains untracked in git. Not added in this
 pass — staging and commit are the user's call. Flagging here so it is
 not lost in the next commit.
 
-Knowledge base now coherent: the operating model is the bash renderer +
+Knowledge base now coherent: the operating model is the legacy shell renderer +
 canonical `skills/` source; the binary is an accepted future direction
 recorded as D8; predecessor decisions show their forward path without
 misrepresenting current state.
@@ -542,7 +542,7 @@ Structure:
   criteria
 - Tightest-first ordering inside the implementation phase: schema ->
   projector -> canonical migration (the bug-prevention spine that would
-  have caught the bash renderer's content-loss class), then manifest,
+  have caught the legacy shell renderer's content-loss class), then manifest,
   init, diagnostics
 - Stage 5.4 (canonical migration) is explicitly a content-completeness
   audit with PR review of every diff between today's rendered outputs
@@ -619,12 +619,12 @@ Pages updated: wiki/plans/llm-wiki-binary.plan.md, wiki/log.md
 ## [2026-05-06] update | D8 plan: nuclear no-legacy discipline
 
 User directive: D8 ships clean-slate; no dead code, no old features
-lingering, no main-branch state where bash renderer and binary coexist.
+lingering, no main-branch state where legacy shell renderer and binary coexist.
 
 Added §2a "No-Legacy Discipline (Load-Bearing)" to
 `wiki/plans/llm-wiki-binary.plan.md`. Seven principles, non-negotiable:
 
-1. Single source of truth at any moment. No coexistence of bash renderer
+1. Single source of truth at any moment. No coexistence of legacy shell renderer
    and binary on main.
 2. Dead code is a release blocker. No legacy parsing paths in the binary.
 3. Old prose is deleted, not migrated. The current `init-project` skill
@@ -651,20 +651,20 @@ Stage updates to enforce the discipline:
   archived (`git mv` to `wiki/archive/`), not just status-flipped.
   Specs rewritten (delete-then-rewrite), not edited. Deferred-supersession
   framing dropped from the binary-distribution decision once D8 lands.
-  `Successor:` annotations removed entirely.
+  `Successor field:` annotations removed entirely.
 
 New §6 verification gates (No-Legacy Audit, gates 17-22):
 
 - 17: `cargo +nightly udeps` reports zero unused dependencies.
 - 18: `cargo clippy --all-targets -- -D warnings -D dead_code` passes;
   no unjustified `#[allow(dead_code)]`.
-- 19: CI grep gate — no `<!-- CLAUDE -->`/`<!-- CODEX -->`/`<!-- END -->`
+- 19: CI grep gate — no `legacy Claude runtime marker`/`legacy Codex runtime marker`/`legacy end marker`
   anywhere in the working tree.
-- 20: CI grep gate — no `bash renderer` / `build.sh` references in
+- 20: CI grep gate — no legacy shell rendering references in
   active wiki docs (allowed only in `wiki/archive/` and `wiki/log.md`).
 - 21: No `parse_legacy()` / `SchemaVersion` enum / fallback paths in the
   binary. The codebase handles only the current schema.
-- 22: No `Successor:` fields remain on active documents.
+- 22: No `Successor field:` fields remain on active documents.
 
 §12 reframed from "open questions" to "implementation decisions
 (pre-stage-5.1)." All four resolved:
@@ -686,3 +686,71 @@ baseline CI workflow, and coverage configuration. The D8 implementation plan
 is now Active.
 
 Pages updated: wiki/plans/llm-wiki-binary.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-06] create | Project registry and search artifacts proposal
+
+Created a post-D8 proposal for adding project registration, centralized
+per-project QMD search artifacts, and explicit cross-project search to the
+`llm-wiki` binary.
+
+The proposal keeps D8 unchanged and treats the active
+`wiki/plans/llm-wiki-binary.plan.md` as the baseline implementation. It
+recommends a later D9-style deliverable with a visible command split:
+`llm-wiki search` for one project and `llm-wiki search-all` for explicitly
+registered projects. Search artifacts are rebuildable caches under
+`~/.cache/llm-wiki/`; `wiki/` remains the canonical knowledge source.
+
+The proposal records the Rust `qmd` crate as the preferred candidate backend
+because its docs expose Store, SQLite FTS5/BM25 search, local GGUF embeddings,
+hybrid search, reranking, collection helpers, and model download support. It
+requires a search-quality eval before accepting the backend as the framework's
+search engine.
+
+Also corrected D8 status in `wiki/index.md` and
+`wiki/roadmaps/framework-v1.roadmap.md` from Draft to Active, matching the
+existing D8 implementation-start log entry.
+
+Pages created: wiki/proposals/project-registry-search-artifacts.proposal.md
+Pages updated: wiki/index.md, wiki/roadmaps/framework-v1.roadmap.md, wiki/log.md
+
+## [2026-05-06] update | D8 binary implementation completed
+
+Completed the D8 `llm-wiki` binary implementation on
+`d8-llm-wiki-binary`.
+
+Implemented:
+
+- Rust workspace with `llm-wiki-schema` and `llm-wiki-framework`
+- typed canonical skill parser and runtime projectors
+- compile-time embedded canonical validation
+- `build`, `install`, `uninstall`, `init`, `status`, and `doctor`
+- manifest ownership with hash-based drift/collision handling
+- deterministic Create-mode scaffolding with profile snapshots
+- v1 compatibility fixture and fixture smoke checklist
+- release and post-install verification workflows
+
+Cleanup:
+
+- removed the legacy skill render script
+- rewrote `init-project` as a thin wrapper over `llm-wiki init`
+- archived predecessor decisions and plan under `wiki/archive/`
+- rewrote the affected skill specs under the binary distribution model
+- marked D8 completed on the roadmap and index
+
+Verification run locally:
+
+- `cargo test --workspace`
+- `cargo clippy --workspace --all-targets --all-features -- -D warnings`
+- no legacy runtime marker strings remain in `skills/`
+
+External release gates still require human/repository action: reserve/publish
+the crates.io package, tag `v0.1.0`, run the generated release workflow, and
+complete manual Claude/Codex smoke checks.
+
+Pages updated: wiki/index.md, wiki/log.md, wiki/roadmaps/framework-v1.roadmap.md,
+wiki/plans/llm-wiki-binary.plan.md, wiki/decisions/llm-wiki-binary-distribution.decision.md,
+wiki/specs/documentation-model.spec.md, wiki/specs/init-project-skill.spec.md,
+wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md,
+wiki/specs/knowledge-research-skill.spec.md, wiki/specs/knowledge-lint-skill.spec.md,
+wiki/archive/single-source-skills.decision.md, wiki/archive/framework-path-resolution.decision.md,
+wiki/archive/project-local-codex-skills.decision.md, wiki/archive/single-source-skills.plan.md

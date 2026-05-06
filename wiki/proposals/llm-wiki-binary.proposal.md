@@ -17,7 +17,7 @@ Should the framework be packaged as a single Rust binary (`llm-wiki`) that owns 
 
 Yes. Build `llm-wiki` as a Rust binary with embedded templates and a `clap`-driven subcommand surface. It becomes the single deployment unit of the framework. Users download one binary, run `llm-wiki install`, and both Claude Code and Codex have working framework skills globally. New projects come from `llm-wiki init <path>`. Skill content lives in canonical markdown under `skills/` in this repo, embedded into the binary at compile time, and projected into per-runtime variants by typed Rust code with golden-file tests.
 
-This proposal supersedes the bash renderer in `wiki/plans/single-source-skills.plan.md` and the global-symlink installation model in `wiki/decisions/project-local-codex-skills.decision.md` and `wiki/decisions/framework-path-resolution.decision.md`.
+This proposal supersedes the pre-binary renderer in `wiki/plans/single-source-skills.plan.md` and the global-symlink installation model in `wiki/decisions/project-local-codex-skills.decision.md` and `wiki/decisions/framework-path-resolution.decision.md`.
 
 ## Roadmap Position
 
@@ -33,7 +33,7 @@ This proposal recommends **(b)**. If accepted, the roadmap is updated to add D8 
 The current model has three fragilities the binary eliminates by construction:
 
 1. **Broken global symlinks** (review.md §9.2). Symlinks point into a working tree at a specific absolute path. Renaming or moving the repo dangles them silently. A binary that writes files directly to `~/.claude/skills/` and `~/.codex/skills/` removes the indirection.
-2. **Per-runtime skill drift.** Canonical markdown with `<!-- CLAUDE -->` / `<!-- CODEX -->` block markers (the bash renderer's approach) is just text-block deletion and pollutes the source. A typed projector reads clean canonical markdown and emits per-runtime idioms, separating skill semantics from runtime expression. The projector eliminates *cross-runtime drift on the same canonical content*; it does **not** eliminate authoring drift in the canonical itself — golden-file snapshot tests are the discipline against that second class.
+2. **Per-runtime skill drift.** Canonical markdown with `legacy Claude runtime marker` / `legacy Codex runtime marker` block markers (the pre-binary renderer's approach) is just text-block deletion and pollutes the source. A typed projector reads clean canonical markdown and emits per-runtime idioms, separating skill semantics from runtime expression. The projector eliminates *cross-runtime drift on the same canonical content*; it does **not** eliminate authoring drift in the canonical itself — golden-file snapshot tests are the discipline against that second class.
 3. **LLM-interpreted scaffolding silently drops content.** Today's `init-project` skill is markdown the agent re-interprets each invocation. The bash-renderer audit (recorded in `wiki/log.md` 2026-05-06 entry, with reviewer commentary in `review.md` §10) measured concrete losses on the first canonical-source draft: `init-project` Claude variant 369 → 155 lines, `knowledge-research` Codex variant 200 → 124 lines. Moving file generation to deterministic Rust with embedded templates and golden-file fixtures eliminates that drift and makes regressions visible as a CI diff.
 
 Distributing a binary also makes "self-replicating" cheaper to demonstrate. D7's proof — "two distinct projects bootstrapped by agents using the framework, both with navigable wikis, neither requiring human edits to `wiki/`" — is unchanged; the binary does not replace any of that work. What it changes is the *setup step*: `llm-wiki init <domainA> && llm-wiki init <domainB>` becomes the precondition for two agents to begin their D7 bootstraps, instead of today's manual symlink-and-copy dance per project. Scaffolding is not proof; running the framework end-to-end against the scaffolded projects is.
@@ -155,7 +155,7 @@ Removes skill files listed in the manifest, in reverse install order, then delet
 
 ## Skill Content And Rendering Model
 
-Canonical skills live under `skills/<name>/SKILL.md` with clean readable markdown — no `<!-- CLAUDE -->` block markers. Frontmatter declares projection-relevant metadata; body is shared prose. The Rust projector understands runtime idioms and emits per-runtime variants.
+Canonical skills live under `skills/<name>/SKILL.md` with clean readable markdown — no `legacy Claude runtime marker` block markers. Frontmatter declares projection-relevant metadata; body is shared prose. The Rust projector understands runtime idioms and emits per-runtime variants.
 
 Skill content is embedded into the binary at compile time via `include_str!`. Every release of the binary is a coherent self-contained snapshot. No runtime skill fetching, no skill-content service. (Distribution itself — installer download, `cargo install`, Homebrew — is network-dependent, but only at acquisition time. Once the binary is on disk, `install` / `build` / `init` all run fully offline.)
 
@@ -196,7 +196,7 @@ Golden-file tests using `insta` lock the projected output. Any change to canonic
 
 ## Testing Strategy
 
-Tests are not an afterthought. The drift the bash renderer experienced — measured concretely as `init-project` Claude variant 369 → 155 lines and `knowledge-research` Codex variant 200 → 124 lines on the first canonical-source pass — would have been caught by golden-file tests in any language. The V1 binary commits to that test category as a hard gate plus four others.
+Tests are not an afterthought. The drift the pre-binary renderer experienced — measured concretely as `init-project` Claude variant 369 → 155 lines and `knowledge-research` Codex variant 200 → 124 lines on the first canonical-source pass — would have been caught by golden-file tests in any language. The V1 binary commits to that test category as a hard gate plus four others.
 
 ### Test Categories
 
@@ -346,7 +346,7 @@ The proposal is implementable and worth implementing if all of these hold for V1
 1. `llm-wiki install` writes correct skill files to `~/.claude/skills/` and `~/.codex/skills/`, idempotent across re-runs, with manifest entries matching every file written.
 2. Default `install` refuses to overwrite paths the manifest does not own; `--force` backs up to `<path>.bak.<UTC-ISO8601>` (timestamped) and overwrites; repeated `--force` runs do not clobber earlier backups; all behaviors covered by integration tests.
 3. `llm-wiki init <path>` produces a project structure for Create mode that matches the existing `init-project` skill output for equivalent answers (verified by golden-file fixture). Update mode is explicitly out of scope and returns a clear error if invoked against a non-empty project.
-4. Canonical skill source contains no runtime-specific markup (`<!-- CLAUDE -->` / `<!-- CODEX -->` blocks); per-runtime variation is handled by the projector via the schema documented in "Skill Content And Rendering Model".
+4. Canonical skill source contains no runtime-specific markup (`legacy Claude runtime marker` / `legacy Codex runtime marker` blocks); per-runtime variation is handled by the projector via the schema documented in "Skill Content And Rendering Model".
 5. `llm-wiki uninstall` removes only files listed in the manifest; user-authored content at unrelated paths is untouched (verified by integration test).
 6. `llm-wiki doctor` flags broken pre-binary symlinks under `~/.codex/skills/` (closing review.md §9.2) and reports manifest-vs-filesystem drift accurately.
 
@@ -381,10 +381,10 @@ The proposal is implementable and worth implementing if all of these hold for V1
 To be detailed in a follow-up `*.plan.md` if accepted:
 
 1. Stand up Rust crate `llm-wiki` with `clap` CLI scaffold.
-2. Define canonical skill schema and migrate the six existing skills from `skills/<name>/SKILL.md` (with `<!-- TAG -->` blocks) to clean canonical form.
-3. Implement projector trait + Claude and Codex impls. `insta` snapshot tests against existing rendered output (after content-completeness audit recorded in `wiki/log.md` 2026-05-06 entry on the bash renderer).
+2. Define canonical skill schema and migrate the six existing skills from `skills/<name>/SKILL.md` (with `legacy tag marker` blocks) to clean canonical form.
+3. Implement projector trait + Claude and Codex impls. `insta` snapshot tests against existing rendered output (after content-completeness audit recorded in `wiki/log.md` 2026-05-06 entry on the pre-binary renderer).
 4. Implement `build` (no manifest, write-anywhere) and `install` (manifest-tracked, global-only) as separate subcommands.
 5. Migrate `init-project` skill prose into deterministic binary code; keep a thin agent-driven SKILL.md wrapper.
 6. `cargo-dist` setup and first GitHub Release.
 7. `doctor` and `uninstall` last.
-8. Promote: archive `wiki/plans/single-source-skills.plan.md` (the bash renderer plan), supersede `wiki/decisions/framework-path-resolution.decision.md` and `wiki/decisions/project-local-codex-skills.decision.md`, write a new decision page recording the binary distribution model.
+8. Promote: archive `wiki/plans/single-source-skills.plan.md` (the pre-binary renderer plan), supersede `wiki/decisions/framework-path-resolution.decision.md` and `wiki/decisions/project-local-codex-skills.decision.md`, write a new decision page recording the binary distribution model.

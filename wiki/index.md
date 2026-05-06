@@ -1,13 +1,13 @@
 # Wiki Index
 
 Project: Software Project Management Framework
-Stage: D1 Bootstrap (Completed), D2 Ingest Cycle (Completed), D3 Lint Operation (Completed), D8 Distribution Tooling (Draft)
+Stage: D1 Bootstrap (Completed), D2 Ingest Cycle (Completed), D3 Lint Operation (Completed), D8 Distribution Tooling (Completed)
 Updated: 2026-05-06
 
 ## Specs
 
-- [Documentation Model](specs/documentation-model.spec.md) — Active — Three-layer architecture, operations, document types, navigation, QMD scale strategy
-- [Init Project Skill](specs/init-project-skill.spec.md) — Active — `init-project` skill for creating/updating projects with the framework
+- [Documentation Model](specs/documentation-model.spec.md) — Active — Three-layer architecture, operations, document types, binary distribution, navigation, QMD scale strategy
+- [Init Project Skill](specs/init-project-skill.spec.md) — Active — `init-project` wrapper over `llm-wiki init --non-interactive`
 - [Knowledge Query Skill](specs/knowledge-query-skill.spec.md) — Active — `knowledge-query` skill for querying the wiki with citations and save-back
 - [Knowledge Ingest Skill](specs/knowledge-ingest-skill.spec.md) — Active — `knowledge-ingest` skill for processing raw sources into wiki pages with 3-phase pipeline
 - [Knowledge Lint Skill](specs/knowledge-lint-skill.spec.md) — Active — `knowledge-lint` skill for scanning and fixing wiki consistency issues
@@ -19,11 +19,8 @@ Updated: 2026-05-06
 - [Agent Owns Wiki](decisions/agent-owns-wiki.decision.md) — Accepted — Agent has full control of wiki/, humans curate raw/
 - [Typed Documents](decisions/typed-documents.decision.md) — Accepted — Nine document types with distinct truth relationships
 - [Knowledge Command Namespace](decisions/knowledge-command-namespace.decision.md) — Accepted — `$knowledge` is the shared Codex command surface for init/query/ingest/research/lint
-- [Project-Local Codex Skills](decisions/project-local-codex-skills.decision.md) — Superseded — Codex translations live in `.codex/skills/`; superseded by single-source skills
-- [Framework Path Resolution](decisions/framework-path-resolution.decision.md) — Accepted — Skill-relative path resolution; in operation now, will be superseded by binary distribution when D8 ships
 - [Knowledge Research Intake](decisions/knowledge-research-intake.decision.md) — Accepted — `knowledge-research` is the guided intake surface; no separate `knowledge-intake` command
-- [Single Source Skills](decisions/single-source-skills.decision.md) — Accepted — Canonical `skills/` + bash renderer model; in operation now, will be superseded by binary distribution when D8 ships
-- [LLM Wiki Binary Distribution](decisions/llm-wiki-binary-distribution.decision.md) — Accepted — Single Rust binary will own global skill installation, project scaffolding, and skill projection; takes effect on D8 completion
+- [LLM Wiki Binary Distribution](decisions/llm-wiki-binary-distribution.decision.md) — Accepted — Single Rust binary owns global skill installation, project scaffolding, and skill projection
 
 ## Roadmaps
 
@@ -40,12 +37,12 @@ Updated: 2026-05-06
 ## Proposals
 
 - [LLM Wiki Framework Binary](proposals/llm-wiki-binary.proposal.md) — Accepted — Single Rust binary owns global skill installation, project scaffolding, and skill projection; promoted to decision and roadmap D8
+- [Project Registry And Search Artifacts](proposals/project-registry-search-artifacts.proposal.md) — Proposed — Post-D8 project registration, centralized per-project QMD search artifacts, and explicit `search-all` cross-project search
 
 ## Plans
 
 - [Knowledge Research Intake Implementation](plans/knowledge-research-intake.plan.md) — Completed — Executed the `knowledge-research` upgrade into a guided intake workflow with research bundles
-- [Single Source Skills](plans/single-source-skills.plan.md) — Active — Repo-local consolidation implemented; smoke-test gates pending and will be folded into D8 rather than discharged separately
-- [LLM Wiki Binary Implementation](plans/llm-wiki-binary.plan.md) — Active — Implementation plan for D8: Rust crate at `tools/llm-wiki/` with thirteen sequenced stages, sixteen verification gates, golden-file and property tests, `cargo-dist` multi-arch release
+- [LLM Wiki Binary Implementation](plans/llm-wiki-binary.plan.md) — Completed — Implemented D8 Rust binary with staged commits, manifest install, deterministic init, projection snapshots, fixtures, and release config
 
 ## Experiments
 
@@ -57,8 +54,12 @@ Updated: 2026-05-06
 
 ## Checklists
 
-(none yet)
+- [V1 Fixture Smoke](checklists/v1-fixture-smoke.checklist.md) — Active — Agent-driven ingest/query/lint smoke procedure for the committed v1 fixture
 
 ## Archive
 
 - [Knowledge Research Intake Proposal](archive/knowledge-intake-command.proposal.md) — Archived — Superseded by the accepted Knowledge Research Intake decision
+- [Project-Local Codex Skills](archive/project-local-codex-skills.decision.md) — Superseded — Archived predecessor to the binary distribution model
+- [Framework Path Resolution](archive/framework-path-resolution.decision.md) — Superseded — Archived predecessor to the binary distribution model
+- [Single Source Skills](archive/single-source-skills.decision.md) — Superseded — Archived predecessor to the binary distribution model
+- [Single Source Skills Plan](archive/single-source-skills.plan.md) — Superseded — Archived predecessor plan replaced by D8 binary implementation

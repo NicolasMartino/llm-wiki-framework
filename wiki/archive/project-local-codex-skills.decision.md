@@ -6,8 +6,12 @@
 - Category: Tooling
 - Scope: Keep Codex skill definitions inside this framework repo and expose them globally through symlinks.
 - Sources: .codex/skills/init-project/SKILL.md, .codex/skills/knowledge/SKILL.md, .codex/skills/knowledge-query/SKILL.md, .codex/skills/knowledge-ingest/SKILL.md, .codex/skills/knowledge-lint/SKILL.md, .codex/skills/knowledge-research/SKILL.md
-- Related: wiki/specs/init-project-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-lint-skill.spec.md, wiki/specs/knowledge-research-skill.spec.md, wiki/decisions/knowledge-command-namespace.decision.md, wiki/decisions/framework-path-resolution.decision.md, wiki/decisions/single-source-skills.decision.md
-- Superseded By: wiki/decisions/single-source-skills.decision.md
+- Related: wiki/specs/init-project-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-lint-skill.spec.md, wiki/specs/knowledge-research-skill.spec.md, wiki/decisions/knowledge-command-namespace.decision.md, wiki/archive/framework-path-resolution.decision.md, wiki/archive/single-source-skills.decision.md
+- Superseded By: wiki/decisions/llm-wiki-binary-distribution.decision.md
+
+Archive note: supersession originally flowed through
+`wiki/archive/single-source-skills.decision.md`; D8 collapses the chain forward
+to `wiki/decisions/llm-wiki-binary-distribution.decision.md`.
 
 ## Choice
 

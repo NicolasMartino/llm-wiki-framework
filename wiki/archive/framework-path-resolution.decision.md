@@ -1,13 +1,13 @@
 # Framework Path Resolution
 
 - Document Class: Decision
-- Status: Accepted
+- Status: Superseded
 - Date: 2026-05-06
 - Category: Tooling
 - Scope: Resolve framework source paths relative to project-local skill files instead of hardcoding absolute repository paths.
 - Sources: review.md, .codex/skills/init-project/SKILL.md, .claude/skills/init-project/SKILL.md, wiki/decisions/project-local-codex-skills.decision.md
-- Related: wiki/specs/init-project-skill.spec.md, wiki/decisions/project-local-codex-skills.decision.md
-- Successor: wiki/decisions/llm-wiki-binary-distribution.decision.md (will supersede this decision when D8 ships; the binary embeds canonical content, eliminating the framework-root path resolution problem entirely)
+- Related: wiki/specs/init-project-skill.spec.md, wiki/archive/project-local-codex-skills.decision.md
+- Superseded By: wiki/decisions/llm-wiki-binary-distribution.decision.md
 
 ## Choice
 

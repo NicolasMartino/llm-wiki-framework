@@ -249,17 +249,17 @@ Unlocks:
 
 ### D8 - Distribution Tooling (`llm-wiki` Binary)
 
-Status: Draft
+Status: Completed
 Promise: A single Rust binary (`llm-wiki`) installs framework skills globally for both Claude Code and Codex with one command, scaffolds new projects deterministically, and projects canonical skill markdown into per-runtime variants. No symlinks, no working tree dependency, no manual configuration. Spawned projects need no skill files of their own.
 Depends On: None (D8 ships independently; it makes D5 cheaper and D7's proof faster but is not blocked by either)
-Execution Plan: wiki/plans/llm-wiki-binary.plan.md (to be created)
+Execution Plan: wiki/plans/llm-wiki-binary.plan.md
 
 Included:
 - `llm-wiki install`: writes skills directly to `~/.claude/skills/` and `~/.codex/skills/` with an ownership manifest at `~/.local/share/llm-wiki/manifest.json`. Idempotent; refuses user-authored collisions; `--force` backs up to `<path>.bak.<UTC-ISO8601>` before overwriting.
 - `llm-wiki build [--target] [--out]`: renders canonical skills to a chosen directory without touching global state or writing a manifest. Used for self-dogfooding this repo (`build --out .`) and for CI snapshot tests.
 - `llm-wiki init <path>`: Create-mode scaffolding from embedded templates with conditional-section resolution (ML_AI, QMD, IS_EXISTING). Collision check is on framework artifacts only (`wiki/`, `raw/`, `CLAUDE.md`, `project_guidelines.md`), not on directory emptiness — preserving the IS_EXISTING profile for adding the framework to an existing codebase. Update mode is explicitly out of scope and remains agent-owned.
 - `llm-wiki status`, `doctor`, `uninstall`: state diagnostics and clean removal.
-- Canonical skill schema: clean markdown with typed YAML frontmatter (no `<!-- TAG -->` blocks). Embedded into the binary at compile time via `include_str!`.
+- Canonical skill schema: clean markdown with typed YAML frontmatter (no `legacy tag marker` blocks). Embedded into the binary at compile time via `include_str!`.
 - Typed Rust projector with golden-file (`insta`) snapshot tests for all skill × runtime projections and all `init` profile outputs.
 - Compat fixtures under `tests/fixtures/wikis/v1/` exercising parseability, metadata extraction, template compatibility, and skill availability.
 - `cargo-dist` multi-arch release pipeline (macOS arm64, macOS x86_64, Linux x86_64, Linux arm64).
@@ -297,4 +297,4 @@ Unlocks:
 Closes:
 - review.md §9.1 (hardcoded skill paths) by construction — binary embeds its own content.
 - review.md §9.2 (broken global symlinks) by construction — no symlinks at all.
-- The bash renderer's content-loss class of bug — golden-file snapshot tests are the explicit defense.
+- The pre-binary renderer's content-loss class of bug — golden-file snapshot tests are the explicit defense.

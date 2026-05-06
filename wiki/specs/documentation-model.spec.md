@@ -20,6 +20,11 @@ In this framework repository, the canonical reusable specification template is
 `project_guidelines.template.md` at the repository root. Generated projects get
 a resolved `project_guidelines.md` derived from that template.
 
+Framework distribution is binary-owned. The `llm-wiki` Rust binary embeds the
+canonical skill sources and templates, renders runtime skill variants, installs
+global skills with a manifest, and scaffolds new projects deterministically.
+Spawned projects do not need project-local framework skill copies.
+
 ## Operations
 
 Three core operations:
@@ -64,6 +69,12 @@ research -> raw/ -> ingest -> proposal/reference -> roadmap -> plan -> evidence 
 - `CLAUDE.md` and `AGENTS.md` exist and define agent workflows for this repo
 - `wiki/index.md` exists and catalogs all wiki content
 - `wiki/log.md` records mutations
+- `llm-wiki install` writes global runtime skills with a manifest and
+  uninstall symmetry
+- `llm-wiki init` produces project scaffolds from embedded templates with
+  profile-specific golden tests
+- `llm-wiki build --out .` regenerates this repo's committed runtime skill
+  outputs from canonical skill markdown
 - This project uses the framework to manage itself
 
 ## Limitations
@@ -71,6 +82,7 @@ research -> raw/ -> ingest -> proposal/reference -> roadmap -> plan -> evidence 
 - Not yet tested on a second project (framework portability unproven)
 - Scale beyond ~50 pages untested
 - Multi-agent coordination not yet addressed
-- No automated tooling for ingest or lint (manual agent operations only)
+- Ingest, query, research, and lint remain agent-owned operations; the binary
+  owns deterministic setup and distribution, not LLM judgment
 - QMD integration identified as the scale solution but not yet implemented
-- 3-phase ingest pipeline is documented in skills, but not automated
+- 3-phase ingest pipeline is documented in skills, but not binary-automated
