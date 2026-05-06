@@ -1,1 +1,6 @@
 /target/
+
+# Local agent/editor settings. Generated framework skills under .claude/skills
+# and .codex/skills are committed intentionally.
+/.claude/settings.local.json
+/.codex/settings.local.json
