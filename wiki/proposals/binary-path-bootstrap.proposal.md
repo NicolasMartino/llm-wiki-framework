@@ -5,7 +5,7 @@
 - Date: 2026-05-06
 - Category: Distribution tooling, install UX
 - Scope: Make `llm-wiki install` create a stable managed binary location for runtime skills, then guide users when `llm-wiki` is not discoverable on `PATH`.
-- Sources: user discussion 2026-05-06, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/plans/llm-wiki-binary.plan.md, wiki/plans/llm-wiki-product-layout-addendum.plan.md, https://docs.rs/which/latest/which/, https://docs.rs/dirs-next/latest/dirs_next/fn.executable_dir.html, https://docs.rs/dialoguer/latest/dialoguer/, https://docs.rs/is-terminal/latest/is_terminal/, https://doc.rust-lang.org/stable/cargo/commands/cargo-install.html
+- Sources: user discussion 2026-05-06, proposal review 2026-05-06, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/plans/llm-wiki-binary.plan.md, wiki/plans/llm-wiki-product-layout-addendum.plan.md, https://docs.rs/which/latest/which/, https://docs.rs/dirs-next/latest/dirs_next/fn.executable_dir.html, https://docs.rs/dialoguer/latest/dialoguer/, https://docs.rs/is-terminal/latest/is_terminal/, https://doc.rust-lang.org/stable/cargo/commands/cargo-install.html
 - Related: wiki/specs/init-project-skill.spec.md, wiki/specs/documentation-model.spec.md, wiki/proposals/llm-wiki-binary.proposal.md
 
 ## Question
@@ -55,10 +55,19 @@ This is proposed future behavior. It should not be treated as validated runtime
 behavior until the implementation lands, the strict test gates pass, and the
 affected specs are promoted.
 
-Install should always create and verify a managed runtime home, copy the
-currently running binary into that home, install runtime skills that invoke the
+Install should always create and verify a managed runtime home, make the
+currently running binary available there, install runtime skills that invoke the
 managed binary by absolute path, and only then perform PATH guidance as a
 convenience diagnostic.
+
+Two path choices are resolved by this proposal:
+
+1. The managed runtime home is `~/.llm_wiki` on Unix-like systems and
+   `%LOCALAPPDATA%\llm_wiki` on Windows. The underscore form matches the
+   framework repository and avoids mixing two spellings in user-visible state.
+2. The new manifest at `~/.llm_wiki/manifest.json` replaces the D8 manifest
+   path. The old manifest is migrated once and reported as legacy state, but it
+   is not kept synchronized.
 
 Managed locations:
 
@@ -82,15 +91,19 @@ The install operation should:
 
 1. Resolve the current executable with `std::env::current_exe()`.
 2. Create the managed runtime home.
-3. Copy the current executable to the managed binary path.
-4. Verify the managed binary hash matches the current executable hash.
-5. Create a scoped backup snapshot of the known framework skill target paths.
-6. Install Claude and Codex skills.
-7. Render skills so binary calls use the managed binary absolute path.
-8. Write the manifest under the managed runtime home.
-9. Verify manifest-owned skill files and the managed binary.
-10. Check whether `llm-wiki` is discoverable on `PATH`.
-11. If not discoverable, inform the user that installed skills still work and
+3. Write an install transaction marker under the managed runtime home.
+4. Copy the current executable to the managed binary path, unless the current
+   executable already resolves to that path.
+5. Verify the managed binary `sha256` hash matches the current executable
+   `sha256` hash.
+6. Create a scoped backup snapshot of the known framework skill target paths.
+7. Install Claude and Codex skills.
+8. Render skills so binary calls use the managed binary absolute path.
+9. Write the manifest atomically under the managed runtime home and clear the
+   transaction marker.
+10. Verify manifest-owned skill files and the managed binary.
+11. Check whether `llm-wiki` is discoverable on `PATH`.
+12. If not discoverable, inform the user that installed skills still work and
     offer PATH help.
 
 Example post-install message:
@@ -110,15 +123,54 @@ Add this to ~/.zshrc:
 
 Install correctness must come before PATH convenience.
 
-1. Copy and verify managed binary.
-2. Back up known framework skill target paths.
-3. Write and verify installed skill files.
-4. Write and verify manifest.
-5. Report success.
-6. Check PATH and guide the user if needed.
+1. Resolve the running executable.
+2. Write an install transaction marker.
+3. Copy or verify the managed binary.
+4. Back up known framework skill target paths.
+5. Write and verify installed skill files.
+6. Write and verify the final manifest.
+7. Clear the transaction marker.
+8. Report success.
+9. Check PATH and guide the user if needed.
 
 If PATH setup fails, is declined, or is ignored, the installed skills still work
 because they invoke the managed binary path.
+
+## Executable Resolution and Install Transactions
+
+`std::env::current_exe()` is the primary way to locate the binary being run. If
+it fails, or if the resolved path cannot be read as a file, install must abort
+with a clear error before modifying managed state. The first implementation
+should not guess from `argv[0]` or search `PATH` as a fallback, because that
+can install a different binary than the one the user invoked.
+
+If `current_exe()` resolves to the managed binary path, install must skip the
+copy step and verify the binary in place. This makes repeated installs from
+`~/.llm_wiki/bin/llm-wiki install` deterministic and avoids platform-specific
+copy-over-self behavior.
+
+Install must record an in-progress transaction before copying the managed
+binary. The marker can be a small JSON file such as:
+
+```text
+~/.llm_wiki/install.partial.json
+```
+
+If install is interrupted before the final manifest is written, the next
+install sees the marker and treats only the expected managed binary path as
+part of the interrupted framework install. Recovery behavior:
+
+1. If the managed binary exists and its `sha256` matches the current executable,
+   continue and write the final manifest.
+2. If the managed binary exists but its `sha256` differs, replace it only under
+   the normal manifest-owned or `--force` collision rules.
+3. If the marker references a different target path, treat it as stale state and
+   require `--force` or interactive confirmation before overwriting anything.
+
+The final manifest write should be atomic: write a temporary manifest file in
+the managed runtime home, fsync where practical, then rename it into place.
+Clearing the transaction marker happens only after the final manifest and
+verification steps succeed.
 
 ## Managed Binary Policy
 
@@ -128,9 +180,11 @@ Moving the currently running binary is platform-sensitive and can surprise
 users who expect the downloaded file to remain where they put it. Copying is
 predictable and lets `doctor` verify or repair the managed copy.
 
+Managed binary and file hashes use `sha256`.
+
 If a managed binary already exists:
 
-1. If it matches the current executable hash, leave it in place.
+1. If its `sha256` matches the current executable `sha256`, leave it in place.
 2. If it is an older manifest-owned `llm-wiki`, replace it.
 3. If it differs and is not manifest-owned, refuse unless `--force` is passed
    or an interactive confirmation is accepted.
@@ -160,11 +214,11 @@ user skill:
 ~/.claude/skills/knowledge-research/
 ~/.claude/skills/knowledge-lint/
 ~/.codex/skills/knowledge-init/
-~/.codex/skills/knowledge/
 ~/.codex/skills/knowledge-query/
 ~/.codex/skills/knowledge-ingest/
 ~/.codex/skills/knowledge-research/
 ~/.codex/skills/knowledge-lint/
+~/.codex/skills/knowledge/
 ```
 
 Legacy `init-project` paths should also be backed up during the rename window:
@@ -179,7 +233,7 @@ The backup manifest records:
 1. original path
 2. backup path
 3. whether the original path existed
-4. file hashes for backed-up files
+4. `sha256` file hashes for backed-up files
 5. timestamp
 6. binary version
 
@@ -246,9 +300,11 @@ $knowledge init
 
 but routes to `knowledge-init`.
 
-The old `init-project` installed paths are legacy targets. During the first
-rename implementation, `install` should back them up before writing current
-skills.
+The old `init-project` installed paths are legacy targets. The rename is a
+separable migration phase inside the same release: managed binary install must
+remain rollbackable even if the rename step finds a conflict. During the first
+rename implementation, `install` should back up old paths before writing
+current skills.
 
 Proposed rename policy:
 
@@ -259,6 +315,9 @@ Proposed rename policy:
 4. Do not install a temporary `init-project` alias by default. Keeping both
    names active would weaken the clarity gained by the rename.
 5. Report unresolved legacy `init-project` paths in `doctor`.
+6. If the rename phase fails after managed binary installation succeeds, report
+   the rename as the failing phase and leave the managed binary manifest state
+   coherent.
 
 ## Manifest Migration
 
@@ -285,8 +344,54 @@ Migration behavior:
 5. A later cleanup release may remove or archive the old manifest after a clear
    deprecation period.
 
-The manifest should record the managed binary entry, including path, hash,
-version, and ownership status, so `doctor` and `uninstall` can reason about it.
+The manifest should record the managed binary entry, including path, `sha256`
+hash, version, and ownership status, so `doctor` and `uninstall` can reason
+about it.
+
+## Manifest Schema
+
+The exact schema can evolve before implementation, but the first version should
+make binary ownership, skill ownership, backup provenance, and migrated state
+explicit. Sketch:
+
+```json
+{
+  "schema_version": 2,
+  "installed_by": "llm-wiki",
+  "installed_at": "2026-05-06T12:34:56Z",
+  "binary": {
+    "path": "/Users/alice/.llm_wiki/bin/llm-wiki",
+    "version": "0.1.0",
+    "hash_algorithm": "sha256",
+    "hash": "0123456789abcdef...",
+    "ownership": "manifest-owned"
+  },
+  "skills": [
+    {
+      "runtime": "codex",
+      "name": "knowledge-query",
+      "path": "/Users/alice/.codex/skills/knowledge-query/SKILL.md",
+      "hash_algorithm": "sha256",
+      "hash": "abcdef0123456789...",
+      "ownership": "manifest-owned"
+    }
+  ],
+  "backups": [
+    {
+      "id": "install-20260506T123456Z",
+      "path": "/Users/alice/.llm_wiki/backups/install-20260506T123456Z/backup-manifest.json"
+    }
+  ],
+  "migration": {
+    "from_manifest": "/Users/alice/.local/share/llm-wiki/manifest.json",
+    "synchronized_with_legacy_manifest": false
+  }
+}
+```
+
+The backup manifest should use the same `hash_algorithm` field for backed-up
+files. Empty backup snapshots still write a valid backup manifest with an empty
+file list.
 
 ## PATH Guidance
 
@@ -310,8 +415,10 @@ Unix-like example:
 export PATH="$HOME/.llm_wiki/bin:$PATH"
 ```
 
-Name the likely shell profile when obvious, such as `~/.zshrc` for zsh or
-`~/.bashrc` for bash.
+For Unix-like shells, detect the likely profile from `$SHELL` with the caveat
+that the login shell may differ from the currently interactive shell. If `$SHELL`
+is not clearly zsh, bash, or fish, print examples for all three instead of
+guessing.
 
 Windows PowerShell example:
 
@@ -334,9 +441,11 @@ The first implementation should start with printed guidance rather than editing
 shell profiles. A later proposal can add explicit profile-editing behavior if
 the project accepts the added platform and shell risk.
 
-## Crate Choices
+## Implementation Notes
 
-Use small crates for cross-platform mechanics rather than inventing them.
+These are implementation notes to carry into the plan, not acceptance-contract
+requirements. Use small crates for cross-platform mechanics rather than
+inventing them.
 
 ### `which`
 
@@ -382,17 +491,17 @@ Windows-specific requirements:
    suffix.
 6. Add Windows tests when Windows enters the supported target matrix.
 
-## Command and Flag Shape
+## Command Shape
 
 Keep `llm-wiki install` as the main user-facing command.
 
-Suggested flags:
+Suggested commands:
 
 ```text
 llm-wiki install
 llm-wiki install --force
 llm-wiki install --skip-path-guidance
-llm-wiki install --print-path-guidance
+llm-wiki path
 ```
 
 Semantics:
@@ -403,15 +512,16 @@ Semantics:
   after backup or confirmation according to the existing collision policy.
 - `--skip-path-guidance`: install managed runtime and skills, but do not print
   PATH convenience guidance.
-- `--print-path-guidance`: print PATH guidance for the managed bin directory
-  without reinstalling skills.
+- `llm-wiki path`: print PATH guidance for the managed bin directory without
+  reinstalling skills. This is a separate command because it does not perform an
+  install.
 
 ## Doctor and Uninstall
 
 `llm-wiki doctor` should verify:
 
 1. Managed binary exists.
-2. Managed binary hash matches the manifest entry.
+2. Managed binary `sha256` hash matches the manifest entry.
 3. Installed skills invoke the managed binary path.
 4. Manifest lives at `~/.llm_wiki/manifest.json`.
 5. Known skill paths match the current expected framework set.
@@ -419,6 +529,7 @@ Semantics:
    reported as user-authored conflicts.
 7. Legacy D8 manifest state exists only when expected during migration.
 8. `llm-wiki` PATH visibility is reported as convenience status, not an error.
+9. Stale `install.partial.json` state is absent or recoverable.
 
 `llm-wiki uninstall` should remove manifest-owned skill files and manifest
 entries. Removing the managed binary should require an explicit flag such as:
@@ -449,13 +560,16 @@ command.
    framework skill paths.
 3. Installed skills invoke the managed binary absolute path, not a bare
    `llm-wiki` command.
-4. Running a manually downloaded binary from outside `PATH` installs working
-   skills without requiring shell profile edits.
-5. Install verifies the managed binary hash after copying.
+4. An end-to-end test runs a manually downloaded binary from outside `PATH`,
+   installs skills without shell profile edits, invokes an installed skill or
+   skill-equivalent stub, and confirms it executes the managed binary path.
+5. Install verifies the managed binary `sha256` hash after copying or
+   verify-in-place.
 6. Existing managed binary collisions follow the same refusal/force discipline
    as skill file collisions.
 7. Existing D8 manifests under `~/.local/share/llm-wiki/manifest.json` are read
-   and migrated without data loss.
+   and migrated once into `~/.llm_wiki/manifest.json` without data loss; the old
+   manifest is not kept synchronized.
 8. PATH guidance is printed after successful install when `llm-wiki` is not
    discoverable, and missing PATH is not treated as install failure.
 9. `init-project` is renamed to `knowledge-init` in canonical assets,
@@ -465,25 +579,30 @@ command.
     provided.
 11. `llm-wiki doctor` reports missing or drifted managed binary state.
 12. `llm-wiki uninstall` leaves the managed binary in place unless an explicit
-   include-binary flag is provided.
+    include-binary flag is provided.
 13. Platform path tests cover Unix executable names and Windows `.exe` naming,
     quoting, and PATHEXT lookup behavior at the unit-test level even before
     Windows release artifacts are shipped.
+14. If `current_exe()` resolution fails, install aborts before modifying
+    managed state and prints a clear diagnostic.
+15. Running `~/.llm_wiki/bin/llm-wiki install` skips copy-over-self and verifies
+    the managed binary in place.
+16. Interrupted installs leave an `install.partial.json` marker that a later
+    install can either recover from or reject under the documented collision
+    rules.
+17. The manifest and backup manifest record `hash_algorithm: "sha256"` beside
+    every hash.
+18. `llm-wiki path` prints PATH guidance without reinstalling skills.
 
 ## Open Questions
 
-1. Should `~/.llm_wiki/manifest.json` replace the old manifest immediately, or
-   should the migration keep both manifests synchronized for one release?
-2. Should the managed runtime home use `~/.llm_wiki` or `~/.llm-wiki`? The
-   current proposal uses underscore to match the user's requested convention,
-   but the binary/package name uses hyphen.
-3. Should `uninstall --include-binary` also remove empty `~/.llm_wiki/`
+1. Should `uninstall --include-binary` also remove empty `~/.llm_wiki/`
    directories?
-4. Should Windows eventually get an explicit `--update-user-path` flag, or
+2. Should Windows eventually get an explicit `--update-user-path` flag, or
    should PATH mutation stay permanently outside the binary?
-5. Should PATH guidance offer to symlink into an existing writable PATH
+3. Should PATH guidance offer to symlink into an existing writable PATH
    directory, or only print instructions?
-6. Should automated rollback ship with the backup snapshot feature, or can it
+4. Should automated rollback ship with the backup snapshot feature, or can it
    follow in a later release?
 
 ## Revisit When

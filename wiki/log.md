@@ -913,3 +913,21 @@ clean rename without installing a temporary `init-project` alias by default.
 
 Pages created: wiki/proposals/binary-path-bootstrap.proposal.md
 Pages updated: wiki/index.md, wiki/log.md
+
+## [2026-05-06] update | Harden managed binary install proposal
+
+Updated `wiki/proposals/binary-path-bootstrap.proposal.md` after proposal
+review. The proposal now pins all file and binary hashes to `sha256`, resolves
+the managed runtime home as `~/.llm_wiki` and the manifest migration as
+one-way replacement, adds `current_exe()` failure handling, defines
+copy-over-self behavior, and introduces `install.partial.json` transaction
+recovery for interrupted installs.
+
+The revision also adds a manifest schema sketch, makes the `init-project` to
+`knowledge-init` rename a separable migration phase, replaces overloaded
+`install --print-path-guidance` behavior with `llm-wiki path`, clarifies shell
+profile guidance, expands acceptance criteria for end-to-end outside-PATH
+testing, and keeps unresolved questions limited to cleanup and optional future
+behavior.
+
+Pages updated: wiki/proposals/binary-path-bootstrap.proposal.md, wiki/log.md
