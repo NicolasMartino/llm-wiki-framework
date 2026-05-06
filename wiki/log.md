@@ -905,6 +905,11 @@ diagnostic. It rejects silent shell profile edits, moves the manifest target to
 `~/.llm_wiki/manifest.json` with migration from the D8 manifest path, and
 includes future Windows compatibility requirements for `.exe` naming,
 PATHEXT-aware lookup, PowerShell PATH guidance, and Windows-specific tests.
+It also adds a scoped backup snapshot before replacing known framework skill
+paths and renames `init-project` to `knowledge-init` with legacy path backup
+and conflict handling. The proposal explicitly records this as future behavior,
+keeps install scoped to the full bundled framework skill set, and proposes a
+clean rename without installing a temporary `init-project` alias by default.
 
 Pages created: wiki/proposals/binary-path-bootstrap.proposal.md
 Pages updated: wiki/index.md, wiki/log.md

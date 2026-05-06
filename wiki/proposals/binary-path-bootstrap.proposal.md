@@ -51,6 +51,10 @@ is not discoverable through the user's `PATH` or `PATHEXT` rules.
 Change `llm-wiki install` so PATH availability is not required for installed
 skills to work.
 
+This is proposed future behavior. It should not be treated as validated runtime
+behavior until the implementation lands, the strict test gates pass, and the
+affected specs are promoted.
+
 Install should always create and verify a managed runtime home, copy the
 currently running binary into that home, install runtime skills that invoke the
 managed binary by absolute path, and only then perform PATH guidance as a
@@ -80,12 +84,13 @@ The install operation should:
 2. Create the managed runtime home.
 3. Copy the current executable to the managed binary path.
 4. Verify the managed binary hash matches the current executable hash.
-5. Install Claude and Codex skills.
-6. Render skills so binary calls use the managed binary absolute path.
-7. Write the manifest under the managed runtime home.
-8. Verify manifest-owned skill files and the managed binary.
-9. Check whether `llm-wiki` is discoverable on `PATH`.
-10. If not discoverable, inform the user that installed skills still work and
+5. Create a scoped backup snapshot of the known framework skill target paths.
+6. Install Claude and Codex skills.
+7. Render skills so binary calls use the managed binary absolute path.
+8. Write the manifest under the managed runtime home.
+9. Verify manifest-owned skill files and the managed binary.
+10. Check whether `llm-wiki` is discoverable on `PATH`.
+11. If not discoverable, inform the user that installed skills still work and
     offer PATH help.
 
 Example post-install message:
@@ -106,10 +111,11 @@ Add this to ~/.zshrc:
 Install correctness must come before PATH convenience.
 
 1. Copy and verify managed binary.
-2. Write and verify installed skill files.
-3. Write and verify manifest.
-4. Report success.
-5. Check PATH and guide the user if needed.
+2. Back up known framework skill target paths.
+3. Write and verify installed skill files.
+4. Write and verify manifest.
+5. Report success.
+6. Check PATH and guide the user if needed.
 
 If PATH setup fails, is declined, or is ignored, the installed skills still work
 because they invoke the managed binary path.
@@ -133,6 +139,126 @@ Preserve platform-specific executable names:
 
 - Unix-like systems: `llm-wiki`
 - Windows: `llm-wiki.exe`
+
+## Scoped Skill Backup
+
+Before replacing installed skills, create a timestamped backup snapshot under
+the managed runtime home:
+
+```text
+~/.llm_wiki/backups/install-<UTC timestamp>/
+~/.llm_wiki/backups/install-<UTC timestamp>/backup-manifest.json
+```
+
+The backup scope is limited to known framework skill target paths, not every
+user skill:
+
+```text
+~/.claude/skills/knowledge-init/
+~/.claude/skills/knowledge-query/
+~/.claude/skills/knowledge-ingest/
+~/.claude/skills/knowledge-research/
+~/.claude/skills/knowledge-lint/
+~/.codex/skills/knowledge-init/
+~/.codex/skills/knowledge/
+~/.codex/skills/knowledge-query/
+~/.codex/skills/knowledge-ingest/
+~/.codex/skills/knowledge-research/
+~/.codex/skills/knowledge-lint/
+```
+
+Legacy `init-project` paths should also be backed up during the rename window:
+
+```text
+~/.claude/skills/init-project/
+~/.codex/skills/init-project/
+```
+
+The backup manifest records:
+
+1. original path
+2. backup path
+3. whether the original path existed
+4. file hashes for backed-up files
+5. timestamp
+6. binary version
+
+The first implementation does not need an automated rollback command. The
+backup snapshot must be structured enough for manual rollback and for a future
+`llm-wiki rollback <backup-id>` command.
+
+If no known framework skill targets exist yet, install still writes a backup
+manifest recording the empty snapshot. That keeps install behavior uniform and
+proves the backup step ran before file replacement.
+
+## Installed Skill Set
+
+`llm-wiki install` should install the full bundled framework skill set for each
+supported runtime, not only the skill needed for the current command.
+
+Current proposed skill set:
+
+```text
+knowledge-init
+knowledge-query
+knowledge-ingest
+knowledge-research
+knowledge-lint
+knowledge
+```
+
+Claude receives the non-dispatcher skills that declare Claude runtime support.
+Codex receives those skills plus the `knowledge` dispatcher and any required
+runtime config files.
+
+## Skill Rename: `knowledge-init`
+
+Rename the agent-facing initialization skill from `init-project` to
+`knowledge-init` for consistency with the rest of the framework command family:
+
+```text
+knowledge-init
+knowledge-query
+knowledge-ingest
+knowledge-research
+knowledge-lint
+knowledge
+```
+
+Canonical asset target:
+
+```text
+assets/skills/knowledge-init/SKILL.md
+```
+
+Installed targets:
+
+```text
+~/.claude/skills/knowledge-init/SKILL.md
+~/.codex/skills/knowledge-init/SKILL.md
+```
+
+The Codex dispatcher continues to support:
+
+```text
+$knowledge init
+```
+
+but routes to `knowledge-init`.
+
+The old `init-project` installed paths are legacy targets. During the first
+rename implementation, `install` should back them up before writing current
+skills.
+
+Proposed rename policy:
+
+1. Remove `init-project` when it is manifest-owned.
+2. Back up `init-project` before removal.
+3. Refuse to delete unknown user-authored `init-project` paths unless `--force`
+   is provided.
+4. Do not install a temporary `init-project` alias by default. Keeping both
+   names active would weaken the clarity gained by the rename.
+5. Report unresolved legacy `init-project` paths in `doctor`.
 
 ## Manifest Migration
 
@@ -203,6 +329,10 @@ visible.
 Optional interactive help may offer to create a symlink or copy in an existing
 writable PATH directory, but that is convenience only. It must not replace the
 managed binary as the runtime target for installed skills.
+
+The first implementation should start with printed guidance rather than editing
+shell profiles. A later proposal can add explicit profile-editing behavior if
+the project accepts the added platform and shell risk.
 
 ## Crate Choices
 
@@ -284,8 +414,11 @@ Semantics:
 2. Managed binary hash matches the manifest entry.
 3. Installed skills invoke the managed binary path.
 4. Manifest lives at `~/.llm_wiki/manifest.json`.
-5. Legacy D8 manifest state exists only when expected during migration.
-6. `llm-wiki` PATH visibility is reported as convenience status, not an error.
+5. Known skill paths match the current expected framework set.
+6. Legacy `init-project` paths are absent, manifest-owned, or explicitly
+   reported as user-authored conflicts.
+7. Legacy D8 manifest state exists only when expected during migration.
+8. `llm-wiki` PATH visibility is reported as convenience status, not an error.
 
 `llm-wiki uninstall` should remove manifest-owned skill files and manifest
 entries. Removing the managed binary should require an explicit flag such as:
@@ -312,21 +445,28 @@ command.
 
 1. `llm-wiki install` creates `~/.llm_wiki/bin/llm-wiki` on Unix-like systems
    and records it in `~/.llm_wiki/manifest.json`.
-2. Installed skills invoke the managed binary absolute path, not a bare
+2. `llm-wiki install` creates a scoped backup snapshot before replacing known
+   framework skill paths.
+3. Installed skills invoke the managed binary absolute path, not a bare
    `llm-wiki` command.
-3. Running a manually downloaded binary from outside `PATH` installs working
+4. Running a manually downloaded binary from outside `PATH` installs working
    skills without requiring shell profile edits.
-4. Install verifies the managed binary hash after copying.
-5. Existing managed binary collisions follow the same refusal/force discipline
+5. Install verifies the managed binary hash after copying.
+6. Existing managed binary collisions follow the same refusal/force discipline
    as skill file collisions.
-6. Existing D8 manifests under `~/.local/share/llm-wiki/manifest.json` are read
+7. Existing D8 manifests under `~/.local/share/llm-wiki/manifest.json` are read
    and migrated without data loss.
-7. PATH guidance is printed after successful install when `llm-wiki` is not
+8. PATH guidance is printed after successful install when `llm-wiki` is not
    discoverable, and missing PATH is not treated as install failure.
-8. `llm-wiki doctor` reports missing or drifted managed binary state.
-9. `llm-wiki uninstall` leaves the managed binary in place unless an explicit
+9. `init-project` is renamed to `knowledge-init` in canonical assets,
+   installed paths, docs, and the Codex dispatcher.
+10. Legacy `init-project` installed paths are backed up and either removed when
+    manifest-owned or refused as user-authored conflicts unless `--force` is
+    provided.
+11. `llm-wiki doctor` reports missing or drifted managed binary state.
+12. `llm-wiki uninstall` leaves the managed binary in place unless an explicit
    include-binary flag is provided.
-10. Platform path tests cover Unix executable names and Windows `.exe` naming,
+13. Platform path tests cover Unix executable names and Windows `.exe` naming,
     quoting, and PATHEXT lookup behavior at the unit-test level even before
     Windows release artifacts are shipped.
 
@@ -343,6 +483,8 @@ command.
    should PATH mutation stay permanently outside the binary?
 5. Should PATH guidance offer to symlink into an existing writable PATH
    directory, or only print instructions?
+6. Should automated rollback ship with the backup snapshot feature, or can it
+   follow in a later release?
 
 ## Revisit When
 
