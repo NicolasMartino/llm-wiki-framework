@@ -64,6 +64,42 @@ fn doctor_reports_missing_and_unknown_files() {
         .stdout(predicate::str::contains("Unknown framework-shaped file"));
 }
 
+#[test]
+fn path_command_prints_guidance_without_installing() {
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .arg("path")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(".llm_wiki/bin"))
+        .stdout(predicate::str::contains("PATH"));
+
+    assert!(!home.path().join(".llm_wiki/manifest.json").exists());
+    assert!(
+        !home
+            .path()
+            .join(".claude/skills/init-project/SKILL.md")
+            .exists()
+    );
+}
+
+#[test]
+fn doctor_reports_path_binary_drift() {
+    let home = TempDir::new().expect("home");
+    let fake_bin = TempDir::new().expect("fake bin");
+    fs::write(fake_bin.path().join("llm-wiki"), "different binary").expect("fake binary");
+
+    llm_wiki(home.path()).arg("install").assert().success();
+
+    llm_wiki(home.path())
+        .env("PATH", fake_bin.path())
+        .arg("doctor")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("PATH llm-wiki differs"));
+}
+
 #[cfg(unix)]
 #[test]
 fn doctor_reports_legacy_symlink() {

@@ -54,7 +54,8 @@ const SKILLS: &[SkillFixture] = &[
 #[test]
 fn real_skills_project_to_snapshots() {
     for fixture in SKILLS {
-        let doc = parse(fixture.skill_md).expect(fixture.name);
+        let skill_md = fixture.skill_md.replace("{llm_wiki_binary}", "llm-wiki");
+        let doc = parse(&skill_md).expect(fixture.name);
         assert_eq!(doc.frontmatter.name, fixture.name);
 
         if doc.frontmatter.runtimes.contains(&Runtime::Claude) {

@@ -3,6 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use assert_cmd::Command;
+use predicates::prelude::*;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use tempfile::TempDir;
@@ -56,6 +57,33 @@ fn redirected_home_install_manifest_matches_filesystem() {
         .arg("status")
         .assert()
         .success();
+}
+
+#[test]
+fn managed_binary_runs_without_path_after_install() {
+    let home = TempDir::new().expect("home");
+    let sanitized_path = "";
+
+    Command::cargo_bin("llm-wiki")
+        .expect("binary")
+        .env("HOME", home.path())
+        .env("PATH", sanitized_path)
+        .args(["install", "--skip-path-guidance"])
+        .assert()
+        .success();
+
+    let skill =
+        fs::read_to_string(home.path().join(".codex/skills/init-project/SKILL.md")).expect("skill");
+    assert!(skill.contains(".llm_wiki/bin/llm-wiki"));
+    assert!(!skill.contains("`llm-wiki init "));
+
+    Command::new(home.path().join(".llm_wiki/bin/llm-wiki"))
+        .env("HOME", home.path())
+        .env("PATH", sanitized_path)
+        .arg("status")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("managed binary:"));
 }
 
 fn installed_files(home: &Path) -> BTreeSet<PathBuf> {

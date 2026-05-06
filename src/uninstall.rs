@@ -6,7 +6,7 @@ use crate::manifest::Manifest;
 use crate::manifest::hash::sha256_hex;
 use crate::paths::Paths;
 
-pub fn run() -> Result<()> {
+pub fn run(include_binary: bool) -> Result<()> {
     let paths = Paths::from_env()?;
     let manifest_path = paths.manifest();
     let Some(manifest) = Manifest::read(&manifest_path)? else {
@@ -34,6 +34,10 @@ pub fn run() -> Result<()> {
     if manifest_path.exists() {
         fs::remove_file(&manifest_path)
             .with_context(|| format!("failed to remove {}", manifest_path.display()))?;
+    }
+    if include_binary && manifest.binary.path.exists() {
+        fs::remove_file(&manifest.binary.path)
+            .with_context(|| format!("failed to remove {}", manifest.binary.path.display()))?;
     }
     Ok(())
 }

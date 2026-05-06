@@ -1,5 +1,6 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
+use std::fs;
 use tempfile::TempDir;
 
 #[test]
@@ -28,6 +29,10 @@ fn build_out_writes_both_runtime_trees() {
             .join(".codex/skills/init-project/agents/openai.yaml")
             .exists()
     );
+    let skill = fs::read_to_string(temp.path().join(".claude/skills/init-project/SKILL.md"))
+        .expect("skill");
+    assert!(skill.contains("`llm-wiki init "));
+    assert!(!skill.contains("{llm_wiki_binary}"));
     assert!(
         !temp
             .path()

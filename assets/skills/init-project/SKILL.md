@@ -14,7 +14,7 @@ invocation_style: namespace
 ## Purpose
 
 Collect project setup answers, then delegate deterministic scaffolding to the
-`llm-wiki` binary.
+`{llm_wiki_binary}` binary.
 
 ## Behavior
 
@@ -26,7 +26,7 @@ Collect project setup answers, then delegate deterministic scaffolding to the
 3. Validate that required answers are present and normalize project type and
    scale to the accepted flag values.
 4. Run:
-   `llm-wiki init <path> --non-interactive --name <name> --description <description> --type <type> --scale <scale>`
+   `{llm_wiki_binary} init <path> --non-interactive --name <name> --description <description> --type <type> --scale <scale>`
    Add `--existing` when appropriate. Add one `--initial-sources <path>` flag
    per supplied source.
 5. Report the command result. If sources were copied, ask whether to run

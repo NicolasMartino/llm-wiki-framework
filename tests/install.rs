@@ -32,10 +32,20 @@ fn install_writes_files_and_manifest() {
     assert_eq!(manifest["binary"]["version"], env!("CARGO_PKG_VERSION"));
     assert!(home.path().join(".llm_wiki/bin/llm-wiki").exists());
     assert!(!home.path().join(".llm_wiki/install.partial.json").exists());
+    let backup_manifest = Path::new(
+        manifest["backups"][0]["path"]
+            .as_str()
+            .expect("backup manifest path"),
+    );
+    assert!(backup_manifest.exists());
     assert_eq!(
         manifest["skills"].as_array().expect("files").len(),
         installed_files(home.path())
     );
+    let skill = fs::read_to_string(home.path().join(".claude/skills/init-project/SKILL.md"))
+        .expect("skill");
+    assert!(skill.contains(".llm_wiki/bin/llm-wiki"));
+    assert!(!skill.contains("`llm-wiki init "));
 }
 
 #[cfg(unix)]
@@ -102,6 +112,21 @@ fn force_install_backs_up_and_replaces_collision() {
         })
         .count();
     assert_eq!(backups, 1);
+    let manifest = read_manifest(home.path());
+    let backup_manifest = Path::new(
+        manifest["backups"][0]["path"]
+            .as_str()
+            .expect("backup manifest path"),
+    );
+    let backup_manifest: Value =
+        serde_json::from_str(&fs::read_to_string(backup_manifest).expect("backup manifest"))
+            .expect("backup json");
+    assert_eq!(
+        backup_manifest["files"][0]["original_path"]
+            .as_str()
+            .expect("original path"),
+        path.to_string_lossy()
+    );
     assert_ne!(fs::read_to_string(&path).expect("read"), "user skill");
 }
 
@@ -117,12 +142,26 @@ fn uninstall_removes_manifest_owned_files_only() {
 
     assert!(user_file.exists());
     assert!(!home.path().join(".llm_wiki/manifest.json").exists());
+    assert!(home.path().join(".llm_wiki/bin/llm-wiki").exists());
     assert!(
         !home
             .path()
             .join(".claude/skills/init-project/SKILL.md")
             .exists()
     );
+}
+
+#[test]
+fn uninstall_include_binary_removes_managed_binary() {
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path()).arg("install").assert().success();
+    llm_wiki(home.path())
+        .args(["uninstall", "--include-binary"])
+        .assert()
+        .success();
+
+    assert!(!home.path().join(".llm_wiki/bin/llm-wiki").exists());
 }
 
 #[test]

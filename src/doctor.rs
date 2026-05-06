@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -7,7 +8,8 @@ use anyhow::Result;
 use crate::embed;
 use crate::manifest::Manifest;
 use crate::manifest::hash::sha256_hex;
-use crate::paths::Paths;
+use crate::paths::{Paths, managed_binary_name};
+use crate::skill_render::managed_binary_invocation;
 
 pub fn run() -> Result<()> {
     let paths = Paths::from_env()?;
@@ -39,14 +41,43 @@ pub fn run() -> Result<()> {
                 ));
             }
         }
+        if let Some(path_binary) = find_on_path(managed_binary_name()) {
+            if !same_path(&path_binary, &manifest.binary.path)
+                && path_binary.exists()
+                && manifest.binary.path.exists()
+            {
+                let path_hash = sha256_hex(&fs::read(&path_binary)?);
+                if path_hash != manifest.binary.hash {
+                    findings.push(format!(
+                        "PATH llm-wiki differs from managed binary: {} (rerun `llm-wiki install` after upgrading)",
+                        path_binary.display()
+                    ));
+                }
+            }
+        }
+        let expected_binary = managed_binary_invocation(&manifest.binary.path);
         for entry in &manifest.skills {
             if !entry.path.exists() {
                 findings.push(format!("Missing manifest file: {}", entry.path.display()));
             } else {
-                let current = sha256_hex(&fs::read(&entry.path)?);
+                let bytes = fs::read(&entry.path)?;
+                let current = sha256_hex(&bytes);
                 if current != entry.hash {
                     findings.push(format!(
                         "Drifted manifest file: {} (run `llm-wiki install --force` to replace)",
+                        entry.path.display()
+                    ));
+                }
+                let contents = String::from_utf8_lossy(&bytes);
+                if contents.contains("{llm_wiki_binary}") || contents.contains("`llm-wiki init ") {
+                    findings.push(format!(
+                        "Installed skill does not use managed binary path: {} (run `llm-wiki install --force` to replace)",
+                        entry.path.display()
+                    ));
+                } else if contents.contains(" init <path>") && !contents.contains(&expected_binary)
+                {
+                    findings.push(format!(
+                        "Installed skill init command does not target managed binary: {}",
                         entry.path.display()
                     ));
                 }
@@ -104,4 +135,36 @@ fn is_legacy_symlink(path: &Path) -> Result<bool> {
     let marker = std::env::var("LLM_WIKI_LEGACY_SYMLINK_MARKER")
         .unwrap_or_else(|_| "software_project_management".to_string());
     Ok(target.to_string_lossy().contains(&marker))
+}
+
+fn find_on_path(binary_name: &str) -> Option<PathBuf> {
+    let path = env::var_os("PATH")?;
+    for dir in env::split_paths(&path) {
+        let candidate = dir.join(binary_name);
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+        #[cfg(windows)]
+        {
+            let pathext = env::var_os("PATHEXT")
+                .map(|value| value.to_string_lossy().to_string())
+                .unwrap_or_else(|| ".EXE;.BAT;.CMD".to_string());
+            for ext in pathext.split(';') {
+                let ext = ext.trim();
+                let ext = ext.strip_prefix('.').unwrap_or(ext);
+                let candidate = dir.join(format!("{binary_name}.{ext}"));
+                if candidate.is_file() {
+                    return Some(candidate);
+                }
+            }
+        }
+    }
+    None
+}
+
+fn same_path(left: &Path, right: &Path) -> bool {
+    match (fs::canonicalize(left), fs::canonicalize(right)) {
+        (Ok(left), Ok(right)) => left == right,
+        _ => left == right,
+    }
 }

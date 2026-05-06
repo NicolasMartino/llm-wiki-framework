@@ -14,9 +14,10 @@ pub enum Command {
     Build(BuildArgs),
     Install(InstallArgs),
     Init(InitArgs),
+    Path,
     Status,
     Doctor,
-    Uninstall,
+    Uninstall(UninstallArgs),
 }
 
 #[derive(Debug, clap::Args)]
@@ -38,6 +39,14 @@ pub enum BuildTarget {
 pub struct InstallArgs {
     #[arg(long)]
     pub force: bool,
+    #[arg(long)]
+    pub skip_path_guidance: bool,
+}
+
+#[derive(Debug, clap::Args)]
+pub struct UninstallArgs {
+    #[arg(long)]
+    pub include_binary: bool,
 }
 
 #[derive(Debug, clap::Args)]

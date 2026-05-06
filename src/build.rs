@@ -6,11 +6,13 @@ use llm_wiki_schema::{ClaudeProjector, CodexProjector, Projector, Runtime, parse
 
 use crate::cli::{BuildArgs, BuildTarget};
 use crate::embed;
+use crate::skill_render::apply_binary_context;
 
 pub fn run(args: &BuildArgs) -> Result<()> {
     for asset in embed::SKILLS {
         let doc = parse(asset.skill_md)
             .with_context(|| format!("failed to parse embedded skill {}", asset.name))?;
+        let doc = apply_binary_context(doc, "llm-wiki");
 
         if matches!(args.target, BuildTarget::Claude | BuildTarget::Both)
             && doc.frontmatter.runtimes.contains(&Runtime::Claude)

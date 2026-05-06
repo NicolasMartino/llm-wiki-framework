@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, bail};
 use chrono::{Timelike, Utc};
 use llm_wiki_schema::{ClaudeProjector, CodexProjector, Projector, Runtime, parse};
+use serde::Serialize;
 
 use crate::embed;
 use crate::manifest::collision::{Collision, classify};
@@ -14,9 +15,11 @@ use crate::manifest::{
     BackupEntry, BinaryEntry, FileKind, HashAlgorithm, Manifest, ManifestEntry, Ownership,
     PartialInstall, RuntimeName,
 };
+use crate::path_guidance;
 use crate::paths::Paths;
+use crate::skill_render::{apply_binary_context, managed_binary_invocation};
 
-pub fn run(force: bool) -> Result<()> {
+pub fn run(force: bool, show_path_guidance: bool) -> Result<()> {
     let paths = Paths::from_env()?;
     let current_exe = env::current_exe().context("failed to resolve current executable")?;
     let current_exe_bytes = fs::read(&current_exe).with_context(|| {
@@ -40,9 +43,14 @@ pub fn run(force: bool) -> Result<()> {
     let binary =
         install_managed_binary(&paths, &current_exe, &current_exe_bytes, &manifest, force)?;
     let files = render_install_files(&paths)?;
+    let backup = write_backup_snapshot(&paths, &files, manifest.as_ref())?;
     let skill_entries = install_files(files, manifest.as_ref(), force)?;
-    Manifest::new(binary, skill_entries, Vec::<BackupEntry>::new())
-        .write_atomic(&paths.manifest())?;
+    let mut backups = manifest
+        .as_ref()
+        .map(|manifest| manifest.backups.clone())
+        .unwrap_or_default();
+    backups.push(backup);
+    Manifest::new(binary, skill_entries, backups).write_atomic(&paths.manifest())?;
     if paths.partial_install().exists() {
         fs::remove_file(paths.partial_install()).with_context(|| {
             format!(
@@ -50,6 +58,9 @@ pub fn run(force: bool) -> Result<()> {
                 paths.partial_install().display()
             )
         })?;
+    }
+    if show_path_guidance {
+        path_guidance::print_guidance(&paths);
     }
     Ok(())
 }
@@ -248,11 +259,92 @@ fn install_files(
     Ok(new_entries)
 }
 
+fn write_backup_snapshot(
+    paths: &Paths,
+    files: &[InstallFile],
+    manifest: Option<&Manifest>,
+) -> Result<BackupEntry> {
+    let id = backup_id();
+    let dir = paths.managed_home().join("backups").join(&id);
+    fs::create_dir_all(&dir).with_context(|| format!("failed to create {}", dir.display()))?;
+
+    let manifest_by_path: HashMap<PathBuf, ManifestEntry> = manifest
+        .map(|manifest| {
+            manifest
+                .skills
+                .iter()
+                .cloned()
+                .map(|entry| (entry.path.clone(), entry))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let mut backed_up = Vec::new();
+    for (index, file) in files.iter().enumerate() {
+        let symlink = fs::symlink_metadata(&file.path)
+            .map(|metadata| metadata.file_type().is_symlink())
+            .unwrap_or(false);
+        if !file.path.exists() || symlink {
+            continue;
+        }
+        let current = fs::read(&file.path)?;
+        let current_hash = sha256_hex(&current);
+        let manifest_hash = manifest_by_path
+            .get(&file.path)
+            .map(|entry| entry.hash.as_str());
+        if Some(current_hash.as_str()) == manifest_hash {
+            continue;
+        }
+
+        let file_name = file
+            .path
+            .file_name()
+            .map(|name| name.to_string_lossy())
+            .unwrap_or_else(|| "file".into());
+        let backup_path = dir.join(format!("{index:04}-{file_name}"));
+        fs::write(&backup_path, current)
+            .with_context(|| format!("failed to write {}", backup_path.display()))?;
+        backed_up.push(BackupSnapshotFile {
+            original_path: file.path.clone(),
+            backup_path,
+            hash_algorithm: HashAlgorithm::Sha256,
+            hash: current_hash,
+        });
+    }
+
+    let manifest_path = dir.join("backup-manifest.json");
+    let snapshot = BackupSnapshotManifest {
+        schema_version: 1,
+        id: id.clone(),
+        created_at: Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+        files: backed_up,
+    };
+    let mut temp = tempfile::NamedTempFile::new_in(&dir)
+        .with_context(|| format!("failed to create temp backup manifest in {}", dir.display()))?;
+    serde_json::to_writer_pretty(&mut temp, &snapshot)
+        .context("failed to serialize backup manifest")?;
+    temp.persist(&manifest_path)
+        .map_err(|err| err.error)
+        .with_context(|| {
+            format!(
+                "failed to persist backup manifest {}",
+                manifest_path.display()
+            )
+        })?;
+
+    Ok(BackupEntry {
+        id,
+        path: manifest_path,
+    })
+}
+
 fn render_install_files(paths: &Paths) -> Result<Vec<InstallFile>> {
     let mut files = Vec::new();
     for asset in embed::SKILLS {
         let doc = parse(asset.skill_md)
             .with_context(|| format!("failed to parse embedded skill {}", asset.name))?;
+        let binary_invocation = managed_binary_invocation(&paths.managed_binary());
+        let doc = apply_binary_context(doc, &binary_invocation);
         if doc.frontmatter.runtimes.contains(&Runtime::Claude) {
             let rendered = ClaudeProjector.project(&doc)?;
             files.push(InstallFile::new(
@@ -294,9 +386,33 @@ fn write_file(path: &Path, contents: &str) -> Result<()> {
 }
 
 fn backup(path: &Path) -> Result<PathBuf> {
-    let now = Utc::now();
-    let suffix = format!("{}{:09}Z", now.format("%Y%m%dT%H%M%S"), now.nanosecond());
+    let suffix = backup_suffix();
     backup_with_suffix(path, &suffix)
+}
+
+fn backup_id() -> String {
+    format!("install-{}", backup_suffix())
+}
+
+fn backup_suffix() -> String {
+    let now = Utc::now();
+    format!("{}{:09}Z", now.format("%Y%m%dT%H%M%S"), now.nanosecond())
+}
+
+#[derive(Serialize)]
+struct BackupSnapshotManifest {
+    schema_version: u32,
+    id: String,
+    created_at: String,
+    files: Vec<BackupSnapshotFile>,
+}
+
+#[derive(Serialize)]
+struct BackupSnapshotFile {
+    original_path: PathBuf,
+    backup_path: PathBuf,
+    hash_algorithm: HashAlgorithm,
+    hash: String,
 }
 
 fn backup_with_suffix(path: &Path, suffix: &str) -> Result<PathBuf> {
