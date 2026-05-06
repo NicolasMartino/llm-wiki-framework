@@ -24,7 +24,7 @@ jobs:
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
       - name: No Legacy Skill Markers
         run: |
-          ! grep -R -E '<!-- (CLAUDE|CODEX|END) -->' skills
+          ! grep -R -E '<!-- (CLAUDE|CODEX|END) -->' assets/skills
       - name: Test
         run: cargo test --workspace
       - name: Snapshot Tests

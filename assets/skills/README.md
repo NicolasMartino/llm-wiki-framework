@@ -2,11 +2,11 @@
 
 This directory contains the canonical source of framework skills.
 
-Edit `skills/<name>/SKILL.md`, then regenerate runtime-specific outputs with
-the `llm-wiki` binary:
+Edit `assets/skills/<name>/SKILL.md`, then regenerate runtime-specific outputs
+with the `llm-wiki` binary:
 
 ```bash
-cargo run -p llm-wiki-framework -- build --out .
+cargo run -- build --out .
 ```
 
 Generated outputs are committed for first-clone usability:

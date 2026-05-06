@@ -1,7 +1,17 @@
+[package]
+name = "llm-wiki-framework"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "llm-wiki"
+path = "src/main.rs"
+
 [workspace]
 members = [
   "crates/llm-wiki-schema",
-  "tools/llm-wiki",
 ]
 resolver = "2"
 
@@ -25,6 +35,26 @@ serde_yaml = "0.9"
 sha2 = "0.10"
 tempfile = "3.14"
 thiserror = "2.0"
+
+[dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+clap.workspace = true
+llm-wiki-schema = { path = "crates/llm-wiki-schema" }
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tempfile.workspace = true
+
+[build-dependencies]
+llm-wiki-schema = { path = "crates/llm-wiki-schema" }
+
+[dev-dependencies]
+assert_cmd.workspace = true
+insta.workspace = true
+predicates.workspace = true
+proptest.workspace = true
+tempfile.workspace = true
 
 [workspace.metadata.dist]
 cargo-dist-version = "0.28.0"

@@ -1,5 +1,5 @@
 ---
-source: tools/llm-wiki/tests/init.rs
+source: tests/init.rs
 expression: snapshot
 ---
 # files
@@ -102,6 +102,37 @@ Contents:
 The index must fit in a single context window. If it grows beyond ~50,000
 tokens, split into a root index with per-type sub-indexes.
 
+### QMD Search (scale beyond index.md)
+
+For wikis that grow beyond ~100 pages, supplement index.md navigation with
+QMD hybrid search. QMD indexes all wiki/ markdown files locally and provides
+BM25 keyword search, vector semantic search, and LLM re-ranking in a single
+pipeline. All processing runs on-device.
+
+Setup:
+
+```bash
+npm install -g @tobilu/qmd
+qmd collection add wiki/ --name wiki
+qmd context add qmd://wiki "Project wiki: specs, decisions, proposals, plans"
+qmd embed
+```
+
+The agent uses `qmd query` to find relevant pages when the index is
+insufficient, then reads those pages directly. QMD exposes an MCP server
+(`qmd mcp`) for direct agent integration.
+
+Navigation strategy becomes tiered:
+1. Read `wiki/index.md` first for orientation
+2. If the index does not surface the needed page, use `qmd query`
+3. Read the identified pages
+
+Auto-reindex after ingest or lint:
+
+```bash
+qmd embed -f
+```
+
 ### log.md
 
 `wiki/log.md` is an append-only chronological record of all wiki mutations.
@@ -180,13 +211,6 @@ Use the document type by role, not by convenience.
 | `*.checklist.md` | What repeatable procedure must be followed? | Operational, release, deployment, or incident procedure |
 | `*.reference.md` | What external evidence exists? | Source notes for papers, APIs, vendor docs, benchmarks |
 
-### ML/AI Document Types (ML/AI projects only)
-
-| Document type | Core question | Purpose |
-| --- | --- | --- |
-| `*.experiment.md` | What uncertain question are we testing? | Investigation: setup, observations, measurements, conclusion |
-| `*.eval.md` | How did a candidate perform? | Evaluation report: metrics, failure analysis, recommendation |
-
 Short version:
 
 1. Spec - validated truth
@@ -194,8 +218,6 @@ Short version:
 3. Proposal - direction
 4. Roadmap - ordering
 5. Plan - execution
-6. Experiment - uncertainty
-7. Eval - measured performance
 8. Checklist - repeatable procedure
 9. Reference - raw evidence
 
@@ -212,8 +234,6 @@ wiki/
   plans/                      Tactical execution
   checklists/                 Repeatable procedures
   references/                 External evidence synthesis
-  experiments/                Investigation records
-  evals/                      Evaluation reports
   archive/                    Completed, superseded, or rejected documents
 ```
 
@@ -235,21 +255,12 @@ wiki/
     plans/
     checklists/
     references/
-    experiments/
-    evals/
     archive/
   src/                        Application code
   tests/                      Automated tests
   scripts/                    Utilities and automation
   infra/                      Infrastructure definitions
-  models/                     Model artifacts, configs
-  data/                       Datasets, schemas, pipelines
-  notebooks/                  Exploratory analysis
-  evals/                      Evaluation harnesses (code)
 ```
-
-Note: `evals/` at root contains evaluation code and harnesses. `wiki/evals/`
-contains evaluation report documents. Code and documentation are separate.
 
 ## Naming And Metadata
 
@@ -390,31 +401,6 @@ A plan answers:
 6. What evidence will be recorded?
 7. What wiki pages should be updated when done?
 8. What closes the plan?
-
-## Experiment Template
-
-An experiment captures:
-
-1. Objective
-2. Hypothesis
-3. Setup
-4. Procedure
-5. Observations
-6. Measurements
-7. Conclusion
-8. Next action
-
-## Eval Template
-
-An eval captures:
-
-1. Model or system version
-2. Eval suite and dataset versions
-3. Metrics and variance
-4. Comparison to baseline
-5. Failure analysis
-6. Resource profile
-7. Recommendation
 
 ## Spec Template
 
@@ -582,7 +568,7 @@ Periodically or on request:
 ## Conventions
 
 - Document types: spec, decision, proposal, roadmap, plan, checklist,
-  reference, experiment, eval.
+  reference.
 - Use the type by role, not convenience. See `project_guidelines.md`.
 - Every wiki page has a metadata block: Document Class, Status, Date,
   Category, Scope, Sources, and Related when useful.
@@ -622,14 +608,6 @@ Updated: 2026-05-06
 (none yet)
 
 ## Checklists
-
-(none yet)
-
-## Experiments
-
-(none yet)
-
-## Evals
 
 (none yet)
 

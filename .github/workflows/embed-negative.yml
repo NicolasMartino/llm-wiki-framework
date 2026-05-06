@@ -13,6 +13,6 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Break one canonical skill
-        run: perl -0pi -e 's/^name: init-project/name_removed: init-project/m' skills/init-project/SKILL.md
+        run: perl -0pi -e 's/^name: init-project/name_removed: init-project/m' assets/skills/init-project/SKILL.md
       - name: Build Must Fail
-        run: "! cargo build -p llm-wiki-framework"
+        run: "! cargo build"

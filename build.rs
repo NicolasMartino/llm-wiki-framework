@@ -11,29 +11,29 @@ const SKILLS: &[&str] = &[
 ];
 
 fn main() {
-    let root = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").expect("manifest dir"))
-        .join("../..")
-        .canonicalize()
-        .expect("workspace root");
+    let root = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").expect("manifest dir"));
 
     for skill in SKILLS {
-        let path = root.join("skills").join(skill).join("SKILL.md");
+        let path = root.join("assets/skills").join(skill).join("SKILL.md");
         println!("cargo:rerun-if-changed={}", path.display());
         let source = read(&path);
         if let Err(err) = llm_wiki_schema::parse(&source) {
             panic!("invalid canonical skill {}: {err}", path.display());
         }
 
-        let config = root.join("skills").join(skill).join("codex/openai.yaml");
+        let config = root
+            .join("assets/skills")
+            .join(skill)
+            .join("codex/openai.yaml");
         println!("cargo:rerun-if-changed={}", config.display());
         read(&config);
     }
 
-    let project_guidelines = root.join("project_guidelines.template.md");
+    let project_guidelines = root.join("assets/templates/project_guidelines.md");
     println!("cargo:rerun-if-changed={}", project_guidelines.display());
     validate_conditional_markers(&read(&project_guidelines), &project_guidelines);
 
-    let claude_template = root.join("tools/llm-wiki/templates/CLAUDE.md");
+    let claude_template = root.join("assets/templates/CLAUDE.md");
     println!("cargo:rerun-if-changed={}", claude_template.display());
     read(&claude_template);
 }

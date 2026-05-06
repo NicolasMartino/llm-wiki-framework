@@ -9,43 +9,45 @@ struct SkillFixture {
 const SKILLS: &[SkillFixture] = &[
     SkillFixture {
         name: "init-project",
-        skill_md: include_str!("../../../skills/init-project/SKILL.md"),
+        skill_md: include_str!("../../../assets/skills/init-project/SKILL.md"),
         codex_config: Some(include_str!(
-            "../../../skills/init-project/codex/openai.yaml"
+            "../../../assets/skills/init-project/codex/openai.yaml"
         )),
     },
     SkillFixture {
         name: "knowledge-query",
-        skill_md: include_str!("../../../skills/knowledge-query/SKILL.md"),
+        skill_md: include_str!("../../../assets/skills/knowledge-query/SKILL.md"),
         codex_config: Some(include_str!(
-            "../../../skills/knowledge-query/codex/openai.yaml"
+            "../../../assets/skills/knowledge-query/codex/openai.yaml"
         )),
     },
     SkillFixture {
         name: "knowledge-ingest",
-        skill_md: include_str!("../../../skills/knowledge-ingest/SKILL.md"),
+        skill_md: include_str!("../../../assets/skills/knowledge-ingest/SKILL.md"),
         codex_config: Some(include_str!(
-            "../../../skills/knowledge-ingest/codex/openai.yaml"
+            "../../../assets/skills/knowledge-ingest/codex/openai.yaml"
         )),
     },
     SkillFixture {
         name: "knowledge-research",
-        skill_md: include_str!("../../../skills/knowledge-research/SKILL.md"),
+        skill_md: include_str!("../../../assets/skills/knowledge-research/SKILL.md"),
         codex_config: Some(include_str!(
-            "../../../skills/knowledge-research/codex/openai.yaml"
+            "../../../assets/skills/knowledge-research/codex/openai.yaml"
         )),
     },
     SkillFixture {
         name: "knowledge-lint",
-        skill_md: include_str!("../../../skills/knowledge-lint/SKILL.md"),
+        skill_md: include_str!("../../../assets/skills/knowledge-lint/SKILL.md"),
         codex_config: Some(include_str!(
-            "../../../skills/knowledge-lint/codex/openai.yaml"
+            "../../../assets/skills/knowledge-lint/codex/openai.yaml"
         )),
     },
     SkillFixture {
         name: "knowledge",
-        skill_md: include_str!("../../../skills/knowledge/SKILL.md"),
-        codex_config: Some(include_str!("../../../skills/knowledge/codex/openai.yaml")),
+        skill_md: include_str!("../../../assets/skills/knowledge/SKILL.md"),
+        codex_config: Some(include_str!(
+            "../../../assets/skills/knowledge/codex/openai.yaml"
+        )),
     },
 ];
 

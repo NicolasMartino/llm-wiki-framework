@@ -50,7 +50,6 @@ fn v1_fixture_index_references_current_skills() {
         assert!(index.contains(&format!("## {section}")));
     }
 
-    let repo = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     for skill in [
         "init-project",
         "knowledge-query",
@@ -59,7 +58,13 @@ fn v1_fixture_index_references_current_skills() {
         "knowledge-lint",
         "knowledge",
     ] {
-        assert!(repo.join("skills").join(skill).join("SKILL.md").exists());
+        assert!(
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("assets/skills")
+                .join(skill)
+                .join("SKILL.md")
+                .exists()
+        );
     }
 }
 

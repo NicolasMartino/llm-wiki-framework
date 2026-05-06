@@ -1,5 +1,5 @@
 ---
-source: tools/llm-wiki/tests/init.rs
+source: tests/init.rs
 expression: snapshot
 ---
 # files
