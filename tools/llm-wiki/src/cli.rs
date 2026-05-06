@@ -13,6 +13,7 @@ pub struct Cli {
 pub enum Command {
     Build(BuildArgs),
     Install(InstallArgs),
+    Init(InitArgs),
     Uninstall,
 }
 
@@ -35,4 +36,23 @@ pub enum BuildTarget {
 pub struct InstallArgs {
     #[arg(long)]
     pub force: bool,
+}
+
+#[derive(Debug, clap::Args)]
+pub struct InitArgs {
+    pub path: PathBuf,
+    #[arg(long)]
+    pub non_interactive: bool,
+    #[arg(long)]
+    pub name: Option<String>,
+    #[arg(long)]
+    pub description: Option<String>,
+    #[arg(long = "type")]
+    pub project_type: Option<String>,
+    #[arg(long)]
+    pub scale: Option<String>,
+    #[arg(long)]
+    pub existing: bool,
+    #[arg(long = "initial-sources")]
+    pub initial_sources: Vec<PathBuf>,
 }

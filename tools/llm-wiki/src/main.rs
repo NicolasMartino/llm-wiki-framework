@@ -1,6 +1,7 @@
 mod build;
 mod cli;
 mod embed;
+mod init;
 mod install;
 mod manifest;
 mod paths;
@@ -16,6 +17,7 @@ fn main() -> Result<()> {
     match &cli.command {
         Command::Build(args) => build::run(args),
         Command::Install(args) => install::run(args.force),
+        Command::Init(args) => init::run(args),
         Command::Uninstall => uninstall::run(),
     }
 }
