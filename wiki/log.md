@@ -1156,3 +1156,17 @@ the production `search_project` path, including sanitization, metadata parsing,
 result shaping, snippets, and canonical paths.
 
 Pages updated: wiki/evals/search-backend-selection.eval.md, wiki/log.md
+
+## [2026-05-07] promote | D9 project registry and search artifacts
+
+Closed the qmd-rs backend slice as completed and accepted the project registry
+and search artifacts proposal for D9 implementation. Created the active D9 plan
+for the user-visible registry/search command surface: `register`, `forget`,
+`projects`, `index`, `index-all`, `search`, `search-all`, init
+auto-registration, registry-backed doctor diagnostics, text/JSON output, and
+cross-project RRF. Updated the roadmap to make D9 active.
+
+Pages created: wiki/plans/project-registry-search-artifacts.plan.md
+Pages updated: wiki/plans/qmd-rs-search-backend.plan.md,
+wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/index.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/log.md

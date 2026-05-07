@@ -354,3 +354,54 @@ Promotion Target:
 Unlocks:
 - Manual-download installation path that works without shell profile edits.
 - Cleaner Windows compatibility path before Windows release artifacts ship.
+
+---
+
+### D9 - Project Registry and Search Artifacts
+
+Status: Active
+Promise: `llm-wiki` owns a host-local project registry, rebuildable search
+artifacts, project-local search, and explicit cross-project `search-all`
+retrieval while keeping markdown wiki pages canonical.
+Depends On: D8, D8.1, Search Backend Selection
+Execution Plan: wiki/plans/project-registry-search-artifacts.plan.md
+
+Included:
+- Host-local `projects.json` registry under the framework data home.
+- `register`, `forget`, and `projects` commands.
+- `index` and `index-all` commands that build rebuildable qmd-rs search stores
+  from `wiki/**/*.md`.
+- `search` command for project-local retrieval with class/status filters and
+  text/JSON output.
+- `search-all` command for explicit cross-project retrieval across registered
+  projects, with project labels, include/exclude filters, and RRF fusion.
+- `init --no-register` and default auto-registration after successful project
+  scaffolding.
+- `doctor` registry/search diagnostics.
+
+Excluded:
+- Answer synthesis or a `query` command.
+- Automatic `search-all` use by `knowledge-query`.
+- Indexing `raw/` by default.
+- Default-on qmd-rs release builds without a separate release decision.
+- Automatic semantic model downloads.
+
+Proof:
+- Registry commands operate against redirected `HOME` fixtures without writing
+  outside temp state.
+- Index/search commands pass with qmd-rs feature-enabled tests.
+- Two-project fixtures prove `search-all` labels results, honors include/exclude
+  filters, and keeps cross-project retrieval explicit.
+- `just verify` and `cargo test --workspace --features qmd-rs` pass.
+
+Promotion Target:
+- wiki/specs/documentation-model.spec.md (scale search becomes
+  `llm-wiki search` / `search-all`)
+- wiki/evals/search-backend-selection.eval.md (user-visible command replay if
+  behavior changes)
+
+Unlocks:
+- Framework-owned search at scale without asking agents to manage external QMD
+  indexes manually.
+- Later explicit `knowledge-query` scope expansion for registered
+  cross-project search.

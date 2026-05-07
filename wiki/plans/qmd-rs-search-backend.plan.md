@@ -1,7 +1,7 @@
 # Plan: qmd-rs Search Backend
 
 - Document Class: Plan
-- Status: Active
+- Status: Completed
 - Date: 2026-05-07
 - Category: Search infrastructure, framework tooling
 - Scope: Implement the internal qmd-rs backend slice for D9 project-local search; user-visible D9 search commands and cross-project `search-all` remain later work.
@@ -447,3 +447,49 @@ This plan can be marked Completed when:
 4. Documentation and wiki bookkeeping are updated.
 5. Any fallback decision is either documented as unnecessary or activated with a
    new decision/update.
+
+## Completion Summary
+
+Completed on 2026-05-07.
+
+Implemented commits:
+
+1. `ab00f6e` - Add search backend foundation.
+2. `89f7f8d` - Implement qmd-rs search adapter.
+3. `8e2bc40` - Cover search doctor diagnostics.
+4. `1c9ff89` - Record qmd-rs implementation findings.
+5. `edf7bec` - Replay search backend eval queries.
+6. `4fbc792` - Record qmd-rs eval replay.
+
+Closed behavior:
+
+- Added `src/search/` with adapter, metadata parser, query sanitizer, project
+  discovery, and qmd-rs backend modules.
+- Added path helpers for cache, index, model, project-index, and qmd-rs store
+  locations.
+- Kept qmd-rs feature-gated behind `--features qmd-rs` with stable
+  feature-disabled behavior in default builds.
+- Implemented qmd-rs FTS indexing/search through the internal adapter, including
+  metadata filters, snippets, stale detection, and canonical wiki paths.
+- Extended `doctor` into install, current-project, search-index, and
+  semantic-model sections.
+- Replayed the fixed eval query set against the production adapter and recorded
+  the result in `wiki/evals/search-backend-selection.eval.md`.
+
+Verification:
+
+- `just verify` passed.
+- `cargo test --workspace --features qmd-rs` passed.
+- `cargo clippy --workspace --all-targets --features qmd-rs -- -D warnings`
+  passed.
+- `just release-plan` passed with network access and listed all four configured
+  cargo-dist targets.
+- `just release-build` passed for the local `aarch64-apple-darwin` default
+  artifact.
+- `cargo build --release --features qmd-rs` passed on the local host.
+
+Follow-up:
+
+- User-visible registry, `index`, `search`, `index-all`, and `search-all`
+  command behavior moves to
+  `wiki/plans/project-registry-search-artifacts.plan.md`.

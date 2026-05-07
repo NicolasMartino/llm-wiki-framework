@@ -40,7 +40,7 @@ Updated: 2026-05-07
 ## Proposals
 
 - [LLM Wiki Framework Binary](proposals/llm-wiki-binary.proposal.md) — Accepted — Single Rust binary owns global skill installation, project scaffolding, and skill projection; promoted to decision and roadmap D8
-- [Project Registry and Search Artifacts](proposals/project-registry-search-artifacts.proposal.md) — Proposed — Post-D8 project registration, centralized per-project search artifacts, and explicit `search-all` cross-project search
+- [Project Registry and Search Artifacts](proposals/project-registry-search-artifacts.proposal.md) — Accepted — Promoted to D9 implementation plan for registry, indexing, project-local search, and explicit `search-all`
 - [Search Backend Selection](proposals/search-backend-selection.proposal.md) — Accepted — Promoted to backend decision; qmd-rs selected for D9 with adapter-owned metadata and model/cache handling
 - [Managed Binary Install and PATH Guidance](proposals/binary-path-bootstrap.proposal.md) — Accepted — Promoted to D8.1 decision and plan; make installed skills call a managed binary path while PATH remains convenience guidance
 
@@ -50,7 +50,8 @@ Updated: 2026-05-07
 - [LLM Wiki Binary Implementation](plans/llm-wiki-binary.plan.md) — Completed — Implemented D8 Rust binary with staged commits, manifest install, deterministic init, projection snapshots, fixtures, and release config
 - [LLM Wiki Product Layout Addendum](plans/llm-wiki-product-layout-addendum.plan.md) — Completed — Moved `llm-wiki` to the root product crate layout and embedded assets under `assets/`
 - [Managed Binary Runtime Install](plans/binary-path-bootstrap.plan.md) — Completed — D8.1 tactical execution for managed runtime home, manifest v2, outside-PATH install proof, and `knowledge-init` rename
-- [qmd-rs Search Backend](plans/qmd-rs-search-backend.plan.md) — Active — D9 backend slice: qmd-rs adapter, query sanitization, metadata, snippets, doctor checks, model/cache reporting, and SQLite fallback guardrail
+- [qmd-rs Search Backend](plans/qmd-rs-search-backend.plan.md) — Completed — D9 backend slice landed qmd-rs adapter, query sanitization, metadata, snippets, doctor checks, eval replay, and feature-gated release findings
+- [Project Registry and Search Artifacts](plans/project-registry-search-artifacts.plan.md) — Active — D9 command surface for project registry, indexing, project-local search, init auto-registration, and explicit cross-project `search-all`
 
 ## Experiments
 
