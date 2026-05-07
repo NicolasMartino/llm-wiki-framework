@@ -332,6 +332,10 @@ Optional fields:
 Archived or completed documents move to `wiki/archive/` and are removed from
 the active index. They remain searchable but do not clutter the primary catalog.
 
+{% for fragment in guidelines_fragments %}
+{{ fragment }}
+{% endfor %}
+
 ## Core Rule
 
 Document tested truth, not intended truth.

@@ -12,6 +12,7 @@ struct ProjectGuidelinesTemplate<'a> {
     date: &'a str,
     include_ml_ai: bool,
     include_qmd: bool,
+    guidelines_fragments: &'a [String],
 }
 
 #[derive(Template)]
@@ -20,12 +21,14 @@ struct AgentsTemplate<'a> {
     project_name: &'a str,
     project_description: &'a str,
     ml_ai_types: &'a str,
+    agents_fragments: &'a [String],
 }
 
-pub fn render_project_guidelines(
+pub fn render_project_guidelines_with_fragments(
     name: &str,
     description: &str,
     profile: &ProjectProfile,
+    guidelines_fragments: &[String],
 ) -> Result<String> {
     let date = Utc::now().date_naive().to_string();
     let template = ProjectGuidelinesTemplate {
@@ -34,6 +37,7 @@ pub fn render_project_guidelines(
         date: &date,
         include_ml_ai: profile.include_ml_ai,
         include_qmd: profile.include_qmd,
+        guidelines_fragments,
     };
     template
         .render()
@@ -41,10 +45,11 @@ pub fn render_project_guidelines(
         .context("failed to render project_guidelines.md")
 }
 
-pub fn render_agent_template(
+pub fn render_agent_template_with_fragments(
     name: &str,
     description: &str,
     profile: &ProjectProfile,
+    agents_fragments: &[String],
 ) -> Result<String> {
     let template = AgentsTemplate {
         project_name: name,
@@ -54,6 +59,7 @@ pub fn render_agent_template(
         } else {
             ""
         },
+        agents_fragments,
     };
     template.render().context("failed to render AGENTS.md")
 }

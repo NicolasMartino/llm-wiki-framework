@@ -3,6 +3,7 @@ source: tests/init.rs
 expression: snapshot
 ---
 # files
+- .llm_wiki/init.toml
 - AGENTS.md
 - CLAUDE.md
 - project_guidelines.md
@@ -318,6 +319,12 @@ Optional fields:
 Archived or completed documents move to `wiki/archive/` and are removed from
 the active index. They remain searchable but do not clutter the primary catalog.
 
+## QMD Scale Pack Additions
+
+Large wikis may supplement `wiki/index.md` navigation with QMD hybrid search.
+QMD is a discovery layer over `wiki/`; it does not replace source citations,
+typed documents, or index maintenance.
+
 ## Core Rule
 
 Document tested truth, not intended truth.
@@ -580,8 +587,22 @@ Periodically or on request:
 - Filenames: `[slug].type.md` or `[index]-[slug].type.md`.
 - Archived documents go to `wiki/archive/`.
 - `wiki/log.md` uses format: `## [YYYY-MM-DD] operation | subject`.
+
+
+## QMD Scale Pack
+
+- Use `qmd query` when `wiki/index.md` no longer surfaces the needed page.
+- Re-run `qmd embed -f` after ingest or lint when QMD is configured.
+- Treat QMD as navigation support; answers still cite wiki pages.
+
+
 # CLAUDE.md
 See @AGENTS.md.
+
+# .llm_wiki/init.toml
+framework_version = "0.1.0"
+blueprint = "custom"
+packs = ["qmd-scale"]
 
 # wiki/index.md
 # Wiki Index

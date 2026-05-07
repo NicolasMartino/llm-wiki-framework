@@ -6,6 +6,7 @@ pub fn refuse_framework_collision(path: &Path) -> Result<()> {
     let artifacts: Vec<PathBuf> = [
         "wiki",
         "raw",
+        ".llm_wiki",
         "AGENTS.md",
         "CLAUDE.md",
         "project_guidelines.md",

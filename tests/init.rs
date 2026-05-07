@@ -6,7 +6,7 @@ use predicates::prelude::*;
 use serde_json::Value;
 use tempfile::TempDir;
 
-fn init_project(path: &Path, project_type: &str, scale: &str, extra: &[&str]) {
+fn init_project(path: &Path, blueprint: &str, packs: &[&str], extra: &[&str]) {
     let home = TempDir::new().expect("home");
     let mut command = llm_wiki(home.path());
     command
@@ -18,11 +18,10 @@ fn init_project(path: &Path, project_type: &str, scale: &str, extra: &[&str]) {
             "Fixture Project",
             "--description",
             "A fixture project.",
-            "--type",
-            project_type,
-            "--scale",
-            scale,
+            "--blueprint",
+            blueprint,
         ])
+        .args(packs.iter().flat_map(|pack| ["--pack", *pack]))
         .args(extra)
         .assert()
         .success();
@@ -40,19 +39,21 @@ fn llm_wiki(home: &Path) -> Command {
 #[test]
 fn init_profiles_match_snapshots() {
     let cases = [
-        ("baseline", "web", "small", vec![]),
-        ("ml_ai", "ml", "small", vec![]),
-        ("qmd", "web", "medium", vec![]),
-        ("ml_ai_qmd", "data", "large", vec![]),
-        ("is_existing", "web", "small", vec!["--existing"]),
+        ("baseline", "generic", vec![], vec![]),
+        ("ml_ai", "custom", vec!["ml"], vec![]),
+        ("qmd", "custom", vec!["qmd-scale"], vec![]),
+        ("ml_ai_qmd", "custom", vec!["ml", "qmd-scale"], vec![]),
+        ("is_existing", "generic", vec![], vec!["--existing"]),
+        ("ml_research", "ml-research", vec![], vec![]),
+        ("ops_infra", "ops-infra", vec![], vec![]),
     ];
-    for (name, project_type, scale, extra) in cases {
+    for (name, blueprint, packs, extra) in cases {
         let temp = TempDir::new().expect("tempdir");
         if name == "is_existing" {
             fs::create_dir_all(temp.path().join("app")).expect("mkdir");
             fs::write(temp.path().join("package.json"), "{}").expect("write");
         }
-        init_project(temp.path(), project_type, scale, &extra);
+        init_project(temp.path(), blueprint, &packs, &extra);
         let snapshot = snapshot_project(temp.path());
         insta::with_settings!({filters => vec![(r"\d{4}-\d{2}-\d{2}", "[date]")]}, {
             insta::assert_snapshot!(format!("init_{name}"), snapshot);
@@ -75,6 +76,28 @@ fn init_refuses_framework_artifact_collision() {
             "Fixture Project",
             "--description",
             "A fixture project.",
+            "--blueprint",
+            "generic",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("framework artifacts"));
+}
+
+#[test]
+fn init_rejects_retired_type_and_scale_flags() {
+    let temp = TempDir::new().expect("tempdir");
+
+    Command::cargo_bin("llm-wiki")
+        .expect("binary")
+        .arg("init")
+        .arg(temp.path())
+        .args([
+            "--non-interactive",
+            "--name",
+            "Fixture Project",
+            "--description",
+            "A fixture project.",
             "--type",
             "web",
             "--scale",
@@ -82,7 +105,7 @@ fn init_refuses_framework_artifact_collision() {
         ])
         .assert()
         .failure()
-        .stderr(predicate::str::contains("framework artifacts"));
+        .stderr(predicate::str::contains("--blueprint"));
 }
 
 #[test]
@@ -104,10 +127,8 @@ fn initial_sources_are_copied_without_ingest() {
             "Fixture Project",
             "--description",
             "A fixture project.",
-            "--type",
-            "web",
-            "--scale",
-            "small",
+            "--blueprint",
+            "generic",
             "--initial-sources",
         ])
         .arg(&source_a)
@@ -143,10 +164,8 @@ fn init_auto_registers_successful_project() {
             "Fixture Project",
             "--description",
             "A fixture project.",
-            "--type",
-            "web",
-            "--scale",
-            "small",
+            "--blueprint",
+            "generic",
         ])
         .assert()
         .success()
@@ -184,10 +203,8 @@ fn init_no_register_leaves_registry_untouched() {
             "Fixture Project",
             "--description",
             "A fixture project.",
-            "--type",
-            "web",
-            "--scale",
-            "small",
+            "--blueprint",
+            "generic",
         ])
         .assert()
         .success();
@@ -218,10 +235,8 @@ fn init_registry_write_failure_is_recoverable_warning() {
             "Fixture Project",
             "--description",
             "A fixture project.",
-            "--type",
-            "web",
-            "--scale",
-            "small",
+            "--blueprint",
+            "generic",
         ])
         .assert()
         .success()
@@ -247,6 +262,8 @@ fn snapshot_project(path: &Path) -> String {
     output.push_str(&fs::read_to_string(path.join("AGENTS.md")).expect("agents"));
     output.push_str("\n# CLAUDE.md\n");
     output.push_str(&fs::read_to_string(path.join("CLAUDE.md")).expect("claude"));
+    output.push_str("\n# .llm_wiki/init.toml\n");
+    output.push_str(&fs::read_to_string(path.join(".llm_wiki/init.toml")).expect("manifest"));
     output.push_str("\n# wiki/index.md\n");
     output.push_str(&fs::read_to_string(path.join("wiki/index.md")).expect("index"));
     output

@@ -60,3 +60,7 @@ Periodically or on request:
 - Filenames: `[slug].type.md` or `[index]-[slug].type.md`.
 - Archived documents go to `wiki/archive/`.
 - `wiki/log.md` uses format: `## [YYYY-MM-DD] operation | subject`.
+
+{% for fragment in agents_fragments %}
+{{ fragment }}
+{% endfor %}

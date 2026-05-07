@@ -3,6 +3,7 @@ source: tests/init.rs
 expression: snapshot
 ---
 # files
+- .llm_wiki/init.toml
 - AGENTS.md
 - CLAUDE.md
 - package.json
@@ -550,8 +551,15 @@ Periodically or on request:
 - Filenames: `[slug].type.md` or `[index]-[slug].type.md`.
 - Archived documents go to `wiki/archive/`.
 - `wiki/log.md` uses format: `## [YYYY-MM-DD] operation | subject`.
+
+
 # CLAUDE.md
 See @AGENTS.md.
+
+# .llm_wiki/init.toml
+framework_version = "0.1.0"
+blueprint = "generic"
+packs = []
 
 # wiki/index.md
 # Wiki Index

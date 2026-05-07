@@ -29,16 +29,27 @@ fn main() {
         read(&config);
     }
 
-    let project_guidelines = root.join("templates/base/project_guidelines.md");
-    println!("cargo:rerun-if-changed={}", project_guidelines.display());
-    read(&project_guidelines);
-
-    let agents_template = root.join("templates/base/agents.md");
-    println!("cargo:rerun-if-changed={}", agents_template.display());
-    read(&agents_template);
+    validate_templates(&root.join("templates"));
 }
 
 fn read(path: &Path) -> String {
     fs::read_to_string(path)
         .unwrap_or_else(|err| panic!("failed to read {}: {err}", path.display()))
+}
+
+fn validate_templates(path: &Path) {
+    if path.is_dir() {
+        for entry in fs::read_dir(path)
+            .unwrap_or_else(|err| panic!("failed to read {}: {err}", path.display()))
+        {
+            let entry = entry.expect("template directory entry");
+            validate_templates(&entry.path());
+        }
+        return;
+    }
+
+    if path.extension().and_then(|extension| extension.to_str()) == Some("md") {
+        println!("cargo:rerun-if-changed={}", path.display());
+        read(path);
+    }
 }

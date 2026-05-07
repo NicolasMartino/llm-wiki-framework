@@ -103,37 +103,6 @@ Contents:
 The index must fit in a single context window. If it grows beyond ~50,000
 tokens, split into a root index with per-type sub-indexes.
 
-### QMD Search (scale beyond index.md)
-
-For wikis that grow beyond ~100 pages, supplement index.md navigation with
-QMD hybrid search. QMD indexes all wiki/ markdown files locally and provides
-BM25 keyword search, vector semantic search, and LLM re-ranking in a single
-pipeline. All processing runs on-device.
-
-Setup:
-
-```bash
-npm install -g @tobilu/qmd
-qmd collection add wiki/ --name wiki
-qmd context add qmd://wiki "Project wiki: specs, decisions, proposals, plans"
-qmd embed
-```
-
-The agent uses `qmd query` to find relevant pages when the index is
-insufficient, then reads those pages directly. QMD exposes an MCP server
-(`qmd mcp`) for direct agent integration.
-
-Navigation strategy becomes tiered:
-1. Read `wiki/index.md` first for orientation
-2. If the index does not surface the needed page, use `qmd query`
-3. Read the identified pages
-
-Auto-reindex after ingest or lint:
-
-```bash
-qmd embed -f
-```
-
 ### log.md
 
 `wiki/log.md` is an append-only chronological record of all wiki mutations.
@@ -346,12 +315,17 @@ the active index. They remain searchable but do not clutter the primary catalog.
 | Experiment | `experiment.md` | `wiki/experiments` |
 | Eval | `eval.md` | `wiki/evals` |
 | Model Card | `model-card.md` | `wiki/model-cards` |
+| Dataset Card | `dataset-card.md` | `wiki/datasets` |
+| Transformation Spec | `transform.spec.md` | `wiki/data` |
+| Literature Note | `literature-note.md` | `wiki/literature` |
+| Hypothesis | `hypothesis.md` | `wiki/hypotheses` |
 
 ## Pack Status Vocabulary
 
 | Document class | Statuses |
 | --- | --- |
 | Evals | `Planned`, `Baseline`, `Candidate`, `Accepted`, `Rejected`, `Superseded` |
+| Hypotheses | `Proposed`, `Testing`, `Supported`, `Rejected`, `Superseded` |
 
 ## ML Pack Additions
 
@@ -360,11 +334,17 @@ ML projects add experiment, eval, and model-card records. Eval statuses include
 Claims about model quality require eval conditions, metrics, and comparison
 context.
 
-## QMD Scale Pack Additions
+## Data Pack Additions
 
-Large wikis may supplement `wiki/index.md` navigation with QMD hybrid search.
-QMD is a discovery layer over `wiki/`; it does not replace source citations,
-typed documents, or index maintenance.
+Data projects add dataset cards, schema documents, transformation specs, and
+lineage tracking. Data claims should identify source systems, sample windows,
+transformation logic, and known quality limitations.
+
+## Research Pack Additions
+
+Research projects add literature notes, hypotheses, citation conventions, and
+lab-notebook-style evidence capture. Hypothesis statuses include `Proposed`,
+`Testing`, `Supported`, `Rejected`, and `Superseded`.
 
 ## Core Rule
 
@@ -662,11 +642,18 @@ Periodically or on request:
 - Keep model artifacts, notebooks, and eval harnesses separate from wiki evidence.
 
 
-## QMD Scale Pack
+## Data Pack
 
-- Use `qmd query` when `wiki/index.md` no longer surfaces the needed page.
-- Re-run `qmd embed -f` after ingest or lint when QMD is configured.
-- Treat QMD as navigation support; answers still cite wiki pages.
+- Use `wiki/datasets/` for dataset cards and `wiki/data/` for schemas or transformations.
+- Store data samples, schema exports, and lineage sources under `raw/data/`.
+- Document transformation inputs, outputs, and provenance before treating data behavior as validated.
+
+
+## Research Pack
+
+- Use `wiki/literature/` for literature notes and `wiki/hypotheses/` for testable claims.
+- Store papers and external notes under `raw/papers/`.
+- Separate sourced evidence from interpretation, synthesis, and open questions.
 
 
 # CLAUDE.md
@@ -674,10 +661,11 @@ See @AGENTS.md.
 
 # .llm_wiki/init.toml
 framework_version = "0.1.0"
-blueprint = "custom"
+blueprint = "ml-research"
 packs = [
     "ml",
-    "qmd-scale",
+    "data",
+    "research",
 ]
 
 # wiki/index.md
@@ -720,6 +708,14 @@ Updated: [date]
 (none yet)
 
 ## Evals
+
+(none yet)
+
+## Literature
+
+(none yet)
+
+## Hypotheses
 
 (none yet)
 
