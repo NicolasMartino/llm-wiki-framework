@@ -2,7 +2,7 @@
 
 Project: Software Project Management Framework
 Stage: D1 Bootstrap (Completed), D2 Ingest Cycle (Completed), D3 Lint Operation (Completed), D8 Distribution Tooling (Completed), D8.1 Managed Runtime Bootstrap (Completed)
-Updated: 2026-05-06
+Updated: 2026-05-07
 
 ## Specs
 
@@ -22,6 +22,7 @@ Updated: 2026-05-06
 - [Knowledge Research Intake](decisions/knowledge-research-intake.decision.md) — Accepted — `knowledge-research` is the guided intake surface; no separate `knowledge-intake` command
 - [LLM Wiki Binary Distribution](decisions/llm-wiki-binary-distribution.decision.md) — Accepted — Single Rust binary owns global skill installation, project scaffolding, and skill projection
 - [Managed Binary Runtime Install](decisions/binary-path-bootstrap.decision.md) — Accepted — `llm-wiki install` will manage a runtime binary under `~/.llm_wiki/` so installed skills do not require `PATH`
+- [Search Backend Selection](decisions/search-backend-selection.decision.md) — Accepted — qmd-rs is the D9 backend for `llm-wiki search` and `search-all`, with direct SQLite FTS5 as fallback
 
 ## Roadmaps
 
@@ -40,7 +41,7 @@ Updated: 2026-05-06
 
 - [LLM Wiki Framework Binary](proposals/llm-wiki-binary.proposal.md) — Accepted — Single Rust binary owns global skill installation, project scaffolding, and skill projection; promoted to decision and roadmap D8
 - [Project Registry and Search Artifacts](proposals/project-registry-search-artifacts.proposal.md) — Proposed — Post-D8 project registration, centralized per-project search artifacts, and explicit `search-all` cross-project search
-- [Search Backend Selection](proposals/search-backend-selection.proposal.md) — Proposed — Separate backend decision for future `llm-wiki search` and `search-all` commands
+- [Search Backend Selection](proposals/search-backend-selection.proposal.md) — Accepted — Promoted to backend decision; qmd-rs selected for D9 with adapter-owned metadata and model/cache handling
 - [Managed Binary Install and PATH Guidance](proposals/binary-path-bootstrap.proposal.md) — Accepted — Promoted to D8.1 decision and plan; make installed skills call a managed binary path while PATH remains convenience guidance
 
 ## Plans
@@ -49,6 +50,7 @@ Updated: 2026-05-06
 - [LLM Wiki Binary Implementation](plans/llm-wiki-binary.plan.md) — Completed — Implemented D8 Rust binary with staged commits, manifest install, deterministic init, projection snapshots, fixtures, and release config
 - [LLM Wiki Product Layout Addendum](plans/llm-wiki-product-layout-addendum.plan.md) — Completed — Moved `llm-wiki` to the root product crate layout and embedded assets under `assets/`
 - [Managed Binary Runtime Install](plans/binary-path-bootstrap.plan.md) — Completed — D8.1 tactical execution for managed runtime home, manifest v2, outside-PATH install proof, and `knowledge-init` rename
+- [qmd-rs Search Backend](plans/qmd-rs-search-backend.plan.md) — Active — D9 backend slice: qmd-rs adapter, query sanitization, metadata, snippets, doctor checks, model/cache reporting, and SQLite fallback guardrail
 
 ## Experiments
 
@@ -56,7 +58,7 @@ Updated: 2026-05-06
 
 ## Evals
 
-(none yet)
+- [Search Backend Selection Eval](evals/search-backend-selection.eval.md) — Accepted — Fixed query set, qmd-rs/Tobi QMD/SQLite BM25 baselines, and recommendation for qmd-rs as D9 backend
 
 ## Checklists
 

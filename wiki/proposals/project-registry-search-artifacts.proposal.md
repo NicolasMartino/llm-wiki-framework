@@ -320,22 +320,21 @@ unless the accepted plan explicitly adds it. If added later, it should present
 
 ## Backend Boundary
 
-D9 needs a search backend, but this proposal does not pick it. The implementation
-should depend on an internal adapter trait so backend choice can be evaluated
-and changed without rewriting the registry or command surface.
+D9 needs a search backend, but this proposal does not own the backend decision.
+The accepted D9 backend is qmd-rs, selected in
+`wiki/decisions/search-backend-selection.decision.md` based on
+`wiki/evals/search-backend-selection.eval.md`.
 
-Candidate backends are documented separately in
-`wiki/proposals/search-backend-selection.proposal.md`:
+The implementation should still depend on an internal adapter trait so direct
+SQLite FTS5 can remain a fallback and Tobi QMD can be compared later.
 
-1. qmd-rs library adapter if quality and packaging evals pass;
-2. Tobi QMD shell-out adapter if qmd-rs is not ready but feature parity matters;
-3. direct SQLite FTS5/BM25 adapter for a smaller model-free first version;
-4. defer D9 search if none of the above clears the acceptance bar.
+Because qmd-rs can use local GGUF model artifacts for semantic modes,
+`llm-wiki doctor` should report store existence, schema/version state,
+stale/missing index state, corrupt stores, required local model artifacts, and
+rebuild/download guidance.
 
-Model download behavior belongs to the selected backend. Whatever backend is
-chosen, `llm-wiki doctor` should report missing required models or backend
-artifacts, and offline search should work after required local artifacts are
-present.
+Execution plan for the backend slice:
+`wiki/plans/qmd-rs-search-backend.plan.md`.
 
 ## Non-Goals
 

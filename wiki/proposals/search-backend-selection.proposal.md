@@ -1,8 +1,9 @@
 # Search Backend Selection
 
 - Document Class: Proposal
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-05-06
+- Promoted To: wiki/decisions/search-backend-selection.decision.md
 - Category: Search infrastructure, framework tooling
 - Scope: Choose the concrete search backend behind future `llm-wiki search` and `llm-wiki search-all` commands.
 - Sources: wiki/references/qmd-search-engine.reference.md, wiki/references/qmd-rs-search-crate.reference.md, wiki/proposals/project-registry-search-artifacts.proposal.md, https://docs.rs/qmd/latest/qmd/ (qmd 0.3.2 docs)
@@ -23,6 +24,18 @@ the accepted backend.
 The registry/search-artifacts proposal should be able to proceed even if qmd-rs
 does not pass. The command surface depends on an internal search adapter, not on
 one specific engine.
+
+## Outcome
+
+Accepted with the initial qmd-rs direction. The measured eval showed that qmd-rs
+needs adapter work, but the project intentionally chooses that work now because
+LLM-enhanced search is expected to matter and the Rust one-binary direction
+should remain intact.
+
+See `wiki/evals/search-backend-selection.eval.md` and
+`wiki/decisions/search-backend-selection.decision.md`.
+
+Execution plan: `wiki/plans/qmd-rs-search-backend.plan.md`.
 
 ## Backend Options
 

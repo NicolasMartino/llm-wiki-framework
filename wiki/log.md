@@ -1054,3 +1054,83 @@ wiki/decisions/llm-wiki-binary-distribution.decision.md,
 wiki/decisions/knowledge-command-namespace.decision.md,
 wiki/plans/binary-path-bootstrap.plan.md, wiki/roadmaps/framework-v1.roadmap.md,
 wiki/log.md
+
+## [2026-05-07] create | Search backend selection eval
+
+Created the first eval artifact required by the search backend selection
+proposal. The eval fixes the corpus and query set, records a Tobi QMD BM25-only
+baseline against this repo's `wiki/`, captures measured index size and latency,
+and documents observed concurrent-search lock failures. qmd-rs, hybrid QMD, and
+first-party SQLite FTS5 checks remain pending before a backend decision can be
+accepted.
+
+Pages created: wiki/evals/search-backend-selection.eval.md
+Pages updated: wiki/index.md, wiki/log.md
+
+## [2026-05-07] promote | Search backend selection
+
+Completed the search backend eval increment. Tested qmd-rs 0.3.2 through a
+temporary Rust harness, recorded its fast FTS path plus query-sanitization,
+metadata, CLI/MCP parity, and `llama-cpp-2` packaging concerns, then tested a
+direct SQLite FTS5 BM25 prototype on the same 37-file corpus. Initially
+promoted the backend selection toward direct SQLite FTS5 BM25 for D9 V1; this
+was revised by the following log entry after product weighting clarified that
+qmd-rs should be selected for the LLM-enhanced search path.
+
+Pages created: wiki/decisions/search-backend-selection.decision.md
+Pages updated: wiki/evals/search-backend-selection.eval.md,
+wiki/proposals/search-backend-selection.proposal.md,
+wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-07] update | Search backend decision weighting
+
+Revised the accepted backend decision after human product judgment clarified
+that LLM-enhanced search is expected to matter and that qmd-rs adapter work is
+worth paying now. The eval measurements remain recorded, but the recommendation
+and decision now select qmd-rs as the D9 backend, with direct SQLite FTS5 kept as
+a fallback if qmd-rs packaging or runtime behavior cannot ship safely.
+
+Pages updated: wiki/decisions/search-backend-selection.decision.md,
+wiki/evals/search-backend-selection.eval.md,
+wiki/proposals/search-backend-selection.proposal.md,
+wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-07] create | qmd-rs backend implementation plan
+
+Created the active execution plan for the D9 backend slice. The plan keeps the
+broader D9 registry/search command surface separate while specifying the qmd-rs
+adapter contract, query sanitization, metadata extraction, result shaping,
+doctor/model-cache reporting, direct SQLite fallback guardrail, and fixed eval
+query replay required before implementation can close.
+
+Pages created: wiki/plans/qmd-rs-search-backend.plan.md
+Pages updated: wiki/index.md,
+wiki/proposals/search-backend-selection.proposal.md,
+wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/log.md
+
+## [2026-05-07] update | qmd-rs backend plan review fixes
+
+Tightened the qmd-rs backend plan after review. Fixed the `src/init/` touchpoint,
+clarified that wiki metadata uses a leading bullet-list block rather than YAML
+frontmatter, committed the backend slice to CWD project discovery and a concrete
+qmd-rs store path before the registry lands, clarified adapter-computed match
+spans, made Phase 0 produce a default-on versus feature-gated decision with
+license, cargo-dist, binary-size, and install-footprint checks, and made direct
+SQLite FTS5 a deferred fallback rather than a parallel implementation.
+
+Pages updated: wiki/plans/qmd-rs-search-backend.plan.md, wiki/log.md
+
+## [2026-05-07] update | qmd-rs backend plan scope tightening
+
+Updated the qmd-rs backend plan to treat the work as a backend-only search
+subsystem. The plan now explicitly defers user-visible `index`, `search`, and
+`search-all` command behavior until the D9 registry and command surface lands,
+adds the intended `src/search/` module layout, requires cache/index/model path
+helpers in `src/paths.rs` before qmd-rs wiring, keeps qmd-rs feature-gated with
+stable disabled behavior through Phase 0, factors `doctor` into install,
+current-project, search-index, and semantic-model sections, and adds concrete
+metadata-parser and query-sanitizer requirements.
+
+Pages updated: wiki/plans/qmd-rs-search-backend.plan.md, wiki/log.md
