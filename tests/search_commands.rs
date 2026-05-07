@@ -44,6 +44,36 @@ fn search_reports_feature_disabled_in_default_build() {
         .stderr(predicate::str::contains("qmd-rs-feature-disabled"));
 }
 
+#[cfg(not(feature = "qmd-rs"))]
+#[test]
+fn index_all_reports_feature_disabled_in_default_build() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+
+    llm_wiki(home.path())
+        .arg("index-all")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("qmd-rs-feature-disabled"));
+}
+
+#[cfg(not(feature = "qmd-rs"))]
+#[test]
+fn search_all_reports_feature_disabled_in_default_build() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+
+    llm_wiki(home.path())
+        .args(["search-all", "reciprocal rank"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("qmd-rs-feature-disabled"));
+}
+
 #[cfg(feature = "qmd-rs")]
 #[test]
 fn search_refuses_missing_index_in_feature_build() {
@@ -96,15 +126,91 @@ fn index_and_search_registered_project_with_filters() {
         .stdout(predicate::str::contains("\"freshness\": \"fresh\""));
 }
 
+#[cfg(feature = "qmd-rs")]
+#[test]
+fn index_all_and_search_all_fuse_registered_projects() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let alpha = fixture_project_with_decision(
+        workspace.path(),
+        "Alpha Project",
+        "Alpha Decision",
+        "Shared retrieval token appears in alpha project.",
+    );
+    let beta = fixture_project_with_decision(
+        workspace.path(),
+        "Beta Project",
+        "Beta Decision",
+        "Shared retrieval token appears in beta project.",
+    );
+    register_project_with_id(home.path(), &alpha, "alpha");
+    register_project_with_id(home.path(), &beta, "beta");
+
+    llm_wiki(home.path())
+        .args(["index-all", "--force"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Indexed project: alpha"))
+        .stdout(predicate::str::contains("Indexed project: beta"));
+
+    llm_wiki(home.path())
+        .args(["search-all", "shared retrieval token", "--format", "json"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"project_id\": \"alpha\""))
+        .stdout(predicate::str::contains("\"project_id\": \"beta\""));
+
+    llm_wiki(home.path())
+        .args([
+            "search-all",
+            "shared retrieval token",
+            "--include",
+            "alpha",
+            "--format",
+            "json",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"project_id\": \"alpha\""))
+        .stdout(predicate::str::contains("\"project_id\": \"beta\"").not());
+
+    llm_wiki(home.path())
+        .args([
+            "search-all",
+            "shared retrieval token",
+            "--exclude",
+            "beta",
+            "--format",
+            "json",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"project_id\": \"alpha\""))
+        .stdout(predicate::str::contains("\"project_id\": \"beta\"").not());
+}
+
 fn register_project(home: &Path, project: &Path) {
+    register_project_with_id(home, project, "fixture");
+}
+
+fn register_project_with_id(home: &Path, project: &Path, id: &str) {
     llm_wiki(home)
-        .args(["register", "--id", "fixture", "--name", "Fixture"])
+        .args(["register", "--id", id, "--name", id])
         .arg(project)
         .assert()
         .success();
 }
 
 fn fixture_project(root: &Path, name: &str) -> PathBuf {
+    fixture_project_with_decision(
+        root,
+        name,
+        "Search Decision",
+        "Reciprocal rank fusion keeps search-all result ordering deterministic.",
+    )
+}
+
+fn fixture_project_with_decision(root: &Path, name: &str, title: &str, body: &str) -> PathBuf {
     let project = root.join(name);
     fs::create_dir_all(project.join("wiki/decisions")).expect("wiki");
     fs::create_dir_all(project.join("wiki/plans")).expect("plans");
@@ -113,7 +219,9 @@ fn fixture_project(root: &Path, name: &str) -> PathBuf {
     fs::write(project.join("AGENTS.md"), "# Agents\n").expect("agents");
     fs::write(
         project.join("wiki/decisions/search.decision.md"),
-        "# Search Decision\n\n- Document Class: Decision\n- Status: Accepted\n- Date: 2026-05-07\n- Category: Search\n- Scope: Test\n- Sources: raw/test.md\n\n## Decision\nReciprocal rank fusion keeps search-all result ordering deterministic.",
+        format!(
+            "# {title}\n\n- Document Class: Decision\n- Status: Accepted\n- Date: 2026-05-07\n- Category: Search\n- Scope: Test\n- Sources: raw/test.md\n\n## Decision\n{body}"
+        ),
     )
     .expect("decision");
     fs::write(

@@ -1,10 +1,14 @@
+use std::collections::BTreeMap;
+
 use anyhow::{Context, Result, bail};
 use serde_json::json;
 
-use crate::cli::{IndexArgs, OutputFormat, SearchArgs};
+use crate::cli::{IndexAllArgs, IndexArgs, OutputFormat, SearchAllArgs, SearchArgs};
 use crate::paths::Paths;
 use crate::registry::{ProjectRegistry, RegisteredProject};
-use crate::search::adapter::{BackendState, Freshness, SearchBackend, SearchFilters, SearchResult};
+use crate::search::adapter::{
+    BackendState, Freshness, Score, SearchBackend, SearchFilters, SearchResult,
+};
 use crate::search::project::discover_from_cwd;
 use crate::search::qmd_rs::QmdRsBackend;
 
@@ -13,6 +17,48 @@ pub fn index(args: &IndexArgs) -> Result<()> {
     let registry_path = paths.project_registry();
     let mut registry = ProjectRegistry::read(&registry_path)?;
     let project = select_project(&registry, args.project.as_deref())?;
+    index_registered_project(&paths, &registry_path, &mut registry, &project, args.force)
+}
+
+pub fn index_all(args: &IndexAllArgs) -> Result<()> {
+    let paths = Paths::from_env()?;
+    let registry_path = paths.project_registry();
+    let mut registry = ProjectRegistry::read(&registry_path)?;
+    if registry.projects.is_empty() {
+        println!("No registered projects.");
+        return Ok(());
+    }
+
+    let projects = registry.projects.clone();
+    let mut failures = Vec::new();
+    for project in projects {
+        if !project.root.exists() {
+            failures.push(format!("{}: root missing", project.id));
+            continue;
+        }
+        if let Err(error) =
+            index_registered_project(&paths, &registry_path, &mut registry, &project, args.force)
+        {
+            if error.to_string().contains("qmd-rs-feature-disabled") {
+                bail!("{error}");
+            }
+            failures.push(format!("{}: {error}", project.id));
+        }
+    }
+
+    if !failures.is_empty() {
+        bail!("index-all failed:\n{}", failures.join("\n"));
+    }
+    Ok(())
+}
+
+fn index_registered_project(
+    paths: &Paths,
+    registry_path: &std::path::Path,
+    registry: &mut ProjectRegistry,
+    project: &RegisteredProject,
+    force: bool,
+) -> Result<()> {
     let store_path = paths.qmd_rs_store_path(&project.id);
     if let Some(parent) = store_path.parent() {
         std::fs::create_dir_all(parent)
@@ -21,7 +67,7 @@ pub fn index(args: &IndexArgs) -> Result<()> {
 
     let backend = QmdRsBackend::new();
     let status =
-        backend.rebuild_or_recover(&project.id, &project.wiki_root(), &store_path, args.force)?;
+        backend.rebuild_or_recover(&project.id, &project.wiki_root(), &store_path, force)?;
     if matches!(status.state, BackendState::FeatureDisabled) {
         bail!("{}", feature_disabled_message());
     }
@@ -36,7 +82,7 @@ pub fn index(args: &IndexArgs) -> Result<()> {
     }
 
     registry.record_index_success(&project.id, status.indexed_files, &project.wiki_root())?;
-    registry.write_atomic(&registry_path)?;
+    registry.write_atomic(registry_path)?;
     println!(
         "Indexed project: {} ({} files)",
         project.id, status.indexed_files
@@ -88,10 +134,104 @@ pub fn search(args: &SearchArgs) -> Result<()> {
     };
 
     match args.format {
-        OutputFormat::Text => print_search_text(&project, warning.as_deref(), &results),
-        OutputFormat::Json => {
-            print_search_json(&project, &args.query, warning.as_deref(), &results)
+        OutputFormat::Text => print_search_text(warning.as_deref(), &results),
+        OutputFormat::Json => print_search_json(
+            &args.query,
+            Some((&project.id, &project.name)),
+            warning.as_deref(),
+            &results,
+        ),
+    }
+    Ok(())
+}
+
+pub fn search_all(args: &SearchAllArgs) -> Result<()> {
+    let paths = Paths::from_env()?;
+    let registry = ProjectRegistry::read(&paths.project_registry())?;
+    let projects = select_projects(&registry, &args.include, &args.exclude)?;
+    let backend = QmdRsBackend::new();
+    let filters = SearchFilters {
+        document_class: args.document_class.clone(),
+        status: args.status.clone(),
+    };
+    let mut warnings = Vec::new();
+    let mut fused: BTreeMap<(String, String), FusedResult> = BTreeMap::new();
+
+    for project in &projects {
+        let store_path = paths.qmd_rs_store_path(&project.id);
+        let wiki_root = project.wiki_root();
+        let status = backend.status(&store_path, &wiki_root)?;
+        match status.state {
+            BackendState::FeatureDisabled => bail!("{}", feature_disabled_message()),
+            BackendState::Missing => bail!(
+                "search index missing for project {}; run `llm-wiki index --project {}`",
+                project.id,
+                project.id
+            ),
+            BackendState::Corrupt | BackendState::SchemaMismatch => bail!(
+                "search index unusable for project {}; run `llm-wiki index --project {} --force`",
+                project.id,
+                project.id
+            ),
+            BackendState::Ready | BackendState::Stale => {}
         }
+        if matches!(status.state, BackendState::Stale) {
+            warnings.push(format!(
+                "search index stale for project {}; run `llm-wiki index --project {}`",
+                project.id, project.id
+            ));
+        }
+
+        let mut results =
+            backend.search_project(&store_path, &wiki_root, &args.query, &filters, 20)?;
+        for (rank, result) in results.iter_mut().enumerate() {
+            result.project_id = project.id.clone();
+            result.project_name = Some(project.name.clone());
+            let rrf = 1.0 / (60.0 + rank as f64 + 1.0);
+            let key = (
+                result.project_id.clone(),
+                result.path.to_string_lossy().to_string(),
+            );
+            fused
+                .entry(key)
+                .and_modify(|entry| entry.score += rrf)
+                .or_insert_with(|| FusedResult {
+                    result: result.clone(),
+                    score: rrf,
+                });
+        }
+    }
+
+    let mut results = fused.into_values().collect::<Vec<_>>();
+    results.sort_by(|left, right| {
+        right
+            .score
+            .total_cmp(&left.score)
+            .then_with(|| left.result.project_id.cmp(&right.result.project_id))
+            .then_with(|| left.result.path.cmp(&right.result.path))
+    });
+    let mut results = results
+        .into_iter()
+        .take(args.limit)
+        .map(|mut fused| {
+            fused.result.score = Score(fused.score);
+            fused.result
+        })
+        .collect::<Vec<_>>();
+    for result in &mut results {
+        if result.freshness == Freshness::Unknown {
+            result.freshness = Freshness::Fresh;
+        }
+    }
+    let warning = if warnings.is_empty() {
+        None
+    } else {
+        Some(warnings.join("; "))
+    };
+
+    match args.format {
+        OutputFormat::Text => print_search_text(warning.as_deref(), &results),
+        OutputFormat::Json => print_search_json(&args.query, None, warning.as_deref(), &results),
     }
     Ok(())
 }
@@ -122,7 +262,39 @@ fn select_project(
         })
 }
 
-fn print_search_text(project: &RegisteredProject, warning: Option<&str>, results: &[SearchResult]) {
+fn select_projects(
+    registry: &ProjectRegistry,
+    include: &[String],
+    exclude: &[String],
+) -> Result<Vec<RegisteredProject>> {
+    let mut projects = if include.is_empty() {
+        registry.projects.clone()
+    } else {
+        include
+            .iter()
+            .map(|project_id| {
+                registry
+                    .project_by_id(project_id)
+                    .cloned()
+                    .with_context(|| format!("project id {project_id} is not registered"))
+            })
+            .collect::<Result<Vec<_>>>()?
+    };
+    projects.retain(|project| !exclude.iter().any(|id| id == &project.id));
+    if projects.is_empty() {
+        bail!("no registered projects selected");
+    }
+    projects.sort_by(|left, right| left.id.cmp(&right.id));
+    Ok(projects)
+}
+
+#[derive(Clone, Debug)]
+struct FusedResult {
+    result: SearchResult,
+    score: f64,
+}
+
+fn print_search_text(warning: Option<&str>, results: &[SearchResult]) {
     if let Some(warning) = warning {
         println!("Warning: {warning}");
     }
@@ -134,7 +306,7 @@ fn print_search_text(project: &RegisteredProject, warning: Option<&str>, results
         println!(
             "{}. [{}] {} ({}) score={:.3} freshness={}",
             index + 1,
-            project.id,
+            result.project_id,
             result.title,
             result.path.display(),
             result.score.0,
@@ -147,8 +319,8 @@ fn print_search_text(project: &RegisteredProject, warning: Option<&str>, results
 }
 
 fn print_search_json(
-    project: &RegisteredProject,
     query: &str,
+    project: Option<(&str, &str)>,
     warning: Option<&str>,
     results: &[SearchResult],
 ) {
@@ -156,9 +328,9 @@ fn print_search_json(
         .iter()
         .map(|result| {
             json!({
-                "project_id": project.id,
-                "project_name": project.name,
-                "path": result.path,
+                "project_id": result.project_id,
+                "project_name": result.project_name,
+                "path": result.path.to_string_lossy(),
                 "title": result.title,
                 "document_class": result.document_class,
                 "status": result.status,
@@ -174,8 +346,8 @@ fn print_search_json(
         "{}",
         serde_json::to_string_pretty(&json!({
             "query": query,
-            "project_id": project.id,
-            "project_name": project.name,
+            "project_id": project.map(|(id, _)| id),
+            "project_name": project.map(|(_, name)| name),
             "warning": warning,
             "results": results,
         }))

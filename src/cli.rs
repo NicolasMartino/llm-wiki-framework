@@ -18,7 +18,9 @@ pub enum Command {
     Forget(ForgetArgs),
     Projects(ProjectsArgs),
     Index(IndexArgs),
+    IndexAll(IndexAllArgs),
     Search(SearchArgs),
+    SearchAll(SearchAllArgs),
     Path,
     Status,
     Doctor,
@@ -87,10 +89,33 @@ pub struct IndexArgs {
 }
 
 #[derive(Debug, clap::Args)]
+pub struct IndexAllArgs {
+    #[arg(long)]
+    pub force: bool,
+}
+
+#[derive(Debug, clap::Args)]
 pub struct SearchArgs {
     pub query: String,
     #[arg(long)]
     pub project: Option<String>,
+    #[arg(long = "class")]
+    pub document_class: Option<String>,
+    #[arg(long)]
+    pub status: Option<String>,
+    #[arg(long, default_value_t = 10)]
+    pub limit: usize,
+    #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
+    pub format: OutputFormat,
+}
+
+#[derive(Debug, clap::Args)]
+pub struct SearchAllArgs {
+    pub query: String,
+    #[arg(long)]
+    pub include: Vec<String>,
+    #[arg(long)]
+    pub exclude: Vec<String>,
     #[arg(long = "class")]
     pub document_class: Option<String>,
     #[arg(long)]
