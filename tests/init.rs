@@ -109,6 +109,37 @@ fn init_rejects_retired_type_and_scale_flags() {
 }
 
 #[test]
+fn init_manifest_records_resolved_blueprint_packs() {
+    let temp = TempDir::new().expect("tempdir");
+
+    init_project(temp.path(), "ml-research", &[], &[]);
+
+    assert!(temp.path().join("wiki/experiments").is_dir());
+    assert!(temp.path().join("wiki/evals").is_dir());
+    assert!(temp.path().join("wiki/datasets").is_dir());
+    assert!(temp.path().join("wiki/literature").is_dir());
+
+    let manifest = fs::read_to_string(temp.path().join(".llm_wiki/init.toml")).expect("manifest");
+    let manifest: toml::Value = toml::from_str(&manifest).expect("toml");
+    assert_eq!(manifest["blueprint"].as_str(), Some("ml-research"));
+    assert_eq!(
+        manifest["packs"].as_array().expect("packs"),
+        &[
+            toml::Value::String("ml".to_string()),
+            toml::Value::String("data".to_string()),
+            toml::Value::String("research".to_string()),
+        ]
+    );
+
+    let guidelines =
+        fs::read_to_string(temp.path().join("project_guidelines.md")).expect("guidelines");
+    assert!(guidelines.contains("## Pack Document Types"));
+    assert!(guidelines.contains("`model-card.md`"));
+    assert!(guidelines.contains("`dataset-card.md`"));
+    assert!(guidelines.contains("## Pack Status Vocabulary"));
+}
+
+#[test]
 fn initial_sources_are_copied_without_ingest() {
     let temp = TempDir::new().expect("tempdir");
     let home = TempDir::new().expect("home");

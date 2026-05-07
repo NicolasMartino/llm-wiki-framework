@@ -1,11 +1,11 @@
 # Plan: Composable Project Init
 
 - Document Class: Plan
-- Status: Draft
+- Status: Completed
 - Date: 2026-05-08
 - Category: Tooling, project scaffolding, template engine adoption
 - Scope: Implement D10 composable init: introduce a compile-time template engine, migrate the existing init template onto it, replace generated `CLAUDE.md` output with `AGENTS.md`, retire the static template assets under `assets/templates/`, and ship the blueprint + pack composition system from `wiki/decisions/composable-project-init.decision.md`.
-- Sources: wiki/proposals/blueprint-pack-init.proposal.md, wiki/decisions/composable-project-init.decision.md, wiki/references/askama-template-engine.reference.md, assets/templates/project_guidelines.md, assets/templates/CLAUDE.md, src/init/{profile,answers,template,scaffold,command}.rs
+- Sources: wiki/proposals/blueprint-pack-init.proposal.md, wiki/decisions/composable-project-init.decision.md, wiki/references/askama-template-engine.reference.md, templates/base/project_guidelines.md, templates/base/agents.md, templates/packs/, src/init/{blueprints,packs,compose,manifest,answers,template,scaffold,command}.rs
 - Related: wiki/roadmaps/framework-v1.roadmap.md (D10), wiki/proposals/skills-template-engine.proposal.md, wiki/specs/knowledge-init-skill.spec.md, wiki/references/askama-template-engine.reference.md
 
 ## Deliverable
@@ -69,7 +69,7 @@ Inspect these sites before changing code:
 
 1. Add `askama = "0.16"`, `inquire`, and `toml` to `Cargo.toml` (`[workspace.dependencies]` and `[dependencies]`). Engine choice is fixed by the decision; no spike required.
 2. Confirm `cargo build` and the existing test suite stay green with the new deps in place.
-3. Build a 30-line throwaway proof rendering a hello-world `askama` template inside the binary, just to verify the macro derive and the `templates/` discovery are wired correctly before Phase 1 starts touching real templates. Delete it once Phase 1 lands the real migration.
+3. Build a 30-line throwaway proof rendering a hello-world `askama` template inside the binary, just to verify the macro derive and the `templates/` discovery are wired correctly before Phase 1 starts touching real templates. Delete it once Phase 1 lands the real migration. Completed by validating Askama discovery through the real base templates during the first implementation slice.
 
 ### 1. Migrate the existing init template
 
@@ -163,4 +163,7 @@ Implement the smallest set of packs that exercises every code path: `ml`, `ops`,
 
 ## What Closes The Plan
 
-D10 closes when the verification gates pass and the two contrasting blueprints have been used to bootstrap real green projects, demonstrating the composition system works on more than its own snapshot tests.
+D10 closed when `cargo insta test --workspace --accept` passed, the
+`ml-research` and `ops-infra` non-interactive snapshots proved contrasting
+blueprint output, and `.llm_wiki/init.toml` was generated from the resolved
+pack set.

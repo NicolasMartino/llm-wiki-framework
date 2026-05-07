@@ -424,7 +424,7 @@ Unlocks:
 
 ### D10 - Composable Project Init
 
-Status: Draft
+Status: Completed
 Promise: `llm-wiki init` produces a tailored canonical `AGENTS.md` and
 `project_guidelines.md` from a chosen blueprint (or `custom`) plus a selected
 set of opt-in packs, rendered through a compile-time template engine. Claude

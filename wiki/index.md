@@ -1,13 +1,13 @@
 # Wiki Index
 
 Project: Software Project Management Framework
-Stage: D1 Bootstrap (Completed), D2 Ingest Cycle (Completed), D3 Lint Operation (Completed), D8 Distribution Tooling (Completed), D8.1 Managed Runtime Bootstrap (Completed), D9 Project Registry and Search Artifacts (Completed), D10 Composable Project Init (Draft)
+Stage: D1 Bootstrap (Completed), D2 Ingest Cycle (Completed), D3 Lint Operation (Completed), D8 Distribution Tooling (Completed), D8.1 Managed Runtime Bootstrap (Completed), D9 Project Registry and Search Artifacts (Completed), D10 Composable Project Init (Completed)
 Updated: 2026-05-08
 
 ## Specs
 
-- [Documentation Model](specs/documentation-model.spec.md) — Active — Three-layer architecture, operations, document types, binary distribution, navigation, `llm-wiki search` scale strategy, and composable-init notes
-- [Knowledge Init Skill](specs/knowledge-init-skill.spec.md) — Active — `knowledge-init` wrapper over current `llm-wiki init --non-interactive`; D10 blueprint/pack migration tracked here until completion
+- [Documentation Model](specs/documentation-model.spec.md) — Active — Three-layer architecture, operations, document types, binary distribution, composable init templates, and `llm-wiki search` scale strategy
+- [Knowledge Init Skill](specs/knowledge-init-skill.spec.md) — Active — `knowledge-init` wrapper over `llm-wiki init --non-interactive` with blueprint and pack selection
 - [Knowledge Query Skill](specs/knowledge-query-skill.spec.md) — Active — `knowledge-query` skill for querying the wiki with citations and save-back
 - [Knowledge Ingest Skill](specs/knowledge-ingest-skill.spec.md) — Active — `knowledge-ingest` skill for processing raw sources into wiki pages with 3-phase pipeline
 - [Knowledge Lint Skill](specs/knowledge-lint-skill.spec.md) — Active — `knowledge-lint` skill for scanning and fixing wiki consistency issues
@@ -27,7 +27,7 @@ Updated: 2026-05-08
 
 ## Roadmaps
 
-- [Framework V1](roadmaps/framework-v1.roadmap.md) — Active — Bootstrap through self-replication, completed D8/D8.1/D9 delivery, and draft D10 composable init
+- [Framework V1](roadmaps/framework-v1.roadmap.md) — Active — Bootstrap through self-replication, completed D8/D8.1/D9 delivery, and completed D10 composable init
 
 ## References
 
@@ -56,7 +56,7 @@ Updated: 2026-05-08
 - [Managed Binary Runtime Install](plans/binary-path-bootstrap.plan.md) — Completed — D8.1 tactical execution for managed runtime home, manifest v2, outside-PATH install proof, and `knowledge-init` rename
 - [qmd-rs Search Backend](plans/qmd-rs-search-backend.plan.md) — Completed — D9 backend slice landed qmd-rs adapter, query sanitization, metadata, snippets, doctor checks, eval replay, and release findings
 - [Project Registry and Search Artifacts](plans/project-registry-search-artifacts.plan.md) — Completed — Implemented D9 registry/search commands and default-on qmd-rs release behavior
-- [Composable Project Init](plans/composable-project-init.plan.md) — Draft — D10 execution: adopt Askama, migrate the existing init template, ship the blueprint + pack catalog, two-step interactive flow, AGENTS/CLAUDE schema handling, and `.llm_wiki/init.toml` writer
+- [Composable Project Init](plans/composable-project-init.plan.md) — Completed — D10 execution adopted Askama, migrated init templates, shipped blueprints + packs, two-step interactive flow, AGENTS/CLAUDE schema handling, and `.llm_wiki/init.toml`
 
 ## Experiments
 

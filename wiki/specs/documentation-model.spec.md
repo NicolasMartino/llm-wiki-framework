@@ -7,6 +7,8 @@
 - Scope: The validated documentation and execution model for projects using this framework.
 - Sources: raw/legacy/legacy-project-guidelines.md, raw/research/llm-wiki-pattern-research.md, raw/research/qmd-search-engine.md, raw/research/niharshrotri-llm-wiki-implementation.md, wiki/plans/project-registry-search-artifacts.plan.md
 - Related: wiki/decisions/three-layer-architecture.decision.md, wiki/decisions/agent-owns-wiki.decision.md, wiki/decisions/typed-documents.decision.md, wiki/references/qmd-search-engine.reference.md, wiki/decisions/search-backend-selection.decision.md
+- Sources: raw/legacy/legacy-project-guidelines.md, raw/research/llm-wiki-pattern-research.md, raw/research/qmd-search-engine.md, raw/research/niharshrotri-llm-wiki-implementation.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/decisions/composable-project-init.decision.md
+- Related: wiki/decisions/three-layer-architecture.decision.md, wiki/decisions/agent-owns-wiki.decision.md, wiki/decisions/typed-documents.decision.md, wiki/references/qmd-search-engine.reference.md, wiki/decisions/search-backend-selection.decision.md, wiki/specs/knowledge-init-skill.spec.md
 
 ## Current State
 
@@ -14,11 +16,13 @@ The framework uses a three-layer architecture:
 
 1. `raw/` - immutable source material, human-curated
 2. `wiki/` - compiled knowledge, agent-owned
-3. `CLAUDE.md` / `AGENTS.md` - schema defining conventions and agent workflows
+3. `AGENTS.md` - canonical schema defining conventions and agent workflows,
+   with `CLAUDE.md` as a compatibility shim in generated projects
 
-In this framework repository, the canonical reusable specification template is
-`assets/templates/project_guidelines.md`. Generated projects get a resolved
-`project_guidelines.md` derived from that embedded template.
+In this framework repository, canonical reusable init templates live under
+`templates/base/` and `templates/packs/`. Generated projects get a resolved
+`project_guidelines.md` and canonical `AGENTS.md` from a blueprint plus pack
+selection. `CLAUDE.md` is generated as `See @AGENTS.md.` for compatibility.
 
 Framework distribution is binary-owned. The `llm-wiki` Rust binary embeds the
 canonical skill sources and templates, renders runtime skill variants, installs
@@ -75,7 +79,9 @@ research -> raw/ -> ingest -> proposal/reference -> roadmap -> plan -> evidence 
 
 ## Proven By
 
-- `assets/templates/project_guidelines.md` exists and defines the reusable rules
+- `templates/base/project_guidelines.md` and `templates/base/agents.md` define
+  the reusable spine
+- `templates/packs/` defines opt-in domain fragments for generated projects
 - `CLAUDE.md` and `AGENTS.md` exist and define agent workflows for this repo
 - `wiki/index.md` exists and catalogs all wiki content
 - `wiki/log.md` records mutations
@@ -88,6 +94,9 @@ research -> raw/ -> ingest -> proposal/reference -> roadmap -> plan -> evidence 
   registry state without writing to project files
 - `llm-wiki index`, `index-all`, `search`, and `search-all` provide default-on
   qmd-rs-backed search over registered project wiki pages
+- `llm-wiki init` produces project scaffolds from Askama-compiled templates
+  using `--blueprint` and repeatable `--pack`, with golden tests for generic,
+  custom-pack, `ml-research`, and `ops-infra` outputs
 - `llm-wiki build --out .` regenerates this repo's committed runtime skill
   outputs from canonical skill markdown
 - This project uses the framework to manage itself
@@ -101,6 +110,6 @@ research -> raw/ -> ingest -> proposal/reference -> roadmap -> plan -> evidence 
   owns deterministic setup and distribution, not LLM judgment
 - Semantic/hybrid model setup and answer synthesis remain future work; D9 ships
   project-local and explicit cross-project FTS retrieval first
+- QMD integration identified as the scale solution; generated projects can opt
+  into QMD guidance with the `qmd-scale` pack
 - 3-phase ingest pipeline is documented in skills, but not binary-automated
-- Composable init is accepted as D10 but not implemented yet; current generated
-  projects still use the D8 static profile model until D10 lands

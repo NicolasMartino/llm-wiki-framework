@@ -1288,6 +1288,29 @@ wiki/decisions/binary-path-bootstrap.decision.md,
 wiki/plans/binary-path-bootstrap.plan.md,
 wiki/specs/documentation-model.spec.md, wiki/log.md
 
+## [2026-05-07] implement | D10 composable project init
+
+Implemented D10 on branch `d10-composable-project-init` with staged commits.
+`llm-wiki init` now uses Askama templates under `templates/base/` and
+`templates/packs/`, writes canonical `AGENTS.md` plus a `CLAUDE.md` shim,
+accepts `--blueprint <name>` with repeatable `--pack <name>`, rejects retired
+`--type` / `--scale` flags with guidance, and writes `.llm_wiki/init.toml`
+after project files and initial sources are created.
+
+The shipped catalog includes blueprints `generic`, `web-product`,
+`library-sdk`, `ml-research`, `ops-infra`, `security`, `research`, and
+`custom`, plus packs `api`, `frontend`, `library`, `ml`, `data`, `ops`,
+`ops-lite`, `security`, `research`, and `qmd-scale`.
+
+Verification run: `cargo insta test --workspace --accept`.
+
+Pages updated: README.md, assets/skills/knowledge-init/SKILL.md,
+.claude/skills/knowledge-init/SKILL.md, .codex/skills/knowledge-init/SKILL.md,
+.codex/skills/knowledge/SKILL.md, wiki/specs/knowledge-init-skill.spec.md,
+wiki/specs/documentation-model.spec.md,
+wiki/plans/composable-project-init.plan.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
+
 ## [2026-05-07] create | Search backend selection eval
 
 Created the first eval artifact required by the search backend selection

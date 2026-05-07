@@ -1,8 +1,4 @@
 ---
-source: crates/llm-wiki-schema/tests/real_skills.rs
-expression: rendered.skill_md
----
----
 name: knowledge-init
 description: Create or update a software project with the LLM Wiki project management framework. Use when Claude Code is asked to initialize a new project, scaffold a project knowledge base, add the framework to an existing codebase, or run the framework bootstrap flow.
 ---
