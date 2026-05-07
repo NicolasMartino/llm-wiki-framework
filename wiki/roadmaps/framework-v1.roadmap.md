@@ -472,8 +472,9 @@ Proof:
 - Two integration tests through `assert_cmd` — `--blueprint ml-research` and
   `--blueprint ops-infra` non-interactive runs — produce green wikis with the
   expected folders, doc types, and status vocabulary.
-- The migrated existing init template's output is byte-identical to the
-  pre-migration output for at least one fixed input set.
+- The migrated existing init template's content is byte-identical to the
+  pre-migration output for at least one fixed input set, except for the
+  intentional `AGENTS.md` canonical file plus `CLAUDE.md` shim transition.
 - `.llm_wiki/init.toml` round-trips: `init` writes it, a follow-up read parses
   it back into the same enum values.
 

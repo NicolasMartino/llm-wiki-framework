@@ -4,8 +4,9 @@
 - Status: Accepted
 - Date: 2026-04-23
 - Category: Architecture
-- Scope: Adopt raw/ + wiki/ + CLAUDE.md as the project structure, replacing the legacy three-lane docs/ model.
+- Scope: Adopt raw/ + wiki/ + an agent schema file as the project structure, replacing the legacy three-lane docs/ model.
 - Sources: raw/research/llm-wiki-pattern-research.md, raw/legacy/legacy-project-guidelines.md
+- Amended By: wiki/decisions/composable-project-init.decision.md
 
 ## Choice
 
@@ -13,7 +14,9 @@ Use a three-layer architecture:
 
 1. `raw/` - immutable source material (human-curated)
 2. `wiki/` - compiled knowledge (agent-owned)
-3. `CLAUDE.md` - schema (conventions and agent workflows)
+3. Agent schema file - conventions and workflows for the active agent runtime.
+   Historically this was `CLAUDE.md`; D10 makes generated `AGENTS.md`
+   canonical while preserving a small `CLAUDE.md` compatibility shim.
 
 ## Why
 

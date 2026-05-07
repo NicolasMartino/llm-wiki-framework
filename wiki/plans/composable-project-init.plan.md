@@ -23,7 +23,6 @@ Inspect these sites before changing code:
 - `src/init/profile.rs`, `src/init/answers.rs` — current question flow. Step-1 (blueprint) and step-2 (pack multiselect) hook in here.
 - `src/init/command.rs` and `src/cli.rs` — the CLI entry point and flag surface; gain `--blueprint <name>` and repeatable `--pack <name>` flags for the non-interactive path.
 - `assets/templates/project_guidelines.md`, `assets/templates/CLAUDE.md` — the templates being migrated and split. The generated schema target changes from canonical `CLAUDE.md` to canonical `AGENTS.md` plus a `CLAUDE.md` compatibility shim.
-- `src/init/profile.rs`, `src/init/answers.rs` — current `--type` / `--scale` question flow. Step-1 (blueprint) and step-2 (pack multiselect) replace that flow.
 - `Cargo.toml` — adds `askama`, `inquire`, and `toml` to `[workspace.dependencies]` and `[dependencies]`.
 - `tests/init.rs` (and any existing `cargo insta` snapshots covering init) — the golden-file harness extends to cover the new blueprint × pack matrix.
 - Active wiki pages that still describe generated `CLAUDE.md` output or the old static-template asset path. D10 must leave active documentation aligned with the shipped scaffold behavior.

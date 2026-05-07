@@ -180,7 +180,8 @@ Blueprints have no on-disk presence — they are pure Rust enums whose only beha
 
 ## What Closes This Proposal
 
-Promotion to a decision plus a roadmap entry (likely D9) and an execution plan covering:
+This proposal closed when it was promoted to the D10 decision, roadmap entry,
+and execution plan. The implementation plan covers:
 
 1. Asset layout under `templates/{base,packs/<name>}/`.
 2. `Pack` and `Blueprint` enums plus their accessor traits in `src/init/`.
@@ -191,12 +192,19 @@ Promotion to a decision plus a roadmap entry (likely D9) and an execution plan c
 7. `.llm_wiki/init.toml` schema and writer.
 8. Golden-file tests for at least two contrasting blueprints (e.g. `ml-research` vs. `ops-infra`).
 
-## Open Questions
+## Resolved Questions
 
-1. Whether `custom` should let the user *define* a new pack inline, or only select existing ones. Lean toward the latter for now (defining a pack means writing Rust, which is a framework-release activity).
-2. Whether project-local pack overrides under `.llm_wiki/` are in scope for the first cut. Lean no.
-3. Whether the catalog above survives contact with the first two real bootstrapped projects. Treat the catalog as first-cut; the plan revises after dogfooding.
+1. `custom` only selects existing packs in the first cut. Defining a new pack
+   means writing Rust and shipping a framework release.
+2. Project-local pack overrides under `.llm_wiki/` are out of scope for D10;
+   only `.llm_wiki/init.toml` is written.
+3. The template engine is `askama`, with `rinja` retained as a drop-in fallback
+   if `askama` stalls.
+4. Pack-conflict rules are handled by the compile-time pack model: overlaps are
+   visible in Rust definitions and are either deduplicated explicitly or
+   rejected by shared enum matches.
 
-(The earlier `rinja` vs. `askama` open question is decided: `askama`, on ecosystem size and prior in-house experience. `rinja` remains a drop-in fallback if `askama` stalls.)
+## Remaining Question
 
-(The earlier open question about pack-conflict rules — two packs contributing the same doc type or folder — is resolved by the compile-time pack model: overlaps are visible in the Rust definitions and either deduplicated explicitly or rejected by a `match` on a shared enum.)
+Whether the catalog above survives contact with the first two real bootstrapped
+projects. Treat the catalog as first-cut; the plan revises after dogfooding.

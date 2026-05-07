@@ -15,7 +15,7 @@ Updated: 2026-05-08
 
 ## Decisions
 
-- [Three-Layer Architecture](decisions/three-layer-architecture.decision.md) — Accepted — raw/ + wiki/ + CLAUDE.md, replacing legacy three-lane model
+- [Three-Layer Architecture](decisions/three-layer-architecture.decision.md) — Accepted — raw/ + wiki/ + runtime agent schema, replacing legacy three-lane model
 - [Agent Owns Wiki](decisions/agent-owns-wiki.decision.md) — Accepted — Agent has full control of wiki/, humans curate raw/
 - [Typed Documents](decisions/typed-documents.decision.md) — Accepted — Nine document types with distinct truth relationships
 - [Knowledge Command Namespace](decisions/knowledge-command-namespace.decision.md) — Accepted — `$knowledge` is the shared Codex command surface for init/query/ingest/research/lint
@@ -27,7 +27,7 @@ Updated: 2026-05-08
 
 ## Roadmaps
 
-- [Framework V1](roadmaps/framework-v1.roadmap.md) — Active — Framework deliverables through D10: bootstrap, distribution tooling, managed runtime bootstrap, registry-backed search, and composable init
+- [Framework V1](roadmaps/framework-v1.roadmap.md) — Active — Bootstrap through self-replication, completed D8/D8.1/D9 delivery, and draft D10 composable init
 
 ## References
 

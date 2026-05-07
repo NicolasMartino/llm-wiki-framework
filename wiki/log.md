@@ -28,6 +28,22 @@ migration.
 
 Pages updated: wiki/plans/composable-project-init.plan.md, wiki/log.md
 
+## [2026-05-07] lint | D10 bookkeeping consistency
+
+Cleaned up stale D10 wiki bookkeeping from the composable-init promotion.
+Updated the accepted proposal's closure section to point at D10 instead of
+the earlier "likely D9" placeholder, moved resolved first-cut pack questions
+out of the open-question list, and left only the dogfooding catalog question
+open. Aligned the D10 plan and roadmap verification gates with the intentional
+`AGENTS.md` canonical file plus `CLAUDE.md` shim transition. Refreshed the
+three-layer architecture summary to describe a runtime agent schema instead of
+only `CLAUDE.md`, with D10 recorded as the amendment.
+
+Pages updated: wiki/proposals/blueprint-pack-init.proposal.md,
+wiki/plans/composable-project-init.plan.md,
+wiki/roadmaps/framework-v1.roadmap.md,
+wiki/decisions/three-layer-architecture.decision.md, wiki/index.md,
+wiki/log.md
 ## [2026-05-07] lint | D10 pre-implementation cleanup
 
 Resolved D10 documentation inconsistencies before implementation starts.
