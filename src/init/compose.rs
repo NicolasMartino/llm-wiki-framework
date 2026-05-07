@@ -29,7 +29,7 @@ pub struct RenderPlan {
     pub name: String,
     pub description: String,
     pub blueprint: Blueprint,
-    pub packs: Vec<Pack>,
+    pub packs: Option<Vec<Pack>>,
     pub is_existing: bool,
 }
 
@@ -50,12 +50,10 @@ pub struct InitFile {
 
 impl RenderPlan {
     pub fn resolved_packs(&self) -> Vec<Pack> {
-        let selected = if self.packs.is_empty() {
-            self.blueprint.default_packs()
-        } else {
-            self.packs.as_slice()
-        };
-        dedupe_packs(selected)
+        match &self.packs {
+            Some(packs) => dedupe_packs(packs),
+            None => dedupe_packs(self.blueprint.default_packs()),
+        }
     }
 }
 
@@ -127,7 +125,7 @@ fn dedupe_packs(packs: &[Pack]) -> Vec<Pack> {
 }
 
 fn collect_agents_fragments(packs: &[Pack]) -> Result<Vec<String>> {
-    let mut fragments = Vec::new();
+    let mut fragments = agent_catalog_fragments(packs);
     for pack in packs {
         if let Some(fragment) = pack.agents_fragment()? {
             fragments.push(fragment);
@@ -144,6 +142,24 @@ fn collect_guidelines_fragments(packs: &[Pack]) -> Result<Vec<String>> {
         }
     }
     Ok(fragments)
+}
+
+fn agent_catalog_fragments(packs: &[Pack]) -> Vec<String> {
+    let doc_types = dedupe_doc_types(packs);
+    if doc_types.is_empty() {
+        return Vec::new();
+    }
+
+    let mut fragment =
+        "## Pack Document Types\n\n| Document type | Filename suffix | Folder |\n| --- | --- | --- |\n"
+            .to_string();
+    for doc_type in doc_types {
+        fragment.push_str(&format!(
+            "| {} | `{}` | `{}` |\n",
+            doc_type.name, doc_type.suffix, doc_type.folder
+        ));
+    }
+    vec![fragment]
 }
 
 fn catalog_fragments(packs: &[Pack]) -> Vec<String> {
@@ -260,14 +276,18 @@ mod tests {
             name: "Fixture Project".to_string(),
             description: "A fixture project.".to_string(),
             blueprint,
-            packs,
+            packs: Some(packs),
             is_existing: false,
         }
     }
 
     #[test]
     fn blueprint_defaults_resolve_when_no_packs_are_provided() {
-        let output = compose(&plan(Blueprint::MlResearch, Vec::new())).unwrap();
+        let output = compose(&RenderPlan {
+            packs: None,
+            ..plan(Blueprint::MlResearch, Vec::new())
+        })
+        .unwrap();
 
         assert!(output.folders.contains(&"wiki/experiments".to_string()));
         assert!(output.folders.contains(&"wiki/datasets".to_string()));
@@ -312,5 +332,14 @@ mod tests {
                 .count(),
             1
         );
+    }
+
+    #[test]
+    fn explicit_empty_pack_selection_does_not_fall_back_to_blueprint_defaults() {
+        let output = compose(&plan(Blueprint::MlResearch, Vec::new())).unwrap();
+
+        assert!(!output.folders.contains(&"wiki/experiments".to_string()));
+        assert!(!output.folders.contains(&"wiki/datasets".to_string()));
+        assert!(output.resolved_packs.is_empty());
     }
 }

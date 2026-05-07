@@ -140,6 +140,19 @@ fn init_manifest_records_resolved_blueprint_packs() {
 }
 
 #[test]
+fn init_agents_lists_pack_document_types_for_pack_driven_projects() {
+    let temp = TempDir::new().expect("tempdir");
+
+    init_project(temp.path(), "ops-infra", &[], &[]);
+
+    let agents = fs::read_to_string(temp.path().join("AGENTS.md")).expect("agents");
+    assert!(agents.contains("## Pack Document Types"));
+    assert!(agents.contains("| Runbook | `runbook.md` | `wiki/runbooks` |"));
+    assert!(agents.contains("| SLO | `slo.md` | `wiki/slos` |"));
+    assert!(agents.contains("| Postmortem | `postmortem.md` | `wiki/postmortems` |"));
+}
+
+#[test]
 fn initial_sources_are_copied_without_ingest() {
     let temp = TempDir::new().expect("tempdir");
     let home = TempDir::new().expect("home");

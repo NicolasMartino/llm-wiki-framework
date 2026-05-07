@@ -6,7 +6,7 @@
 - Promoted To: wiki/decisions/composable-project-init.decision.md, wiki/plans/composable-project-init.plan.md, wiki/roadmaps/framework-v1.roadmap.md (D10)
 - Category: Tooling, project scaffolding, init UX
 - Scope: Evolve `llm-wiki init` from one static template gated by two conditional flags (`SECTION:ML_AI`, `SECTION:QMD`) into a composable generator that produces a tailored canonical `AGENTS.md` and `project_guidelines.md` from a chosen blueprint plus a set of opt-in packs, and add a per-project `.llm_wiki/` folder for project-specific config and an init manifest.
-- Sources: assets/templates/project_guidelines.md, assets/templates/CLAUDE.md, src/init/{profile,answers,template,scaffold,command}.rs
+- Sources: templates/base/project_guidelines.md, templates/base/agents.md, templates/packs/, src/init/{blueprints,packs,compose,manifest,answers,template,scaffold,command}.rs
 - Related: wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-init-skill.spec.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/proposals/skills-template-engine.proposal.md
 
 ## Question

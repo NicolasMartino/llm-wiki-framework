@@ -10,7 +10,7 @@ pub(super) struct Answers {
     pub(super) name: String,
     pub(super) description: String,
     pub(super) blueprint: Blueprint,
-    pub(super) packs: Vec<Pack>,
+    pub(super) packs: Option<Vec<Pack>>,
     pub(super) existing: bool,
 }
 
@@ -22,7 +22,7 @@ pub(super) fn from_args(args: &InitArgs) -> Result<Answers> {
             name: required_flag("--name", &args.name)?,
             description: required_flag("--description", &args.description)?,
             blueprint: required_flag("--blueprint", &args.blueprint)?.parse()?,
-            packs: parse_packs(&args.packs)?,
+            packs: parse_cli_packs(&args.packs)?,
             existing: args.existing,
         });
     }
@@ -40,9 +40,9 @@ pub(super) fn from_args(args: &InitArgs) -> Result<Answers> {
         None => prompt_blueprint()?,
     };
     let packs = if args.packs.is_empty() {
-        prompt_packs(blueprint)?
+        Some(prompt_packs(blueprint)?)
     } else {
-        parse_packs(&args.packs)?
+        Some(parse_packs(&args.packs)?)
     };
     let existing = if args.existing {
         true
@@ -77,6 +77,14 @@ fn required_flag(name: &'static str, value: &Option<String>) -> Result<String> {
 
 fn parse_packs(values: &[String]) -> Result<Vec<Pack>> {
     values.iter().map(|value| value.parse()).collect()
+}
+
+fn parse_cli_packs(values: &[String]) -> Result<Option<Vec<Pack>>> {
+    if values.is_empty() {
+        Ok(None)
+    } else {
+        parse_packs(values).map(Some)
+    }
 }
 
 fn prompt_blueprint() -> Result<Blueprint> {

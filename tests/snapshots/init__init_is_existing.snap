@@ -184,14 +184,14 @@ Use the document type by role, not by convenience.
 
 Short version:
 
-1. Spec - validated truth
-2. Decision - durable choice
-3. Proposal - direction
-4. Roadmap - ordering
-5. Plan - execution
+- Spec - validated truth
+- Decision - durable choice
+- Proposal - direction
+- Roadmap - ordering
+- Plan - execution
 
-8. Checklist - repeatable procedure
-9. Reference - raw evidence
+- Checklist - repeatable procedure
+- Reference - raw evidence
 
 ## Wiki Folder Structure
 
@@ -484,7 +484,7 @@ maintains, cross-references, and keeps the wiki consistent.
 5. specs and decisions record validated truth
 6. roadmaps coordinate deliverables
 7. plans execute bounded work
-8. experiments and evals produce evidence
+8. tests, demos, and operational checks produce evidence
 9. the index is always current
 10. knowledge compounds with every ingest
 
@@ -545,6 +545,7 @@ Periodically or on request:
 
 - Document types: spec, decision, proposal, roadmap, plan, checklist,
   reference.
+- Pack-specific document types are listed below when active packs add them.
 - Use the type by role, not convenience. See `project_guidelines.md`.
 - Every wiki page has a metadata block: Document Class, Status, Date,
   Category, Scope, Sources, and Related when useful.

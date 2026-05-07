@@ -54,6 +54,7 @@ Periodically or on request:
 
 - Document types: spec, decision, proposal, roadmap, plan, checklist,
   reference{{ ml_ai_types }}.
+- Pack-specific document types are listed below when active packs add them.
 - Use the type by role, not convenience. See `project_guidelines.md`.
 - Every wiki page has a metadata block: Document Class, Status, Date,
   Category, Scope, Sources, and Related when useful.

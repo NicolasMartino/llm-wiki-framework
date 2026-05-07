@@ -212,16 +212,17 @@ Use the document type by role, not by convenience.
 
 Short version:
 
-1. Spec - validated truth
-2. Decision - durable choice
-3. Proposal - direction
-4. Roadmap - ordering
-5. Plan - execution
-{% if include_ml_ai %}6. Experiment - uncertainty
-7. Eval - measured performance
+- Spec - validated truth
+- Decision - durable choice
+- Proposal - direction
+- Roadmap - ordering
+- Plan - execution
+{% if include_ml_ai %}
+- Experiment - uncertainty
+- Eval - measured performance
 {% endif %}
-8. Checklist - repeatable procedure
-9. Reference - raw evidence
+- Checklist - repeatable procedure
+- Reference - raw evidence
 
 ## Wiki Folder Structure
 
@@ -558,6 +559,10 @@ maintains, cross-references, and keeps the wiki consistent.
 5. specs and decisions record validated truth
 6. roadmaps coordinate deliverables
 7. plans execute bounded work
+{%- if include_ml_ai %}
 8. experiments and evals produce evidence
+{%- else %}
+8. tests, demos, and operational checks produce evidence
+{%- endif %}
 9. the index is always current
 10. knowledge compounds with every ingest
