@@ -4,7 +4,6 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use chrono::Utc;
 
-use crate::embed;
 use crate::init::answers::Answers;
 use crate::init::collision::refuse_framework_collision;
 use crate::init::profile::ProjectProfile;
@@ -20,24 +19,16 @@ pub(super) fn create_project(
     fs::create_dir_all(path).with_context(|| format!("failed to create {}", path.display()))?;
     refuse_framework_collision(path)?;
 
-    let project_guidelines = render_project_guidelines(
-        embed::PROJECT_GUIDELINES_TEMPLATE,
-        &answers.name,
-        &answers.description,
-        profile,
-    );
-    let claude = render_agent_template(
-        embed::CLAUDE_TEMPLATE,
-        &answers.name,
-        &answers.description,
-        profile,
-    );
+    let project_guidelines =
+        render_project_guidelines(&answers.name, &answers.description, profile)?;
+    let agents = render_agent_template(&answers.name, &answers.description, profile)?;
 
     create_wiki_dirs(path, profile)?;
     create_code_dirs(path, profile)?;
 
     fs::write(path.join("project_guidelines.md"), project_guidelines)?;
-    fs::write(path.join("CLAUDE.md"), claude)?;
+    fs::write(path.join("AGENTS.md"), agents)?;
+    fs::write(path.join("CLAUDE.md"), "See @AGENTS.md.\n")?;
     fs::write(path.join("wiki/index.md"), index_md(&answers.name, profile))?;
     fs::write(path.join("wiki/log.md"), log_md(&answers.name))?;
 

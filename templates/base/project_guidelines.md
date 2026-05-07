@@ -1,16 +1,16 @@
-# Project Guidelines - {{PROJECT_NAME}}
+# Project Guidelines - {{ project_name }}
 
 - Document Class: Spec
 - Status: Active
-- Date: {{DATE}}
+- Date: {{ date }}
 - Category: Documentation and execution model
 - Scope: Project documentation, knowledge management, and execution rules.
 
 ## Purpose
 
-This file defines the documentation and execution model for {{PROJECT_NAME}}.
+This file defines the documentation and execution model for {{ project_name }}.
 
-{{PROJECT_DESCRIPTION}}
+{{ project_description }}
 
 The model combines the LLM Wiki pattern (Karpathy, 2026) with typed document
 roles. The agent owns the wiki layer. The human curates raw sources and makes
@@ -23,7 +23,7 @@ Three layers:
 ```
 raw/              Immutable source material. Human-curated.
 wiki/             Compiled knowledge. Agent-owned.
-CLAUDE.md         Schema. Conventions, workflows, agent instructions.
+AGENTS.md        Schema. Conventions, workflows, agent instructions.
 ```
 
 The agent compiles raw sources into structured wiki pages at ingest time.
@@ -60,7 +60,7 @@ Rules:
 
 ### Layer 3: The Schema
 
-`CLAUDE.md` at the repository root tells the agent how to operate. It specifies:
+`AGENTS.md` at the repository root tells the agent how to operate. It specifies:
 
 1. wiki structure and folder conventions
 2. ingest, query, and lint workflows
@@ -90,7 +90,7 @@ Contents:
 The index must fit in a single context window. If it grows beyond ~50,000
 tokens, split into a root index with per-type sub-indexes.
 
-<!-- SECTION:QMD - include for medium/large scale projects -->
+{% if include_qmd %}
 ### QMD Search (scale beyond index.md)
 
 For wikis that grow beyond ~100 pages, supplement index.md navigation with
@@ -121,7 +121,7 @@ Auto-reindex after ingest or lint:
 ```bash
 qmd embed -f
 ```
-<!-- END:QMD -->
+{% endif %}
 
 ### log.md
 
@@ -201,14 +201,14 @@ Use the document type by role, not by convenience.
 | `*.checklist.md` | What repeatable procedure must be followed? | Operational, release, deployment, or incident procedure |
 | `*.reference.md` | What external evidence exists? | Source notes for papers, APIs, vendor docs, benchmarks |
 
-<!-- SECTION:ML_AI - include for ML/AI projects -->
+{% if include_ml_ai %}
 ### ML/AI Document Types (ML/AI projects only)
 
 | Document type | Core question | Purpose |
 | --- | --- | --- |
 | `*.experiment.md` | What uncertain question are we testing? | Investigation: setup, observations, measurements, conclusion |
 | `*.eval.md` | How did a candidate perform? | Evaluation report: metrics, failure analysis, recommendation |
-<!-- END:ML_AI -->
+{% endif %}
 
 Short version:
 
@@ -217,8 +217,9 @@ Short version:
 3. Proposal - direction
 4. Roadmap - ordering
 5. Plan - execution
-6. Experiment - uncertainty <!-- CONDITIONAL:ML_AI -->
-7. Eval - measured performance <!-- CONDITIONAL:ML_AI -->
+{% if include_ml_ai %}6. Experiment - uncertainty
+7. Eval - measured performance
+{% endif %}
 8. Checklist - repeatable procedure
 9. Reference - raw evidence
 
@@ -235,8 +236,9 @@ wiki/
   plans/                      Tactical execution
   checklists/                 Repeatable procedures
   references/                 External evidence synthesis
-  experiments/                Investigation records       <!-- CONDITIONAL:ML_AI -->
-  evals/                      Evaluation reports           <!-- CONDITIONAL:ML_AI -->
+{% if include_ml_ai %}  experiments/                Investigation records
+  evals/                      Evaluation reports
+{% endif %}
   archive/                    Completed, superseded, or rejected documents
 ```
 
@@ -244,7 +246,8 @@ wiki/
 
 ```text
 ./
-  CLAUDE.md                   Schema: agent conventions and workflows
+  AGENTS.md                   Schema: agent conventions and workflows
+  CLAUDE.md                   Compatibility shim for Claude-oriented tooling
   project_guidelines.md       This file: documentation and execution model
   README.md                   Project orientation and setup
   raw/                        Immutable source material (human-curated)
@@ -258,23 +261,25 @@ wiki/
     plans/
     checklists/
     references/
-    experiments/              <!-- CONDITIONAL:ML_AI -->
-    evals/                    <!-- CONDITIONAL:ML_AI -->
+{% if include_ml_ai %}    experiments/
+    evals/
+{% endif %}
     archive/
   src/                        Application code
   tests/                      Automated tests
   scripts/                    Utilities and automation
   infra/                      Infrastructure definitions
-  models/                     Model artifacts, configs     <!-- CONDITIONAL:ML_AI -->
-  data/                       Datasets, schemas, pipelines <!-- CONDITIONAL:ML_AI -->
-  notebooks/                  Exploratory analysis         <!-- CONDITIONAL:ML_AI -->
-  evals/                      Evaluation harnesses (code)  <!-- CONDITIONAL:ML_AI -->
+{% if include_ml_ai %}  models/                     Model artifacts, configs
+  data/                       Datasets, schemas, pipelines
+  notebooks/                  Exploratory analysis
+  evals/                      Evaluation harnesses (code)
+{% endif %}
 ```
 
-<!-- SECTION:ML_AI -->
+{% if include_ml_ai %}
 Note: `evals/` at root contains evaluation code and harnesses. `wiki/evals/`
 contains evaluation report documents. Code and documentation are separate.
-<!-- END:ML_AI -->
+{% endif %}
 
 ## Naming And Metadata
 
@@ -416,7 +421,7 @@ A plan answers:
 7. What wiki pages should be updated when done?
 8. What closes the plan?
 
-<!-- SECTION:ML_AI -->
+{% if include_ml_ai %}
 ## Experiment Template
 
 An experiment captures:
@@ -441,7 +446,7 @@ An eval captures:
 5. Failure analysis
 6. Resource profile
 7. Recommendation
-<!-- END:ML_AI -->
+{% endif %}
 
 ## Spec Template
 
@@ -528,7 +533,7 @@ Before starting work, ask:
 
 When starting work on a project, the agent reads:
 
-1. `CLAUDE.md` - schema and conventions
+1. `AGENTS.md` - schema and conventions
 2. `project_guidelines.md` - this file
 3. `wiki/index.md` - orient to all project knowledge
 4. relevant wiki pages identified from the index

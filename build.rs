@@ -29,31 +29,16 @@ fn main() {
         read(&config);
     }
 
-    let project_guidelines = root.join("assets/templates/project_guidelines.md");
+    let project_guidelines = root.join("templates/base/project_guidelines.md");
     println!("cargo:rerun-if-changed={}", project_guidelines.display());
-    validate_conditional_markers(&read(&project_guidelines), &project_guidelines);
+    read(&project_guidelines);
 
-    let claude_template = root.join("assets/templates/CLAUDE.md");
-    println!("cargo:rerun-if-changed={}", claude_template.display());
-    read(&claude_template);
+    let agents_template = root.join("templates/base/agents.md");
+    println!("cargo:rerun-if-changed={}", agents_template.display());
+    read(&agents_template);
 }
 
 fn read(path: &Path) -> String {
     fs::read_to_string(path)
         .unwrap_or_else(|err| panic!("failed to read {}: {err}", path.display()))
-}
-
-fn validate_conditional_markers(input: &str, path: &Path) {
-    for section in ["ML_AI", "QMD"] {
-        let start = format!("<!-- SECTION:{section}");
-        let end = format!("<!-- END:{section} -->");
-        let starts = input.matches(&start).count();
-        let ends = input.matches(&end).count();
-        if starts != ends {
-            panic!(
-                "unbalanced conditional markers in {}: {start} count {starts}, {end} count {ends}",
-                path.display()
-            );
-        }
-    }
 }

@@ -243,6 +243,8 @@ fn snapshot_project(path: &Path) -> String {
     }
     output.push_str("\n# project_guidelines.md\n");
     output.push_str(&fs::read_to_string(path.join("project_guidelines.md")).expect("guidelines"));
+    output.push_str("\n# AGENTS.md\n");
+    output.push_str(&fs::read_to_string(path.join("AGENTS.md")).expect("agents"));
     output.push_str("\n# CLAUDE.md\n");
     output.push_str(&fs::read_to_string(path.join("CLAUDE.md")).expect("claude"));
     output.push_str("\n# wiki/index.md\n");

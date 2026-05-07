@@ -36,7 +36,3 @@ pub const SKILLS: &[SkillAsset] = &[
         codex_openai: include_str!("../assets/skills/knowledge/codex/openai.yaml"),
     },
 ];
-
-pub const PROJECT_GUIDELINES_TEMPLATE: &str =
-    include_str!("../assets/templates/project_guidelines.md");
-pub const CLAUDE_TEMPLATE: &str = include_str!("../assets/templates/CLAUDE.md");

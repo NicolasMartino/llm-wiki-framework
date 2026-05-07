@@ -1,80 +1,61 @@
+use anyhow::{Context, Result};
+use askama::Template;
 use chrono::Utc;
 
 use super::profile::ProjectProfile;
 
+#[derive(Template)]
+#[template(path = "base/project_guidelines.md", escape = "none")]
+struct ProjectGuidelinesTemplate<'a> {
+    project_name: &'a str,
+    project_description: &'a str,
+    date: &'a str,
+    include_ml_ai: bool,
+    include_qmd: bool,
+}
+
+#[derive(Template)]
+#[template(path = "base/agents.md", escape = "none")]
+struct AgentsTemplate<'a> {
+    project_name: &'a str,
+    project_description: &'a str,
+    ml_ai_types: &'a str,
+}
+
 pub fn render_project_guidelines(
-    template: &str,
     name: &str,
     description: &str,
     profile: &ProjectProfile,
-) -> String {
+) -> Result<String> {
     let date = Utc::now().date_naive().to_string();
-    let replaced = template
-        .replace("{{PROJECT_NAME}}", name)
-        .replace("{{PROJECT_DESCRIPTION}}", description)
-        .replace("{{DATE}}", &date);
-    resolve_conditionals(&replaced, profile)
+    let template = ProjectGuidelinesTemplate {
+        project_name: name,
+        project_description: description,
+        date: &date,
+        include_ml_ai: profile.include_ml_ai,
+        include_qmd: profile.include_qmd,
+    };
+    template
+        .render()
+        .map(|rendered| compact_blank_lines(&rendered))
+        .context("failed to render project_guidelines.md")
 }
 
 pub fn render_agent_template(
-    template: &str,
     name: &str,
     description: &str,
     profile: &ProjectProfile,
-) -> String {
-    template
-        .replace("{{PROJECT_NAME}}", name)
-        .replace("{{PROJECT_DESCRIPTION}}", description)
-        .replace(
-            "{{ML_AI_TYPES}}",
-            if profile.include_ml_ai {
-                ", experiment, eval"
-            } else {
-                ""
-            },
-        )
-}
-
-fn resolve_conditionals(input: &str, profile: &ProjectProfile) -> String {
-    let mut output = Vec::new();
-    let mut skip_until: Option<&str> = None;
-    for line in input.lines() {
-        if let Some(section) = skip_until {
-            if line.contains(&format!("<!-- END:{section} -->")) {
-                skip_until = None;
-            }
-            continue;
-        }
-
-        if line.contains("<!-- SECTION:ML_AI") {
-            if profile.include_ml_ai {
-                continue;
-            }
-            skip_until = Some("ML_AI");
-            continue;
-        }
-        if line.contains("<!-- SECTION:QMD") {
-            if profile.include_qmd {
-                continue;
-            }
-            skip_until = Some("QMD");
-            continue;
-        }
-        if line.contains("<!-- END:ML_AI -->") || line.contains("<!-- END:QMD -->") {
-            continue;
-        }
-        if line.contains("<!-- CONDITIONAL:ML_AI -->") {
-            if profile.include_ml_ai {
-                output.push(line.replace("<!-- CONDITIONAL:ML_AI -->", ""));
-            }
-            continue;
-        }
-        if line.trim_start().starts_with("<!--") && line.trim_end().ends_with("-->") {
-            continue;
-        }
-        output.push(line.to_string());
-    }
-    compact_blank_lines(&output.join("\n"))
+) -> Result<String> {
+    let template = AgentsTemplate {
+        project_name: name,
+        project_description: description,
+        ml_ai_types: if profile.include_ml_ai {
+            ", experiment, eval"
+        } else {
+            ""
+        },
+    };
+    template.render().context("failed to render AGENTS.md")
 }
 
 fn compact_blank_lines(input: &str) -> String {
