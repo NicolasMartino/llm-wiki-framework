@@ -426,6 +426,7 @@ mod enabled {
             BackendState, IndexOptions, SearchBackend, SearchFilters, SearchMode,
         };
         use std::fs;
+        use std::path::Path;
 
         #[test]
         fn indexes_searches_filters_and_reports_staleness() {
@@ -486,6 +487,82 @@ mod enabled {
                 .doctor(&store, &wiki, SearchMode::Fts)
                 .expect("doctor");
             assert_eq!(stale.state, BackendState::Stale);
+        }
+
+        #[test]
+        fn fixed_eval_queries_keep_expected_targets_in_top_two() {
+            let repo = Path::new(env!("CARGO_MANIFEST_DIR"));
+            let wiki = repo.join("wiki");
+            let temp = tempfile::TempDir::new().expect("tempdir");
+            let store = temp.path().join("qmd-rs.sqlite");
+            let backend = QmdRsBackend::new();
+            backend
+                .index_project("fixture", &wiki, &store, &IndexOptions { force: true })
+                .expect("index");
+
+            let cases: &[(&str, &[&str])] = &[
+                (
+                    "managed binary runtime install manifest",
+                    &[
+                        "wiki/plans/binary-path-bootstrap.plan.md",
+                        "wiki/decisions/binary-path-bootstrap.decision.md",
+                    ],
+                ),
+                (
+                    "agent owns wiki humans curate raw",
+                    &["wiki/decisions/agent-owns-wiki.decision.md"],
+                ),
+                (
+                    "search backend selection qmd-rs eval",
+                    &[
+                        "wiki/proposals/search-backend-selection.proposal.md",
+                        "wiki/evals/search-backend-selection.eval.md",
+                        "wiki/decisions/search-backend-selection.decision.md",
+                    ],
+                ),
+                (
+                    "knowledge research intake bundle manifest summary",
+                    &[
+                        "wiki/plans/knowledge-research-intake.plan.md",
+                        "wiki/decisions/knowledge-research-intake.decision.md",
+                    ],
+                ),
+                (
+                    "QMD hybrid search MCP",
+                    &["wiki/references/qmd-search-engine.reference.md"],
+                ),
+                (
+                    "three phase ingest extraction drafting bookkeeping",
+                    &["wiki/references/three-phase-ingest-pipeline.reference.md"],
+                ),
+                (
+                    "project registry search-all reciprocal rank fusion",
+                    &["wiki/proposals/project-registry-search-artifacts.proposal.md"],
+                ),
+                (
+                    "D8 distribution tooling cargo dist skill projection",
+                    &[
+                        "wiki/plans/llm-wiki-binary.plan.md",
+                        "wiki/proposals/llm-wiki-binary.proposal.md",
+                    ],
+                ),
+            ];
+
+            for (query, expected) in cases {
+                let results = backend
+                    .search_project(&store, query, &SearchFilters::default(), 2)
+                    .unwrap_or_else(|error| panic!("{query}: {error}"));
+                let paths = results
+                    .iter()
+                    .map(|result| result.path.to_string_lossy().to_string())
+                    .collect::<Vec<_>>();
+                assert!(
+                    paths
+                        .iter()
+                        .any(|path| expected.iter().any(|candidate| candidate == path)),
+                    "{query}: expected one of {expected:?} in top two, got {paths:?}",
+                );
+            }
         }
     }
 }
