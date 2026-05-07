@@ -86,6 +86,8 @@ pub enum OutputFormat {
 pub struct InitArgs {
     pub path: PathBuf,
     #[arg(long)]
+    pub no_register: bool,
+    #[arg(long)]
     pub non_interactive: bool,
     #[arg(long)]
     pub name: Option<String>,

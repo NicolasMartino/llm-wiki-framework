@@ -49,16 +49,12 @@ pub enum RegisterOutcome {
 }
 
 pub fn register(args: &RegisterArgs) -> Result<()> {
-    let paths = Paths::from_env()?;
-    let mut registry = ProjectRegistry::read(&paths.project_registry())?;
-    let root = validate_project_root(&args.path)?;
-    let outcome = registry.register(RegisterRequest {
-        root,
-        name: args.name.clone(),
-        id: args.id.clone(),
-        update: args.update.clone(),
-    })?;
-    registry.write_atomic(&paths.project_registry())?;
+    let outcome = register_project(
+        &args.path,
+        args.name.clone(),
+        args.id.clone(),
+        args.update.clone(),
+    )?;
 
     match outcome {
         RegisterOutcome::Created(id) => println!("Registered project: {id}"),
@@ -66,6 +62,33 @@ pub fn register(args: &RegisterArgs) -> Result<()> {
         RegisterOutcome::Unchanged(id) => println!("Project already registered: {id}"),
     }
     Ok(())
+}
+
+pub fn register_project(
+    path: &Path,
+    name: Option<String>,
+    id: Option<String>,
+    update: Option<String>,
+) -> Result<RegisterOutcome> {
+    let paths = Paths::from_env()?;
+    let mut registry = ProjectRegistry::read(&paths.project_registry())?;
+    let root = validate_project_root(path)?;
+    let outcome = registry.register(RegisterRequest {
+        root,
+        name,
+        id,
+        update,
+    })?;
+    registry.write_atomic(&paths.project_registry())?;
+    Ok(outcome)
+}
+
+pub fn outcome_id(outcome: &RegisterOutcome) -> &str {
+    match outcome {
+        RegisterOutcome::Created(id)
+        | RegisterOutcome::Updated(id)
+        | RegisterOutcome::Unchanged(id) => id,
+    }
 }
 
 pub fn forget(args: &ForgetArgs) -> Result<()> {
