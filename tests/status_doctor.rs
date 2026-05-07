@@ -7,7 +7,10 @@ use tempfile::TempDir;
 
 fn llm_wiki(home: &Path) -> Command {
     let mut command = Command::cargo_bin("llm-wiki").expect("binary");
-    command.env("HOME", home);
+    command
+        .env("HOME", home)
+        .env_remove("XDG_CACHE_HOME")
+        .env_remove("XDG_DATA_HOME");
     command
 }
 
@@ -111,7 +114,33 @@ fn doctor_reports_project_search_skipped_outside_wiki_project() {
         .assert()
         .success()
         .stdout(predicate::str::contains("Current project:"))
+        .stdout(predicate::str::contains("Registry:"))
         .stdout(predicate::str::contains("project search checks skipped"));
+}
+
+#[test]
+fn doctor_reports_registry_state_and_missing_roots() {
+    let home = TempDir::new().expect("home");
+    let project = wiki_project();
+    let cwd = TempDir::new().expect("cwd");
+
+    llm_wiki(home.path())
+        .args(["register", "--id", "fixture"])
+        .arg(project.path())
+        .assert()
+        .success();
+    fs::remove_dir_all(project.path()).expect("remove project");
+
+    llm_wiki(home.path())
+        .current_dir(cwd.path())
+        .arg("doctor")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Registry:"))
+        .stdout(predicate::str::contains("(1 projects)"))
+        .stdout(predicate::str::contains(
+            "Registered project root missing: fixture",
+        ));
 }
 
 fn wiki_project() -> TempDir {
@@ -119,6 +148,7 @@ fn wiki_project() -> TempDir {
     fs::create_dir_all(project.path().join("wiki")).expect("wiki");
     fs::write(project.path().join("wiki/index.md"), "# Index").expect("index");
     fs::write(project.path().join("wiki/log.md"), "# Log").expect("log");
+    fs::write(project.path().join("AGENTS.md"), "# Agents").expect("agents");
     project
 }
 
