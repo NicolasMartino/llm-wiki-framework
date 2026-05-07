@@ -17,6 +17,8 @@ pub enum Command {
     Register(RegisterArgs),
     Forget(ForgetArgs),
     Projects(ProjectsArgs),
+    Index(IndexArgs),
+    Search(SearchArgs),
     Path,
     Status,
     Doctor,
@@ -72,6 +74,29 @@ pub struct ForgetArgs {
 
 #[derive(Debug, clap::Args)]
 pub struct ProjectsArgs {
+    #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
+    pub format: OutputFormat,
+}
+
+#[derive(Debug, clap::Args)]
+pub struct IndexArgs {
+    #[arg(long)]
+    pub project: Option<String>,
+    #[arg(long)]
+    pub force: bool,
+}
+
+#[derive(Debug, clap::Args)]
+pub struct SearchArgs {
+    pub query: String,
+    #[arg(long)]
+    pub project: Option<String>,
+    #[arg(long = "class")]
+    pub document_class: Option<String>,
+    #[arg(long)]
+    pub status: Option<String>,
+    #[arg(long, default_value_t = 10)]
+    pub limit: usize,
     #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
     pub format: OutputFormat,
 }

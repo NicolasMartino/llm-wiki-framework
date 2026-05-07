@@ -26,6 +26,8 @@ fn main() -> Result<()> {
         Command::Register(args) => registry::register(args),
         Command::Forget(args) => registry::forget(args),
         Command::Projects(args) => registry::projects(args),
+        Command::Index(args) => search::commands::index(args),
+        Command::Search(args) => search::commands::search(args),
         Command::Path => path_guidance::run(),
         Command::Status => status::run(),
         Command::Doctor => doctor::run(),

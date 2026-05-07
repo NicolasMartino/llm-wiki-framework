@@ -1,8 +1,9 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::UNIX_EPOCH;
 
 use anyhow::{Context, Result, bail};
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::cli::{ForgetArgs, OutputFormat, ProjectsArgs, RegisterArgs};
@@ -197,6 +198,38 @@ impl ProjectRegistry {
         Ok(())
     }
 
+    pub fn project_by_id(&self, project_id: &str) -> Option<&RegisteredProject> {
+        self.projects
+            .iter()
+            .find(|project| project.id == project_id)
+    }
+
+    pub fn project_by_root(&self, root: &Path) -> Option<&RegisteredProject> {
+        self.project_index_by_root(root)
+            .map(|index| &self.projects[index])
+    }
+
+    pub fn record_index_success(
+        &mut self,
+        project_id: &str,
+        indexed_files: usize,
+        wiki_root: &Path,
+    ) -> Result<()> {
+        let Some(project) = self
+            .projects
+            .iter_mut()
+            .find(|project| project.id == project_id)
+        else {
+            bail!("project id {project_id} is not registered");
+        };
+        project.last_indexed_at = Some(Utc::now().to_rfc3339());
+        project.last_indexed_wiki_max_mtime = max_wiki_modified(wiki_root)?;
+        project.indexed_file_count = indexed_files;
+        project.backend = BACKEND_NAME.to_string();
+        project.index_schema_version = INDEX_SCHEMA_VERSION;
+        Ok(())
+    }
+
     fn register(&mut self, request: RegisterRequest) -> Result<RegisterOutcome> {
         if let Some(update_id) = request.update.clone() {
             return self.update_existing(&update_id, request);
@@ -316,6 +349,12 @@ impl ProjectRegistry {
     }
 }
 
+impl RegisteredProject {
+    pub fn wiki_root(&self) -> PathBuf {
+        self.root.join(&self.wiki_path)
+    }
+}
+
 fn validate_project_root(path: &Path) -> Result<PathBuf> {
     let root = fs::canonicalize(path)
         .with_context(|| format!("canonicalize project root {}", path.display()))?;
@@ -397,6 +436,34 @@ fn dir_size(path: &Path) -> Result<u64> {
         }
     }
     Ok(total)
+}
+
+fn max_wiki_modified(wiki_root: &Path) -> Result<Option<String>> {
+    let mut max_modified = None;
+    collect_max_modified(wiki_root, &mut max_modified)?;
+    Ok(max_modified.map(|time| DateTime::<Utc>::from(time).to_rfc3339()))
+}
+
+fn collect_max_modified(
+    path: &Path,
+    max_modified: &mut Option<std::time::SystemTime>,
+) -> Result<()> {
+    if !path.exists() {
+        return Ok(());
+    }
+    for entry in fs::read_dir(path).with_context(|| format!("read dir {}", path.display()))? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_dir() {
+            collect_max_modified(&path, max_modified)?;
+        } else if path.extension().and_then(|value| value.to_str()) == Some("md") {
+            let modified = entry.metadata()?.modified().unwrap_or(UNIX_EPOCH);
+            if max_modified.is_none_or(|current| modified > current) {
+                *max_modified = Some(modified);
+            }
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
