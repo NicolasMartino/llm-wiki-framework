@@ -7,6 +7,7 @@ mod install;
 mod manifest;
 mod path_guidance;
 mod paths;
+mod registry;
 mod search;
 mod skill_render;
 mod status;
@@ -22,6 +23,9 @@ fn main() -> Result<()> {
         Command::Build(args) => build::run(args),
         Command::Install(args) => install::run(args.force, !args.skip_path_guidance),
         Command::Init(args) => init::run(args),
+        Command::Register(args) => registry::register(args),
+        Command::Forget(args) => registry::forget(args),
+        Command::Projects(args) => registry::projects(args),
         Command::Path => path_guidance::run(),
         Command::Status => status::run(),
         Command::Doctor => doctor::run(),

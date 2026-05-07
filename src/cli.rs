@@ -14,6 +14,9 @@ pub enum Command {
     Build(BuildArgs),
     Install(InstallArgs),
     Init(InitArgs),
+    Register(RegisterArgs),
+    Forget(ForgetArgs),
+    Projects(ProjectsArgs),
     Path,
     Status,
     Doctor,
@@ -47,6 +50,36 @@ pub struct InstallArgs {
 pub struct UninstallArgs {
     #[arg(long)]
     pub include_binary: bool,
+}
+
+#[derive(Debug, clap::Args)]
+pub struct RegisterArgs {
+    #[arg(long)]
+    pub update: Option<String>,
+    pub path: PathBuf,
+    #[arg(long)]
+    pub name: Option<String>,
+    #[arg(long)]
+    pub id: Option<String>,
+}
+
+#[derive(Debug, clap::Args)]
+pub struct ForgetArgs {
+    pub project_id: String,
+    #[arg(long)]
+    pub delete_cache: bool,
+}
+
+#[derive(Debug, clap::Args)]
+pub struct ProjectsArgs {
+    #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
+    pub format: OutputFormat,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub enum OutputFormat {
+    Text,
+    Json,
 }
 
 #[derive(Debug, clap::Args)]

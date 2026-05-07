@@ -7,6 +7,7 @@ use anyhow::{Context, Result};
 pub struct Paths {
     pub home: PathBuf,
     pub cache_home: PathBuf,
+    pub data_home: PathBuf,
 }
 
 impl Paths {
@@ -17,7 +18,15 @@ impl Paths {
             .map(PathBuf::from)
             .unwrap_or_else(|| home.join(".cache"))
             .join("llm-wiki");
-        Ok(Self { home, cache_home })
+        let data_home = env::var_os("XDG_DATA_HOME")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| home.join(".local/share"))
+            .join("llm-wiki");
+        Ok(Self {
+            home,
+            cache_home,
+            data_home,
+        })
     }
 
     pub fn claude_skill(&self, skill: &str) -> PathBuf {
@@ -76,6 +85,14 @@ impl Paths {
 
     pub fn qmd_rs_store_path(&self, project_key: &str) -> PathBuf {
         self.project_index_dir(project_key).join("qmd-rs.sqlite")
+    }
+
+    pub fn data_home(&self) -> PathBuf {
+        self.data_home.clone()
+    }
+
+    pub fn project_registry(&self) -> PathBuf {
+        self.data_home().join("projects.json")
     }
 }
 
@@ -144,6 +161,7 @@ mod tests {
         let temp = tempfile::TempDir::new().expect("tempdir");
         let _home = EnvGuard::set("HOME", temp.path());
         let _cache = EnvGuard::remove("XDG_CACHE_HOME");
+        let _data = EnvGuard::remove("XDG_DATA_HOME");
 
         let paths = Paths::from_env().expect("paths");
 
@@ -157,6 +175,10 @@ mod tests {
             paths.model_cache(),
             temp.path().join(".cache/llm-wiki/models")
         );
+        assert_eq!(
+            paths.project_registry(),
+            temp.path().join(".local/share/llm-wiki/projects.json")
+        );
     }
 
     #[test]
@@ -164,8 +186,10 @@ mod tests {
         let _lock = ENV_LOCK.lock().expect("env lock");
         let home = tempfile::TempDir::new().expect("home");
         let cache = tempfile::TempDir::new().expect("cache");
+        let data = tempfile::TempDir::new().expect("data");
         let _home = EnvGuard::set("HOME", home.path());
         let _cache = EnvGuard::set("XDG_CACHE_HOME", cache.path());
+        let _data = EnvGuard::set("XDG_DATA_HOME", data.path());
 
         let paths = Paths::from_env().expect("paths");
 
@@ -173,6 +197,10 @@ mod tests {
         assert_eq!(
             paths.project_index_dir("fixture"),
             cache.path().join("llm-wiki/indexes/fixture")
+        );
+        assert_eq!(
+            paths.project_registry(),
+            data.path().join("llm-wiki/projects.json")
         );
     }
 }
