@@ -84,9 +84,8 @@ research -> raw/ -> ingest -> proposal/reference -> roadmap -> plan -> evidence 
   profile-specific golden tests
 - `llm-wiki register`, `forget`, and `projects` manage host-local project
   registry state without writing to project files
-- `llm-wiki index`, `index-all`, `search`, and `search-all` provide
-  feature-gated search command plumbing with clear default-build diagnostics and
-  qmd-rs-backed behavior when the feature is enabled
+- `llm-wiki index`, `index-all`, `search`, and `search-all` provide default-on
+  qmd-rs-backed search over registered project wiki pages
 - `llm-wiki build --out .` regenerates this repo's committed runtime skill
   outputs from canonical skill markdown
 - This project uses the framework to manage itself

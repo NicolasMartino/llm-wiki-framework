@@ -527,10 +527,11 @@ The default-on qmd-rs addendum was implemented on 2026-05-07.
   and disabled backend stub were removed.
 - Default builds compile the qmd-rs adapter and run real `index`, `index-all`,
   `search`, `search-all`, and `doctor` behavior.
-- Project IDs are validated before persistence, same-project indexing is
-  lock-protected, failed rebuilds preserve the previous store through
-  temp-store promotion, and `projects` reports root/index/freshness state in
-  text and JSON.
+- Project IDs are validated before persistence, same-project indexing uses an
+  advisory lock so stale lock files do not permanently block indexing, failed
+  rebuilds preserve the previous store through rollback-tested temp-store
+  promotion, and `projects` reports root/index/freshness state in text and
+  JSON.
 - Stale index search warnings are covered in text and JSON, `search-all`
   validates `--exclude` IDs, and unknown freshness is no longer remapped to
   fresh.

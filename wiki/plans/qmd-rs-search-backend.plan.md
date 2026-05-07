@@ -90,31 +90,28 @@ src/search/
 
 Responsibilities:
 
-- `adapter.rs`: backend trait, result types, filters, status types, and
-  feature-disabled stub behavior.
+- `adapter.rs`: backend trait, result types, filters, and status types.
 - `metadata.rs`: wiki H1 and leading bullet-list metadata parsing.
 - `sanitize.rs`: qmd-rs FTS query normalization.
 - `project.rs`: CWD project discovery and project-key derivation until the
   registry lands.
-- `qmd_rs.rs`: qmd-rs implementation, compiled behind the qmd-rs Cargo feature
-  until Phase 0 explicitly accepts default-on shipping.
+- `qmd_rs.rs`: qmd-rs implementation behind the internal adapter.
 
-## Implementation Notes
+## Superseded Initial Implementation Notes
 
 Phase 0 implementation started on 2026-05-07.
 
-Decision: qmd-rs remains feature-gated behind the Cargo feature `qmd-rs`.
-Default builds do not compile or ship qmd-rs, llama.cpp, reqwest, or rusqlite.
-When the feature is disabled, the internal adapter reports a stable
-`FeatureDisabled` state and `doctor` prints that the qmd-rs backend feature is
+Initial decision: qmd-rs remained feature-gated behind the Cargo feature
+`qmd-rs`. Default builds did not compile or ship qmd-rs, llama.cpp, reqwest, or
+rusqlite. When the feature was disabled, the internal adapter reported a stable
+`FeatureDisabled` state and `doctor` printed that the qmd-rs backend feature was
 disabled.
 
-Post-D9 addendum: this implementation note is superseded for future release
-work by the default-on qmd-rs release addendum in
+Post-D9 result: this implementation note was superseded by the default-on
+qmd-rs release addendum in
 `wiki/plans/project-registry-search-artifacts.plan.md`. The feature-gated
 adapter was valid for the completed backend and D9 command implementation
-slices, but the next implementation target is to remove the Cargo feature and
-ship qmd-rs in normal release binaries.
+slices, but qmd-rs now ships in normal default builds.
 
 Measured dependency impact:
 
@@ -135,8 +132,9 @@ Measured artifact impact:
 - Default dist binary size: 1.7 MB.
 - Default compressed dist archive size: 530 KB.
 - qmd-rs feature release binary size on the local host: 4.9 MB.
-- Because qmd-rs is feature-gated and disabled by default, `llm-wiki install`
-  does not yet need a larger-download warning for the default managed binary.
+- After the default-on addendum, `llm-wiki install` uses the qmd-rs-enabled
+  binary by default; any larger-download warning belongs to release polish, not
+  the backend adapter slice.
 
 Distribution status:
 
@@ -238,10 +236,10 @@ tests stay isolated.
 5. Confirm `cargo-dist` can still build all four release targets currently in
    scope.
 6. Record release binary and installer size deltas.
-7. Keep stable feature-disabled stub behavior in the adapter: tests and
-   diagnostics should report the backend as unavailable because the qmd-rs
-   feature is disabled, not fail with missing symbols or partial command
-   behavior.
+7. For the initial feature-gated spike, keep stable feature-disabled stub
+   behavior in the adapter: tests and diagnostics should report the backend as
+   unavailable because the qmd-rs feature is disabled, not fail with missing
+   symbols or partial command behavior.
 8. Decide whether the first implementation enables qmd-rs by default or keeps it
    feature-gated during development.
 9. Decide whether `llm-wiki install` needs a warning or confirmation when the
@@ -254,10 +252,11 @@ Verification:
   supported target, or the plan records the blocked target and mitigation.
 - Dependency, license, build-time, and artifact-size impact are recorded in
   this plan under Implementation Notes before broad command work starts.
-- Default-on qmd-rs requires explicit acceptance in Implementation Notes if the
-  release binary exceeds 100 MB, any compressed installer exceeds 75 MB, or any
-  supported target's release build exceeds 15 minutes in CI. Otherwise qmd-rs
-  must remain feature-gated or the decision must be revisited.
+- The initial spike required explicit acceptance in Implementation Notes before
+  default-on qmd-rs if the release binary exceeded 100 MB, any compressed
+  installer exceeded 75 MB, or any supported target's release build exceeded 15
+  minutes in CI. The later default-on addendum superseded this gate after local
+  release checks passed.
 
 ### 1. Search module, paths, and project discovery
 

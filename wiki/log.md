@@ -1211,6 +1211,23 @@ local `just release-build` for `aarch64-apple-darwin`.
 Pages updated: wiki/plans/project-registry-search-artifacts.plan.md,
 wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
 
+## [2026-05-07] fix | qmd-rs promotion and lock hardening
+
+Closed follow-up review findings in the qmd-rs indexing path. Store promotion
+rollback now removes any partially promoted new files before restoring all old
+backups, with a unit test that injects a promotion-phase failure. Project index
+locking now uses an advisory lock held by an open `qmd-rs.lock` file, so a
+leftover lockfile from a killed process does not permanently block future index
+commands.
+
+Updated active documentation to remove stale feature-gated search wording from
+the documentation model spec and made the qmd-rs backend plan's feature-gated
+section explicitly historical/superseded.
+
+Pages updated: wiki/specs/documentation-model.spec.md,
+wiki/plans/qmd-rs-search-backend.plan.md,
+wiki/plans/project-registry-search-artifacts.plan.md, wiki/log.md
+
 ## [2026-05-07] complete | D9 project registry and search artifacts
 
 Implemented the D9 registry and search command surface in `llm-wiki`.

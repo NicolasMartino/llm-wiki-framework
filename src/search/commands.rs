@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
-use std::fs;
+use std::fs::{self, File, OpenOptions};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -104,22 +105,30 @@ fn index_registered_project(
 #[derive(Debug)]
 struct ProjectIndexLock {
     path: PathBuf,
+    _file: File,
 }
 
 impl ProjectIndexLock {
     fn acquire(project_index_dir: &Path) -> Result<Self> {
         let path = project_index_dir.join("qmd-rs.lock");
-        fs::OpenOptions::new()
+        let mut file = OpenOptions::new()
+            .read(true)
             .write(true)
-            .create_new(true)
+            .create(true)
+            .truncate(false)
             .open(&path)
-            .with_context(|| {
-                format!(
-                    "project index is already locked or cannot be locked: {}",
-                    path.display()
-                )
-            })?;
-        Ok(Self { path })
+            .with_context(|| format!("project index lock cannot be opened: {}", path.display()))?;
+        file.try_lock().with_context(|| {
+            format!(
+                "project index is already locked: {}. If no llm-wiki index process is running, remove this stale lock file and retry.",
+                path.display()
+            )
+        })?;
+        file.set_len(0)
+            .with_context(|| format!("truncate project index lock {}", path.display()))?;
+        writeln!(file, "pid={}", process::id())
+            .with_context(|| format!("write project index lock {}", path.display()))?;
+        Ok(Self { path, _file: file })
     }
 }
 
@@ -168,6 +177,14 @@ fn unique_suffix() -> String {
 }
 
 fn promote_qmd_rs_store(temp_store: &Path, live_store: &Path) -> Result<()> {
+    promote_qmd_rs_store_inner(temp_store, live_store, None)
+}
+
+fn promote_qmd_rs_store_inner(
+    temp_store: &Path,
+    live_store: &Path,
+    fail_after_promotes: Option<usize>,
+) -> Result<()> {
     if !temp_store.exists() {
         bail!(
             "temporary qmd-rs store was not created: {}",
@@ -191,6 +208,7 @@ fn promote_qmd_rs_store(temp_store: &Path, live_store: &Path) -> Result<()> {
         }
     }
 
+    let mut promoted = Vec::new();
     let promote_result = (|| -> Result<()> {
         for (temp, live) in related_store_paths(temp_store)
             .into_iter()
@@ -204,14 +222,26 @@ fn promote_qmd_rs_store(temp_store: &Path, live_store: &Path) -> Result<()> {
                         live.display()
                     )
                 })?;
+                promoted.push(live.clone());
+                if fail_after_promotes.is_some_and(|limit| promoted.len() >= limit) {
+                    bail!("simulated qmd-rs store promotion failure");
+                }
             }
         }
         Ok(())
     })();
 
     if let Err(error) = promote_result {
+        for live in promoted.iter().rev() {
+            if live.exists() {
+                let _ = fs::remove_file(live);
+            }
+        }
         for (live, backup) in backups.iter().rev() {
-            if backup.exists() && !live.exists() {
+            if live.exists() {
+                let _ = fs::remove_file(live);
+            }
+            if backup.exists() {
                 let _ = fs::rename(backup, live);
             }
         }
@@ -518,7 +548,9 @@ fn freshness_label(freshness: Freshness) -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    use super::ProjectIndexLock;
+    use std::fs;
+
+    use super::{ProjectIndexLock, promote_qmd_rs_store_inner};
 
     #[test]
     fn project_index_lock_is_exclusive() {
@@ -530,5 +562,43 @@ mod tests {
         assert!(error.to_string().contains("qmd-rs.lock"));
         drop(first);
         ProjectIndexLock::acquire(temp.path()).expect("lock after drop");
+    }
+
+    #[test]
+    fn project_index_lock_ignores_stale_lock_file() {
+        let temp = tempfile::TempDir::new().expect("tempdir");
+        fs::write(temp.path().join("qmd-rs.lock"), "pid=999999").expect("stale lock");
+
+        let lock = ProjectIndexLock::acquire(temp.path()).expect("lock with stale file");
+
+        assert!(temp.path().join("qmd-rs.lock").exists());
+        drop(lock);
+        assert!(!temp.path().join("qmd-rs.lock").exists());
+    }
+
+    #[test]
+    fn failed_store_promotion_restores_all_old_live_files() {
+        let temp = tempfile::TempDir::new().expect("tempdir");
+        let live = temp.path().join("live/qmd-rs.sqlite");
+        let staging = temp.path().join("staging/qmd-rs.sqlite");
+        fs::create_dir_all(live.parent().expect("live parent")).expect("live dir");
+        fs::create_dir_all(staging.parent().expect("staging parent")).expect("staging dir");
+        fs::write(&live, "old sqlite").expect("old sqlite");
+        fs::write(live.with_extension("llm-wiki.json"), "old metadata").expect("old metadata");
+        fs::write(&staging, "new sqlite").expect("new sqlite");
+        fs::write(staging.with_extension("llm-wiki.json"), "new metadata").expect("new metadata");
+
+        let error =
+            promote_qmd_rs_store_inner(&staging, &live, Some(1)).expect_err("simulated failure");
+
+        assert!(error.to_string().contains("simulated"));
+        assert_eq!(
+            fs::read_to_string(&live).expect("live sqlite"),
+            "old sqlite"
+        );
+        assert_eq!(
+            fs::read_to_string(live.with_extension("llm-wiki.json")).expect("live metadata"),
+            "old metadata"
+        );
     }
 }
