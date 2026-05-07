@@ -177,6 +177,10 @@ impl ProjectRegistry {
                 path.display()
             );
         }
+        for project in &registry.projects {
+            validate_project_id(&project.id)
+                .with_context(|| format!("invalid project id in {}", path.display()))?;
+        }
         Ok(registry)
     }
 
@@ -232,6 +236,7 @@ impl ProjectRegistry {
 
     fn register(&mut self, request: RegisterRequest) -> Result<RegisterOutcome> {
         if let Some(update_id) = request.update.clone() {
+            validate_project_id(&update_id)?;
             return self.update_existing(&update_id, request);
         }
 
@@ -240,6 +245,7 @@ impl ProjectRegistry {
             if let Some(id) = &request.id
                 && id != &existing.id
             {
+                validate_project_id(id)?;
                 bail!(
                     "project root {} is already registered as {}",
                     request.root.display(),
@@ -264,6 +270,7 @@ impl ProjectRegistry {
             .id
             .clone()
             .unwrap_or_else(|| self.available_id(&base_project_id(&request)));
+        validate_project_id(&requested_id)?;
         if self
             .projects
             .iter()
@@ -365,16 +372,34 @@ fn validate_project_root(path: &Path) -> Result<PathBuf> {
     if !wiki.join("log.md").is_file() {
         bail!("project root {} is missing wiki/log.md", root.display());
     }
-    if !["project_guidelines.md", "CLAUDE.md", "AGENTS.md"]
-        .iter()
-        .any(|name| root.join(name).is_file())
+    if ![
+        "project_guidelines.md",
+        "CLAUDE.md",
+        "AGENTS.md",
+        "AGENTS.MD",
+    ]
+    .iter()
+    .any(|name| root.join(name).is_file())
     {
         bail!(
-            "project root {} is missing an orientation file: project_guidelines.md, CLAUDE.md, or AGENTS.md",
+            "project root {} is missing an orientation file: project_guidelines.md, CLAUDE.md, AGENTS.md, or AGENTS.MD",
             root.display()
         );
     }
     Ok(root)
+}
+
+fn validate_project_id(id: &str) -> Result<()> {
+    if id.is_empty() || id.trim() != id || id == "." || id == ".." {
+        bail!("invalid project id {id:?}: use letters, numbers, '-' or '_'");
+    }
+    if !id
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || ch == '-' || ch == '_')
+    {
+        bail!("invalid project id {id:?}: use letters, numbers, '-' or '_'");
+    }
+    Ok(())
 }
 
 fn base_project_id(request: &RegisterRequest) -> String {
@@ -578,6 +603,36 @@ mod tests {
 
         assert_eq!(read.projects.len(), 1);
         assert_eq!(read.projects[0].id, "disk");
+    }
+
+    #[test]
+    fn registry_read_rejects_unsafe_persisted_ids() {
+        let temp = tempfile::TempDir::new().expect("tempdir");
+        let path = temp.path().join("projects.json");
+        fs::write(
+            &path,
+            serde_json::json!({
+                "version": 1,
+                "projects": [{
+                    "id": "../models",
+                    "name": "Bad",
+                    "root": "/tmp/bad",
+                    "wiki_path": "wiki",
+                    "registered_at": "2026-05-07T00:00:00Z",
+                    "last_indexed_at": null,
+                    "last_indexed_wiki_max_mtime": null,
+                    "indexed_file_count": 0,
+                    "backend": "qmd-rs",
+                    "index_schema_version": 1
+                }]
+            })
+            .to_string(),
+        )
+        .expect("write");
+
+        let error = ProjectRegistry::read(&path).expect_err("unsafe id");
+
+        assert!(error.to_string().contains("invalid project id"));
     }
 
     fn fixture_project(root: &Path, name: &str) -> PathBuf {

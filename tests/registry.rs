@@ -143,6 +143,47 @@ fn register_rejects_project_without_orientation_file() {
         .stderr(predicate::str::contains("missing an orientation file"));
 }
 
+#[test]
+fn register_rejects_unsafe_explicit_project_ids() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project", true);
+
+    for id in [
+        "../models",
+        "/tmp/escape",
+        "a/b",
+        "..",
+        "C:\\temp",
+        "C:temp",
+    ] {
+        llm_wiki(home.path())
+            .args(["register", "--id", id])
+            .arg(&project)
+            .assert()
+            .failure()
+            .stderr(predicate::str::contains("invalid project id"));
+    }
+}
+
+#[test]
+fn register_accepts_uppercase_agents_orientation_file() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = workspace.path().join("Fixture Project");
+    fs::create_dir_all(project.join("wiki")).expect("wiki");
+    fs::write(project.join("wiki/index.md"), "# Index\n").expect("index");
+    fs::write(project.join("wiki/log.md"), "# Log\n").expect("log");
+    fs::write(project.join("AGENTS.MD"), "# Agents\n").expect("agents");
+    let project = project.canonicalize().expect("canonical");
+
+    llm_wiki(home.path())
+        .args(["register", "--id", "fixture"])
+        .arg(&project)
+        .assert()
+        .success();
+}
+
 fn read_registry(home: &Path) -> Value {
     let path = home.join(".local/share/llm-wiki/projects.json");
     serde_json::from_str(&fs::read_to_string(path).expect("registry json")).expect("json")
