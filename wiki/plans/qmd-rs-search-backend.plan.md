@@ -109,6 +109,13 @@ When the feature is disabled, the internal adapter reports a stable
 `FeatureDisabled` state and `doctor` prints that the qmd-rs backend feature is
 disabled.
 
+Post-D9 addendum: this implementation note is superseded for future release
+work by the default-on qmd-rs release addendum in
+`wiki/plans/project-registry-search-artifacts.plan.md`. The feature-gated
+adapter was valid for the completed backend and D9 command implementation
+slices, but the next implementation target is to remove the Cargo feature and
+ship qmd-rs in normal release binaries.
+
 Measured dependency impact:
 
 - Adding optional `qmd = 0.3.2` added 169 locked packages.

@@ -29,16 +29,17 @@ and cross-project retrieval is explicit through `search-all`.
   project scaffolding.
 - Reuse the qmd-rs adapter from `src/search/` for project-local indexing and
   search.
-- Preserve the qmd-rs Cargo feature gate unless a separate release decision
-  enables it by default.
+- Initial D9 preserved the qmd-rs Cargo feature gate. The post-completion
+  addendum below supersedes that release target and now directs default-on
+  qmd-rs release binaries.
 - Add text and JSON output formats for project and search results.
 - Add class/status filtering using framework metadata.
 - Add explicit cross-project result fusion with per-project retrieval caps and
   reciprocal rank fusion.
 - Update `doctor` to prefer registry-backed project IDs when available.
 - Update specs after commands are implemented and verified.
-- Define and test default-release behavior for search commands while qmd-rs
-  remains feature-gated.
+- Define and test the initial feature-gated default-release behavior, then
+  supersede it with the default-on qmd-rs release addendum below.
 
 ## Out Of Scope
 
@@ -118,11 +119,14 @@ Registry rules:
 7. `llm-wiki uninstall` must not remove the registry, search indexes, or model
    cache.
 
-## Default-Release Contract
+## Initial Default-Release Contract
 
-qmd-rs remains feature-gated until a separate release decision enables it by
-default. D9 can still ship command plumbing in default binaries only if the
-default behavior is explicit and tested:
+This was the initial D9 release contract. It is now superseded for future work
+by the default-on qmd-rs addendum below.
+
+qmd-rs initially remained feature-gated until a separate release direction
+enabled it by default. D9 could still ship command plumbing in default binaries
+only if the default behavior was explicit and tested:
 
 1. `register`, `forget`, and `projects` must work in default builds because
    they do not require the qmd-rs backend.
@@ -422,6 +426,78 @@ Verification:
 
 - `just verify`
 - `cargo test --workspace --features qmd-rs`
+
+## Addendum: Default-On qmd-rs Release
+
+Added 2026-05-07 after D9 completion.
+
+The D9 implementation initially kept qmd-rs behind a Cargo feature so default
+builds could ship registry command plumbing while release risk was still being
+measured. The product direction has changed: qmd-rs should now be part of the
+normal `llm-wiki` build and all release artifacts.
+
+This addendum supersedes the earlier default-release contract for future work.
+The previous feature-disabled command behavior remains useful as historical
+implementation evidence, but it is no longer the target release behavior.
+
+### New Target
+
+1. Remove the `qmd-rs` Cargo feature and make `qmd = 0.3.2` a normal
+   dependency.
+2. Compile the qmd-rs adapter in every build.
+3. Remove the feature-disabled backend stub and user-facing
+   qmd-rs-feature-disabled diagnostics.
+4. Make `index`, `index-all`, `search`, `search-all`, and `doctor` behave as
+   real qmd-rs-backed commands in default builds.
+5. Preserve the internal adapter boundary so qmd-rs remains replaceable if a
+   future fallback trigger fires.
+6. Keep direct SQLite FTS5 as a documented fallback option only; do not
+   implement it preemptively.
+
+### Implementation Tasks
+
+1. Update `Cargo.toml`: remove the `qmd-rs` feature, remove `optional = true`
+   from `qmd`, and ensure default `cargo build` includes qmd-rs.
+2. Simplify `src/search/qmd_rs.rs` by deleting the `cfg(feature = "qmd-rs")`
+   / `cfg(not(feature = "qmd-rs"))` split and the disabled adapter module.
+3. Remove or repurpose `BackendState::FeatureDisabled` only if no other
+   diagnostics need that generic state; otherwise leave it unused only if the
+   strict dead-code gate still passes.
+4. Update command tests so default builds exercise real qmd-rs indexing and
+   search behavior instead of feature-disabled diagnostics.
+5. Update doctor tests so default builds report qmd-rs store states, not
+   feature-disabled search.
+6. Update wiki/spec/roadmap wording that currently calls qmd-rs feature-gated.
+7. Recheck license/distribution notes for qmd-rs transitive dependencies before
+   final release tagging.
+
+### Release Gates
+
+Before closing this addendum:
+
+1. `cargo test --workspace` passes without `--features qmd-rs`.
+2. `just verify` passes.
+3. `just release-plan` passes.
+4. `just release-build` passes for the local host target.
+5. cargo-dist CI configuration is reviewed so the four configured release
+   targets remain intended targets:
+   - `aarch64-apple-darwin`
+   - `aarch64-unknown-linux-gnu`
+   - `x86_64-apple-darwin`
+   - `x86_64-unknown-linux-gnu`
+6. If a local full multi-target build cannot be completed on the host, record
+   that explicitly and leave the GitHub Actions cargo-dist run as the
+   cross-target release proof.
+
+### Acceptance Criteria
+
+1. No command or test refers to qmd-rs as disabled by default.
+2. `cargo test --workspace` covers qmd-rs-backed index/search behavior.
+3. `llm-wiki doctor` reports missing/stale/ready qmd-rs stores in default
+   builds.
+4. Release artifacts include qmd-rs in the normal binary.
+5. The wiki records the release-direction change and no active plan tells
+   implementers to keep qmd-rs feature-gated.
 
 ## Close Conditions
 

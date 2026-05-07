@@ -32,7 +32,7 @@ Updated: 2026-05-07
 
 - [LLM Wiki Pattern](references/llm-wiki-pattern.reference.md) — Sourced — Karpathy's pattern, v2 extensions, production lessons, wiki vs RAG
 - [QMD Search Engine](references/qmd-search-engine.reference.md) — Sourced — On-device hybrid search for markdown, MCP integration, solves scale ceiling
-- [qmd-rs Rust Search Crate](references/qmd-rs-search-crate.reference.md) — Sourced — Rust `qmd` crate selected as the feature-gated backend for `llm-wiki` search commands
+- [qmd-rs Rust Search Crate](references/qmd-rs-search-crate.reference.md) — Sourced — Rust `qmd` crate selected as the backend for `llm-wiki` search commands
 - [NiharShrotri/llm-wiki](references/niharshrotri-llm-wiki.reference.md) — Sourced — Full implementation with 3-pass ingest, QMD, CLI, web UI, auto-lint
 - [LLM Wiki Ecosystem Survey](references/llm-wiki-ecosystem.reference.md) — Sourced — 30+ implementations organized by delivery model and architectural innovation
 - [Three-Phase Ingest Pipeline](references/three-phase-ingest-pipeline.reference.md) — Sourced — Web-sourced explanation of extraction, page drafting, and bookkeeping as separate ingest phases
@@ -50,8 +50,8 @@ Updated: 2026-05-07
 - [LLM Wiki Binary Implementation](plans/llm-wiki-binary.plan.md) — Completed — Implemented D8 Rust binary with staged commits, manifest install, deterministic init, projection snapshots, fixtures, and release config
 - [LLM Wiki Product Layout Addendum](plans/llm-wiki-product-layout-addendum.plan.md) — Completed — Moved `llm-wiki` to the root product crate layout and embedded assets under `assets/`
 - [Managed Binary Runtime Install](plans/binary-path-bootstrap.plan.md) — Completed — D8.1 tactical execution for managed runtime home, manifest v2, outside-PATH install proof, and `knowledge-init` rename
-- [qmd-rs Search Backend](plans/qmd-rs-search-backend.plan.md) — Completed — D9 backend slice landed qmd-rs adapter, query sanitization, metadata, snippets, doctor checks, eval replay, and feature-gated release findings
-- [Project Registry and Search Artifacts](plans/project-registry-search-artifacts.plan.md) — Completed — Implemented D9 registry commands, init auto-registration, index/search, search-all, and doctor registry diagnostics
+- [qmd-rs Search Backend](plans/qmd-rs-search-backend.plan.md) — Completed — D9 backend slice landed qmd-rs adapter, query sanitization, metadata, snippets, doctor checks, eval replay, and release findings
+- [Project Registry and Search Artifacts](plans/project-registry-search-artifacts.plan.md) — Completed + Addendum — Implemented D9 registry/search commands; addendum now targets default-on qmd-rs release binaries
 
 ## Experiments
 

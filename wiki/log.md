@@ -1211,3 +1211,17 @@ Pages updated: wiki/specs/documentation-model.spec.md,
 wiki/roadmaps/framework-v1.roadmap.md,
 wiki/plans/project-registry-search-artifacts.plan.md, wiki/index.md,
 wiki/log.md
+
+## [2026-05-07] update | default-on qmd-rs release addendum
+
+Added a post-completion addendum to the D9 registry/search plan. The addendum
+supersedes the earlier feature-gated release contract and sets the next target:
+remove the `qmd-rs` Cargo feature, make qmd-rs part of normal `llm-wiki`
+builds and release artifacts, delete feature-disabled diagnostics, and make
+default builds exercise real qmd-rs index/search behavior.
+
+The qmd-rs backend plan now points to this addendum so implementers do not
+continue treating feature-gated qmd-rs as the target release state.
+
+Pages updated: wiki/plans/project-registry-search-artifacts.plan.md,
+wiki/plans/qmd-rs-search-backend.plan.md, wiki/index.md, wiki/log.md
