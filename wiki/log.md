@@ -1146,3 +1146,13 @@ while the optional qmd-rs feature release binary is larger but below the plan's
 default-on thresholds.
 
 Pages updated: wiki/plans/qmd-rs-search-backend.plan.md, wiki/log.md
+
+## [2026-05-07] update | qmd-rs production adapter eval replay
+
+Updated the search backend eval with the production adapter replay. The
+feature-enabled qmd-rs adapter indexed the real repository `wiki/` corpus and
+kept the fixed eval query targets in the top two for all eight queries through
+the production `search_project` path, including sanitization, metadata parsing,
+result shaping, snippets, and canonical paths.
+
+Pages updated: wiki/evals/search-backend-selection.eval.md, wiki/log.md

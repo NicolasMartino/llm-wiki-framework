@@ -254,6 +254,47 @@ external reference for hybrid behavior, but should not be the D9 backend because
 it introduces Node/Bun, QMD config, sqlite-vec, path-mapping, and concurrency
 concerns outside the Rust binary.
 
+## Production Adapter Replay
+
+Date: 2026-05-07.
+
+Implementation target:
+
+- `src/search/qmd_rs.rs`, compiled with `--features qmd-rs`.
+- Store path: temporary test store.
+- Corpus: the repository `wiki/` directory at test time.
+- Query path: production adapter `search_project`, including framework query
+  sanitization, qmd-rs FTS search, metadata parsing, post-filter/result shaping,
+  snippet generation, and adapter-owned canonical paths.
+
+Command:
+
+```bash
+cargo test --workspace --features qmd-rs fixed_eval_queries_keep_expected_targets_in_top_two -- --nocapture
+```
+
+Result:
+
+- Passed.
+- The fixed eval query set kept the expected target set in the top two for all
+  eight queries.
+- The adapter replay used the real wiki corpus rather than a synthetic fixture.
+- The replay permits the accepted decision/eval/implementation artifacts for Q3
+  because the backend-selection topic now has a promoted decision and replay
+  result in addition to the original proposal.
+
+Additional feature gate:
+
+```bash
+cargo test --workspace --features qmd-rs
+```
+
+Result:
+
+- Passed.
+- qmd-rs FTS indexing, metadata filters, stale detection, doctor state, and the
+  fixed eval query replay all passed in the feature-enabled build.
+
 ## Next Action
 
 Implement D9 against an internal adapter trait using qmd-rs as the first
