@@ -37,6 +37,8 @@ and cross-project retrieval is explicit through `search-all`.
   reciprocal rank fusion.
 - Update `doctor` to prefer registry-backed project IDs when available.
 - Update specs after commands are implemented and verified.
+- Define and test default-release behavior for search commands while qmd-rs
+  remains feature-gated.
 
 ## Out Of Scope
 
@@ -106,8 +108,35 @@ Registry rules:
    - otherwise slugified `--name`;
    - otherwise slugified project directory basename;
    - collisions append `-2`, `-3`, and so on.
-5. `llm-wiki uninstall` must not remove the registry, search indexes, or model
+5. Canonical project roots are unique by default. Re-registering the same
+   canonical root returns or updates the existing registry entry instead of
+   creating a duplicate.
+6. `--id` may intentionally name a same-root registration only if it passes an
+   explicit conflict check and does not create duplicate `search-all` results by
+   default. V1 should reject same-root/different-ID duplicates unless a later
+   use case proves they are needed.
+7. `llm-wiki uninstall` must not remove the registry, search indexes, or model
    cache.
+
+## Default-Release Contract
+
+qmd-rs remains feature-gated until a separate release decision enables it by
+default. D9 can still ship command plumbing in default binaries only if the
+default behavior is explicit and tested:
+
+1. `register`, `forget`, and `projects` must work in default builds because
+   they do not require the qmd-rs backend.
+2. `index`, `index-all`, `search`, and `search-all` must fail clearly in
+   default builds with a qmd-rs-feature-disabled diagnostic. They must not
+   pretend that search is available.
+3. `doctor` must report the registry state and the qmd-rs feature-disabled
+   search state separately.
+4. Feature-enabled builds must pass the full search behavior tests with
+   `cargo test --workspace --features qmd-rs`.
+
+D9 may be marked Completed with qmd-rs still feature-gated only if both default
+diagnostic tests and feature-enabled behavior tests pass. Enabling qmd-rs by
+default remains a separate release decision.
 
 ## Command Surface
 
@@ -120,7 +149,11 @@ llm-wiki register --update <id> <path>
 
 Registers or updates a framework-shaped project. Validation requires
 `wiki/index.md`, `wiki/log.md`, and at least one orientation file from the
-recognized set: `project_guidelines.md`, `CLAUDE.md`, or `AGENTS.MD`.
+recognized set: `project_guidelines.md`, `CLAUDE.md`, or `AGENTS.md`.
+
+Registering the same canonical root twice is idempotent: it reports the
+existing project ID and updates mutable fields such as name when explicitly
+provided. It must not create duplicate entries.
 
 ### `forget`
 
@@ -154,8 +187,14 @@ llm-wiki search "query" [--project <id>] [--class <type>] [--status <status>] [-
 ```
 
 Retrieves ranked project-local results. It must never cross project boundaries.
-If the selected project has no fresh index, print clear guidance to run
-`llm-wiki index`.
+
+Missing indexes are not searchable: print clear guidance to run
+`llm-wiki index` and return a nonzero exit for text and JSON modes.
+
+Stale indexes are searchable-with-warning. Text output prints a stale-index
+warning before results. JSON output includes the freshness marker on every
+result and a top-level warning field. This preserves retrieval during active
+work while making staleness visible to agents and scripts.
 
 ### `index-all`
 
@@ -208,7 +247,8 @@ Do not expose qmd-rs docids or virtual paths as canonical citations.
 2. Add `src/registry/` with schema structs, atomic read/write, project
    validation, slug/collision handling, and cache path lookup.
 3. Add unit tests for ID generation, collision suffixes, validation failures,
-   atomic persistence, redirected `HOME`, and missing registry behavior.
+   same-root idempotency, atomic persistence, redirected `HOME`, and missing
+   registry behavior.
 
 Verification:
 
@@ -226,6 +266,7 @@ Verification:
 Verification:
 
 - Registering a fixture project creates `projects.json`.
+- Registering the same canonical root twice does not create duplicate entries.
 - Invalid paths are refused with clear diagnostics.
 - Updating a moved project preserves the ID.
 - Forget leaves project files intact.
@@ -252,7 +293,7 @@ Verification:
    `--format text|json`.
 3. Report missing/stale indexes with guidance.
 4. Add integration tests for text output, JSON output, filters, stale markers,
-   and no boundary crossing.
+   feature-disabled diagnostics, and no boundary crossing.
 
 Verification:
 
@@ -266,12 +307,18 @@ Verification:
 2. Auto-register newly scaffolded projects by default after successful init.
 3. Print the generated project ID.
 4. Ensure init failure does not write a registry entry.
+5. If scaffolding succeeds but registry write fails, leave the scaffolded files
+   in place, print a warning with the failed registry path, print the manual
+   `llm-wiki register <path>` recovery command, and return success. The project
+   exists; registration is recoverable tool state.
 
 Verification:
 
 - Existing init snapshots are updated intentionally.
 - `init --no-register` leaves the registry untouched.
 - Successful init creates a valid registry entry.
+- Registry-write failure after successful scaffolding is tested as a
+  partial-success warning, not a scaffold rollback.
 
 ### 5. Index-all and search-all
 
@@ -308,27 +355,35 @@ Verification:
 
 1. `register` records framework-shaped projects and refuses invalid paths.
 2. Project IDs are deterministic and collision-safe.
-3. `register --update` updates moved project roots.
-4. `forget` removes registry entries; `--delete-cache` removes only rebuildable
+3. Canonical roots are unique; repeated registration of the same root is
+   idempotent and does not duplicate `search-all` results.
+4. `register --update` updates moved project roots.
+5. `forget` removes registry entries; `--delete-cache` removes only rebuildable
    search artifacts.
-5. `projects` lists registered projects with missing/stale/fresh status and
+6. `projects` lists registered projects with missing/stale/fresh status and
    supports text and JSON output.
-6. `index` builds per-project qmd-rs stores from `wiki/` only.
-7. `index` uses lock/temp/promote behavior so failed rebuilds do not corrupt
+7. `index` builds per-project qmd-rs stores from `wiki/` only in
+   feature-enabled builds and reports qmd-rs-feature-disabled in default builds.
+8. `index` uses lock/temp/promote behavior so failed rebuilds do not corrupt
    previous indexes.
-8. `search` retrieves project-local results and never crosses project
+9. `search` retrieves project-local results and never crosses project
    boundaries.
-9. `search` supports class/status filters and stable text/JSON output.
-10. `init` auto-registers successful scaffolds by default and supports
+10. `search` refuses missing indexes, searches stale indexes with explicit
+    warnings/freshness markers, and reports qmd-rs-feature-disabled clearly in
+    default builds.
+11. `search` supports class/status filters and stable text/JSON output.
+12. `init` auto-registers successful scaffolds by default and supports
     `--no-register`.
-11. `index-all` indexes registered projects independently.
-12. `search-all` searches only registered projects, labels every result, and
+13. `init` treats registry-write failure after successful scaffolding as a
+    recoverable partial-success warning with a manual register command.
+14. `index-all` indexes registered projects independently.
+15. `search-all` searches only registered projects, labels every result, and
     supports include/exclude filters.
-13. Cross-project result fusion uses top 20 per project and RRF `k=60`.
-14. `doctor` reports registry and search states clearly.
-15. `uninstall` leaves registry, indexes, and model cache untouched.
-16. `just verify` passes before completion.
-17. `cargo test --workspace --features qmd-rs` passes before completion.
+16. Cross-project result fusion uses top 20 per project and RRF `k=60`.
+17. `doctor` reports registry and search states clearly.
+18. `uninstall` leaves registry, indexes, and model cache untouched.
+19. `just verify` passes before completion.
+20. `cargo test --workspace --features qmd-rs` passes before completion.
 
 ## Promotion Targets
 
@@ -354,4 +409,7 @@ This plan can be marked Completed when:
    registered projects.
 5. Doctor reports registry and search states.
 6. Specs, roadmap, index, and log are updated.
-7. Required gates pass.
+7. Default builds either provide clear feature-disabled diagnostics for
+   search-backed commands or a separate release decision enables qmd-rs by
+   default.
+8. Required gates pass.

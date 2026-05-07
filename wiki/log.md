@@ -1179,3 +1179,15 @@ per-file content hashes in addition to timestamp/count summaries, and the eval
 replay accepts the active D9 registry/search plan as the promoted Q7 target.
 
 Pages updated: wiki/evals/search-backend-selection.eval.md, wiki/log.md
+
+## [2026-05-07] update | D9 registry plan lifecycle contracts
+
+Clarified D9 registry/search implementation contracts before coding. The plan
+now requires explicit default-build feature-disabled diagnostics while qmd-rs
+remains gated, makes canonical project roots unique and repeated registration
+idempotent, defines stale indexes as searchable with warnings while missing
+indexes are refused, specifies init registry-write failure as recoverable
+partial success, and fixes the orientation-file casing to `AGENTS.md`.
+
+Pages updated: wiki/plans/project-registry-search-artifacts.plan.md,
+wiki/log.md
