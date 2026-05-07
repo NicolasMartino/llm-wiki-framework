@@ -9,6 +9,9 @@ use crate::embed;
 use crate::manifest::Manifest;
 use crate::manifest::hash::sha256_hex;
 use crate::paths::{Paths, managed_binary_name};
+use crate::search::adapter::{BackendState, SearchBackend, SearchMode};
+use crate::search::project::discover_from_cwd;
+use crate::search::qmd_rs::QmdRsBackend;
 use crate::skill_render::managed_binary_invocation;
 
 pub fn run() -> Result<()> {
@@ -112,6 +115,7 @@ pub fn run() -> Result<()> {
         }
     }
 
+    println!("Install:");
     if findings.is_empty() {
         println!("No llm-wiki install issues found.");
     } else {
@@ -119,6 +123,76 @@ pub fn run() -> Result<()> {
             println!("{finding}");
         }
     }
+    print_project_search_diagnostics(&paths)?;
+    Ok(())
+}
+
+fn print_project_search_diagnostics(paths: &Paths) -> Result<()> {
+    println!();
+    println!("Current project:");
+    let Some(project) = discover_from_cwd()? else {
+        println!("No current wiki project detected; project search checks skipped.");
+        return Ok(());
+    };
+
+    println!("Detected wiki project: {}", project.project_root.display());
+
+    let store_path = paths.qmd_rs_store_path(&project.project_key);
+    let backend = QmdRsBackend::new();
+    let status = backend.doctor(&store_path, &project.wiki_root, SearchMode::Fts)?;
+
+    println!();
+    println!("Search index:");
+    match status.state {
+        BackendState::Ready => {
+            println!(
+                "qmd-rs FTS index ready: {} files at {}",
+                status.indexed_files,
+                status.store_path.display()
+            );
+        }
+        BackendState::Stale => {
+            println!(
+                "qmd-rs FTS index stale: {} (rebuild the search index)",
+                status.store_path.display()
+            );
+        }
+        BackendState::Missing => {
+            println!(
+                "qmd-rs FTS index missing: {} (build the search index)",
+                status.store_path.display()
+            );
+        }
+        BackendState::Corrupt => {
+            println!(
+                "qmd-rs FTS index corrupt: {} (rebuild the search index)",
+                status.store_path.display()
+            );
+        }
+        BackendState::SchemaMismatch => {
+            println!(
+                "qmd-rs FTS index schema mismatch: {} (rebuild the search index)",
+                status.store_path.display()
+            );
+        }
+        BackendState::FeatureDisabled => {
+            println!(
+                "{}",
+                status
+                    .message
+                    .as_deref()
+                    .unwrap_or("qmd-rs backend feature is disabled")
+            );
+        }
+    }
+
+    println!();
+    println!("Semantic models:");
+    println!(
+        "Semantic search models are not checked until qmd-rs semantic mode is enabled; model cache: {}",
+        paths.model_cache().display()
+    );
+
     Ok(())
 }
 

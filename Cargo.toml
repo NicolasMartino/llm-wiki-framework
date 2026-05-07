@@ -36,6 +36,10 @@ sha2 = "0.10"
 tempfile = "3.14"
 thiserror = "2.0"
 
+[features]
+default = []
+qmd-rs = []
+
 [dependencies]
 anyhow.workspace = true
 chrono.workspace = true

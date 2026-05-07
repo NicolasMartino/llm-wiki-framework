@@ -7,6 +7,7 @@ mod install;
 mod manifest;
 mod path_guidance;
 mod paths;
+mod search;
 mod skill_render;
 mod status;
 mod uninstall;
