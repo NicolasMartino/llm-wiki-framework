@@ -359,7 +359,7 @@ Unlocks:
 
 ### D9 - Project Registry and Search Artifacts
 
-Status: Active
+Status: Completed
 Promise: `llm-wiki` owns a host-local project registry, rebuildable search
 artifacts, project-local search, and explicit cross-project `search-all`
 retrieval while keeping markdown wiki pages canonical.
@@ -389,9 +389,15 @@ Excluded:
 Proof:
 - Registry commands operate against redirected `HOME` fixtures without writing
   outside temp state.
+- `init` auto-registers successful scaffolds by default and supports
+  `--no-register`; recoverable registry-write failure is tested.
+- Default builds expose clear qmd-rs-feature-disabled diagnostics for
+  search-backed commands.
 - Index/search commands pass with qmd-rs feature-enabled tests.
 - Two-project fixtures prove `search-all` labels results, honors include/exclude
   filters, and keeps cross-project retrieval explicit.
+- `doctor` reports install, registry, current-project, search-index, and
+  semantic-model sections separately.
 - `just verify` and `cargo test --workspace --features qmd-rs` pass.
 
 Promotion Target:

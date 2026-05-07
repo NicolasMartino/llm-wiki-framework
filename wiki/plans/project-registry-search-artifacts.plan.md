@@ -1,7 +1,7 @@
 # Plan: Project Registry and Search Artifacts
 
 - Document Class: Plan
-- Status: Active
+- Status: Completed
 - Date: 2026-05-07
 - Category: Search infrastructure, framework tooling
 - Scope: Implement D9 user-visible project registration, indexing, project-local search, and explicit cross-project search commands on top of the qmd-rs backend adapter.
@@ -398,9 +398,34 @@ When implemented and verified:
 - Decide whether `knowledge-query` should mention `search-all` as explicit
   user-requested scope expansion. Do not make it automatic.
 
+## Implementation Result
+
+D9 was implemented in the Rust `llm-wiki` binary on 2026-05-07.
+
+Implemented command surface:
+
+- `register`, `forget`, and `projects` manage the host-local project registry
+  at `~/.local/share/llm-wiki/projects.json`.
+- `init` auto-registers successful scaffolds by default and supports
+  `--no-register`.
+- `index` and `index-all` build qmd-rs stores from `wiki/**/*.md` in
+  feature-enabled builds and report qmd-rs-feature-disabled in default builds.
+- `search` retrieves project-local results with class/status filters and
+  text/JSON output.
+- `search-all` searches explicitly registered projects, supports include/exclude
+  filters, labels every result with project identity, and fuses per-project
+  results with RRF `k=60`.
+- `doctor` now reports install, registry, current-project, search-index, and
+  semantic-model sections separately.
+
+Verification:
+
+- `just verify`
+- `cargo test --workspace --features qmd-rs`
+
 ## Close Conditions
 
-This plan can be marked Completed when:
+This plan was marked Completed when:
 
 1. Registry commands are implemented and tested.
 2. Index/search commands are implemented and tested.

@@ -1191,3 +1191,23 @@ partial success, and fixes the orientation-file casing to `AGENTS.md`.
 
 Pages updated: wiki/plans/project-registry-search-artifacts.plan.md,
 wiki/log.md
+
+## [2026-05-07] complete | D9 project registry and search artifacts
+
+Implemented the D9 registry and search command surface in `llm-wiki`.
+The binary now supports host-local project registration (`register`, `forget`,
+`projects`), init auto-registration with `--no-register`, project indexing
+(`index`, `index-all`), project-local search, explicit cross-project
+`search-all` with include/exclude filters and RRF fusion, and registry-aware
+doctor diagnostics.
+
+Default builds keep qmd-rs feature-gated and report clear
+qmd-rs-feature-disabled diagnostics for search-backed commands. Feature-enabled
+tests cover qmd-rs indexing/search and two-project `search-all` behavior.
+
+Verification: `just verify`; `cargo test --workspace --features qmd-rs`.
+
+Pages updated: wiki/specs/documentation-model.spec.md,
+wiki/roadmaps/framework-v1.roadmap.md,
+wiki/plans/project-registry-search-artifacts.plan.md, wiki/index.md,
+wiki/log.md
