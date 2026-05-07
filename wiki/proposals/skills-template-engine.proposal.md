@@ -6,7 +6,7 @@
 - Category: Tooling, skill projection, internal architecture
 - Scope: Once the composable-init proposal lands its compile-time template engine (`askama`), migrate skill projection in `crates/llm-wiki-schema/src/projector/` onto the same engine so the framework has a single text-rendering pipeline.
 - Sources: crates/llm-wiki-schema/src/projector/{claude,codex,format,idiom,types}.rs, src/skill_render.rs
-- Related: wiki/proposals/blueprint-pack-init.proposal.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md
+- Related: wiki/proposals/blueprint-pack-init.proposal.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/references/askama-template-engine.reference.md
 - Depends On: wiki/proposals/blueprint-pack-init.proposal.md (must be accepted and the engine adopted before this proposal lands)
 
 ## Question
@@ -86,6 +86,11 @@ Imperative bits that fit awkwardly in templates — `supports_runtime` gating, r
 - Skill authoring workflow changes: skill changes that previously meant editing Rust now mean editing templates. This is the explicit goal but worth flagging — a contributor who has only seen Rust skill projection will need to learn the template syntax.
 - The schema crate (`crates/llm-wiki-schema`) picks up a template-engine dependency and stops being a pure data-and-parsing library. This is accepted, not regretted: the crate's job already includes projecting `SkillDoc` to per-runtime markdown, so rendering is a fair part of its contract. The dependency wraps rendering complexity; it does not represent architectural drift.
 - Section order and frontmatter shape become *template authority* rather than Rust authority. Reading the base template should be the canonical answer to "what does a projected skill look like."
+- Because Askama resolves template paths relative to the crate doing the derive
+  unless configured otherwise, the execution plan must explicitly validate the
+  shared `templates/` root from `crates/llm-wiki-schema` or choose an
+  `askama.toml` / crate-local template layout. D10 init is unaffected because
+  its derives live in the root binary crate.
 
 ## What Closes This Proposal
 

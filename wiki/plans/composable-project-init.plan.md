@@ -5,8 +5,8 @@
 - Date: 2026-05-08
 - Category: Tooling, project scaffolding, template engine adoption
 - Scope: Implement D10 composable init: introduce a compile-time template engine, migrate the existing init template onto it, replace generated `CLAUDE.md` output with `AGENTS.md`, retire the static template assets under `assets/templates/`, and ship the blueprint + pack composition system from `wiki/decisions/composable-project-init.decision.md`.
-- Sources: wiki/proposals/blueprint-pack-init.proposal.md, wiki/decisions/composable-project-init.decision.md, assets/templates/project_guidelines.md, assets/templates/CLAUDE.md, src/init/{profile,answers,template,scaffold,command}.rs
-- Related: wiki/roadmaps/framework-v1.roadmap.md (D10), wiki/proposals/skills-template-engine.proposal.md, wiki/specs/knowledge-init-skill.spec.md
+- Sources: wiki/proposals/blueprint-pack-init.proposal.md, wiki/decisions/composable-project-init.decision.md, wiki/references/askama-template-engine.reference.md, assets/templates/project_guidelines.md, assets/templates/CLAUDE.md, src/init/{profile,answers,template,scaffold,command}.rs
+- Related: wiki/roadmaps/framework-v1.roadmap.md (D10), wiki/proposals/skills-template-engine.proposal.md, wiki/specs/knowledge-init-skill.spec.md, wiki/references/askama-template-engine.reference.md
 
 ## Deliverable
 
@@ -30,8 +30,12 @@ Inspect these sites before changing code:
 ## Implementation Clarifications
 
 - Template files use `.md` filenames under `templates/`, not `.md.jinja`. Askama is invoked with `escape = "none"` for Markdown output. This avoids relying on an unknown `jinja` extension while keeping Jinja-like Askama syntax.
+- Askama dependency starts at `askama = "0.16"` based on 2026-05-07 package metadata, then local `cargo build` validates resolution before template migration begins.
+- Do not add `askama.toml` for init unless implementation proves it necessary; the root binary crate can use Askama's default root `templates/` directory.
 - Pack fragments are compiled templates selected by exhaustive Rust `match` arms. No runtime template path lookup is introduced. `Pack` accessors expose rendered fragment content (or fragment enum values), not arbitrary string paths.
+- Pack fragment accessors are fallible: prefer `anyhow::Result<Option<String>>` over plain `Option<String>` so Askama render errors propagate through `init`.
 - Base templates expose fixed insertion points by rendering `agents_fragments` and `guidelines_fragments` from the typed render context. Do not use Askama inheritance blocks as dynamic pack anchors.
+- Preserve Askama's default whitespace mode initially; use local whitespace markers only when snapshots show drift.
 - The old `ProjectProfile` booleans remain only as a Phase 1 compatibility bridge to prove the engine migration is byte-stable. By the end of D10, `ml` and `qmd-scale` packs replace `include_ml_ai` and `include_qmd`.
 - The final CLI surface for non-interactive init is `--blueprint <name>` plus repeatable `--pack <name>`. The old `--type` and `--scale` flags are retired in the same change set, with `knowledge-init`, README, and specs updated accordingly.
 
@@ -63,7 +67,7 @@ Inspect these sites before changing code:
 
 ### 0. Add dependencies
 
-1. Add `askama`, `inquire`, and `toml` to `Cargo.toml` (`[workspace.dependencies]` and `[dependencies]`). Engine choice is fixed by the decision; no spike required.
+1. Add `askama = "0.16"`, `inquire`, and `toml` to `Cargo.toml` (`[workspace.dependencies]` and `[dependencies]`). Engine choice is fixed by the decision; no spike required.
 2. Confirm `cargo build` and the existing test suite stay green with the new deps in place.
 3. Build a 30-line throwaway proof rendering a hello-world `askama` template inside the binary, just to verify the macro derive and the `templates/` discovery are wired correctly before Phase 1 starts touching real templates. Delete it once Phase 1 lands the real migration.
 
@@ -80,7 +84,7 @@ Inspect these sites before changing code:
 ### 2. Pack and Blueprint enums
 
 1. Add `Pack` and `Blueprint` enums in `src/init/packs.rs` (new file) and `src/init/blueprints.rs` (new file). Wire from `src/init/mod.rs`.
-2. Implement accessors on `Pack`: `name() -> &'static str`, `folders() -> &'static [&'static str]`, `doc_types() -> &'static [DocType]`, `status_vocab() -> &'static [StatusEntry]`, `agents_fragment() -> Option<String>`, `guidelines_fragment() -> Option<String>`. Stub the fragment methods to `None` for now; folders/doc-types/status-vocab return the values from the accepted proposal's pack catalog.
+2. Implement accessors on `Pack`: `name() -> &'static str`, `folders() -> &'static [&'static str]`, `doc_types() -> &'static [DocType]`, `status_vocab() -> &'static [StatusEntry]`, `agents_fragment() -> anyhow::Result<Option<String>>`, `guidelines_fragment() -> anyhow::Result<Option<String>>`. Stub the fragment methods to `Ok(None)` for now; folders/doc-types/status-vocab return the values from the accepted proposal's pack catalog.
 3. Implement `Blueprint::default_packs() -> &'static [Pack]` per the catalog.
 4. Unit tests: every blueprint's default pack list is a subset of the full pack catalog; every pack's accessors are non-empty where the catalog says they should be.
 

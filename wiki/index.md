@@ -37,6 +37,7 @@ Updated: 2026-05-08
 - [NiharShrotri/llm-wiki](references/niharshrotri-llm-wiki.reference.md) — Sourced — Full implementation with 3-pass ingest, QMD, CLI, web UI, auto-lint
 - [LLM Wiki Ecosystem Survey](references/llm-wiki-ecosystem.reference.md) — Sourced — 30+ implementations organized by delivery model and architectural innovation
 - [Three-Phase Ingest Pipeline](references/three-phase-ingest-pipeline.reference.md) — Sourced — Web-sourced explanation of extraction, page drafting, and bookkeeping as separate ingest phases
+- [Askama Template Engine for D10 Composable Init](references/askama-template-engine.reference.md) — Sourced — Askama 0.16 implementation guidance for D10 templates, fragments, escaping, whitespace, and schema-crate caveats
 
 ## Proposals
 

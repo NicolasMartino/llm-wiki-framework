@@ -28,6 +28,23 @@ migration.
 
 Pages updated: wiki/plans/composable-project-init.plan.md, wiki/log.md
 
+## [2026-05-07] ingest | Askama D10 implementation research
+
+Ingested the Askama research bundle at
+`raw/research/2026-05-07-askama-rust-d10-composable-init/` into a sourced
+reference page for D10 implementation. Captured Askama 0.16 as the starting
+dependency candidate, root `templates/` behavior, explicit `escape = "none"`
+for Markdown/TOML, preserve-first whitespace guidance, runtime-selected pack
+fragment composition via exhaustive Rust matches, and the schema-crate
+template-root caveat for the later skill-projection proposal.
+
+Pages created: wiki/references/askama-template-engine.reference.md
+Pages updated: wiki/plans/composable-project-init.plan.md,
+wiki/proposals/skills-template-engine.proposal.md, wiki/index.md,
+wiki/log.md
+Verification: `qmd embed -f` completed after re-running with filesystem access
+to update the local QMD index.
+
 ## [2026-05-07] lint | D10 bookkeeping consistency
 
 Cleaned up stale D10 wiki bookkeeping from the composable-init promotion.
