@@ -354,3 +354,66 @@ Promotion Target:
 Unlocks:
 - Manual-download installation path that works without shell profile edits.
 - Cleaner Windows compatibility path before Windows release artifacts ship.
+
+---
+
+### D10 - Composable Project Init
+
+Status: Draft
+Promise: `llm-wiki init` produces a tailored `AGENTS.md` and `project_guidelines.md`
+from a chosen blueprint (or `custom`) plus a selected set of opt-in packs,
+rendered through a compile-time template engine. The current static template
+gated by `<!-- SECTION:ML_AI -->` / `<!-- SECTION:QMD -->` is retired in the
+same change set. Each new project gains a `.llm_wiki/init.toml` recording the
+choices for a future `upgrade` command.
+Depends On: D8.1
+Execution Plan: wiki/plans/composable-project-init.plan.md
+
+Included:
+- A compile-time template engine (`askama`, per the decision) wired into the
+  binary as the single rendering path for init.
+- Migration of the existing init template onto the chosen engine, byte-stable
+  against current snapshots.
+- Rust `Pack` and `Blueprint` enums in `src/init/` with accessor methods —
+  the pack catalog is a Rust API surface, not a TOML schema.
+- Initial pack catalog: `api`, `frontend`, `library`, `ml`, `data`, `ops`,
+  `ops-lite`, `security`, `research`, `qmd-scale`.
+- Initial blueprint catalog: `generic`, `web-product`, `library-sdk`,
+  `ml-research`, `ops-infra`, `security`, `research`, `custom`.
+- Two-step interactive flow with `inquire`: blueprint `Select`, then pack
+  `MultiSelect` with the blueprint's defaults pre-checked.
+- Non-interactive flag mapping: `--blueprint <name>` and repeatable
+  `--pack <name>`.
+- Per-project `.llm_wiki/` folder with `init.toml` recording chosen blueprint,
+  resolved pack list, and framework version.
+
+Excluded:
+- Skill projection migration onto the same engine (sibling proposal:
+  `wiki/proposals/skills-template-engine.proposal.md`).
+- An `upgrade` command. `.llm_wiki/init.toml` is written for that future, not
+  this one.
+- Project-local pack overrides under `.llm_wiki/`.
+- User-defined packs (defining a pack means writing Rust).
+
+Proof:
+- `cargo test --workspace` is green, including snapshot tests for every named
+  blueprint at default pack selection and every pack rendered standalone.
+- Two integration tests through `assert_cmd` — `--blueprint ml-research` and
+  `--blueprint ops-infra` non-interactive runs — produce green wikis with the
+  expected folders, doc types, and status vocabulary.
+- The migrated existing init template's output is byte-identical to the
+  pre-migration output for at least one fixed input set.
+- `.llm_wiki/init.toml` round-trips: `init` writes it, a follow-up read parses
+  it back into the same enum values.
+
+Promotion Target:
+- wiki/specs/knowledge-init-skill.spec.md (new flow, two-step prompts, flag
+  surface).
+- wiki/specs/documentation-model.spec.md (composable init replacing the static
+  template description, if the spec currently leans on it).
+
+Unlocks:
+- D7 self-replicating proof against two genuinely different project shapes
+  rather than two copies of the same template.
+- The skill-projection follow-on (`wiki/proposals/skills-template-engine.proposal.md`)
+  built on a proven template engine.

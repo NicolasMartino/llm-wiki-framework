@@ -1,8 +1,8 @@
 # Wiki Index
 
 Project: Software Project Management Framework
-Stage: D1 Bootstrap (Completed), D2 Ingest Cycle (Completed), D3 Lint Operation (Completed), D8 Distribution Tooling (Completed), D8.1 Managed Runtime Bootstrap (Completed)
-Updated: 2026-05-06
+Stage: D1 Bootstrap (Completed), D2 Ingest Cycle (Completed), D3 Lint Operation (Completed), D8 Distribution Tooling (Completed), D8.1 Managed Runtime Bootstrap (Completed), D10 Composable Project Init (Draft)
+Updated: 2026-05-07
 
 ## Specs
 
@@ -22,6 +22,7 @@ Updated: 2026-05-06
 - [Knowledge Research Intake](decisions/knowledge-research-intake.decision.md) — Accepted — `knowledge-research` is the guided intake surface; no separate `knowledge-intake` command
 - [LLM Wiki Binary Distribution](decisions/llm-wiki-binary-distribution.decision.md) — Accepted — Single Rust binary owns global skill installation, project scaffolding, and skill projection
 - [Managed Binary Runtime Install](decisions/binary-path-bootstrap.decision.md) — Accepted — `llm-wiki install` will manage a runtime binary under `~/.llm_wiki/` so installed skills do not require `PATH`
+- [Composable Project Init](decisions/composable-project-init.decision.md) — Accepted — `llm-wiki init` becomes a blueprint + pack composition over a compile-time template engine; per-project `.llm_wiki/init.toml` records the choices
 
 ## Roadmaps
 
@@ -42,6 +43,8 @@ Updated: 2026-05-06
 - [Project Registry and Search Artifacts](proposals/project-registry-search-artifacts.proposal.md) — Proposed — Post-D8 project registration, centralized per-project search artifacts, and explicit `search-all` cross-project search
 - [Search Backend Selection](proposals/search-backend-selection.proposal.md) — Proposed — Separate backend decision for future `llm-wiki search` and `search-all` commands
 - [Managed Binary Install and PATH Guidance](proposals/binary-path-bootstrap.proposal.md) — Accepted — Promoted to D8.1 decision and plan; make installed skills call a managed binary path while PATH remains convenience guidance
+- [Composable Project Init: Blueprints and Packs](proposals/blueprint-pack-init.proposal.md) — Accepted — Promoted to D10 decision and plan; replace the static project guidelines template with a blueprint + pack composition model and add a per-project `.llm_wiki/` folder with an `init.toml` manifest
+- [Skill Projection on the Composable-Init Template Engine](proposals/skills-template-engine.proposal.md) — Proposed — After init lands the compile-time template engine, migrate skill projection onto the same engine so the framework has one rendering pipeline; depends on `blueprint-pack-init`
 
 ## Plans
 
@@ -49,6 +52,7 @@ Updated: 2026-05-06
 - [LLM Wiki Binary Implementation](plans/llm-wiki-binary.plan.md) — Completed — Implemented D8 Rust binary with staged commits, manifest install, deterministic init, projection snapshots, fixtures, and release config
 - [LLM Wiki Product Layout Addendum](plans/llm-wiki-product-layout-addendum.plan.md) — Completed — Moved `llm-wiki` to the root product crate layout and embedded assets under `assets/`
 - [Managed Binary Runtime Install](plans/binary-path-bootstrap.plan.md) — Completed — D8.1 tactical execution for managed runtime home, manifest v2, outside-PATH install proof, and `knowledge-init` rename
+- [Composable Project Init](plans/composable-project-init.plan.md) — Draft — D10 execution: pick the template engine, migrate the existing init template, ship the blueprint + pack catalog, two-step interactive flow, and `.llm_wiki/init.toml` writer
 
 ## Experiments
 

@@ -1,5 +1,135 @@
 # Wiki Log
 
+## [2026-05-07] create | Composable project init proposal
+
+Filed `wiki/proposals/blueprint-pack-init.proposal.md`. Captures the
+discussion shift from "one static template with two conditional flags" to a
+composition model where `llm-wiki init` picks a blueprint (or `custom`),
+pre-ticks a default pack selection, and renders `AGENTS.md` plus
+`project_guidelines.md` from a base spine plus pack fragments. Also
+introduces a per-project `.llm_wiki/` folder with `init.toml` as the
+breadcrumb for a future `upgrade` command. Vocabulary fixed as
+blueprint / pack / template / render. One-shot init only; upgrade is
+out of scope.
+
+Pages updated: wiki/proposals/blueprint-pack-init.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-07] update | Blueprint catalog and generator crate selection
+
+Extended `wiki/proposals/blueprint-pack-init.proposal.md` with a first-cut
+blueprint catalog (`generic`, `web-product`, `library-sdk`, `ml-research`,
+`ops-infra`, `security`, `research`, plus `custom`), an initial pack catalog
+(`api`, `frontend`, `library`, `ml`, `data`, `ops`, `ops-lite`, `security`,
+`research`, `qmd-scale`), and a generator-implementation section. Recommended
+crate additions: `minijinja` (template rendering with light conditionals),
+`inquire` (Select for blueprint, MultiSelect with default-checked packs for
+step 2), and `toml` (pack and blueprint manifest parsing). Composition logic
+stays inside `src/init/` rather than a new workspace crate until a second
+caller justifies extraction.
+
+Pages updated: wiki/proposals/blueprint-pack-init.proposal.md, wiki/log.md
+
+## [2026-05-07] create | Skills template-engine sibling proposal
+
+Filed `wiki/proposals/skills-template-engine.proposal.md` as a follow-on to
+the composable-init proposal. Argues that once init lands the compile-time
+template engine, skill projection in
+`crates/llm-wiki-schema/src/projector/{claude,codex}.rs` should move onto the
+same engine: per-runtime variants become template inheritance, the typed
+`SkillDoc` and projector trait surface stay, golden-file outputs must remain
+byte-identical. Depends on `blueprint-pack-init` so that init is the engine
+pilot and skills are the second adopter. Open questions captured: whether
+the schema crate is the right home for the engine dependency, and whether
+the runtime-config emission belongs in templates or stays Rust-side.
+
+Pages updated: wiki/proposals/skills-template-engine.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-07] decide | askama as the D10 template engine
+
+Locked the template-engine choice for D10 to `askama` (decision was previously
+`rinja` or `askama`, deferred to a Phase 0 spike). Rationale: `askama` has
+the larger ecosystem and prior in-house experience. `rinja` (the actively
+maintained fork) remains a drop-in fallback if `askama` stalls — same
+template syntax, swap is a Cargo dependency change. Plan Phase 0 collapses
+from "engine spike" to "add dependencies + smoke-test the macro derive."
+
+Pages updated: wiki/decisions/composable-project-init.decision.md,
+wiki/plans/composable-project-init.plan.md,
+wiki/proposals/blueprint-pack-init.proposal.md,
+wiki/proposals/skills-template-engine.proposal.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/log.md
+
+## [2026-05-07] promote | Composable project init to D10 decision and plan
+
+Promoted `wiki/proposals/blueprint-pack-init.proposal.md` to Accepted with
+Promoted To pointing at the new decision and plan. Filed
+`wiki/decisions/composable-project-init.decision.md` (distilled choice
+rationale, alternatives rejected, consequences) and
+`wiki/plans/composable-project-init.plan.md` (ten-phase execution covering
+the engine spike, existing-template migration, Pack/Blueprint enums, render
+composer, full pack catalog, interactive and non-interactive flows,
+`.llm_wiki/init.toml` writer, and documentation cleanup).
+
+Added D10 to `wiki/roadmaps/framework-v1.roadmap.md` (Status: Draft, depends
+on D8.1) so implementation can begin in a sibling worktree the same way
+D9 search work is being executed on `d9-search-backend-eval`. The
+skill-projection sibling proposal stays Proposed and is unblocked once D10
+lands the engine.
+
+Pages updated: wiki/decisions/composable-project-init.decision.md,
+wiki/plans/composable-project-init.plan.md,
+wiki/proposals/blueprint-pack-init.proposal.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
+
+## [2026-05-07] update | Shared templates root, runtime-config on engine
+
+Closed the remaining two open questions in
+`wiki/proposals/skills-template-engine.proposal.md`. Project-guidelines
+fragments and skill templates share a single `templates/` root rather than
+sibling roots — one tool, one purpose, one place to look. Codex runtime
+config moves through the same engine as a typed template
+(`templates/skills/codex_runtime_config.toml.jinja` driven by a newtype
+wrapper), replacing the ad-hoc `CodexProjector::with_runtime_config_template`
+string mechanism. Asset-layout diagram and "What Closes This Proposal" list
+updated accordingly.
+
+Pages updated: wiki/proposals/skills-template-engine.proposal.md, wiki/log.md
+
+## [2026-05-07] update | Schema-direct skill annotations, drop context types
+
+Revised `wiki/proposals/skills-template-engine.proposal.md` to use thin
+newtype wrappers (`ClaudeSkill<'a>(&'a SkillDoc)`,
+`CodexSkill<'a>(&'a SkillDoc)`) carrying the `#[derive(Template)]`
+annotations directly on the schema crate's types, instead of separate
+`ClaudeSkillCtx`/`CodexSkillCtx` context structs. Templates reference
+`SkillDoc` fields directly and call methods on it for derived values.
+`rewrite_invocation` and `description_for` move from free functions in
+`projector/{format,idiom}.rs` onto `SkillDoc` as methods. The earlier open
+question about where the engine dependency lives is closed: it goes in the
+schema crate, on the basis that projecting `SkillDoc` to per-runtime
+markdown is the crate's reason for existing — the dependency wraps rendering
+complexity, not architectural drift.
+
+Pages updated: wiki/proposals/skills-template-engine.proposal.md, wiki/log.md
+
+## [2026-05-07] update | Switch to compile-time templates, drop pack.toml
+
+Revised `wiki/proposals/blueprint-pack-init.proposal.md` to use a compile-time
+template engine (`rinja` or `askama`) instead of `minijinja`, on the grounds
+that every template ships with the binary so runtime loading buys nothing and
+forfeits the build-time check. The existing init template migrates onto the
+same engine in the same change set, eliminating the two-rendering-path smell.
+`pack.toml` and the per-blueprint TOML files are dropped: packs and
+blueprints are now Rust enums with accessor methods, so adding a pack is "add
+an enum variant + a template fragment file." The `toml` crate stays only for
+serializing `.llm_wiki/init.toml`. Skill projection is flagged as a possible
+future migration onto the same engine but kept out of scope. The pack-conflict
+open question is closed by the compile-time model.
+
+Pages updated: wiki/proposals/blueprint-pack-init.proposal.md, wiki/log.md
+
 ## [2026-04-23] ingest | Karpathy LLM Wiki research
 
 Compiled raw/research/llm-wiki-pattern-research.md into wiki reference page.
