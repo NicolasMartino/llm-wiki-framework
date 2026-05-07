@@ -113,6 +113,7 @@ pub trait SearchBackend {
     fn search_project(
         &self,
         store_path: &Path,
+        wiki_root: &Path,
         query: &str,
         filters: &SearchFilters,
         limit: usize,

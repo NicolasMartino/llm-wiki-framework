@@ -1170,3 +1170,12 @@ Pages created: wiki/plans/project-registry-search-artifacts.plan.md
 Pages updated: wiki/plans/qmd-rs-search-backend.plan.md,
 wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/index.md,
 wiki/roadmaps/framework-v1.roadmap.md, wiki/log.md
+
+## [2026-05-07] fix | qmd-rs freshness and staleness review
+
+Fixed review findings in the qmd-rs backend adapter. Search results now receive
+fresh/stale/unknown markers from adapter status, qmd-rs store metadata records
+per-file content hashes in addition to timestamp/count summaries, and the eval
+replay accepts the active D9 registry/search plan as the promoted Q7 target.
+
+Pages updated: wiki/evals/search-backend-selection.eval.md, wiki/log.md

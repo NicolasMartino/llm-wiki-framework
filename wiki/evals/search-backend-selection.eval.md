@@ -69,7 +69,7 @@ cross-document operational language:
 | Q4 | `knowledge research intake bundle manifest summary` | `wiki/plans/knowledge-research-intake.plan.md` or `wiki/decisions/knowledge-research-intake.decision.md` |
 | Q5 | `QMD hybrid search MCP` | `wiki/references/qmd-search-engine.reference.md` |
 | Q6 | `three phase ingest extraction drafting bookkeeping` | `wiki/references/three-phase-ingest-pipeline.reference.md` |
-| Q7 | `project registry search-all reciprocal rank fusion` | `wiki/proposals/project-registry-search-artifacts.proposal.md` |
+| Q7 | `project registry search-all reciprocal rank fusion` | `wiki/plans/project-registry-search-artifacts.plan.md` or `wiki/proposals/project-registry-search-artifacts.proposal.md` |
 | Q8 | `D8 distribution tooling cargo dist skill projection` | `wiki/plans/llm-wiki-binary.plan.md` or `wiki/proposals/llm-wiki-binary.proposal.md` |
 
 ## Tobi QMD BM25 Baseline
@@ -282,6 +282,8 @@ Result:
 - The replay permits the accepted decision/eval/implementation artifacts for Q3
   because the backend-selection topic now has a promoted decision and replay
   result in addition to the original proposal.
+- The replay permits the active D9 plan for Q7 because the registry/search
+  proposal has now been accepted and promoted to an implementation plan.
 
 Additional feature gate:
 

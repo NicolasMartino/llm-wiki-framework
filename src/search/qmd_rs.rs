@@ -9,6 +9,7 @@ mod enabled {
     use chrono::{DateTime, Utc};
     use qmd::Store;
     use serde::{Deserialize, Serialize};
+    use sha2::{Digest, Sha256};
 
     use crate::search::adapter::{
         BackendState, BackendStatus, Freshness, IndexOptions, MatchSpan, Score, SearchBackend,
@@ -82,8 +83,9 @@ mod enabled {
                 schema_version: SCHEMA_VERSION,
                 backend: BACKEND_NAME.to_string(),
                 project_id: collection,
-                file_count: snapshot.file_count,
-                max_modified_unix_seconds: snapshot.max_modified_unix_seconds,
+                file_count: snapshot.file_count(),
+                max_modified_unix_seconds: snapshot.max_modified_unix_seconds(),
+                files: snapshot.files,
             }
             .write(store_path)?;
 
@@ -99,6 +101,7 @@ mod enabled {
         fn search_project(
             &self,
             store_path: &Path,
+            wiki_root: &Path,
             query: &str,
             filters: &SearchFilters,
             limit: usize,
@@ -114,6 +117,7 @@ mod enabled {
 
             let store = Store::open(store_path)
                 .with_context(|| format!("open qmd-rs store {}", store_path.display()))?;
+            let freshness = freshness_for_status(status_for_store(store_path, wiki_root)?);
             let overfetch = limit.saturating_mul(4).max(20);
             let raw_results = store.search_fts(&sanitized, overfetch, None)?;
             let terms = query_terms(query);
@@ -150,7 +154,7 @@ mod enabled {
                     match_span,
                     backend: BACKEND_NAME.to_string(),
                     mode: SearchMode::Fts,
-                    freshness: Freshness::Unknown,
+                    freshness,
                 });
 
                 if results.len() == limit {
@@ -197,27 +201,56 @@ mod enabled {
         absolute_path: PathBuf,
         canonical_path: String,
         modified: SystemTime,
+        content_hash: String,
     }
 
-    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    #[derive(Clone, Debug, Eq, PartialEq)]
     struct WikiSnapshot {
-        file_count: usize,
-        max_modified_unix_seconds: i64,
+        files: Vec<FileSnapshot>,
+    }
+
+    #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+    struct FileSnapshot {
+        path: String,
+        content_hash: String,
+        modified_unix_seconds: i64,
     }
 
     impl WikiSnapshot {
         fn from_documents(docs: &[WikiDocument]) -> Result<Self> {
-            let max_modified_unix_seconds = docs
+            let files = docs
                 .iter()
-                .map(|doc| unix_seconds(doc.modified))
+                .map(|doc| {
+                    Ok(FileSnapshot {
+                        path: doc.canonical_path.clone(),
+                        content_hash: doc.content_hash.clone(),
+                        modified_unix_seconds: unix_seconds(doc.modified)?,
+                    })
+                })
                 .collect::<Result<Vec<_>>>()?
                 .into_iter()
+                .collect();
+            Ok(Self { files })
+        }
+
+        fn file_count(&self) -> usize {
+            self.files.len()
+        }
+
+        fn max_modified_unix_seconds(&self) -> i64 {
+            self.files
+                .iter()
+                .map(|file| file.modified_unix_seconds)
                 .max()
-                .unwrap_or(0);
-            Ok(Self {
-                file_count: docs.len(),
-                max_modified_unix_seconds,
-            })
+                .unwrap_or(0)
+        }
+    }
+
+    fn freshness_for_status(status: BackendStatus) -> Freshness {
+        match status.state {
+            BackendState::Ready => Freshness::Fresh,
+            BackendState::Stale => Freshness::Stale,
+            _ => Freshness::Unknown,
         }
     }
 
@@ -228,6 +261,7 @@ mod enabled {
         project_id: String,
         file_count: usize,
         max_modified_unix_seconds: i64,
+        files: Vec<FileSnapshot>,
     }
 
     impl StoreMetadata {
@@ -250,8 +284,7 @@ mod enabled {
 
         fn snapshot(&self) -> WikiSnapshot {
             WikiSnapshot {
-                file_count: self.file_count,
-                max_modified_unix_seconds: self.max_modified_unix_seconds,
+                files: self.files.clone(),
             }
         }
     }
@@ -339,6 +372,7 @@ mod enabled {
             } else if path.extension().and_then(|value| value.to_str()) == Some("md") {
                 let metadata = entry.metadata()?;
                 let modified = metadata.modified().unwrap_or(UNIX_EPOCH);
+                let content_hash = hash_file(&path)?;
                 let canonical_path = path
                     .strip_prefix(project_root)
                     .unwrap_or(&path)
@@ -348,10 +382,18 @@ mod enabled {
                     absolute_path: path,
                     canonical_path,
                     modified,
+                    content_hash,
                 });
             }
         }
         Ok(())
+    }
+
+    fn hash_file(path: &Path) -> Result<String> {
+        let bytes = fs::read(path).with_context(|| format!("read {}", path.display()))?;
+        let mut hasher = Sha256::new();
+        hasher.update(bytes);
+        Ok(format!("{:x}", hasher.finalize()))
     }
 
     fn find_match_span(body: &str, terms: &[String]) -> Option<MatchSpan> {
@@ -421,9 +463,9 @@ mod enabled {
 
     #[cfg(test)]
     mod tests {
-        use super::QmdRsBackend;
+        use super::{FileSnapshot, QmdRsBackend, WikiSnapshot};
         use crate::search::adapter::{
-            BackendState, IndexOptions, SearchBackend, SearchFilters, SearchMode,
+            BackendState, Freshness, IndexOptions, SearchBackend, SearchFilters, SearchMode,
         };
         use std::fs;
         use std::path::Path;
@@ -452,6 +494,7 @@ mod enabled {
             let results = backend
                 .search_project(
                     &store,
+                    &wiki,
                     "qmd-rs search-all",
                     &SearchFilters {
                         document_class: Some("decision".to_string()),
@@ -467,6 +510,7 @@ mod enabled {
             );
             assert_eq!(results[0].document_class.as_deref(), Some("Decision"));
             assert_eq!(results[0].status.as_deref(), Some("Accepted"));
+            assert_eq!(results[0].freshness, Freshness::Fresh);
             assert!(
                 results[0]
                     .snippet
@@ -487,6 +531,60 @@ mod enabled {
                 .doctor(&store, &wiki, SearchMode::Fts)
                 .expect("doctor");
             assert_eq!(stale.state, BackendState::Stale);
+
+            let stale_results = backend
+                .search_project(
+                    &store,
+                    &wiki,
+                    "qmd-rs search-all",
+                    &SearchFilters::default(),
+                    5,
+                )
+                .expect("stale search");
+            assert!(
+                stale_results
+                    .iter()
+                    .any(|result| result.freshness == Freshness::Stale)
+            );
+        }
+
+        #[test]
+        fn snapshots_detect_content_changes_even_with_same_count_and_mtime() {
+            let before = WikiSnapshot {
+                files: vec![
+                    FileSnapshot {
+                        path: "wiki/a.md".to_string(),
+                        content_hash: "old".to_string(),
+                        modified_unix_seconds: 10,
+                    },
+                    FileSnapshot {
+                        path: "wiki/b.md".to_string(),
+                        content_hash: "same".to_string(),
+                        modified_unix_seconds: 20,
+                    },
+                ],
+            };
+            let after = WikiSnapshot {
+                files: vec![
+                    FileSnapshot {
+                        path: "wiki/a.md".to_string(),
+                        content_hash: "new".to_string(),
+                        modified_unix_seconds: 10,
+                    },
+                    FileSnapshot {
+                        path: "wiki/b.md".to_string(),
+                        content_hash: "same".to_string(),
+                        modified_unix_seconds: 20,
+                    },
+                ],
+            };
+
+            assert_eq!(before.file_count(), after.file_count());
+            assert_eq!(
+                before.max_modified_unix_seconds(),
+                after.max_modified_unix_seconds()
+            );
+            assert_ne!(before, after);
         }
 
         #[test]
@@ -537,7 +635,10 @@ mod enabled {
                 ),
                 (
                     "project registry search-all reciprocal rank fusion",
-                    &["wiki/proposals/project-registry-search-artifacts.proposal.md"],
+                    &[
+                        "wiki/plans/project-registry-search-artifacts.plan.md",
+                        "wiki/proposals/project-registry-search-artifacts.proposal.md",
+                    ],
                 ),
                 (
                     "D8 distribution tooling cargo dist skill projection",
@@ -550,7 +651,7 @@ mod enabled {
 
             for (query, expected) in cases {
                 let results = backend
-                    .search_project(&store, query, &SearchFilters::default(), 2)
+                    .search_project(&store, &wiki, query, &SearchFilters::default(), 2)
                     .unwrap_or_else(|error| panic!("{query}: {error}"));
                 let paths = results
                     .iter()
@@ -601,6 +702,7 @@ mod disabled {
         fn search_project(
             &self,
             _store_path: &Path,
+            _wiki_root: &Path,
             _query: &str,
             _filters: &SearchFilters,
             _limit: usize,
