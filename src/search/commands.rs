@@ -1,4 +1,8 @@
 use std::collections::BTreeMap;
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::process;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, bail};
 use serde_json::json;
@@ -60,14 +64,19 @@ fn index_registered_project(
     force: bool,
 ) -> Result<()> {
     let store_path = paths.qmd_rs_store_path(&project.id);
-    if let Some(parent) = store_path.parent() {
-        std::fs::create_dir_all(parent)
-            .with_context(|| format!("create search index dir {}", parent.display()))?;
-    }
+    let project_index_dir = paths.project_index_dir(&project.id);
+    fs::create_dir_all(&project_index_dir)
+        .with_context(|| format!("create search index dir {}", project_index_dir.display()))?;
+    let _lock = ProjectIndexLock::acquire(&project_index_dir)?;
+    let temp_build = TempIndexBuild::new(&project_index_dir)?;
 
     let backend = QmdRsBackend::new();
-    let status =
-        backend.rebuild_or_recover(&project.id, &project.wiki_root(), &store_path, force)?;
+    let status = backend.rebuild_or_recover(
+        &project.id,
+        &project.wiki_root(),
+        &temp_build.store_path,
+        force,
+    )?;
     if matches!(status.state, BackendState::FeatureDisabled) {
         bail!("{}", feature_disabled_message());
     }
@@ -81,6 +90,8 @@ fn index_registered_project(
         );
     }
 
+    promote_qmd_rs_store(&temp_build.store_path, &store_path)?;
+    temp_build.cleanup()?;
     registry.record_index_success(&project.id, status.indexed_files, &project.wiki_root())?;
     registry.write_atomic(registry_path)?;
     println!(
@@ -88,6 +99,149 @@ fn index_registered_project(
         project.id, status.indexed_files
     );
     Ok(())
+}
+
+#[derive(Debug)]
+struct ProjectIndexLock {
+    path: PathBuf,
+}
+
+impl ProjectIndexLock {
+    fn acquire(project_index_dir: &Path) -> Result<Self> {
+        let path = project_index_dir.join("qmd-rs.lock");
+        fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+            .with_context(|| {
+                format!(
+                    "project index is already locked or cannot be locked: {}",
+                    path.display()
+                )
+            })?;
+        Ok(Self { path })
+    }
+}
+
+impl Drop for ProjectIndexLock {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.path);
+    }
+}
+
+struct TempIndexBuild {
+    dir: PathBuf,
+    store_path: PathBuf,
+}
+
+impl TempIndexBuild {
+    fn new(project_index_dir: &Path) -> Result<Self> {
+        let suffix = unique_suffix();
+        let dir = project_index_dir.join(format!(".qmd-rs-build-{suffix}"));
+        fs::create_dir_all(&dir)
+            .with_context(|| format!("create temp search index dir {}", dir.display()))?;
+        let store_path = dir.join("qmd-rs.sqlite");
+        Ok(Self { dir, store_path })
+    }
+
+    fn cleanup(self) -> Result<()> {
+        if self.dir.exists() {
+            fs::remove_dir_all(&self.dir)
+                .with_context(|| format!("remove temp search index dir {}", self.dir.display()))?;
+        }
+        Ok(())
+    }
+}
+
+impl Drop for TempIndexBuild {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.dir);
+    }
+}
+
+fn unique_suffix() -> String {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0);
+    format!("{}-{nanos}", process::id())
+}
+
+fn promote_qmd_rs_store(temp_store: &Path, live_store: &Path) -> Result<()> {
+    if !temp_store.exists() {
+        bail!(
+            "temporary qmd-rs store was not created: {}",
+            temp_store.display()
+        );
+    }
+
+    let suffix = unique_suffix();
+    let mut backups = Vec::new();
+    for live in related_store_paths(live_store) {
+        if live.exists() {
+            let backup = backup_path(&live, &suffix);
+            fs::rename(&live, &backup).with_context(|| {
+                format!(
+                    "move existing qmd-rs store file {} to {}",
+                    live.display(),
+                    backup.display()
+                )
+            })?;
+            backups.push((live, backup));
+        }
+    }
+
+    let promote_result = (|| -> Result<()> {
+        for (temp, live) in related_store_paths(temp_store)
+            .into_iter()
+            .zip(related_store_paths(live_store))
+        {
+            if temp.exists() {
+                fs::rename(&temp, &live).with_context(|| {
+                    format!(
+                        "promote qmd-rs store file {} to {}",
+                        temp.display(),
+                        live.display()
+                    )
+                })?;
+            }
+        }
+        Ok(())
+    })();
+
+    if let Err(error) = promote_result {
+        for (live, backup) in backups.iter().rev() {
+            if backup.exists() && !live.exists() {
+                let _ = fs::rename(backup, live);
+            }
+        }
+        return Err(error);
+    }
+
+    for (_, backup) in backups {
+        if backup.exists() {
+            fs::remove_file(&backup)
+                .with_context(|| format!("remove qmd-rs backup {}", backup.display()))?;
+        }
+    }
+    Ok(())
+}
+
+fn related_store_paths(store_path: &Path) -> Vec<PathBuf> {
+    vec![
+        store_path.to_path_buf(),
+        store_path.with_extension("llm-wiki.json"),
+        store_path.with_extension("sqlite-wal"),
+        store_path.with_extension("sqlite-shm"),
+    ]
+}
+
+fn backup_path(path: &Path, suffix: &str) -> PathBuf {
+    let file_name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or("qmd-rs-store");
+    path.with_file_name(format!("{file_name}.backup-{suffix}"))
 }
 
 pub fn search(args: &SearchArgs) -> Result<()> {
@@ -365,4 +519,21 @@ fn freshness_label(freshness: Freshness) -> &'static str {
 
 fn feature_disabled_message() -> &'static str {
     "qmd-rs-feature-disabled: qmd-rs backend feature is disabled; rebuild with --features qmd-rs"
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ProjectIndexLock;
+
+    #[test]
+    fn project_index_lock_is_exclusive() {
+        let temp = tempfile::TempDir::new().expect("tempdir");
+        let first = ProjectIndexLock::acquire(temp.path()).expect("first lock");
+
+        let error = ProjectIndexLock::acquire(temp.path()).expect_err("second lock");
+
+        assert!(error.to_string().contains("qmd-rs.lock"));
+        drop(first);
+        ProjectIndexLock::acquire(temp.path()).expect("lock after drop");
+    }
 }

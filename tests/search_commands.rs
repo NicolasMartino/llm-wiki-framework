@@ -126,6 +126,53 @@ fn index_and_search_registered_project_with_filters() {
         .stdout(predicate::str::contains("\"freshness\": \"fresh\""));
 }
 
+#[cfg(all(feature = "qmd-rs", unix))]
+#[test]
+fn failed_force_index_preserves_previous_store() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+
+    llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let bad_file = project.join("wiki/decisions/unreadable.decision.md");
+    fs::write(&bad_file, "# Bad\n\nThis file cannot be read.").expect("bad file");
+    let mut permissions = fs::metadata(&bad_file).expect("metadata").permissions();
+    permissions.set_mode(0o000);
+    fs::set_permissions(&bad_file, permissions).expect("chmod unreadable");
+
+    llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .failure();
+
+    let mut permissions = fs::metadata(&bad_file).expect("metadata").permissions();
+    permissions.set_mode(0o644);
+    fs::set_permissions(&bad_file, permissions).expect("chmod readable");
+    fs::remove_file(&bad_file).expect("remove bad file");
+
+    llm_wiki(home.path())
+        .args([
+            "search",
+            "reciprocal rank fusion",
+            "--project",
+            "fixture",
+            "--format",
+            "json",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "\"path\": \"wiki/decisions/search.decision.md\"",
+        ));
+}
+
 #[cfg(feature = "qmd-rs")]
 #[test]
 fn index_all_and_search_all_fuse_registered_projects() {
