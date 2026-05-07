@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use chrono::{SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -86,8 +86,15 @@ impl Manifest {
         }
         let input = fs::read_to_string(path)
             .with_context(|| format!("failed to read manifest {}", path.display()))?;
-        let manifest = serde_json::from_str(&input)
+        let manifest: Self = serde_json::from_str(&input)
             .with_context(|| format!("failed to parse manifest {}", path.display()))?;
+        if manifest.schema_version != 2 {
+            bail!(
+                "unsupported manifest schema_version {} in {}; expected 2",
+                manifest.schema_version,
+                path.display()
+            );
+        }
         Ok(Some(manifest))
     }
 
@@ -121,6 +128,8 @@ pub struct PartialInstall {
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum PartialPhase {
+    /// The current transaction model has one phase, but the manifest keeps this
+    /// explicit so future recovery can distinguish later install steps.
     BinaryCopy,
 }
 
@@ -143,8 +152,15 @@ impl PartialInstall {
         }
         let input = fs::read_to_string(path)
             .with_context(|| format!("failed to read partial install {}", path.display()))?;
-        let partial = serde_json::from_str(&input)
+        let partial: Self = serde_json::from_str(&input)
             .with_context(|| format!("failed to parse partial install {}", path.display()))?;
+        if partial.schema_version != 1 {
+            bail!(
+                "unsupported partial install schema_version {} in {}; expected 1",
+                partial.schema_version,
+                path.display()
+            );
+        }
         Ok(Some(partial))
     }
 

@@ -27,9 +27,11 @@ global skills with a manifest, and scaffolds new projects deterministically.
 copied or verified at `~/.llm_wiki/bin/llm-wiki`, install ownership is recorded
 in `~/.llm_wiki/manifest.json`, interrupted installs use
 `~/.llm_wiki/install.partial.json`, and scoped backup snapshots live under
-`~/.llm_wiki/backups/`. Installed skills call the managed binary by absolute
-path; shell `PATH` setup is terminal convenience only. Spawned projects do not
-need project-local framework skill copies.
+`~/.llm_wiki/backups/`. Backup snapshots include changed framework skill
+targets and any displaced unmanaged binary at the managed binary path.
+Installed skills call the managed binary by absolute path; shell `PATH` setup
+is terminal convenience only. Spawned projects do not need project-local
+framework skill copies.
 
 ## Operations
 

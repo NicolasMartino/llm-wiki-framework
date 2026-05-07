@@ -1054,3 +1054,22 @@ wiki/decisions/llm-wiki-binary-distribution.decision.md,
 wiki/decisions/knowledge-command-namespace.decision.md,
 wiki/plans/binary-path-bootstrap.plan.md, wiki/roadmaps/framework-v1.roadmap.md,
 wiki/log.md
+
+## [2026-05-07] update | Close D8.1 merge-review gaps
+
+Closed merge-review gaps in the D8.1 managed runtime implementation. Added
+tests for stale partial-marker rejection, stale partial-marker `--force`
+recovery, unmanaged managed-binary collision refusal, forced unmanaged-binary
+replacement with a backup snapshot, unsupported manifest schema rejection, and
+unsupported partial-marker schema rejection.
+
+The implementation now validates `schema_version` on manifest and partial
+marker reads, improves the interrupted-install error message when a partial
+managed binary is found, uses the shared binary marker constant in doctor, and
+records displaced managed binaries in backup snapshots with an explicit
+`managed-binary` entry kind.
+
+Pages updated: wiki/proposals/binary-path-bootstrap.proposal.md,
+wiki/decisions/binary-path-bootstrap.decision.md,
+wiki/plans/binary-path-bootstrap.plan.md,
+wiki/specs/documentation-model.spec.md, wiki/log.md

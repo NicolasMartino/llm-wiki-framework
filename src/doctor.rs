@@ -9,7 +9,7 @@ use crate::embed;
 use crate::manifest::Manifest;
 use crate::manifest::hash::sha256_hex;
 use crate::paths::{Paths, managed_binary_name};
-use crate::skill_render::managed_binary_invocation;
+use crate::skill_render::{BINARY_MARKER, managed_binary_invocation};
 
 pub fn run() -> Result<()> {
     let paths = Paths::from_env()?;
@@ -68,15 +68,11 @@ pub fn run() -> Result<()> {
                     ));
                 }
                 let contents = String::from_utf8_lossy(&bytes);
-                if contents.contains("{llm_wiki_binary}") || contents.contains("`llm-wiki init ") {
-                    findings.push(format!(
-                        "Installed skill does not use managed binary path: {} (run `llm-wiki install --force` to replace)",
-                        entry.path.display()
-                    ));
-                } else if contents.contains(" init <path>") && !contents.contains(&expected_binary)
+                if contents.contains(BINARY_MARKER)
+                    || (contents.contains("llm-wiki") && !contents.contains(&expected_binary))
                 {
                     findings.push(format!(
-                        "Installed skill init command does not target managed binary: {}",
+                        "Installed skill does not use managed binary path: {} (run `llm-wiki install --force` to replace)",
                         entry.path.display()
                     ));
                 }

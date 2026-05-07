@@ -39,6 +39,10 @@ All binary and file hashes in managed install state use `sha256`.
 Manifest v2 stores `hash_algorithm: "sha256"` beside each binary, skill, and
 backup hash so records remain self-describing.
 
+Backup snapshots cover both framework skill targets and a displaced managed
+binary when `install --force` replaces an unmanaged file at the managed binary
+path.
+
 ## Failure Semantics
 
 The installer must resolve the running executable with `std::env::current_exe()`

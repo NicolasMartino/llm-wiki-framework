@@ -2,7 +2,7 @@ use std::path::Path;
 
 use llm_wiki_schema::SkillDoc;
 
-const BINARY_MARKER: &str = "{llm_wiki_binary}";
+pub const BINARY_MARKER: &str = "{llm_wiki_binary}";
 
 pub fn apply_binary_context(mut doc: SkillDoc, binary: &str) -> SkillDoc {
     doc.body.purpose = doc.body.purpose.replace(BINARY_MARKER, binary);

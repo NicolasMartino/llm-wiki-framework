@@ -31,7 +31,8 @@ pub fn run(force: bool, show_path_guidance: bool) -> Result<()> {
     let current_exe_hash = sha256_hex(&current_exe_bytes);
     let manifest = Manifest::read(&paths.manifest())?;
 
-    recover_or_reject_partial(&paths, manifest.as_ref(), &current_exe_hash, force)?;
+    let partial_state =
+        recover_or_reject_partial(&paths, manifest.as_ref(), &current_exe_hash, force)?;
 
     let partial = PartialInstall::new(
         current_exe.clone(),
@@ -40,10 +41,16 @@ pub fn run(force: bool, show_path_guidance: bool) -> Result<()> {
     );
     partial.write_atomic(&paths.partial_install())?;
 
-    let binary =
-        install_managed_binary(&paths, &current_exe, &current_exe_bytes, &manifest, force)?;
     let files = render_install_files(&paths)?;
-    let backup = write_backup_snapshot(&paths, &files, manifest.as_ref())?;
+    let backup = write_backup_snapshot(&paths, &files, manifest.as_ref(), &current_exe_hash)?;
+    let binary = install_managed_binary(
+        &paths,
+        &current_exe,
+        &current_exe_bytes,
+        &manifest,
+        force,
+        partial_state,
+    )?;
     let skill_entries = install_files(files, manifest.as_ref(), force)?;
     let mut backups = manifest
         .as_ref()
@@ -70,17 +77,19 @@ fn recover_or_reject_partial(
     manifest: Option<&Manifest>,
     current_exe_hash: &str,
     force: bool,
-) -> Result<()> {
+) -> Result<PartialState> {
     let partial_path = paths.partial_install();
     let Some(partial) = PartialInstall::read(&partial_path)? else {
-        return Ok(());
+        return Ok(PartialState::None);
     };
 
     let managed_binary = paths.managed_binary();
     if let Some(manifest) = manifest
         && manifest.binary.path == managed_binary
         && managed_binary.exists()
-        && sha256_hex(&fs::read(&managed_binary)?) == manifest.binary.hash
+        && sha256_hex(&fs::read(&managed_binary).with_context(|| {
+            format!("failed to read managed binary {}", managed_binary.display())
+        })?) == manifest.binary.hash
     {
         fs::remove_file(&partial_path).with_context(|| {
             format!(
@@ -88,7 +97,7 @@ fn recover_or_reject_partial(
                 partial_path.display()
             )
         })?;
-        return Ok(());
+        return Ok(PartialState::LeakedMarkerCleaned);
     }
     if partial.target_binary != managed_binary && !force {
         bail!(
@@ -101,7 +110,14 @@ fn recover_or_reject_partial(
             "stale partial install was started by a different binary; rerun with --force to replace it"
         );
     }
-    Ok(())
+    Ok(PartialState::Resuming)
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PartialState {
+    None,
+    Resuming,
+    LeakedMarkerCleaned,
 }
 
 fn install_managed_binary(
@@ -110,6 +126,7 @@ fn install_managed_binary(
     current_exe_bytes: &[u8],
     manifest: &Option<Manifest>,
     force: bool,
+    partial_state: PartialState,
 ) -> Result<BinaryEntry> {
     let managed_binary = paths.managed_binary();
     if let Some(parent) = managed_binary.parent() {
@@ -134,6 +151,12 @@ fn install_managed_binary(
             .as_ref()
             .is_some_and(|manifest| manifest.binary.path == managed_binary);
         if managed_hash != current_hash && !manifest_owned && !force {
+            if partial_state == PartialState::Resuming {
+                bail!(
+                    "previous install left a partial managed binary {}; rerun with --force to replace it",
+                    managed_binary.display()
+                );
+            }
             bail!(
                 "refusing to replace unmanaged binary {}; rerun with --force to replace it",
                 managed_binary.display()
@@ -262,6 +285,7 @@ fn write_backup_snapshot(
     paths: &Paths,
     files: &[InstallFile],
     manifest: Option<&Manifest>,
+    current_exe_hash: &str,
 ) -> Result<BackupEntry> {
     let id = backup_id();
     let dir = paths.managed_home().join("backups").join(&id);
@@ -279,6 +303,25 @@ fn write_backup_snapshot(
         .unwrap_or_default();
 
     let mut backed_up = Vec::new();
+    let managed_binary = paths.managed_binary();
+    if managed_binary.exists() {
+        let current = fs::read(&managed_binary).with_context(|| {
+            format!("failed to read managed binary {}", managed_binary.display())
+        })?;
+        let current_hash = sha256_hex(&current);
+        if current_hash != current_exe_hash {
+            let backup_path = dir.join("0000-llm-wiki");
+            fs::write(&backup_path, current)
+                .with_context(|| format!("failed to write {}", backup_path.display()))?;
+            backed_up.push(BackupSnapshotFile {
+                kind: BackupSnapshotKind::ManagedBinary,
+                original_path: managed_binary,
+                backup_path,
+                hash_algorithm: HashAlgorithm::Sha256,
+                hash: current_hash,
+            });
+        }
+    }
     for (index, file) in files.iter().enumerate() {
         let symlink = fs::symlink_metadata(&file.path)
             .map(|metadata| metadata.file_type().is_symlink())
@@ -300,10 +343,11 @@ fn write_backup_snapshot(
             .file_name()
             .map(|name| name.to_string_lossy())
             .unwrap_or_else(|| "file".into());
-        let backup_path = dir.join(format!("{index:04}-{file_name}"));
+        let backup_path = dir.join(format!("{:04}-{file_name}", index + 1));
         fs::write(&backup_path, current)
             .with_context(|| format!("failed to write {}", backup_path.display()))?;
         backed_up.push(BackupSnapshotFile {
+            kind: BackupSnapshotKind::InstallFile,
             original_path: file.path.clone(),
             backup_path,
             hash_algorithm: HashAlgorithm::Sha256,
@@ -408,10 +452,18 @@ struct BackupSnapshotManifest {
 
 #[derive(Serialize)]
 struct BackupSnapshotFile {
+    kind: BackupSnapshotKind,
     original_path: PathBuf,
     backup_path: PathBuf,
     hash_algorithm: HashAlgorithm,
     hash: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "kebab-case")]
+enum BackupSnapshotKind {
+    ManagedBinary,
+    InstallFile,
 }
 
 fn backup_with_suffix(path: &Path, suffix: &str) -> Result<PathBuf> {

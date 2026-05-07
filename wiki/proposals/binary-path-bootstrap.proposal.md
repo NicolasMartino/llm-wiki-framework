@@ -195,18 +195,18 @@ Preserve platform-specific executable names:
 - Unix-like systems: `llm-wiki`
 - Windows: `llm-wiki.exe`
 
-## Scoped Skill Backup
+## Scoped Backup
 
-Before replacing installed skills, create a timestamped backup snapshot under
-the managed runtime home:
+Before replacing installed skills or a colliding managed binary, create a
+timestamped backup snapshot under the managed runtime home:
 
 ```text
 ~/.llm_wiki/backups/install-<UTC timestamp>/
 ~/.llm_wiki/backups/install-<UTC timestamp>/backup-manifest.json
 ```
 
-The backup scope is limited to known framework skill target paths, not every
-user skill:
+The skill backup scope is limited to known framework skill target paths, not
+every user skill:
 
 ```text
 ~/.claude/skills/knowledge-init/
@@ -230,14 +230,16 @@ The backup manifest records:
 4. `sha256` file hashes for backed-up files
 5. timestamp
 6. binary version
+7. entry kind (`managed-binary` or `install-file`)
 
 The first implementation does not need an automated rollback command. The
 backup snapshot must be structured enough for manual rollback and for a future
 `llm-wiki rollback <backup-id>` command.
 
-If no known framework skill targets exist yet, install still writes a backup
-manifest recording the empty snapshot. That keeps install behavior uniform and
-proves the backup step ran before file replacement.
+If no known framework skill targets or colliding managed binary exist yet,
+install still writes a backup manifest recording the empty snapshot. That keeps
+install behavior uniform and proves the backup step ran before file
+replacement.
 
 ## Installed Skill Set
 

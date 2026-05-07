@@ -186,10 +186,12 @@ marker leak when manifest and binary hashes match.
 
 ### 4. Skill install and backups
 
-1. Create a scoped backup snapshot before replacing known framework skill paths.
+1. Create a scoped backup snapshot before replacing known framework skill paths
+   or a colliding managed binary.
    With no public migration surface, the backup protects user-authored content
-   or local dogfood edits at framework skill paths; the empty snapshot proves
-   the protection step ran even on first install.
+   or local dogfood edits at framework skill paths, plus an unmanaged binary
+   already sitting at `~/.llm_wiki/bin/llm-wiki`; the empty snapshot proves the
+   protection step ran even on first install.
 2. Render installed skills so binary calls use the managed absolute binary path.
    Implement this at the structured rendering boundary identified in Phase 0,
    preferably by passing managed binary path context into projection/install
@@ -198,7 +200,8 @@ marker leak when manifest and binary hashes match.
 4. Always write a backup manifest, even for empty snapshots.
 
 Verification: installed skills contain the managed path, not bare `llm-wiki`;
-backup manifests are written for populated and empty snapshots.
+backup manifests are written for populated, binary-collision, and empty
+snapshots.
 
 ### 5. PATH guidance command
 
