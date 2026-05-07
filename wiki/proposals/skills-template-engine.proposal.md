@@ -28,21 +28,24 @@ templates/
   base/                       # init-proposal: project-guidelines spine
   packs/                      # init-proposal: per-pack fragments
   skills/
-    base.md.jinja             # frontmatter, section scaffold, default block bodies
-    claude.md.jinja           # extends base, overrides what differs
-    codex.md.jinja            # extends base, overrides what differs
-    codex_runtime_config.toml.jinja
+    base.md                   # frontmatter, section scaffold, default block bodies
+    claude.md                 # extends base, overrides what differs
+    codex.md                  # extends base, overrides what differs
+    codex_runtime_config.toml
 ```
 
-`askama` bind one struct to one template, so each runtime gets a thin newtype wrapper around `SkillDoc`:
+Markdown and TOML templates use their natural file extensions and set
+`escape = "none"` in Rust derives, matching the D10 init template convention.
+
+`askama` binds one struct to one template, so each runtime gets a thin newtype wrapper around `SkillDoc`:
 
 ```rust
 #[derive(Template)]
-#[template(path = "skills/claude.md.jinja")]
+#[template(path = "skills/claude.md", escape = "none")]
 pub struct ClaudeSkill<'a>(pub &'a SkillDoc);
 
 #[derive(Template)]
-#[template(path = "skills/codex.md.jinja")]
+#[template(path = "skills/codex.md", escape = "none")]
 pub struct CodexSkill<'a>(pub &'a SkillDoc);
 ```
 
@@ -91,7 +94,7 @@ Promotion to a decision plus an execution plan covering:
 1. Template layout under the shared `templates/skills/` directory (sibling to the init proposal's `templates/base/` and `templates/packs/`).
 2. `ClaudeSkill<'a>` / `CodexSkill<'a>` newtype wrappers and their `#[derive(Template)]` annotations in the schema crate.
 3. Methods on `SkillDoc` that templates call (`rewritten_invocation`, `description_for`, etc.), migrated from `crates/llm-wiki-schema/src/projector/{format,idiom}.rs`.
-4. Codex runtime-config rendered through `templates/skills/codex_runtime_config.toml.jinja`, replacing the ad-hoc `with_runtime_config_template(String)` mechanism with a typed template driven by a newtype around `SkillDoc` plus runtime context.
+4. Codex runtime-config rendered through `templates/skills/codex_runtime_config.toml`, replacing the ad-hoc `with_runtime_config_template(String)` mechanism with a typed template driven by a newtype around `SkillDoc` plus runtime context.
 5. Migration order (one runtime first, golden-file diff zero, then the second; runtime-config follows skill markdown).
 6. Removal of the now-redundant string-concat projector code paths and the ad-hoc `with_runtime_config_template` API.
 7. Documentation updates: any agent-facing notes that describe skill projection as a Rust path get updated to describe templates.

@@ -102,3 +102,5 @@ research -> raw/ -> ingest -> proposal/reference -> roadmap -> plan -> evidence 
 - Semantic/hybrid model setup and answer synthesis remain future work; D9 ships
   project-local and explicit cross-project FTS retrieval first
 - 3-phase ingest pipeline is documented in skills, but not binary-automated
+- Composable init is accepted as D10 but not implemented yet; current generated
+  projects still use the D8 static profile model until D10 lands

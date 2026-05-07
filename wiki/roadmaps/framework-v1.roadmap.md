@@ -425,20 +425,25 @@ Unlocks:
 ### D10 - Composable Project Init
 
 Status: Draft
-Promise: `llm-wiki init` produces a tailored `AGENTS.md` and `project_guidelines.md`
-from a chosen blueprint (or `custom`) plus a selected set of opt-in packs,
-rendered through a compile-time template engine. The current static template
-gated by `<!-- SECTION:ML_AI -->` / `<!-- SECTION:QMD -->` is retired in the
-same change set. Each new project gains a `.llm_wiki/init.toml` recording the
-choices for a future `upgrade` command.
+Promise: `llm-wiki init` produces a tailored canonical `AGENTS.md` and
+`project_guidelines.md` from a chosen blueprint (or `custom`) plus a selected
+set of opt-in packs, rendered through a compile-time template engine. Claude
+compatibility is preserved by writing a tiny `CLAUDE.md` shim pointing at
+`AGENTS.md`. The current static template gated by `<!-- SECTION:ML_AI -->` /
+`<!-- SECTION:QMD -->` is retired in the same change set. Each new project
+gains a `.llm_wiki/init.toml` recording the choices for a future `upgrade`
+command.
 Depends On: D8.1
 Execution Plan: wiki/plans/composable-project-init.plan.md
 
 Included:
 - A compile-time template engine (`askama`, per the decision) wired into the
   binary as the single rendering path for init.
+- Markdown templates stored as `.md` files under `templates/`, rendered through
+  Askama with `escape = "none"`.
 - Migration of the existing init template onto the chosen engine, byte-stable
-  against current snapshots.
+  against current snapshots except for the intentional `AGENTS.md` canonical
+  file plus `CLAUDE.md` shim transition.
 - Rust `Pack` and `Blueprint` enums in `src/init/` with accessor methods —
   the pack catalog is a Rust API surface, not a TOML schema.
 - Initial pack catalog: `api`, `frontend`, `library`, `ml`, `data`, `ops`,
@@ -448,7 +453,8 @@ Included:
 - Two-step interactive flow with `inquire`: blueprint `Select`, then pack
   `MultiSelect` with the blueprint's defaults pre-checked.
 - Non-interactive flag mapping: `--blueprint <name>` and repeatable
-  `--pack <name>`.
+  `--pack <name>`; the old `--type` and `--scale` init flags are retired with
+  the static profile model.
 - Per-project `.llm_wiki/` folder with `init.toml` recording chosen blueprint,
   resolved pack list, and framework version.
 

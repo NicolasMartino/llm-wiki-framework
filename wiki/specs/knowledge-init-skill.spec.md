@@ -6,7 +6,7 @@
 - Category: Tooling
 - Scope: The `knowledge-init` agent skill as a thin conversational wrapper over the `llm-wiki init` binary command.
 - Sources: assets/skills/knowledge-init/SKILL.md, src/init/mod.rs, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md
-- Related: wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-ingest-skill.spec.md
+- Related: wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/decisions/composable-project-init.decision.md, wiki/plans/composable-project-init.plan.md
 
 ## Contract
 
@@ -54,6 +54,20 @@ llm-wiki install
 Installed global skills render the binary invocation through the managed
 runtime path (`~/.llm_wiki/bin/llm-wiki` on Unix-like systems) so the wrapper
 does not require `llm-wiki` to be discoverable on shell `PATH`.
+
+## Pending D10 Change
+
+D10 Composable Project Init will replace the static `--type` / `--scale`
+profile surface with:
+
+```bash
+llm-wiki init <path> --non-interactive --name <name> --description <description> --blueprint <blueprint> --pack <pack>
+```
+
+`--pack` is repeatable and optional when a blueprint's default pack selection
+is desired. At that point, this spec must be updated from current D8 behavior
+to the D10 contract, and the canonical skill source must collect blueprint and
+pack choices instead of project type and scale.
 
 ## Proven By
 

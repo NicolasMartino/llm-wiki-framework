@@ -4,7 +4,7 @@
 - Status: Accepted
 - Date: 2026-05-07
 - Category: Tooling, project scaffolding, init UX
-- Scope: `llm-wiki init` becomes a composable generator. A chosen blueprint plus a selected set of opt-in packs renders a tailored `AGENTS.md` and `project_guidelines.md` through a compile-time template engine; a per-project `.llm_wiki/` folder records the choices.
+- Scope: `llm-wiki init` becomes a composable generator. A chosen blueprint plus a selected set of opt-in packs renders a tailored canonical `AGENTS.md` and `project_guidelines.md` through a compile-time template engine; a per-project `.llm_wiki/` folder records the choices.
 - Sources: wiki/proposals/blueprint-pack-init.proposal.md, assets/templates/project_guidelines.md, assets/templates/CLAUDE.md, src/init/{profile,answers,template,scaffold,command}.rs
 - Related: wiki/proposals/blueprint-pack-init.proposal.md, wiki/proposals/skills-template-engine.proposal.md, wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-init-skill.spec.md, wiki/decisions/llm-wiki-binary-distribution.decision.md
 
@@ -22,6 +22,14 @@ Vocabulary is fixed:
 Packs and blueprints are Rust enums with accessor methods, not TOML manifests. The pack catalog is a Rust API surface.
 
 `init` is one-shot. A future `upgrade` command is anticipated but out of scope; the per-project `.llm_wiki/init.toml` is written now precisely so that upgrade is buildable later without archaeology.
+
+Generated projects use `AGENTS.md` as the canonical agent schema file. `init`
+also writes a tiny `CLAUDE.md` compatibility shim pointing at `AGENTS.md`, so
+Claude-oriented tooling still has an entry point while the framework has one
+canonical schema document to render and compose.
+
+Template fragments are compile-time Askama templates selected by exhaustive
+Rust matches. Packs do not return arbitrary runtime template paths.
 
 ## Why
 

@@ -28,6 +28,29 @@ migration.
 
 Pages updated: wiki/plans/composable-project-init.plan.md, wiki/log.md
 
+## [2026-05-07] lint | D10 pre-implementation cleanup
+
+Resolved D10 documentation inconsistencies before implementation starts.
+Clarified that generated projects use canonical `AGENTS.md` plus a small
+`CLAUDE.md` compatibility shim, that Markdown Askama templates use `.md`
+filenames with `escape = "none"`, and that pack fragments are selected by
+exhaustive Rust matches rather than runtime template path lookup.
+
+Tightened the D10 plan around the `--type` / `--scale` retirement, the
+`--blueprint` / repeatable `--pack` final CLI surface, `llm-wiki doctor`
+remaining an install/runtime diagnostic, and the Phase 1 byte-stability
+exception for the intentional agent-schema file transition. Added a pending
+D10 note to the active `knowledge-init` spec and recorded in the documentation
+model that composable init is accepted but not implemented yet.
+
+Pages updated: wiki/plans/composable-project-init.plan.md,
+wiki/decisions/composable-project-init.decision.md,
+wiki/proposals/blueprint-pack-init.proposal.md,
+wiki/proposals/skills-template-engine.proposal.md,
+wiki/roadmaps/framework-v1.roadmap.md,
+wiki/specs/knowledge-init-skill.spec.md,
+wiki/specs/documentation-model.spec.md, wiki/index.md, wiki/log.md
+
 ## [2026-05-07] create | Composable project init proposal
 
 Filed `wiki/proposals/blueprint-pack-init.proposal.md`. Captures the
