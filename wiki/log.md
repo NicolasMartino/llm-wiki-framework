@@ -1134,3 +1134,15 @@ current-project, search-index, and semantic-model sections, and adds concrete
 metadata-parser and query-sanitizer requirements.
 
 Pages updated: wiki/plans/qmd-rs-search-backend.plan.md, wiki/log.md
+
+## [2026-05-07] update | qmd-rs backend implementation checkpoint
+
+Recorded Phase 0 implementation findings after adding the internal search
+subsystem and feature-gated qmd-rs adapter. qmd-rs remains optional behind the
+`qmd-rs` Cargo feature, default builds report a stable feature-disabled backend
+state, `just verify` passes, `cargo test --workspace --features qmd-rs` passes,
+and local release measurements show the default dist artifact remains small
+while the optional qmd-rs feature release binary is larger but below the plan's
+default-on thresholds.
+
+Pages updated: wiki/plans/qmd-rs-search-backend.plan.md, wiki/log.md

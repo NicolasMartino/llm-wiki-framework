@@ -101,13 +101,55 @@ Responsibilities:
 
 ## Implementation Notes
 
-To be filled during Phase 0 with the qmd-rs dependency/feature decision,
-build-time and dependency impact, and any constraints discovered before broad
-command work starts.
+Phase 0 implementation started on 2026-05-07.
 
-Phase 0 must also record the license/distribution review, cargo-dist target
-results, release artifact size impact, and whether `llm-wiki install` needs a
-user-visible warning about materially larger managed-binary installs.
+Decision: qmd-rs remains feature-gated behind the Cargo feature `qmd-rs`.
+Default builds do not compile or ship qmd-rs, llama.cpp, reqwest, or rusqlite.
+When the feature is disabled, the internal adapter reports a stable
+`FeatureDisabled` state and `doctor` prints that the qmd-rs backend feature is
+disabled.
+
+Measured dependency impact:
+
+- Adding optional `qmd = 0.3.2` added 169 locked packages.
+- The qmd-rs feature path includes `llama-cpp-2`, `llama-cpp-sys-2`, `reqwest`,
+  `rusqlite`, `libsqlite3-sys`, and their TLS/platform dependencies.
+- `cargo test --workspace --features qmd-rs` completed successfully after the
+  initial compile; the first qmd-rs feature test build took about 1m06s.
+- `cargo clippy --workspace --all-targets --features qmd-rs -- -D warnings`
+  completed successfully; the first feature clippy pass took about 50s.
+- `cargo build --release --features qmd-rs` completed successfully on the local
+  host and took 1m32s.
+
+Measured artifact impact:
+
+- Default `just release-build` completed successfully for the local
+  `aarch64-apple-darwin` artifact in 14.82s.
+- Default dist binary size: 1.7 MB.
+- Default compressed dist archive size: 530 KB.
+- qmd-rs feature release binary size on the local host: 4.9 MB.
+- Because qmd-rs is feature-gated and disabled by default, `llm-wiki install`
+  does not yet need a larger-download warning for the default managed binary.
+
+Distribution status:
+
+- `just release-plan` passed with network access and listed the four configured
+  cargo-dist targets: `aarch64-apple-darwin`, `aarch64-unknown-linux-gnu`,
+  `x86_64-apple-darwin`, and `x86_64-unknown-linux-gnu`.
+- Local `just release-build` emitted the host `aarch64-apple-darwin` artifact.
+  Full CI execution still needs to confirm all four target artifacts on their
+  intended runners before qmd-rs can be enabled by default.
+- Running `cargo dist build` directly failed because the installed command is
+  `dist`, not the Cargo subcommand `cargo-dist`; the repository `just`
+  wrappers are the correct release entry points.
+
+License/distribution note:
+
+- qmd-rs is recorded by the eval as `MIT OR Apache-2.0`, compatible with the
+  workspace MIT license.
+- Before enabling qmd-rs by default, re-check transitive license/distribution
+  constraints for `llama-cpp-2`, `llama-cpp-sys-2`, llama.cpp/ggml linkage,
+  SQLite linkage, and model download URIs.
 
 ## Adapter Contract
 
