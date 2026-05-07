@@ -100,6 +100,41 @@ fn doctor_reports_path_binary_drift() {
         .stdout(predicate::str::contains("PATH llm-wiki differs"));
 }
 
+#[test]
+fn doctor_reports_project_search_skipped_outside_wiki_project() {
+    let home = TempDir::new().expect("home");
+    let cwd = TempDir::new().expect("cwd");
+
+    llm_wiki(home.path())
+        .current_dir(cwd.path())
+        .arg("doctor")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Current project:"))
+        .stdout(predicate::str::contains("project search checks skipped"));
+}
+
+#[test]
+fn doctor_reports_feature_disabled_search_backend_in_wiki_project() {
+    let home = TempDir::new().expect("home");
+    let project = TempDir::new().expect("project");
+    fs::create_dir_all(project.path().join("wiki")).expect("wiki");
+    fs::write(project.path().join("wiki/index.md"), "# Index").expect("index");
+    fs::write(project.path().join("wiki/log.md"), "# Log").expect("log");
+
+    llm_wiki(home.path())
+        .current_dir(project.path())
+        .arg("doctor")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Detected wiki project"))
+        .stdout(predicate::str::contains("Search index:"))
+        .stdout(predicate::str::contains(
+            "qmd-rs backend feature is disabled",
+        ))
+        .stdout(predicate::str::contains("Semantic models:"));
+}
+
 #[cfg(unix)]
 #[test]
 fn doctor_reports_legacy_symlink() {
