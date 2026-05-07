@@ -1225,3 +1225,15 @@ continue treating feature-gated qmd-rs as the target release state.
 
 Pages updated: wiki/plans/project-registry-search-artifacts.plan.md,
 wiki/plans/qmd-rs-search-backend.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-07] update | qmd-rs release hardening scope
+
+Expanded the default-on qmd-rs release addendum with the D9 review fixes that
+must land before removing the Cargo feature. The hardening scope now explicitly
+requires safe project ID validation, per-project index locks, temp-store
+promotion, `projects` freshness reporting, stale-search CLI warnings,
+`search-all` freshness/exclude cleanup, and tolerant `AGENTS.md` / `AGENTS.MD`
+validation.
+
+Pages updated: wiki/plans/project-registry-search-artifacts.plan.md,
+wiki/log.md

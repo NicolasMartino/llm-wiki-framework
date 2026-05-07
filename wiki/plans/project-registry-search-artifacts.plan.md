@@ -456,19 +456,36 @@ implementation evidence, but it is no longer the target release behavior.
 
 ### Implementation Tasks
 
-1. Update `Cargo.toml`: remove the `qmd-rs` feature, remove `optional = true`
+1. Harden explicit project ID validation before IDs reach cache/index paths:
+   reject empty IDs, path separators, `.` / `..`, absolute paths, drive
+   prefixes, and other non-token characters.
+2. Add per-project index locking so concurrent `index` / `index-all` work for
+   the same project cannot mutate the same qmd-rs store concurrently.
+3. Add temp-store build and atomic promote behavior so failed or interrupted
+   rebuilds preserve the previous usable index.
+4. Extend `projects` text and JSON output with root status, index status,
+   freshness, backend, and cache size instead of exposing only raw registry
+   state.
+5. Add CLI tests for stale-index search warnings in text and JSON output.
+6. Remove the `search-all` Unknown-to-Fresh remap; unknown freshness must remain
+   unknown.
+7. Validate `search-all --exclude` IDs symmetrically with `--include` IDs so
+   typos fail instead of silently broadening scope.
+8. Accept both `AGENTS.md` and `AGENTS.MD` as orientation files during project
+   validation.
+9. Update `Cargo.toml`: remove the `qmd-rs` feature, remove `optional = true`
    from `qmd`, and ensure default `cargo build` includes qmd-rs.
-2. Simplify `src/search/qmd_rs.rs` by deleting the `cfg(feature = "qmd-rs")`
+10. Simplify `src/search/qmd_rs.rs` by deleting the `cfg(feature = "qmd-rs")`
    / `cfg(not(feature = "qmd-rs"))` split and the disabled adapter module.
-3. Remove or repurpose `BackendState::FeatureDisabled` only if no other
+11. Remove or repurpose `BackendState::FeatureDisabled` only if no other
    diagnostics need that generic state; otherwise leave it unused only if the
    strict dead-code gate still passes.
-4. Update command tests so default builds exercise real qmd-rs indexing and
+12. Update command tests so default builds exercise real qmd-rs indexing and
    search behavior instead of feature-disabled diagnostics.
-5. Update doctor tests so default builds report qmd-rs store states, not
+13. Update doctor tests so default builds report qmd-rs store states, not
    feature-disabled search.
-6. Update wiki/spec/roadmap wording that currently calls qmd-rs feature-gated.
-7. Recheck license/distribution notes for qmd-rs transitive dependencies before
+14. Update wiki/spec/roadmap wording that currently calls qmd-rs feature-gated.
+15. Recheck license/distribution notes for qmd-rs transitive dependencies before
    final release tagging.
 
 ### Release Gates
@@ -491,12 +508,19 @@ Before closing this addendum:
 
 ### Acceptance Criteria
 
-1. No command or test refers to qmd-rs as disabled by default.
-2. `cargo test --workspace` covers qmd-rs-backed index/search behavior.
-3. `llm-wiki doctor` reports missing/stale/ready qmd-rs stores in default
+1. Explicit project IDs cannot escape the cache/index root and unsafe IDs are
+   rejected before persistence.
+2. Failed index rebuilds preserve the previous usable qmd-rs store.
+3. Concurrent indexing of the same project is lock-protected.
+4. `projects` reports missing/fresh/stale/unusable index state in text and JSON
+   output.
+5. CLI stale-search warnings are covered for text and JSON output.
+6. No command or test refers to qmd-rs as disabled by default.
+7. `cargo test --workspace` covers qmd-rs-backed index/search behavior.
+8. `llm-wiki doctor` reports missing/stale/ready qmd-rs stores in default
    builds.
-4. Release artifacts include qmd-rs in the normal binary.
-5. The wiki records the release-direction change and no active plan tells
+9. Release artifacts include qmd-rs in the normal binary.
+10. The wiki records the release-direction change and no active plan tells
    implementers to keep qmd-rs feature-gated.
 
 ## Close Conditions
