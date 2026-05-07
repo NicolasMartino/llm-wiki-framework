@@ -14,66 +14,6 @@ fn llm_wiki(home: &Path) -> Command {
     command
 }
 
-#[cfg(not(feature = "qmd-rs"))]
-#[test]
-fn index_reports_feature_disabled_in_default_build() {
-    let home = TempDir::new().expect("home");
-    let workspace = TempDir::new().expect("workspace");
-    let project = fixture_project(workspace.path(), "Fixture Project");
-    register_project(home.path(), &project);
-
-    llm_wiki(home.path())
-        .args(["index", "--project", "fixture"])
-        .assert()
-        .failure()
-        .stderr(predicate::str::contains("qmd-rs-feature-disabled"));
-}
-
-#[cfg(not(feature = "qmd-rs"))]
-#[test]
-fn search_reports_feature_disabled_in_default_build() {
-    let home = TempDir::new().expect("home");
-    let workspace = TempDir::new().expect("workspace");
-    let project = fixture_project(workspace.path(), "Fixture Project");
-    register_project(home.path(), &project);
-
-    llm_wiki(home.path())
-        .args(["search", "reciprocal rank", "--project", "fixture"])
-        .assert()
-        .failure()
-        .stderr(predicate::str::contains("qmd-rs-feature-disabled"));
-}
-
-#[cfg(not(feature = "qmd-rs"))]
-#[test]
-fn index_all_reports_feature_disabled_in_default_build() {
-    let home = TempDir::new().expect("home");
-    let workspace = TempDir::new().expect("workspace");
-    let project = fixture_project(workspace.path(), "Fixture Project");
-    register_project(home.path(), &project);
-
-    llm_wiki(home.path())
-        .arg("index-all")
-        .assert()
-        .failure()
-        .stderr(predicate::str::contains("qmd-rs-feature-disabled"));
-}
-
-#[cfg(not(feature = "qmd-rs"))]
-#[test]
-fn search_all_reports_feature_disabled_in_default_build() {
-    let home = TempDir::new().expect("home");
-    let workspace = TempDir::new().expect("workspace");
-    let project = fixture_project(workspace.path(), "Fixture Project");
-    register_project(home.path(), &project);
-
-    llm_wiki(home.path())
-        .args(["search-all", "reciprocal rank"])
-        .assert()
-        .failure()
-        .stderr(predicate::str::contains("qmd-rs-feature-disabled"));
-}
-
 #[test]
 fn search_all_rejects_unknown_excluded_project() {
     let home = TempDir::new().expect("home");
@@ -90,9 +30,8 @@ fn search_all_rejects_unknown_excluded_project() {
         ));
 }
 
-#[cfg(feature = "qmd-rs")]
 #[test]
-fn search_refuses_missing_index_in_feature_build() {
+fn search_refuses_missing_index() {
     let home = TempDir::new().expect("home");
     let workspace = TempDir::new().expect("workspace");
     let project = fixture_project(workspace.path(), "Fixture Project");
@@ -106,7 +45,6 @@ fn search_refuses_missing_index_in_feature_build() {
         .stderr(predicate::str::contains("llm-wiki index --project fixture"));
 }
 
-#[cfg(feature = "qmd-rs")]
 #[test]
 fn index_and_search_registered_project_with_filters() {
     let home = TempDir::new().expect("home");
@@ -142,7 +80,6 @@ fn index_and_search_registered_project_with_filters() {
         .stdout(predicate::str::contains("\"freshness\": \"fresh\""));
 }
 
-#[cfg(feature = "qmd-rs")]
 #[test]
 fn projects_reports_fresh_and_stale_index_status() {
     let home = TempDir::new().expect("home");
@@ -184,7 +121,6 @@ fn projects_reports_fresh_and_stale_index_status() {
         .stdout(predicate::str::contains("\"freshness\": \"stale\""));
 }
 
-#[cfg(feature = "qmd-rs")]
 #[test]
 fn stale_search_reports_warning_and_stale_result_freshness() {
     let home = TempDir::new().expect("home");
@@ -227,7 +163,7 @@ fn stale_search_reports_warning_and_stale_result_freshness() {
         .stdout(predicate::str::contains("\"freshness\": \"stale\""));
 }
 
-#[cfg(all(feature = "qmd-rs", unix))]
+#[cfg(unix)]
 #[test]
 fn failed_force_index_preserves_previous_store() {
     use std::os::unix::fs::PermissionsExt;
@@ -274,7 +210,6 @@ fn failed_force_index_preserves_previous_store() {
         ));
 }
 
-#[cfg(feature = "qmd-rs")]
 #[test]
 fn index_all_and_search_all_fuse_registered_projects() {
     let home = TempDir::new().expect("home");

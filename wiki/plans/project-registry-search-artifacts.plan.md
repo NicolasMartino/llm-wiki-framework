@@ -46,8 +46,6 @@ and cross-project retrieval is explicit through `search-all`.
 - Answer synthesis or a `query` command.
 - Automatic use of `search-all` by `knowledge-query`.
 - Indexing `raw/` by default.
-- Enabling qmd-rs by default in release builds without a separate release
-  decision.
 - Semantic/hybrid model downloads or automatic model setup.
 - Direct SQLite FTS5 fallback implementation unless the documented fallback
   trigger fires.
@@ -353,7 +351,7 @@ Verification:
 - `doctor` reports install, registry, current project, search index, and
   semantic model states without conflating them.
 - `just verify` passes.
-- `cargo test --workspace --features qmd-rs` passes.
+- `cargo test --workspace` passes.
 
 ## Acceptance Criteria
 
@@ -366,15 +364,13 @@ Verification:
    search artifacts.
 6. `projects` lists registered projects with missing/stale/fresh status and
    supports text and JSON output.
-7. `index` builds per-project qmd-rs stores from `wiki/` only in
-   feature-enabled builds and reports qmd-rs-feature-disabled in default builds.
+7. `index` builds per-project qmd-rs stores from `wiki/` in default builds.
 8. `index` uses lock/temp/promote behavior so failed rebuilds do not corrupt
    previous indexes.
 9. `search` retrieves project-local results and never crosses project
    boundaries.
-10. `search` refuses missing indexes, searches stale indexes with explicit
-    warnings/freshness markers, and reports qmd-rs-feature-disabled clearly in
-    default builds.
+10. `search` refuses missing indexes and searches stale indexes with explicit
+    warnings/freshness markers.
 11. `search` supports class/status filters and stable text/JSON output.
 12. `init` auto-registers successful scaffolds by default and supports
     `--no-register`.
@@ -387,7 +383,7 @@ Verification:
 17. `doctor` reports registry and search states clearly.
 18. `uninstall` leaves registry, indexes, and model cache untouched.
 19. `just verify` passes before completion.
-20. `cargo test --workspace --features qmd-rs` passes before completion.
+20. `cargo test --workspace` passes before completion.
 
 ## Promotion Targets
 
@@ -412,8 +408,8 @@ Implemented command surface:
   at `~/.local/share/llm-wiki/projects.json`.
 - `init` auto-registers successful scaffolds by default and supports
   `--no-register`.
-- `index` and `index-all` build qmd-rs stores from `wiki/**/*.md` in
-  feature-enabled builds and report qmd-rs-feature-disabled in default builds.
+- `index` and `index-all` build qmd-rs stores from `wiki/**/*.md` in default
+  builds.
 - `search` retrieves project-local results with class/status filters and
   text/JSON output.
 - `search-all` searches explicitly registered projects, supports include/exclude
@@ -425,7 +421,7 @@ Implemented command surface:
 Verification:
 
 - `just verify`
-- `cargo test --workspace --features qmd-rs`
+- `cargo test --workspace`
 
 ## Addendum: Default-On qmd-rs Release
 
@@ -523,6 +519,26 @@ Before closing this addendum:
 10. The wiki records the release-direction change and no active plan tells
    implementers to keep qmd-rs feature-gated.
 
+### Addendum Result
+
+The default-on qmd-rs addendum was implemented on 2026-05-07.
+
+- `qmd` is now a normal dependency in `Cargo.toml`; the `qmd-rs` Cargo feature
+  and disabled backend stub were removed.
+- Default builds compile the qmd-rs adapter and run real `index`, `index-all`,
+  `search`, `search-all`, and `doctor` behavior.
+- Project IDs are validated before persistence, same-project indexing is
+  lock-protected, failed rebuilds preserve the previous store through
+  temp-store promotion, and `projects` reports root/index/freshness state in
+  text and JSON.
+- Stale index search warnings are covered in text and JSON, `search-all`
+  validates `--exclude` IDs, and unknown freshness is no longer remapped to
+  fresh.
+- `just verify`, `just release-plan`, and the local `just release-build` gate
+  passed. The local release build produced the `aarch64-apple-darwin` artifact;
+  the cargo-dist plan still includes the four configured release targets, with
+  cross-target proof left to GitHub Actions.
+
 ## Close Conditions
 
 This plan was marked Completed when:
@@ -534,7 +550,5 @@ This plan was marked Completed when:
    registered projects.
 5. Doctor reports registry and search states.
 6. Specs, roadmap, index, and log are updated.
-7. Default builds either provide clear feature-disabled diagnostics for
-   search-backed commands or a separate release decision enables qmd-rs by
-   default.
+7. Default builds include qmd-rs and exercise real search-backed commands.
 8. Required gates pass.

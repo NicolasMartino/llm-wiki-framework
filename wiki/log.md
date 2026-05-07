@@ -1192,6 +1192,25 @@ partial success, and fixes the orientation-file casing to `AGENTS.md`.
 Pages updated: wiki/plans/project-registry-search-artifacts.plan.md,
 wiki/log.md
 
+## [2026-05-07] complete | default-on qmd-rs release behavior
+
+Implemented the default-on qmd-rs release addendum. The `qmd-rs` Cargo feature
+and disabled backend stub were removed, `qmd = 0.3.2` is now a normal
+dependency, and default builds exercise real qmd-rs-backed `index`,
+`index-all`, `search`, `search-all`, and `doctor` behavior.
+
+The hardening items from the addendum also landed: safe project ID validation,
+per-project index locks, temp-store promotion that preserves prior indexes on
+failed rebuilds, `projects` freshness reporting, stale-search warnings in text
+and JSON, `search-all --exclude` validation, and tolerant `AGENTS.md` /
+`AGENTS.MD` project validation.
+
+Verification: `cargo test --workspace`; `just verify`; `just release-plan`;
+local `just release-build` for `aarch64-apple-darwin`.
+
+Pages updated: wiki/plans/project-registry-search-artifacts.plan.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
+
 ## [2026-05-07] complete | D9 project registry and search artifacts
 
 Implemented the D9 registry and search command surface in `llm-wiki`.

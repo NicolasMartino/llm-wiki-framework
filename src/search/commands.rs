@@ -45,9 +45,6 @@ pub fn index_all(args: &IndexAllArgs) -> Result<()> {
         if let Err(error) =
             index_registered_project(&paths, &registry_path, &mut registry, &project, args.force)
         {
-            if error.to_string().contains("qmd-rs-feature-disabled") {
-                bail!("{error}");
-            }
             failures.push(format!("{}: {error}", project.id));
         } else {
             indexed_projects += 1;
@@ -83,9 +80,6 @@ fn index_registered_project(
         &temp_build.store_path,
         force,
     )?;
-    if matches!(status.state, BackendState::FeatureDisabled) {
-        bail!("{}", feature_disabled_message());
-    }
     if !matches!(status.state, BackendState::Ready) {
         bail!(
             "index failed for project {}: {}",
@@ -260,7 +254,6 @@ pub fn search(args: &SearchArgs) -> Result<()> {
     let status = backend.status(&store_path, &wiki_root)?;
 
     match status.state {
-        BackendState::FeatureDisabled => bail!("{}", feature_disabled_message()),
         BackendState::Missing => bail!(
             "search index missing for project {}; run `llm-wiki index --project {}`",
             project.id,
@@ -322,7 +315,6 @@ pub fn search_all(args: &SearchAllArgs) -> Result<()> {
         let wiki_root = project.wiki_root();
         let status = backend.status(&store_path, &wiki_root)?;
         match status.state {
-            BackendState::FeatureDisabled => bail!("{}", feature_disabled_message()),
             BackendState::Missing => bail!(
                 "search index missing for project {}; run `llm-wiki index --project {}`",
                 project.id,
@@ -522,10 +514,6 @@ fn freshness_label(freshness: Freshness) -> &'static str {
         Freshness::Stale => "stale",
         Freshness::Unknown => "unknown",
     }
-}
-
-fn feature_disabled_message() -> &'static str {
-    "qmd-rs-feature-disabled: qmd-rs backend feature is disabled; rebuild with --features qmd-rs"
 }
 
 #[cfg(test)]

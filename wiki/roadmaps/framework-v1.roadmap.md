@@ -383,7 +383,6 @@ Excluded:
 - Answer synthesis or a `query` command.
 - Automatic `search-all` use by `knowledge-query`.
 - Indexing `raw/` by default.
-- Default-on qmd-rs release builds without a separate release decision.
 - Automatic semantic model downloads.
 
 Proof:
@@ -391,14 +390,12 @@ Proof:
   outside temp state.
 - `init` auto-registers successful scaffolds by default and supports
   `--no-register`; recoverable registry-write failure is tested.
-- Default builds expose clear qmd-rs-feature-disabled diagnostics for
-  search-backed commands.
-- Index/search commands pass with qmd-rs feature-enabled tests.
+- Default builds include qmd-rs and exercise real index/search behavior.
 - Two-project fixtures prove `search-all` labels results, honors include/exclude
   filters, and keeps cross-project retrieval explicit.
 - `doctor` reports install, registry, current-project, search-index, and
   semantic-model sections separately.
-- `just verify` and `cargo test --workspace --features qmd-rs` pass.
+- `just verify` and `cargo test --workspace` pass.
 
 Promotion Target:
 - wiki/specs/documentation-model.spec.md (scale search becomes

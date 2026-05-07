@@ -36,16 +36,12 @@ sha2 = "0.10"
 tempfile = "3.14"
 thiserror = "2.0"
 
-[features]
-default = []
-qmd-rs = ["dep:qmd"]
-
 [dependencies]
 anyhow.workspace = true
 chrono.workspace = true
 clap.workspace = true
 llm-wiki-schema = { path = "crates/llm-wiki-schema" }
-qmd = { version = "0.3.2", optional = true }
+qmd = "0.3.2"
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true

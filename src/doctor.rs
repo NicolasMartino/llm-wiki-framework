@@ -222,15 +222,6 @@ fn print_project_search_diagnostics(paths: &Paths) -> Result<()> {
                 status.store_path.display()
             );
         }
-        BackendState::FeatureDisabled => {
-            println!(
-                "{}",
-                status
-                    .message
-                    .as_deref()
-                    .unwrap_or("qmd-rs backend feature is disabled")
-            );
-        }
     }
 
     println!();

@@ -240,7 +240,6 @@ fn backend_status_labels(
                 BackendState::Corrupt | BackendState::SchemaMismatch => {
                     ("index-unusable", "unknown")
                 }
-                BackendState::FeatureDisabled => ("feature-disabled", "unknown"),
             };
             (index_status, freshness, status.message)
         }

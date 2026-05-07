@@ -152,28 +152,8 @@ fn wiki_project() -> TempDir {
     project
 }
 
-#[cfg(not(feature = "qmd-rs"))]
 #[test]
-fn doctor_reports_feature_disabled_search_backend_in_wiki_project_without_qmd_rs() {
-    let home = TempDir::new().expect("home");
-    let project = wiki_project();
-
-    llm_wiki(home.path())
-        .current_dir(project.path())
-        .arg("doctor")
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("Detected wiki project"))
-        .stdout(predicate::str::contains("Search index:"))
-        .stdout(predicate::str::contains(
-            "qmd-rs backend feature is disabled",
-        ))
-        .stdout(predicate::str::contains("Semantic models:"));
-}
-
-#[cfg(feature = "qmd-rs")]
-#[test]
-fn doctor_reports_missing_search_index_in_qmd_rs_build() {
+fn doctor_reports_missing_search_index() {
     let home = TempDir::new().expect("home");
     let project = wiki_project();
 

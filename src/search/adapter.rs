@@ -98,7 +98,6 @@ pub enum BackendState {
     Stale,
     Corrupt,
     SchemaMismatch,
-    FeatureDisabled,
 }
 
 pub trait SearchBackend {
