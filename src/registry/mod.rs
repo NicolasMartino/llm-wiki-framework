@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::cli::{ForgetArgs, OutputFormat, ProjectsArgs, RegisterArgs};
 use crate::paths::Paths;
+use crate::search::adapter::{BackendState, SearchBackend};
+use crate::search::qmd_rs::QmdRsBackend;
 
 const REGISTRY_VERSION: u32 = 1;
 const BACKEND_NAME: &str = "qmd-rs";
@@ -113,44 +115,137 @@ pub fn forget(args: &ForgetArgs) -> Result<()> {
 pub fn projects(args: &ProjectsArgs) -> Result<()> {
     let paths = Paths::from_env()?;
     let registry = ProjectRegistry::read(&paths.project_registry())?;
+    let view = ProjectsView::from_registry(&registry, &paths)?;
     match args.format {
-        OutputFormat::Json => println!("{}", serde_json::to_string_pretty(&registry)?),
-        OutputFormat::Text => print_projects_text(&registry, &paths)?,
+        OutputFormat::Json => println!("{}", serde_json::to_string_pretty(&view)?),
+        OutputFormat::Text => print_projects_text(&view),
     }
     Ok(())
 }
 
-fn print_projects_text(registry: &ProjectRegistry, paths: &Paths) -> Result<()> {
-    if registry.projects.is_empty() {
+fn print_projects_text(view: &ProjectsView) {
+    if view.projects.is_empty() {
         println!("No registered projects.");
-        return Ok(());
+        return;
     }
 
-    for project in &registry.projects {
-        let root_status = if project.root.exists() {
-            "root-ok"
-        } else {
-            "root-missing"
-        };
-        let index_status = if paths.qmd_rs_store_path(&project.id).exists() {
-            "index-present"
-        } else {
-            "index-missing"
-        };
-        let cache_size = dir_size(&paths.project_index_dir(&project.id))?;
+    println!("id\tname\troot\troot_status\tindex_status\tfreshness\tbackend\tcache_size");
+    for project in &view.projects {
         println!(
-            "{}\t{}\t{}\t{}\t{}\t{}\t{} bytes",
+            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{} bytes",
             project.id,
             project.name,
-            project.root.display(),
-            root_status,
-            index_status,
+            project.root,
+            project.root_status,
+            project.index_status,
+            project.freshness,
             project.backend,
-            cache_size
+            project.cache_size_bytes
         );
     }
+}
 
-    Ok(())
+#[derive(Clone, Debug, Serialize)]
+struct ProjectsView {
+    version: u32,
+    projects: Vec<ProjectStatusView>,
+}
+
+impl ProjectsView {
+    fn from_registry(registry: &ProjectRegistry, paths: &Paths) -> Result<Self> {
+        let projects = registry
+            .projects
+            .iter()
+            .map(|project| ProjectStatusView::from_project(project, paths))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(Self {
+            version: registry.version,
+            projects,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct ProjectStatusView {
+    id: String,
+    name: String,
+    root: String,
+    wiki_path: String,
+    root_status: &'static str,
+    index_status: &'static str,
+    freshness: &'static str,
+    backend: String,
+    index_schema_version: u32,
+    cache_size_bytes: u64,
+    indexed_file_count: usize,
+    last_indexed_at: Option<String>,
+    last_indexed_wiki_max_mtime: Option<String>,
+    status_message: Option<String>,
+}
+
+impl ProjectStatusView {
+    fn from_project(project: &RegisteredProject, paths: &Paths) -> Result<Self> {
+        let store_path = paths.qmd_rs_store_path(&project.id);
+        let root_exists = project.root.exists();
+        let (index_status, freshness, status_message) = if !store_path.exists() {
+            (
+                "index-missing",
+                "missing",
+                (!root_exists).then(|| "project root is missing".to_string()),
+            )
+        } else if !root_exists {
+            (
+                "index-present",
+                "unknown",
+                Some("project root is missing".to_string()),
+            )
+        } else {
+            backend_status_labels(&store_path, &project.wiki_root())
+        };
+
+        Ok(Self {
+            id: project.id.clone(),
+            name: project.name.clone(),
+            root: project.root.to_string_lossy().to_string(),
+            wiki_path: project.wiki_path.to_string_lossy().to_string(),
+            root_status: if root_exists {
+                "root-ok"
+            } else {
+                "root-missing"
+            },
+            index_status,
+            freshness,
+            backend: project.backend.clone(),
+            index_schema_version: project.index_schema_version,
+            cache_size_bytes: dir_size(&paths.project_index_dir(&project.id))?,
+            indexed_file_count: project.indexed_file_count,
+            last_indexed_at: project.last_indexed_at.clone(),
+            last_indexed_wiki_max_mtime: project.last_indexed_wiki_max_mtime.clone(),
+            status_message,
+        })
+    }
+}
+
+fn backend_status_labels(
+    store_path: &Path,
+    wiki_root: &Path,
+) -> (&'static str, &'static str, Option<String>) {
+    let backend = QmdRsBackend::new();
+    match backend.status(store_path, wiki_root) {
+        Ok(status) => {
+            let (index_status, freshness) = match status.state {
+                BackendState::Ready => ("index-present", "fresh"),
+                BackendState::Stale => ("index-present", "stale"),
+                BackendState::Missing => ("index-missing", "missing"),
+                BackendState::Corrupt | BackendState::SchemaMismatch => {
+                    ("index-unusable", "unknown")
+                }
+                BackendState::FeatureDisabled => ("feature-disabled", "unknown"),
+            };
+            (index_status, freshness, status.message)
+        }
+        Err(error) => ("index-unknown", "unknown", Some(error.to_string())),
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

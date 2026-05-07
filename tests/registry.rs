@@ -57,7 +57,11 @@ fn register_is_idempotent_and_projects_lists_registry() {
         .args(["projects", "--format", "json"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("\"id\": \"fixture\""));
+        .stdout(predicate::str::contains("\"id\": \"fixture\""))
+        .stdout(predicate::str::contains(
+            "\"index_status\": \"index-missing\"",
+        ))
+        .stdout(predicate::str::contains("\"freshness\": \"missing\""));
 }
 
 #[test]

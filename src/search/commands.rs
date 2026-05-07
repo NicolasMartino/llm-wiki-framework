@@ -34,6 +34,8 @@ pub fn index_all(args: &IndexAllArgs) -> Result<()> {
     }
 
     let projects = registry.projects.clone();
+    let total_projects = projects.len();
+    let mut indexed_projects = 0usize;
     let mut failures = Vec::new();
     for project in projects {
         if !project.root.exists() {
@@ -47,8 +49,12 @@ pub fn index_all(args: &IndexAllArgs) -> Result<()> {
                 bail!("{error}");
             }
             failures.push(format!("{}: {error}", project.id));
+        } else {
+            indexed_projects += 1;
         }
     }
+
+    println!("Indexed {indexed_projects} of {total_projects} projects.");
 
     if !failures.is_empty() {
         bail!("index-all failed:\n{}", failures.join("\n"));
@@ -364,7 +370,7 @@ pub fn search_all(args: &SearchAllArgs) -> Result<()> {
             .then_with(|| left.result.project_id.cmp(&right.result.project_id))
             .then_with(|| left.result.path.cmp(&right.result.path))
     });
-    let mut results = results
+    let results = results
         .into_iter()
         .take(args.limit)
         .map(|mut fused| {
@@ -372,11 +378,6 @@ pub fn search_all(args: &SearchAllArgs) -> Result<()> {
             fused.result
         })
         .collect::<Vec<_>>();
-    for result in &mut results {
-        if result.freshness == Freshness::Unknown {
-            result.freshness = Freshness::Fresh;
-        }
-    }
     let warning = if warnings.is_empty() {
         None
     } else {
@@ -421,6 +422,12 @@ fn select_projects(
     include: &[String],
     exclude: &[String],
 ) -> Result<Vec<RegisteredProject>> {
+    for project_id in exclude {
+        if registry.project_by_id(project_id).is_none() {
+            bail!("project id {project_id} is not registered");
+        }
+    }
+
     let mut projects = if include.is_empty() {
         registry.projects.clone()
     } else {

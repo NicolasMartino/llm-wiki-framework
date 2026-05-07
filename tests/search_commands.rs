@@ -74,6 +74,22 @@ fn search_all_reports_feature_disabled_in_default_build() {
         .stderr(predicate::str::contains("qmd-rs-feature-disabled"));
 }
 
+#[test]
+fn search_all_rejects_unknown_excluded_project() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+
+    llm_wiki(home.path())
+        .args(["search-all", "reciprocal rank", "--exclude", "missing"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "project id missing is not registered",
+        ));
+}
+
 #[cfg(feature = "qmd-rs")]
 #[test]
 fn search_refuses_missing_index_in_feature_build() {
@@ -124,6 +140,91 @@ fn index_and_search_registered_project_with_filters() {
             "\"path\": \"wiki/decisions/search.decision.md\"",
         ))
         .stdout(predicate::str::contains("\"freshness\": \"fresh\""));
+}
+
+#[cfg(feature = "qmd-rs")]
+#[test]
+fn projects_reports_fresh_and_stale_index_status() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+
+    llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    llm_wiki(home.path())
+        .args(["projects", "--format", "json"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "\"index_status\": \"index-present\"",
+        ))
+        .stdout(predicate::str::contains("\"freshness\": \"fresh\""));
+
+    fs::write(
+        project.join("wiki/plans/new.plan.md"),
+        "# New Plan\n\n- Document Class: Plan\n- Status: Active\n\n## Work\nNew stale content.",
+    )
+    .expect("new plan");
+
+    llm_wiki(home.path())
+        .arg("projects")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("index_status"))
+        .stdout(predicate::str::contains("stale"));
+
+    llm_wiki(home.path())
+        .args(["projects", "--format", "json"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"freshness\": \"stale\""));
+}
+
+#[cfg(feature = "qmd-rs")]
+#[test]
+fn stale_search_reports_warning_and_stale_result_freshness() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+
+    llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    fs::write(
+        project.join("wiki/plans/new.plan.md"),
+        "# New Plan\n\n- Document Class: Plan\n- Status: Active\n\n## Work\nNew stale content.",
+    )
+    .expect("new plan");
+
+    llm_wiki(home.path())
+        .args(["search", "reciprocal rank", "--project", "fixture"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Warning: search index stale"))
+        .stdout(predicate::str::contains("freshness=stale"));
+
+    llm_wiki(home.path())
+        .args([
+            "search",
+            "reciprocal rank",
+            "--project",
+            "fixture",
+            "--format",
+            "json",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "\"warning\": \"search index stale",
+        ))
+        .stdout(predicate::str::contains("\"freshness\": \"stale\""));
 }
 
 #[cfg(all(feature = "qmd-rs", unix))]
@@ -198,7 +299,8 @@ fn index_all_and_search_all_fuse_registered_projects() {
         .assert()
         .success()
         .stdout(predicate::str::contains("Indexed project: alpha"))
-        .stdout(predicate::str::contains("Indexed project: beta"));
+        .stdout(predicate::str::contains("Indexed project: beta"))
+        .stdout(predicate::str::contains("Indexed 2 of 2 projects."));
 
     llm_wiki(home.path())
         .args(["search-all", "shared retrieval token", "--format", "json"])
