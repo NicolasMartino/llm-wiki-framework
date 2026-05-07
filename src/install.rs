@@ -34,6 +34,17 @@ pub fn run(force: bool, show_path_guidance: bool) -> Result<()> {
     let partial_state =
         recover_or_reject_partial(&paths, manifest.as_ref(), &current_exe_hash, force)?;
 
+    let files = render_install_files(&paths)?;
+    preflight_install(
+        &paths,
+        &files,
+        manifest.as_ref(),
+        &current_exe,
+        &current_exe_bytes,
+        force,
+        partial_state,
+    )?;
+
     let partial = PartialInstall::new(
         current_exe.clone(),
         paths.managed_binary(),
@@ -41,7 +52,6 @@ pub fn run(force: bool, show_path_guidance: bool) -> Result<()> {
     );
     partial.write_atomic(&paths.partial_install())?;
 
-    let files = render_install_files(&paths)?;
     let backup = write_backup_snapshot(&paths, &files, manifest.as_ref(), &current_exe_hash)?;
     let binary = install_managed_binary(
         &paths,
@@ -69,6 +79,109 @@ pub fn run(force: bool, show_path_guidance: bool) -> Result<()> {
     if show_path_guidance {
         path_guidance::print_guidance(&paths);
     }
+    Ok(())
+}
+
+fn preflight_install(
+    paths: &Paths,
+    files: &[InstallFile],
+    manifest: Option<&Manifest>,
+    current_exe: &Path,
+    current_exe_bytes: &[u8],
+    force: bool,
+    partial_state: PartialState,
+) -> Result<()> {
+    preflight_managed_binary(
+        paths,
+        current_exe,
+        current_exe_bytes,
+        manifest,
+        force,
+        partial_state,
+    )?;
+    preflight_install_files(files, manifest, force)
+}
+
+fn preflight_managed_binary(
+    paths: &Paths,
+    current_exe: &Path,
+    current_exe_bytes: &[u8],
+    manifest: Option<&Manifest>,
+    force: bool,
+    partial_state: PartialState,
+) -> Result<()> {
+    let managed_binary = paths.managed_binary();
+    let current_hash = sha256_hex(current_exe_bytes);
+    if same_file_when_possible(current_exe, &managed_binary) {
+        let managed_hash = sha256_hex(&fs::read(&managed_binary).with_context(|| {
+            format!("failed to read managed binary {}", managed_binary.display())
+        })?);
+        if managed_hash != current_hash {
+            bail!(
+                "managed binary {} differs from current executable",
+                managed_binary.display()
+            );
+        }
+        return Ok(());
+    }
+
+    if !managed_binary.exists() {
+        return Ok(());
+    }
+
+    let managed_hash =
+        sha256_hex(&fs::read(&managed_binary).with_context(|| {
+            format!("failed to read managed binary {}", managed_binary.display())
+        })?);
+    let manifest_owned = manifest.is_some_and(|manifest| manifest.binary.path == managed_binary);
+    if managed_hash != current_hash && !manifest_owned && !force {
+        if partial_state == PartialState::Resuming {
+            bail!(
+                "previous install left a partial managed binary {}; rerun with --force to replace it",
+                managed_binary.display()
+            );
+        }
+        bail!(
+            "refusing to replace unmanaged binary {}; rerun with --force to replace it",
+            managed_binary.display()
+        );
+    }
+    Ok(())
+}
+
+fn preflight_install_files(
+    files: &[InstallFile],
+    manifest: Option<&Manifest>,
+    force: bool,
+) -> Result<()> {
+    let manifest_by_path = manifest_entries_by_path(manifest);
+
+    for file in files {
+        let collision = classify_install_file(file, &manifest_by_path)?;
+        match collision {
+            Collision::FreshInstall
+            | Collision::RestoreMissing
+            | Collision::Upgrade
+            | Collision::UpToDate => {}
+            Collision::UserEdited | Collision::UserEditedAndUpgrade | Collision::UnknownFile => {
+                if !force {
+                    bail!(
+                        "refusing to overwrite {} ({collision:?}); rerun with --force to back up and replace",
+                        file.path.display()
+                    );
+                }
+            }
+            Collision::Symlink => {
+                if !force {
+                    bail!(
+                        "refusing to replace symlink {}; run llm-wiki doctor or rerun install --force",
+                        file.path.display()
+                    );
+                }
+            }
+        }
+    }
+
     Ok(())
 }
 
@@ -217,36 +330,11 @@ fn install_files(
     manifest: Option<&Manifest>,
     force: bool,
 ) -> Result<Vec<ManifestEntry>> {
-    let manifest_by_path: HashMap<PathBuf, ManifestEntry> = manifest
-        .map(|manifest| {
-            manifest
-                .skills
-                .iter()
-                .cloned()
-                .map(|entry| (entry.path.clone(), entry))
-                .collect()
-        })
-        .unwrap_or_default();
+    let manifest_by_path = manifest_entries_by_path(manifest);
 
     let mut new_entries = Vec::with_capacity(files.len());
     for file in files {
-        let symlink = fs::symlink_metadata(&file.path)
-            .map(|metadata| metadata.file_type().is_symlink())
-            .unwrap_or(false);
-        let current_hash = if file.path.exists() && !symlink {
-            Some(sha256_hex(&fs::read(&file.path)?))
-        } else {
-            None
-        };
-        let manifest_hash = manifest_by_path
-            .get(&file.path)
-            .map(|entry| entry.hash.as_str());
-        let collision = classify(
-            current_hash.as_deref(),
-            manifest_hash,
-            &file.sha256,
-            symlink,
-        );
+        let collision = classify_install_file(&file, &manifest_by_path)?;
 
         match collision {
             Collision::FreshInstall | Collision::RestoreMissing | Collision::Upgrade => {
@@ -281,6 +369,42 @@ fn install_files(
     Ok(new_entries)
 }
 
+fn manifest_entries_by_path(manifest: Option<&Manifest>) -> HashMap<PathBuf, ManifestEntry> {
+    manifest
+        .map(|manifest| {
+            manifest
+                .skills
+                .iter()
+                .cloned()
+                .map(|entry| (entry.path.clone(), entry))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn classify_install_file(
+    file: &InstallFile,
+    manifest_by_path: &HashMap<PathBuf, ManifestEntry>,
+) -> Result<Collision> {
+    let symlink = fs::symlink_metadata(&file.path)
+        .map(|metadata| metadata.file_type().is_symlink())
+        .unwrap_or(false);
+    let current_hash = if file.path.exists() && !symlink {
+        Some(sha256_hex(&fs::read(&file.path)?))
+    } else {
+        None
+    };
+    let manifest_hash = manifest_by_path
+        .get(&file.path)
+        .map(|entry| entry.hash.as_str());
+    Ok(classify(
+        current_hash.as_deref(),
+        manifest_hash,
+        &file.sha256,
+        symlink,
+    ))
+}
+
 fn write_backup_snapshot(
     paths: &Paths,
     files: &[InstallFile],
@@ -291,16 +415,7 @@ fn write_backup_snapshot(
     let dir = paths.managed_home().join("backups").join(&id);
     fs::create_dir_all(&dir).with_context(|| format!("failed to create {}", dir.display()))?;
 
-    let manifest_by_path: HashMap<PathBuf, ManifestEntry> = manifest
-        .map(|manifest| {
-            manifest
-                .skills
-                .iter()
-                .cloned()
-                .map(|entry| (entry.path.clone(), entry))
-                .collect()
-        })
-        .unwrap_or_default();
+    let manifest_by_path = manifest_entries_by_path(manifest);
 
     let mut backed_up = Vec::new();
     let managed_binary = paths.managed_binary();

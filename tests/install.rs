@@ -249,6 +249,7 @@ fn install_refuses_user_authored_collision_by_default() {
 
     llm_wiki(home.path()).arg("install").assert().failure();
     assert_eq!(fs::read_to_string(&path).expect("read"), "user skill");
+    assert!(!home.path().join(".llm_wiki").exists());
 }
 
 #[test]
@@ -269,6 +270,7 @@ fn install_refuses_unmanaged_binary_collision_by_default() {
         fs::read_to_string(&managed_binary).expect("foreign remains"),
         "foreign binary"
     );
+    assert_no_install_metadata(home.path());
 
     llm_wiki(home.path())
         .args(["install", "--force", "--skip-path-guidance"])
@@ -420,6 +422,12 @@ fn write_partial(home: &Path, target_binary: impl AsRef<Path>, current_exe_hash:
         serde_json::to_string_pretty(&partial).expect("partial json"),
     )
     .expect("partial");
+}
+
+fn assert_no_install_metadata(home: &Path) {
+    assert!(!home.join(".llm_wiki/manifest.json").exists());
+    assert!(!home.join(".llm_wiki/install.partial.json").exists());
+    assert!(!home.join(".llm_wiki/backups").exists());
 }
 
 fn installed_files(home: &Path) -> usize {
