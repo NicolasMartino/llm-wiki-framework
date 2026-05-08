@@ -1,7 +1,7 @@
 # Wiki Index
 
 Project: Software Project Management Framework
-Stage: D1 Bootstrap (Completed), D2 Ingest Cycle (Completed), D3 Lint Operation (Completed), D8 Distribution Tooling (Completed), D8.1 Managed Runtime Bootstrap (Completed), D9 Project Registry and Search Artifacts (Completed), D10 Composable Project Init (Draft)
+Stage: D1 Bootstrap (Completed), D2 Ingest Cycle (Completed), D3 Lint Operation (Completed), D8 Distribution Tooling (Completed), D8.1 Managed Runtime Bootstrap (Completed), D9 Project Registry and Search Artifacts (Completed), D10 Composable Project Init (Draft), D11 Project and Skill Rename (Draft)
 Updated: 2026-05-08
 
 ## Specs
@@ -27,7 +27,7 @@ Updated: 2026-05-08
 
 ## Roadmaps
 
-- [Framework V1](roadmaps/framework-v1.roadmap.md) — Active — Framework deliverables through D10: bootstrap, distribution tooling, managed runtime bootstrap, registry-backed search, and composable init
+- [Framework V1](roadmaps/framework-v1.roadmap.md) — Active — Framework deliverables through D11: bootstrap, distribution tooling, managed runtime bootstrap, registry-backed search, composable init, and the project/skill rename
 
 ## References
 
@@ -55,7 +55,7 @@ Updated: 2026-05-08
 - [Managed Binary Runtime Install](plans/binary-path-bootstrap.plan.md) — Completed — D8.1 tactical execution for managed runtime home, manifest v2, outside-PATH install proof, and `knowledge-init` rename
 - [qmd-rs Search Backend](plans/qmd-rs-search-backend.plan.md) — Completed — D9 backend slice landed qmd-rs adapter, query sanitization, metadata, snippets, doctor checks, eval replay, and release findings
 - [Project Registry and Search Artifacts](plans/project-registry-search-artifacts.plan.md) — Completed — Implemented D9 registry/search commands and default-on qmd-rs release behavior
-- [Project and Skill Rename](plans/project-and-skill-rename.plan.md) — Draft — Execute the package and `knowledge*` to `wiki-*` rename, prove the new runtime surface, and handle the few legacy symlinked repos through a one-off `.claude.legacy/` / `.codex.legacy/` migration
+- [Project and Skill Rename](plans/project-and-skill-rename.plan.md) — Draft — D11 execution: rename the package and `knowledge*` surface to `wiki-*`, prove the new runtime surface, and handle the few legacy symlinked repos through a one-off `.claude.legacy/` / `.codex.legacy/` migration
 - [Composable Project Init](plans/composable-project-init.plan.md) — Draft — D10 execution: pick the template engine, migrate the existing init template, ship the blueprint + pack catalog, two-step interactive flow, and `.llm_wiki/init.toml` writer
 
 ## Experiments

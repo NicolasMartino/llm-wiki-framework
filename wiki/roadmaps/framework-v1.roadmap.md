@@ -482,3 +482,51 @@ Unlocks:
   rather than two copies of the same template.
 - The skill-projection follow-on (`wiki/proposals/skills-template-engine.proposal.md`)
   built on a proven template engine.
+
+---
+
+### D11 - Project and Skill Rename
+
+Status: Draft
+Promise: The framework's user-facing product surface is renamed coherently:
+the Cargo package becomes `llm-wiki-rs`, canonical skills and installed runtime
+surfaces move from `knowledge*` to `wiki-*`, active documentation matches the
+new names, and the few remaining pre-rename local repos are handled through a
+one-off legacy migration that does not become framework behavior.
+Depends On: D8.1, D10
+Execution Plan: wiki/plans/project-and-skill-rename.plan.md
+
+Included:
+- Rename Cargo package metadata from `llm-wiki-framework` to `llm-wiki-rs`.
+- Rename canonical embedded skills from `knowledge*` to `wiki-*`.
+- Rename the dispatcher from `knowledge` to `wiki`.
+- Regenerate `.claude/` and `.codex/` runtime mirrors from the renamed
+  canonicals.
+- Sweep active specs, decisions, plans, templates, README, index, and log for
+  current-truth references to the old names.
+- Prove the renamed install/discovery/invocation/uninstall surface in both
+  Claude and Codex.
+- Execute the one-off local legacy migration for the few repos that still
+  depend on home-level skill symlinks pointing into in-repo mirrors.
+
+Excluded:
+- Product-level compatibility aliases for `knowledge*`.
+- Automatic legacy handling in `llm-wiki install`.
+- Changes to `~/.llm_wiki/` managed runtime paths.
+- Changes to `knlg` or the separate `es_llm_wiki` repo.
+
+Proof:
+- `llm-wiki install` writes only `wiki*` skill names.
+- Claude and Codex expose and invoke the renamed commands successfully.
+- Active documentation no longer describes `knowledge*` or
+  `llm-wiki-framework` as current truth.
+- Legacy local repos run from frozen `.claude.legacy/` / `.codex.legacy/`
+  trees without teaching the framework to preserve them.
+
+Promotion Target:
+- wiki/decisions/knowledge-command-namespace.decision.md (superseded by a new
+  rename decision or equivalent accepted active-doc state).
+
+Unlocks:
+- Clean post-rename baseline for future public-facing documentation and any
+  post-D10 template-retirement follow-on.

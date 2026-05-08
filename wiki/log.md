@@ -1,5 +1,17 @@
 # Wiki Log
 
+## [2026-05-08] update | Rename work promoted to D11 roadmap deliverable
+
+Reclassified the project/package/skill rename from an unnumbered draft effort
+to D11 on the active roadmap. Updated the roadmap, index stage line, and the
+rename execution plan so active docs now treat the rename as its own
+deliverable rather than as incidental cleanup under D10. The boundary is now
+explicit: D10 owns composable init and template retirement; D11 owns the
+`llm-wiki-rs` / `wiki-*` rename plus the one-off local legacy migration.
+
+Pages updated: wiki/roadmaps/framework-v1.roadmap.md,
+wiki/plans/project-and-skill-rename.plan.md, wiki/index.md, wiki/log.md
+
 ## [2026-05-08] create | Rename execution plan and one-off legacy migration inventory
 
 Filed `wiki/plans/project-and-skill-rename.plan.md` to turn the rename

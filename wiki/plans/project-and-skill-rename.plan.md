@@ -4,13 +4,13 @@
 - Status: Draft
 - Date: 2026-05-08
 - Category: Branding, naming, migration
-- Scope: Execute the rename from `llm-wiki-framework` to `llm-wiki-rs` and from `knowledge*` skills to `wiki-*`, while handling the small set of legacy symlinked repos through a one-off migration that is explicitly outside the framework's long-term architecture.
+- Scope: Execute D11: the rename from `llm-wiki-framework` to `llm-wiki-rs` and from `knowledge*` skills to `wiki-*`, while handling the small set of legacy symlinked repos through a one-off migration that is explicitly outside the framework's long-term architecture.
 - Sources: wiki/proposals/project-and-skill-rename.proposal.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/decisions/composable-project-init.decision.md, live local skill-symlink inspection under `~/.claude/skills/` and `~/.codex/skills/` on 2026-05-08
 - Related: wiki/roadmaps/framework-v1.roadmap.md, wiki/specs/knowledge-init-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-research-skill.spec.md, wiki/specs/knowledge-lint-skill.spec.md
 
 ## Deliverable
 
-Land the rename as a clean product change:
+D11: land the rename as a clean product change:
 
 - Cargo package: `llm-wiki-framework` -> `llm-wiki-rs`
 - Skill namespace: `knowledge*` -> `wiki-*`
