@@ -1231,3 +1231,243 @@ Pages updated: wiki/proposals/binary-path-bootstrap.proposal.md,
 wiki/decisions/binary-path-bootstrap.decision.md,
 wiki/plans/binary-path-bootstrap.plan.md,
 wiki/specs/documentation-model.spec.md, wiki/log.md
+
+## [2026-05-07] create | Search backend selection eval
+
+Created the first eval artifact required by the search backend selection
+proposal. The eval fixes the corpus and query set, records a Tobi QMD BM25-only
+baseline against this repo's `wiki/`, captures measured index size and latency,
+and documents observed concurrent-search lock failures. qmd-rs, hybrid QMD, and
+first-party SQLite FTS5 checks remain pending before a backend decision can be
+accepted.
+
+Pages created: wiki/evals/search-backend-selection.eval.md
+Pages updated: wiki/index.md, wiki/log.md
+
+## [2026-05-07] promote | Search backend selection
+
+Completed the search backend eval increment. Tested qmd-rs 0.3.2 through a
+temporary Rust harness, recorded its fast FTS path plus query-sanitization,
+metadata, CLI/MCP parity, and `llama-cpp-2` packaging concerns, then tested a
+direct SQLite FTS5 BM25 prototype on the same 37-file corpus. Initially
+promoted the backend selection toward direct SQLite FTS5 BM25 for D9 V1; this
+was revised by the following log entry after product weighting clarified that
+qmd-rs should be selected for the LLM-enhanced search path.
+
+Pages created: wiki/decisions/search-backend-selection.decision.md
+Pages updated: wiki/evals/search-backend-selection.eval.md,
+wiki/proposals/search-backend-selection.proposal.md,
+wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-07] update | Search backend decision weighting
+
+Revised the accepted backend decision after human product judgment clarified
+that LLM-enhanced search is expected to matter and that qmd-rs adapter work is
+worth paying now. The eval measurements remain recorded, but the recommendation
+and decision now select qmd-rs as the D9 backend, with direct SQLite FTS5 kept as
+a fallback if qmd-rs packaging or runtime behavior cannot ship safely.
+
+Pages updated: wiki/decisions/search-backend-selection.decision.md,
+wiki/evals/search-backend-selection.eval.md,
+wiki/proposals/search-backend-selection.proposal.md,
+wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-07] create | qmd-rs backend implementation plan
+
+Created the active execution plan for the D9 backend slice. The plan keeps the
+broader D9 registry/search command surface separate while specifying the qmd-rs
+adapter contract, query sanitization, metadata extraction, result shaping,
+doctor/model-cache reporting, direct SQLite fallback guardrail, and fixed eval
+query replay required before implementation can close.
+
+Pages created: wiki/plans/qmd-rs-search-backend.plan.md
+Pages updated: wiki/index.md,
+wiki/proposals/search-backend-selection.proposal.md,
+wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/log.md
+
+## [2026-05-07] update | qmd-rs backend plan review fixes
+
+Tightened the qmd-rs backend plan after review. Fixed the `src/init/` touchpoint,
+clarified that wiki metadata uses a leading bullet-list block rather than YAML
+frontmatter, committed the backend slice to CWD project discovery and a concrete
+qmd-rs store path before the registry lands, clarified adapter-computed match
+spans, made Phase 0 produce a default-on versus feature-gated decision with
+license, cargo-dist, binary-size, and install-footprint checks, and made direct
+SQLite FTS5 a deferred fallback rather than a parallel implementation.
+
+Pages updated: wiki/plans/qmd-rs-search-backend.plan.md, wiki/log.md
+
+## [2026-05-07] update | qmd-rs backend plan scope tightening
+
+Updated the qmd-rs backend plan to treat the work as a backend-only search
+subsystem. The plan now explicitly defers user-visible `index`, `search`, and
+`search-all` command behavior until the D9 registry and command surface lands,
+adds the intended `src/search/` module layout, requires cache/index/model path
+helpers in `src/paths.rs` before qmd-rs wiring, keeps qmd-rs feature-gated with
+stable disabled behavior through Phase 0, factors `doctor` into install,
+current-project, search-index, and semantic-model sections, and adds concrete
+metadata-parser and query-sanitizer requirements.
+
+Pages updated: wiki/plans/qmd-rs-search-backend.plan.md, wiki/log.md
+
+## [2026-05-07] update | qmd-rs backend implementation checkpoint
+
+Recorded Phase 0 implementation findings after adding the internal search
+subsystem and feature-gated qmd-rs adapter. qmd-rs remains optional behind the
+`qmd-rs` Cargo feature, default builds report a stable feature-disabled backend
+state, `just verify` passes, `cargo test --workspace --features qmd-rs` passes,
+and local release measurements show the default dist artifact remains small
+while the optional qmd-rs feature release binary is larger but below the plan's
+default-on thresholds.
+
+Pages updated: wiki/plans/qmd-rs-search-backend.plan.md, wiki/log.md
+
+## [2026-05-07] update | qmd-rs production adapter eval replay
+
+Updated the search backend eval with the production adapter replay. The
+feature-enabled qmd-rs adapter indexed the real repository `wiki/` corpus and
+kept the fixed eval query targets in the top two for all eight queries through
+the production `search_project` path, including sanitization, metadata parsing,
+result shaping, snippets, and canonical paths.
+
+Pages updated: wiki/evals/search-backend-selection.eval.md, wiki/log.md
+
+## [2026-05-07] promote | D9 project registry and search artifacts
+
+Closed the qmd-rs backend slice as completed and accepted the project registry
+and search artifacts proposal for D9 implementation. Created the active D9 plan
+for the user-visible registry/search command surface: `register`, `forget`,
+`projects`, `index`, `index-all`, `search`, `search-all`, init
+auto-registration, registry-backed doctor diagnostics, text/JSON output, and
+cross-project RRF. Updated the roadmap to make D9 active.
+
+Pages created: wiki/plans/project-registry-search-artifacts.plan.md
+Pages updated: wiki/plans/qmd-rs-search-backend.plan.md,
+wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/index.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/log.md
+
+## [2026-05-07] fix | qmd-rs freshness and staleness review
+
+Fixed review findings in the qmd-rs backend adapter. Search results now receive
+fresh/stale/unknown markers from adapter status, qmd-rs store metadata records
+per-file content hashes in addition to timestamp/count summaries, and the eval
+replay accepts the active D9 registry/search plan as the promoted Q7 target.
+
+Pages updated: wiki/evals/search-backend-selection.eval.md, wiki/log.md
+
+## [2026-05-07] update | D9 registry plan lifecycle contracts
+
+Clarified D9 registry/search implementation contracts before coding. The plan
+now requires explicit default-build feature-disabled diagnostics while qmd-rs
+remains gated, makes canonical project roots unique and repeated registration
+idempotent, defines stale indexes as searchable with warnings while missing
+indexes are refused, specifies init registry-write failure as recoverable
+partial success, and fixes the orientation-file casing to `AGENTS.md`.
+
+Pages updated: wiki/plans/project-registry-search-artifacts.plan.md,
+wiki/log.md
+
+## [2026-05-08] fix | D9 pre-merge quality and safety hardening
+
+Implemented the D9 pre-merge hardening sweep across registry mutation safety,
+search promotion retry behavior, registry validation, and CLI output
+contracts. Registry writes now serialize across processes with a shared lock and
+unique temp files, `search`/`search-all` retry through the qmd-rs promotion
+window, project-root and `wiki_path` invariants are revalidated when
+`projects.json` is read, and `register --update` can rename an existing project
+without retyping the path.
+
+The JSON search contract is now emitted from typed structs, stale warnings are
+structured per project in `search-all`, and the integration suite now covers
+cross-process index locking, crashed indexer recovery, concurrent registry
+writers, structured warning output, JSON field presence, and stale-promotion
+retry behavior. A manual cached-source license check was also recorded for the
+qmd/qmd-rs dependency chain because `cargo-deny` is not installed in this local
+environment.
+
+Pages updated: wiki/roadmaps/framework-v1.roadmap.md,
+wiki/plans/qmd-rs-search-backend.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-07] complete | default-on qmd-rs release behavior
+
+Implemented the default-on qmd-rs release addendum. The `qmd-rs` Cargo feature
+and disabled backend stub were removed, `qmd = 0.3.2` is now a normal
+dependency, and default builds exercise real qmd-rs-backed `index`,
+`index-all`, `search`, `search-all`, and `doctor` behavior.
+
+The hardening items from the addendum also landed: safe project ID validation,
+per-project index locks, temp-store promotion that preserves prior indexes on
+failed rebuilds, `projects` freshness reporting, stale-search warnings in text
+and JSON, `search-all --exclude` validation, and tolerant `AGENTS.md` /
+`AGENTS.MD` project validation.
+
+Verification: `cargo test --workspace`; `just verify`; `just release-plan`;
+local `just release-build` for `aarch64-apple-darwin`.
+
+Pages updated: wiki/plans/project-registry-search-artifacts.plan.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
+
+## [2026-05-07] fix | qmd-rs promotion and lock hardening
+
+Closed follow-up review findings in the qmd-rs indexing path. Store promotion
+rollback now removes any partially promoted new files before restoring all old
+backups, with a unit test that injects a promotion-phase failure. Project index
+locking now uses an advisory lock held by an open `qmd-rs.lock` file, so a
+leftover lockfile from a killed process does not permanently block future index
+commands.
+
+Updated active documentation to remove stale feature-gated search wording from
+the documentation model spec and made the qmd-rs backend plan's feature-gated
+section explicitly historical/superseded.
+
+Pages updated: wiki/specs/documentation-model.spec.md,
+wiki/plans/qmd-rs-search-backend.plan.md,
+wiki/plans/project-registry-search-artifacts.plan.md, wiki/log.md
+
+## [2026-05-07] complete | D9 project registry and search artifacts
+
+Implemented the D9 registry and search command surface in `llm-wiki`.
+The binary now supports host-local project registration (`register`, `forget`,
+`projects`), init auto-registration with `--no-register`, project indexing
+(`index`, `index-all`), project-local search, explicit cross-project
+`search-all` with include/exclude filters and RRF fusion, and registry-aware
+doctor diagnostics.
+
+Default builds keep qmd-rs feature-gated and report clear
+qmd-rs-feature-disabled diagnostics for search-backed commands. Feature-enabled
+tests cover qmd-rs indexing/search and two-project `search-all` behavior.
+
+Verification: `just verify`; `cargo test --workspace --features qmd-rs`.
+
+Pages updated: wiki/specs/documentation-model.spec.md,
+wiki/roadmaps/framework-v1.roadmap.md,
+wiki/plans/project-registry-search-artifacts.plan.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-07] update | default-on qmd-rs release addendum
+
+Added a post-completion addendum to the D9 registry/search plan. The addendum
+supersedes the earlier feature-gated release contract and sets the next target:
+remove the `qmd-rs` Cargo feature, make qmd-rs part of normal `llm-wiki`
+builds and release artifacts, delete feature-disabled diagnostics, and make
+default builds exercise real qmd-rs index/search behavior.
+
+The qmd-rs backend plan now points to this addendum so implementers do not
+continue treating feature-gated qmd-rs as the target release state.
+
+Pages updated: wiki/plans/project-registry-search-artifacts.plan.md,
+wiki/plans/qmd-rs-search-backend.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-07] update | qmd-rs release hardening scope
+
+Expanded the default-on qmd-rs release addendum with the D9 review fixes that
+must land before removing the Cargo feature. The hardening scope now explicitly
+requires safe project ID validation, per-project index locks, temp-store
+promotion, `projects` freshness reporting, stale-search CLI warnings,
+`search-all` freshness/exclude cleanup, and tolerant `AGENTS.md` / `AGENTS.MD`
+validation.
+
+Pages updated: wiki/plans/project-registry-search-artifacts.plan.md,
+wiki/log.md

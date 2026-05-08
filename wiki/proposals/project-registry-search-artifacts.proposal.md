@@ -1,12 +1,13 @@
 # Project Registry and Search Artifacts
 
 - Document Class: Proposal
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-05-06
 - Category: Search infrastructure, framework tooling
 - Scope: Add project registration, centralized per-project search artifacts, and explicit cross-project search commands to the `llm-wiki` binary after D8 ships.
 - Sources: wiki/plans/llm-wiki-binary.plan.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/specs/documentation-model.spec.md, wiki/references/qmd-search-engine.reference.md, wiki/references/qmd-rs-search-crate.reference.md, user discussion 2026-05-06
-- Related: wiki/proposals/llm-wiki-binary.proposal.md, wiki/proposals/search-backend-selection.proposal.md, wiki/roadmaps/framework-v1.roadmap.md
+- Related: wiki/proposals/llm-wiki-binary.proposal.md, wiki/proposals/search-backend-selection.proposal.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/roadmaps/framework-v1.roadmap.md
+- Promoted To: wiki/plans/project-registry-search-artifacts.plan.md
 
 ## Question
 
@@ -21,6 +22,12 @@ markdown wiki as the canonical source of truth while storing rebuildable search
 artifacts in a centralized cache. The binary registers projects explicitly,
 indexes each project's `wiki/` into a per-project search store, and exposes
 both project-local and cross-project retrieval commands.
+
+Accepted outcome: implement this as D9 through
+`wiki/plans/project-registry-search-artifacts.plan.md`. The qmd-rs backend
+slice has already landed behind an internal adapter, so the D9 plan owns the
+registry, command surface, and cross-project orchestration rather than backend
+selection.
 
 This proposal is about the registry, command surface, cache model, lifecycle,
 and output contracts. It does **not** choose the search backend. qmd-rs, Tobi
@@ -320,22 +327,21 @@ unless the accepted plan explicitly adds it. If added later, it should present
 
 ## Backend Boundary
 
-D9 needs a search backend, but this proposal does not pick it. The implementation
-should depend on an internal adapter trait so backend choice can be evaluated
-and changed without rewriting the registry or command surface.
+D9 needs a search backend, but this proposal does not own the backend decision.
+The accepted D9 backend is qmd-rs, selected in
+`wiki/decisions/search-backend-selection.decision.md` based on
+`wiki/evals/search-backend-selection.eval.md`.
 
-Candidate backends are documented separately in
-`wiki/proposals/search-backend-selection.proposal.md`:
+The implementation should still depend on an internal adapter trait so direct
+SQLite FTS5 can remain a fallback and Tobi QMD can be compared later.
 
-1. qmd-rs library adapter if quality and packaging evals pass;
-2. Tobi QMD shell-out adapter if qmd-rs is not ready but feature parity matters;
-3. direct SQLite FTS5/BM25 adapter for a smaller model-free first version;
-4. defer D9 search if none of the above clears the acceptance bar.
+Because qmd-rs can use local GGUF model artifacts for semantic modes,
+`llm-wiki doctor` should report store existence, schema/version state,
+stale/missing index state, corrupt stores, required local model artifacts, and
+rebuild/download guidance.
 
-Model download behavior belongs to the selected backend. Whatever backend is
-chosen, `llm-wiki doctor` should report missing required models or backend
-artifacts, and offline search should work after required local artifacts are
-present.
+Execution plan for the backend slice:
+`wiki/plans/qmd-rs-search-backend.plan.md`.
 
 ## Non-Goals
 

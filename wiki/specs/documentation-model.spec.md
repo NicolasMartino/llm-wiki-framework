@@ -2,11 +2,11 @@
 
 - Document Class: Spec
 - Status: Active
-- Date: 2026-05-06
+- Date: 2026-05-07
 - Category: Framework core
 - Scope: The validated documentation and execution model for projects using this framework.
-- Sources: raw/legacy/legacy-project-guidelines.md, raw/research/llm-wiki-pattern-research.md, raw/research/qmd-search-engine.md, raw/research/niharshrotri-llm-wiki-implementation.md
-- Related: wiki/decisions/three-layer-architecture.decision.md, wiki/decisions/agent-owns-wiki.decision.md, wiki/decisions/typed-documents.decision.md, wiki/references/qmd-search-engine.reference.md
+- Sources: raw/legacy/legacy-project-guidelines.md, raw/research/llm-wiki-pattern-research.md, raw/research/qmd-search-engine.md, raw/research/niharshrotri-llm-wiki-implementation.md, wiki/plans/project-registry-search-artifacts.plan.md
+- Related: wiki/decisions/three-layer-architecture.decision.md, wiki/decisions/agent-owns-wiki.decision.md, wiki/decisions/typed-documents.decision.md, wiki/references/qmd-search-engine.reference.md, wiki/decisions/search-backend-selection.decision.md
 
 ## Current State
 
@@ -63,9 +63,11 @@ Nine typed document roles, each with distinct truth relationship:
 - `wiki/index.md` is the sole agent entry point for small wikis (<100 pages)
 - `wiki/log.md` tracks all mutations chronologically
 - No distributed READMEs; the index is the catalog
-- At scale (>100 pages): QMD hybrid search (BM25 + vector + LLM re-ranking)
-  supplements index.md navigation. QMD indexes wiki/ as a collection and
-  exposes search via MCP server. See wiki/references/qmd-search-engine.reference.md
+- At scale (>100 pages): `llm-wiki search` supplements `index.md` navigation
+  for project-local retrieval, and `llm-wiki search-all` performs explicit
+  cross-project retrieval across registered projects. The internal qmd-rs
+  backend owns rebuildable search stores under host-local cache state; markdown
+  files under `wiki/` remain canonical citations.
 
 ## Promotion Flow
 
@@ -82,6 +84,10 @@ research -> raw/ -> ingest -> proposal/reference -> roadmap -> plan -> evidence 
 - `llm-wiki path` prints managed-bin PATH guidance without reinstalling skills
 - `llm-wiki init` produces project scaffolds from embedded templates with
   profile-specific golden tests
+- `llm-wiki register`, `forget`, and `projects` manage host-local project
+  registry state without writing to project files
+- `llm-wiki index`, `index-all`, `search`, and `search-all` provide default-on
+  qmd-rs-backed search over registered project wiki pages
 - `llm-wiki build --out .` regenerates this repo's committed runtime skill
   outputs from canonical skill markdown
 - This project uses the framework to manage itself
@@ -93,5 +99,6 @@ research -> raw/ -> ingest -> proposal/reference -> roadmap -> plan -> evidence 
 - Multi-agent coordination not yet addressed
 - Ingest, query, research, and lint remain agent-owned operations; the binary
   owns deterministic setup and distribution, not LLM judgment
-- QMD integration identified as the scale solution but not yet implemented
+- Semantic/hybrid model setup and answer synthesis remain future work; D9 ships
+  project-local and explicit cross-project FTS retrieval first
 - 3-phase ingest pipeline is documented in skills, but not binary-automated

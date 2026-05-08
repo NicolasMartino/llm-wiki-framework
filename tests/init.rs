@@ -3,10 +3,12 @@ use std::path::{Path, PathBuf};
 
 use assert_cmd::Command;
 use predicates::prelude::*;
+use serde_json::Value;
 use tempfile::TempDir;
 
 fn init_project(path: &Path, project_type: &str, scale: &str, extra: &[&str]) {
-    let mut command = Command::cargo_bin("llm-wiki").expect("binary");
+    let home = TempDir::new().expect("home");
+    let mut command = llm_wiki(home.path());
     command
         .arg("init")
         .arg(path)
@@ -24,6 +26,15 @@ fn init_project(path: &Path, project_type: &str, scale: &str, extra: &[&str]) {
         .args(extra)
         .assert()
         .success();
+}
+
+fn llm_wiki(home: &Path) -> Command {
+    let mut command = Command::cargo_bin("llm-wiki").expect("binary");
+    command
+        .env("HOME", home)
+        .env_remove("XDG_CACHE_HOME")
+        .env_remove("XDG_DATA_HOME");
+    command
 }
 
 #[test]
@@ -52,10 +63,10 @@ fn init_profiles_match_snapshots() {
 #[test]
 fn init_refuses_framework_artifact_collision() {
     let temp = TempDir::new().expect("tempdir");
+    let home = TempDir::new().expect("home");
     fs::create_dir_all(temp.path().join("wiki")).expect("mkdir");
 
-    Command::cargo_bin("llm-wiki")
-        .expect("binary")
+    llm_wiki(home.path())
         .arg("init")
         .arg(temp.path())
         .args([
@@ -77,14 +88,14 @@ fn init_refuses_framework_artifact_collision() {
 #[test]
 fn initial_sources_are_copied_without_ingest() {
     let temp = TempDir::new().expect("tempdir");
+    let home = TempDir::new().expect("home");
     let source_dir = TempDir::new().expect("sources");
     let source_a = source_dir.path().join("manifest.md");
     let source_b = source_dir.path().join("b.txt");
     fs::write(&source_a, "# User Manifest").expect("write");
     fs::write(&source_b, "B").expect("write");
 
-    Command::cargo_bin("llm-wiki")
-        .expect("binary")
+    llm_wiki(home.path())
         .arg("init")
         .arg(temp.path())
         .args([
@@ -116,6 +127,112 @@ fn initial_sources_are_copied_without_ingest() {
             .expect("index")
             .contains("a.md")
     );
+}
+
+#[test]
+fn init_auto_registers_successful_project() {
+    let project = TempDir::new().expect("project");
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .arg("init")
+        .arg(project.path())
+        .args([
+            "--non-interactive",
+            "--name",
+            "Fixture Project",
+            "--description",
+            "A fixture project.",
+            "--type",
+            "web",
+            "--scale",
+            "small",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Project initialized. Registry: registered as fixture-project.",
+        ));
+
+    let registry = read_registry(home.path());
+    let projects = registry["projects"].as_array().expect("projects");
+    assert_eq!(projects.len(), 1);
+    assert_eq!(projects[0]["id"], "fixture-project");
+    assert_eq!(
+        projects[0]["root"],
+        project
+            .path()
+            .canonicalize()
+            .expect("root")
+            .to_string_lossy()
+            .as_ref()
+    );
+}
+
+#[test]
+fn init_no_register_leaves_registry_untouched() {
+    let project = TempDir::new().expect("project");
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .arg("init")
+        .arg(project.path())
+        .args([
+            "--no-register",
+            "--non-interactive",
+            "--name",
+            "Fixture Project",
+            "--description",
+            "A fixture project.",
+            "--type",
+            "web",
+            "--scale",
+            "small",
+        ])
+        .assert()
+        .success();
+
+    assert!(
+        !home
+            .path()
+            .join(".local/share/llm-wiki/projects.json")
+            .exists()
+    );
+}
+
+#[test]
+fn init_registry_write_failure_is_recoverable_warning() {
+    let project = TempDir::new().expect("project");
+    let home = TempDir::new().expect("home");
+    let data_file = home.path().join("xdg-data-file");
+    fs::write(&data_file, "not a directory").expect("data file");
+
+    let mut command = llm_wiki(home.path());
+    command.env("XDG_DATA_HOME", &data_file);
+    command
+        .arg("init")
+        .arg(project.path())
+        .args([
+            "--non-interactive",
+            "--name",
+            "Fixture Project",
+            "--description",
+            "A fixture project.",
+            "--type",
+            "web",
+            "--scale",
+            "small",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Initialized LLM Wiki project"))
+        .stdout(predicate::str::contains(
+            "Project initialized. Registry: failed",
+        ))
+        .stderr(predicate::str::contains("registry update failed"))
+        .stderr(predicate::str::contains("llm-wiki register"));
+
+    assert!(project.path().join("wiki/index.md").exists());
 }
 
 fn snapshot_project(path: &Path) -> String {
@@ -182,4 +299,9 @@ fn find_file_with_contents(path: &Path, name: &str, contents: &str) -> Option<Pa
         }
     }
     None
+}
+
+fn read_registry(home: &Path) -> Value {
+    let path = home.join(".local/share/llm-wiki/projects.json");
+    serde_json::from_str(&fs::read_to_string(path).expect("registry json")).expect("json")
 }
