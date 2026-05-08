@@ -59,6 +59,62 @@ migration.
 
 Pages updated: wiki/plans/composable-project-init.plan.md, wiki/log.md
 
+## [2026-05-07] ingest | Askama D10 implementation research
+
+Ingested the Askama research bundle at
+`raw/research/2026-05-07-askama-rust-d10-composable-init/` into a sourced
+reference page for D10 implementation. Captured Askama 0.16 as the starting
+dependency candidate, root `templates/` behavior, explicit `escape = "none"`
+for Markdown/TOML, preserve-first whitespace guidance, runtime-selected pack
+fragment composition via exhaustive Rust matches, and the schema-crate
+template-root caveat for the later skill-projection proposal.
+
+Pages created: wiki/references/askama-template-engine.reference.md
+Pages updated: wiki/plans/composable-project-init.plan.md,
+wiki/proposals/skills-template-engine.proposal.md, wiki/index.md,
+wiki/log.md
+Verification: `qmd embed -f` completed after re-running with filesystem access
+to update the local QMD index.
+
+## [2026-05-07] lint | D10 bookkeeping consistency
+
+Cleaned up stale D10 wiki bookkeeping from the composable-init promotion.
+Updated the accepted proposal's closure section to point at D10 instead of
+the earlier "likely D9" placeholder, moved resolved first-cut pack questions
+out of the open-question list, and left only the dogfooding catalog question
+open. Aligned the D10 plan and roadmap verification gates with the intentional
+`AGENTS.md` canonical file plus `CLAUDE.md` shim transition. Refreshed the
+three-layer architecture summary to describe a runtime agent schema instead of
+only `CLAUDE.md`, with D10 recorded as the amendment.
+
+Pages updated: wiki/proposals/blueprint-pack-init.proposal.md,
+wiki/plans/composable-project-init.plan.md,
+wiki/roadmaps/framework-v1.roadmap.md,
+wiki/decisions/three-layer-architecture.decision.md, wiki/index.md,
+wiki/log.md
+## [2026-05-07] lint | D10 pre-implementation cleanup
+
+Resolved D10 documentation inconsistencies before implementation starts.
+Clarified that generated projects use canonical `AGENTS.md` plus a small
+`CLAUDE.md` compatibility shim, that Markdown Askama templates use `.md`
+filenames with `escape = "none"`, and that pack fragments are selected by
+exhaustive Rust matches rather than runtime template path lookup.
+
+Tightened the D10 plan around the `--type` / `--scale` retirement, the
+`--blueprint` / repeatable `--pack` final CLI surface, `llm-wiki doctor`
+remaining an install/runtime diagnostic, and the Phase 1 byte-stability
+exception for the intentional agent-schema file transition. Added a pending
+D10 note to the active `knowledge-init` spec and recorded in the documentation
+model that composable init is accepted but not implemented yet.
+
+Pages updated: wiki/plans/composable-project-init.plan.md,
+wiki/decisions/composable-project-init.decision.md,
+wiki/proposals/blueprint-pack-init.proposal.md,
+wiki/proposals/skills-template-engine.proposal.md,
+wiki/roadmaps/framework-v1.roadmap.md,
+wiki/specs/knowledge-init-skill.spec.md,
+wiki/specs/documentation-model.spec.md, wiki/index.md, wiki/log.md
+
 ## [2026-05-07] create | Composable project init proposal
 
 Filed `wiki/proposals/blueprint-pack-init.proposal.md`. Captures the
@@ -1262,6 +1318,29 @@ Pages updated: wiki/proposals/binary-path-bootstrap.proposal.md,
 wiki/decisions/binary-path-bootstrap.decision.md,
 wiki/plans/binary-path-bootstrap.plan.md,
 wiki/specs/documentation-model.spec.md, wiki/log.md
+
+## [2026-05-07] implement | D10 composable project init
+
+Implemented D10 on branch `d10-composable-project-init` with staged commits.
+`llm-wiki init` now uses Askama templates under `templates/base/` and
+`templates/packs/`, writes canonical `AGENTS.md` plus a `CLAUDE.md` shim,
+accepts `--blueprint <name>` with repeatable `--pack <name>`, rejects retired
+`--type` / `--scale` flags with guidance, and writes `.llm_wiki/init.toml`
+after project files and initial sources are created.
+
+The shipped catalog includes blueprints `generic`, `web-product`,
+`library-sdk`, `ml-research`, `ops-infra`, `security`, `research`, and
+`custom`, plus packs `api`, `frontend`, `library`, `ml`, `data`, `ops`,
+`ops-lite`, `security`, `research`, and `qmd-scale`.
+
+Verification run: `cargo insta test --workspace --accept`.
+
+Pages updated: README.md, assets/skills/knowledge-init/SKILL.md,
+.claude/skills/knowledge-init/SKILL.md, .codex/skills/knowledge-init/SKILL.md,
+.codex/skills/knowledge/SKILL.md, wiki/specs/knowledge-init-skill.spec.md,
+wiki/specs/documentation-model.spec.md,
+wiki/plans/composable-project-init.plan.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
 
 ## [2026-05-07] create | Search backend selection eval
 

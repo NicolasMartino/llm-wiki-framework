@@ -143,9 +143,13 @@ pub struct InitArgs {
     pub name: Option<String>,
     #[arg(long)]
     pub description: Option<String>,
-    #[arg(long = "type")]
-    pub project_type: Option<String>,
     #[arg(long)]
+    pub blueprint: Option<String>,
+    #[arg(long = "pack")]
+    pub packs: Vec<String>,
+    #[arg(long = "type", hide = true)]
+    pub project_type: Option<String>,
+    #[arg(long, hide = true)]
     pub scale: Option<String>,
     #[arg(long)]
     pub existing: bool,

@@ -6,7 +6,7 @@ use predicates::prelude::*;
 use serde_json::Value;
 use tempfile::TempDir;
 
-fn init_project(path: &Path, project_type: &str, scale: &str, extra: &[&str]) {
+fn init_project(path: &Path, blueprint: &str, packs: &[&str], extra: &[&str]) {
     let home = TempDir::new().expect("home");
     let mut command = llm_wiki(home.path());
     command
@@ -18,11 +18,10 @@ fn init_project(path: &Path, project_type: &str, scale: &str, extra: &[&str]) {
             "Fixture Project",
             "--description",
             "A fixture project.",
-            "--type",
-            project_type,
-            "--scale",
-            scale,
+            "--blueprint",
+            blueprint,
         ])
+        .args(packs.iter().flat_map(|pack| ["--pack", *pack]))
         .args(extra)
         .assert()
         .success();
@@ -40,19 +39,21 @@ fn llm_wiki(home: &Path) -> Command {
 #[test]
 fn init_profiles_match_snapshots() {
     let cases = [
-        ("baseline", "web", "small", vec![]),
-        ("ml_ai", "ml", "small", vec![]),
-        ("qmd", "web", "medium", vec![]),
-        ("ml_ai_qmd", "data", "large", vec![]),
-        ("is_existing", "web", "small", vec!["--existing"]),
+        ("baseline", "generic", vec![], vec![]),
+        ("ml_ai", "custom", vec!["ml"], vec![]),
+        ("qmd", "custom", vec!["qmd-scale"], vec![]),
+        ("ml_ai_qmd", "custom", vec!["ml", "qmd-scale"], vec![]),
+        ("is_existing", "generic", vec![], vec!["--existing"]),
+        ("ml_research", "ml-research", vec![], vec![]),
+        ("ops_infra", "ops-infra", vec![], vec![]),
     ];
-    for (name, project_type, scale, extra) in cases {
+    for (name, blueprint, packs, extra) in cases {
         let temp = TempDir::new().expect("tempdir");
         if name == "is_existing" {
             fs::create_dir_all(temp.path().join("app")).expect("mkdir");
             fs::write(temp.path().join("package.json"), "{}").expect("write");
         }
-        init_project(temp.path(), project_type, scale, &extra);
+        init_project(temp.path(), blueprint, &packs, &extra);
         let snapshot = snapshot_project(temp.path());
         insta::with_settings!({filters => vec![(r"\d{4}-\d{2}-\d{2}", "[date]")]}, {
             insta::assert_snapshot!(format!("init_{name}"), snapshot);
@@ -75,6 +76,28 @@ fn init_refuses_framework_artifact_collision() {
             "Fixture Project",
             "--description",
             "A fixture project.",
+            "--blueprint",
+            "generic",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("framework artifacts"));
+}
+
+#[test]
+fn init_rejects_retired_type_and_scale_flags() {
+    let temp = TempDir::new().expect("tempdir");
+
+    Command::cargo_bin("llm-wiki")
+        .expect("binary")
+        .arg("init")
+        .arg(temp.path())
+        .args([
+            "--non-interactive",
+            "--name",
+            "Fixture Project",
+            "--description",
+            "A fixture project.",
             "--type",
             "web",
             "--scale",
@@ -82,7 +105,51 @@ fn init_refuses_framework_artifact_collision() {
         ])
         .assert()
         .failure()
-        .stderr(predicate::str::contains("framework artifacts"));
+        .stderr(predicate::str::contains("--blueprint"));
+}
+
+#[test]
+fn init_manifest_records_resolved_blueprint_packs() {
+    let temp = TempDir::new().expect("tempdir");
+
+    init_project(temp.path(), "ml-research", &[], &[]);
+
+    assert!(temp.path().join("wiki/experiments").is_dir());
+    assert!(temp.path().join("wiki/evals").is_dir());
+    assert!(temp.path().join("wiki/datasets").is_dir());
+    assert!(temp.path().join("wiki/literature").is_dir());
+
+    let manifest = fs::read_to_string(temp.path().join(".llm_wiki/init.toml")).expect("manifest");
+    let manifest: toml::Value = toml::from_str(&manifest).expect("toml");
+    assert_eq!(manifest["blueprint"].as_str(), Some("ml-research"));
+    assert_eq!(
+        manifest["packs"].as_array().expect("packs"),
+        &[
+            toml::Value::String("ml".to_string()),
+            toml::Value::String("data".to_string()),
+            toml::Value::String("research".to_string()),
+        ]
+    );
+
+    let guidelines =
+        fs::read_to_string(temp.path().join("project_guidelines.md")).expect("guidelines");
+    assert!(guidelines.contains("## Pack Document Types"));
+    assert!(guidelines.contains("`model-card.md`"));
+    assert!(guidelines.contains("`dataset-card.md`"));
+    assert!(guidelines.contains("## Pack Status Vocabulary"));
+}
+
+#[test]
+fn init_agents_lists_pack_document_types_for_pack_driven_projects() {
+    let temp = TempDir::new().expect("tempdir");
+
+    init_project(temp.path(), "ops-infra", &[], &[]);
+
+    let agents = fs::read_to_string(temp.path().join("AGENTS.md")).expect("agents");
+    assert!(agents.contains("## Pack Document Types"));
+    assert!(agents.contains("| Runbook | `runbook.md` | `wiki/runbooks` |"));
+    assert!(agents.contains("| SLO | `slo.md` | `wiki/slos` |"));
+    assert!(agents.contains("| Postmortem | `postmortem.md` | `wiki/postmortems` |"));
 }
 
 #[test]
@@ -104,10 +171,8 @@ fn initial_sources_are_copied_without_ingest() {
             "Fixture Project",
             "--description",
             "A fixture project.",
-            "--type",
-            "web",
-            "--scale",
-            "small",
+            "--blueprint",
+            "generic",
             "--initial-sources",
         ])
         .arg(&source_a)
@@ -130,6 +195,36 @@ fn initial_sources_are_copied_without_ingest() {
 }
 
 #[test]
+fn init_with_invalid_initial_sources_leaves_no_partial_scaffold() {
+    let temp = TempDir::new().expect("tempdir");
+    let missing = temp.path().join("missing-source.md");
+
+    Command::cargo_bin("llm-wiki")
+        .expect("binary")
+        .arg("init")
+        .arg(temp.path())
+        .args([
+            "--non-interactive",
+            "--name",
+            "Fixture Project",
+            "--description",
+            "A fixture project.",
+            "--blueprint",
+            "generic",
+            "--initial-sources",
+        ])
+        .arg(&missing)
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("initial source does not exist"));
+
+    assert!(!temp.path().join("AGENTS.md").exists());
+    assert!(!temp.path().join("project_guidelines.md").exists());
+    assert!(!temp.path().join("wiki").exists());
+    assert!(!temp.path().join(".llm_wiki").exists());
+}
+
+#[test]
 fn init_auto_registers_successful_project() {
     let project = TempDir::new().expect("project");
     let home = TempDir::new().expect("home");
@@ -143,10 +238,8 @@ fn init_auto_registers_successful_project() {
             "Fixture Project",
             "--description",
             "A fixture project.",
-            "--type",
-            "web",
-            "--scale",
-            "small",
+            "--blueprint",
+            "generic",
         ])
         .assert()
         .success()
@@ -184,10 +277,8 @@ fn init_no_register_leaves_registry_untouched() {
             "Fixture Project",
             "--description",
             "A fixture project.",
-            "--type",
-            "web",
-            "--scale",
-            "small",
+            "--blueprint",
+            "generic",
         ])
         .assert()
         .success();
@@ -218,10 +309,8 @@ fn init_registry_write_failure_is_recoverable_warning() {
             "Fixture Project",
             "--description",
             "A fixture project.",
-            "--type",
-            "web",
-            "--scale",
-            "small",
+            "--blueprint",
+            "generic",
         ])
         .assert()
         .success()
@@ -243,8 +332,12 @@ fn snapshot_project(path: &Path) -> String {
     }
     output.push_str("\n# project_guidelines.md\n");
     output.push_str(&fs::read_to_string(path.join("project_guidelines.md")).expect("guidelines"));
+    output.push_str("\n# AGENTS.md\n");
+    output.push_str(&fs::read_to_string(path.join("AGENTS.md")).expect("agents"));
     output.push_str("\n# CLAUDE.md\n");
     output.push_str(&fs::read_to_string(path.join("CLAUDE.md")).expect("claude"));
+    output.push_str("\n# .llm_wiki/init.toml\n");
+    output.push_str(&fs::read_to_string(path.join(".llm_wiki/init.toml")).expect("manifest"));
     output.push_str("\n# wiki/index.md\n");
     output.push_str(&fs::read_to_string(path.join("wiki/index.md")).expect("index"));
     output

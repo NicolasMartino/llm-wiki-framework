@@ -1,16 +1,29 @@
-# Project Guidelines - {{PROJECT_NAME}}
+---
+source: tests/init.rs
+expression: snapshot
+---
+# files
+- .llm_wiki/init.toml
+- AGENTS.md
+- CLAUDE.md
+- project_guidelines.md
+- wiki/index.md
+- wiki/log.md
+
+# project_guidelines.md
+# Project Guidelines - Fixture Project
 
 - Document Class: Spec
 - Status: Active
-- Date: {{DATE}}
+- Date: [date]
 - Category: Documentation and execution model
 - Scope: Project documentation, knowledge management, and execution rules.
 
 ## Purpose
 
-This file defines the documentation and execution model for {{PROJECT_NAME}}.
+This file defines the documentation and execution model for Fixture Project.
 
-{{PROJECT_DESCRIPTION}}
+A fixture project.
 
 The model combines the LLM Wiki pattern (Karpathy, 2026) with typed document
 roles. The agent owns the wiki layer. The human curates raw sources and makes
@@ -23,7 +36,7 @@ Three layers:
 ```
 raw/              Immutable source material. Human-curated.
 wiki/             Compiled knowledge. Agent-owned.
-CLAUDE.md         Schema. Conventions, workflows, agent instructions.
+AGENTS.md        Schema. Conventions, workflows, agent instructions.
 ```
 
 The agent compiles raw sources into structured wiki pages at ingest time.
@@ -60,7 +73,7 @@ Rules:
 
 ### Layer 3: The Schema
 
-`CLAUDE.md` at the repository root tells the agent how to operate. It specifies:
+`AGENTS.md` at the repository root tells the agent how to operate. It specifies:
 
 1. wiki structure and folder conventions
 2. ingest, query, and lint workflows
@@ -90,39 +103,6 @@ Contents:
 The index must fit in a single context window. If it grows beyond ~50,000
 tokens, split into a root index with per-type sub-indexes.
 
-<!-- SECTION:QMD - include for medium/large scale projects -->
-### QMD Search (scale beyond index.md)
-
-For wikis that grow beyond ~100 pages, supplement index.md navigation with
-QMD hybrid search. QMD indexes all wiki/ markdown files locally and provides
-BM25 keyword search, vector semantic search, and LLM re-ranking in a single
-pipeline. All processing runs on-device.
-
-Setup:
-
-```bash
-npm install -g @tobilu/qmd
-qmd collection add wiki/ --name wiki
-qmd context add qmd://wiki "Project wiki: specs, decisions, proposals, plans"
-qmd embed
-```
-
-The agent uses `qmd query` to find relevant pages when the index is
-insufficient, then reads those pages directly. QMD exposes an MCP server
-(`qmd mcp`) for direct agent integration.
-
-Navigation strategy becomes tiered:
-1. Read `wiki/index.md` first for orientation
-2. If the index does not surface the needed page, use `qmd query`
-3. Read the identified pages
-
-Auto-reindex after ingest or lint:
-
-```bash
-qmd embed -f
-```
-<!-- END:QMD -->
-
 ### log.md
 
 `wiki/log.md` is an append-only chronological record of all wiki mutations.
@@ -131,7 +111,6 @@ Format:
 
 ```
 ## [YYYY-MM-DD] operation | subject
-
 Brief description of what changed and why.
 Pages affected: [list of paths]
 ```
@@ -201,26 +180,16 @@ Use the document type by role, not by convenience.
 | `*.checklist.md` | What repeatable procedure must be followed? | Operational, release, deployment, or incident procedure |
 | `*.reference.md` | What external evidence exists? | Source notes for papers, APIs, vendor docs, benchmarks |
 
-<!-- SECTION:ML_AI - include for ML/AI projects -->
-### ML/AI Document Types (ML/AI projects only)
-
-| Document type | Core question | Purpose |
-| --- | --- | --- |
-| `*.experiment.md` | What uncertain question are we testing? | Investigation: setup, observations, measurements, conclusion |
-| `*.eval.md` | How did a candidate perform? | Evaluation report: metrics, failure analysis, recommendation |
-<!-- END:ML_AI -->
-
 Short version:
 
-1. Spec - validated truth
-2. Decision - durable choice
-3. Proposal - direction
-4. Roadmap - ordering
-5. Plan - execution
-6. Experiment - uncertainty <!-- CONDITIONAL:ML_AI -->
-7. Eval - measured performance <!-- CONDITIONAL:ML_AI -->
-8. Checklist - repeatable procedure
-9. Reference - raw evidence
+- Spec - validated truth
+- Decision - durable choice
+- Proposal - direction
+- Roadmap - ordering
+- Plan - execution
+
+- Checklist - repeatable procedure
+- Reference - raw evidence
 
 ## Wiki Folder Structure
 
@@ -235,8 +204,6 @@ wiki/
   plans/                      Tactical execution
   checklists/                 Repeatable procedures
   references/                 External evidence synthesis
-  experiments/                Investigation records       <!-- CONDITIONAL:ML_AI -->
-  evals/                      Evaluation reports           <!-- CONDITIONAL:ML_AI -->
   archive/                    Completed, superseded, or rejected documents
 ```
 
@@ -244,7 +211,8 @@ wiki/
 
 ```text
 ./
-  CLAUDE.md                   Schema: agent conventions and workflows
+  AGENTS.md                   Schema: agent conventions and workflows
+  CLAUDE.md                   Compatibility shim for Claude-oriented tooling
   project_guidelines.md       This file: documentation and execution model
   README.md                   Project orientation and setup
   raw/                        Immutable source material (human-curated)
@@ -258,23 +226,12 @@ wiki/
     plans/
     checklists/
     references/
-    experiments/              <!-- CONDITIONAL:ML_AI -->
-    evals/                    <!-- CONDITIONAL:ML_AI -->
     archive/
   src/                        Application code
   tests/                      Automated tests
   scripts/                    Utilities and automation
   infra/                      Infrastructure definitions
-  models/                     Model artifacts, configs     <!-- CONDITIONAL:ML_AI -->
-  data/                       Datasets, schemas, pipelines <!-- CONDITIONAL:ML_AI -->
-  notebooks/                  Exploratory analysis         <!-- CONDITIONAL:ML_AI -->
-  evals/                      Evaluation harnesses (code)  <!-- CONDITIONAL:ML_AI -->
 ```
-
-<!-- SECTION:ML_AI -->
-Note: `evals/` at root contains evaluation code and harnesses. `wiki/evals/`
-contains evaluation report documents. Code and documentation are separate.
-<!-- END:ML_AI -->
 
 ## Naming And Metadata
 
@@ -326,6 +283,27 @@ Optional fields:
 
 Archived or completed documents move to `wiki/archive/` and are removed from
 the active index. They remain searchable but do not clutter the primary catalog.
+
+## Pack Document Types
+
+| Document type | Filename suffix | Folder |
+| --- | --- | --- |
+| Runbook | `runbook.md` | `wiki/runbooks` |
+| SLO | `slo.md` | `wiki/slos` |
+| Postmortem | `postmortem.md` | `wiki/postmortems` |
+
+## Pack Status Vocabulary
+
+| Document class | Statuses |
+| --- | --- |
+| Runbooks | `Draft`, `Active`, `Retired` |
+| Incidents | `Open`, `Mitigated`, `Resolved`, `Reviewed` |
+
+## Ops Pack Additions
+
+Ops projects add runbooks, SLOs, incident records, on-call conventions, and
+postmortems. Operational status vocabulary includes runbook lifecycle and
+incident states from open through reviewed.
 
 ## Core Rule
 
@@ -381,24 +359,18 @@ The deliverable rule:
 
 ```md
 ### D1 - [Deliverable Name]
-
 Status: [Draft / Active / Blocked / Completed]
 Promise: [Externally observable result]
 Depends On: [None / D0 / external prerequisite]
 Execution Plan: [path or "Not created yet"]
-
 Included:
 - ...
-
 Excluded:
 - ...
-
 Proof:
 - ...
-
 Promotion Target:
 - ...
-
 Unlocks:
 - ...
 ```
@@ -415,33 +387,6 @@ A plan answers:
 6. What evidence will be recorded?
 7. What wiki pages should be updated when done?
 8. What closes the plan?
-
-<!-- SECTION:ML_AI -->
-## Experiment Template
-
-An experiment captures:
-
-1. Objective
-2. Hypothesis
-3. Setup
-4. Procedure
-5. Observations
-6. Measurements
-7. Conclusion
-8. Next action
-
-## Eval Template
-
-An eval captures:
-
-1. Model or system version
-2. Eval suite and dataset versions
-3. Metrics and variance
-4. Comparison to baseline
-5. Failure analysis
-6. Resource profile
-7. Recommendation
-<!-- END:ML_AI -->
 
 ## Spec Template
 
@@ -528,7 +473,7 @@ Before starting work, ask:
 
 When starting work on a project, the agent reads:
 
-1. `CLAUDE.md` - schema and conventions
+1. `AGENTS.md` - schema and conventions
 2. `project_guidelines.md` - this file
 3. `wiki/index.md` - orient to all project knowledge
 4. relevant wiki pages identified from the index
@@ -549,6 +494,137 @@ maintains, cross-references, and keeps the wiki consistent.
 5. specs and decisions record validated truth
 6. roadmaps coordinate deliverables
 7. plans execute bounded work
-8. experiments and evals produce evidence
+8. tests, demos, and operational checks produce evidence
 9. the index is always current
 10. knowledge compounds with every ingest
+
+# AGENTS.md
+# AGENTS.md - Project Schema
+
+This is Fixture Project: A fixture project.
+
+## Agent Role
+
+You own `wiki/`. You write, update, cross-link, and maintain all wiki content.
+Humans curate `raw/` and make judgment calls. You handle the bookkeeping.
+
+## How To Orient
+
+1. Read `project_guidelines.md` for the documentation model and rules.
+2. Read `wiki/index.md` for the catalog of all project knowledge.
+3. Read specific wiki pages identified from the index.
+4. Read `raw/` sources only when wiki content is insufficient.
+
+Never browse the filesystem to find information. `wiki/index.md` is your
+entry point.
+
+## Operations
+
+### Ingest
+
+When new material appears in `raw/`:
+
+1. Read the raw source fully.
+2. Identify facts, entities, relationships, decisions.
+3. Write or update wiki pages using the correct document type.
+4. Check for contradictions with existing wiki content.
+5. Update `wiki/index.md`.
+6. Append to `wiki/log.md`.
+
+### Query
+
+When answering questions:
+
+1. Read `wiki/index.md` to find relevant pages.
+2. Read those pages.
+3. Synthesize an answer with citations.
+4. If the answer is durable new knowledge, file it as a wiki page.
+
+### Lint
+
+Periodically or on request:
+
+1. Scan for contradictions between pages.
+2. Find stale statuses or outdated claims.
+3. Identify orphan pages not linked from index.
+4. Check for missing cross-references.
+5. Fix issues directly.
+6. Log all changes in `wiki/log.md`.
+
+## Conventions
+
+- Document types: spec, decision, proposal, roadmap, plan, checklist,
+  reference.
+- Pack-specific document types are listed below when active packs add them.
+- Use the type by role, not convenience. See `project_guidelines.md`.
+- Every wiki page has a metadata block: Document Class, Status, Date,
+  Category, Scope, Sources, and Related when useful.
+- Filenames: `[slug].type.md` or `[index]-[slug].type.md`.
+- Archived documents go to `wiki/archive/`.
+- `wiki/log.md` uses format: `## [YYYY-MM-DD] operation | subject`.
+
+## Pack Document Types
+
+| Document type | Filename suffix | Folder |
+| --- | --- | --- |
+| Runbook | `runbook.md` | `wiki/runbooks` |
+| SLO | `slo.md` | `wiki/slos` |
+| Postmortem | `postmortem.md` | `wiki/postmortems` |
+
+## Ops Pack
+
+- Use `wiki/runbooks/`, `wiki/slos/`, and `wiki/postmortems/` for operational knowledge.
+- Store incident source material under `raw/incidents/`.
+- Keep runbooks actionable and update them after incidents or operational drills.
+
+
+# CLAUDE.md
+See @AGENTS.md.
+
+# .llm_wiki/init.toml
+framework_version = "0.1.0"
+blueprint = "ops-infra"
+packs = ["ops"]
+
+# wiki/index.md
+# Wiki Index
+
+Project: Fixture Project
+Stage: Bootstrap
+Updated: [date]
+
+## Specs
+
+(none yet)
+
+## Decisions
+
+(none yet)
+
+## Roadmaps
+
+(none yet)
+
+## References
+
+(none yet)
+
+## Proposals
+
+(none yet)
+
+## Plans
+
+(none yet)
+
+## Checklists
+
+(none yet)
+
+## Runbooks
+
+(none yet)
+
+## Archive
+
+(none yet)

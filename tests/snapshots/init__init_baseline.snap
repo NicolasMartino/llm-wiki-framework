@@ -3,6 +3,8 @@ source: tests/init.rs
 expression: snapshot
 ---
 # files
+- .llm_wiki/init.toml
+- AGENTS.md
 - CLAUDE.md
 - project_guidelines.md
 - wiki/index.md
@@ -34,7 +36,7 @@ Three layers:
 ```
 raw/              Immutable source material. Human-curated.
 wiki/             Compiled knowledge. Agent-owned.
-CLAUDE.md         Schema. Conventions, workflows, agent instructions.
+AGENTS.md        Schema. Conventions, workflows, agent instructions.
 ```
 
 The agent compiles raw sources into structured wiki pages at ingest time.
@@ -71,7 +73,7 @@ Rules:
 
 ### Layer 3: The Schema
 
-`CLAUDE.md` at the repository root tells the agent how to operate. It specifies:
+`AGENTS.md` at the repository root tells the agent how to operate. It specifies:
 
 1. wiki structure and folder conventions
 2. ingest, query, and lint workflows
@@ -109,7 +111,6 @@ Format:
 
 ```
 ## [YYYY-MM-DD] operation | subject
-
 Brief description of what changed and why.
 Pages affected: [list of paths]
 ```
@@ -181,13 +182,14 @@ Use the document type by role, not by convenience.
 
 Short version:
 
-1. Spec - validated truth
-2. Decision - durable choice
-3. Proposal - direction
-4. Roadmap - ordering
-5. Plan - execution
-8. Checklist - repeatable procedure
-9. Reference - raw evidence
+- Spec - validated truth
+- Decision - durable choice
+- Proposal - direction
+- Roadmap - ordering
+- Plan - execution
+
+- Checklist - repeatable procedure
+- Reference - raw evidence
 
 ## Wiki Folder Structure
 
@@ -209,7 +211,8 @@ wiki/
 
 ```text
 ./
-  CLAUDE.md                   Schema: agent conventions and workflows
+  AGENTS.md                   Schema: agent conventions and workflows
+  CLAUDE.md                   Compatibility shim for Claude-oriented tooling
   project_guidelines.md       This file: documentation and execution model
   README.md                   Project orientation and setup
   raw/                        Immutable source material (human-curated)
@@ -335,24 +338,18 @@ The deliverable rule:
 
 ```md
 ### D1 - [Deliverable Name]
-
 Status: [Draft / Active / Blocked / Completed]
 Promise: [Externally observable result]
 Depends On: [None / D0 / external prerequisite]
 Execution Plan: [path or "Not created yet"]
-
 Included:
 - ...
-
 Excluded:
 - ...
-
 Proof:
 - ...
-
 Promotion Target:
 - ...
-
 Unlocks:
 - ...
 ```
@@ -455,7 +452,7 @@ Before starting work, ask:
 
 When starting work on a project, the agent reads:
 
-1. `CLAUDE.md` - schema and conventions
+1. `AGENTS.md` - schema and conventions
 2. `project_guidelines.md` - this file
 3. `wiki/index.md` - orient to all project knowledge
 4. relevant wiki pages identified from the index
@@ -476,12 +473,12 @@ maintains, cross-references, and keeps the wiki consistent.
 5. specs and decisions record validated truth
 6. roadmaps coordinate deliverables
 7. plans execute bounded work
-8. experiments and evals produce evidence
+8. tests, demos, and operational checks produce evidence
 9. the index is always current
 10. knowledge compounds with every ingest
 
-# CLAUDE.md
-# CLAUDE.md - Project Schema
+# AGENTS.md
+# AGENTS.md - Project Schema
 
 This is Fixture Project: A fixture project.
 
@@ -537,12 +534,22 @@ Periodically or on request:
 
 - Document types: spec, decision, proposal, roadmap, plan, checklist,
   reference.
+- Pack-specific document types are listed below when active packs add them.
 - Use the type by role, not convenience. See `project_guidelines.md`.
 - Every wiki page has a metadata block: Document Class, Status, Date,
   Category, Scope, Sources, and Related when useful.
 - Filenames: `[slug].type.md` or `[index]-[slug].type.md`.
 - Archived documents go to `wiki/archive/`.
 - `wiki/log.md` uses format: `## [YYYY-MM-DD] operation | subject`.
+
+
+# CLAUDE.md
+See @AGENTS.md.
+
+# .llm_wiki/init.toml
+framework_version = "0.1.0"
+blueprint = "generic"
+packs = []
 
 # wiki/index.md
 # Wiki Index

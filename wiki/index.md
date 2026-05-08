@@ -1,13 +1,13 @@
 # Wiki Index
 
 Project: Software Project Management Framework
-Stage: D1 Bootstrap (Completed), D2 Ingest Cycle (Completed), D3 Lint Operation (Completed), D8 Distribution Tooling (Completed), D8.1 Managed Runtime Bootstrap (Completed), D9 Project Registry and Search Artifacts (Completed), D10 Composable Project Init (Draft), D11 Project and Skill Rename (Draft)
+Stage: D1 Bootstrap (Completed), D2 Ingest Cycle (Completed), D3 Lint Operation (Completed), D8 Distribution Tooling (Completed), D8.1 Managed Runtime Bootstrap (Completed), D9 Project Registry and Search Artifacts (Completed), D10 Composable Project Init (Completed), D11 Project and Skill Rename (Draft)
 Updated: 2026-05-08
 
 ## Specs
 
-- [Documentation Model](specs/documentation-model.spec.md) — Active — Three-layer architecture, operations, document types, binary distribution, navigation, `llm-wiki search` scale strategy
-- [Knowledge Init Skill](specs/knowledge-init-skill.spec.md) — Active — `knowledge-init` wrapper over `llm-wiki init --non-interactive`
+- [Documentation Model](specs/documentation-model.spec.md) — Active — Three-layer architecture, operations, document types, binary distribution, composable init templates, and `llm-wiki search` scale strategy
+- [Knowledge Init Skill](specs/knowledge-init-skill.spec.md) — Active — `knowledge-init` wrapper over `llm-wiki init --non-interactive` with blueprint and pack selection
 - [Knowledge Query Skill](specs/knowledge-query-skill.spec.md) — Active — `knowledge-query` skill for querying the wiki with citations and save-back
 - [Knowledge Ingest Skill](specs/knowledge-ingest-skill.spec.md) — Active — `knowledge-ingest` skill for processing raw sources into wiki pages with 3-phase pipeline
 - [Knowledge Lint Skill](specs/knowledge-lint-skill.spec.md) — Active — `knowledge-lint` skill for scanning and fixing wiki consistency issues
@@ -15,7 +15,7 @@ Updated: 2026-05-08
 
 ## Decisions
 
-- [Three-Layer Architecture](decisions/three-layer-architecture.decision.md) — Accepted — raw/ + wiki/ + CLAUDE.md, replacing legacy three-lane model
+- [Three-Layer Architecture](decisions/three-layer-architecture.decision.md) — Accepted — raw/ + wiki/ + runtime agent schema, replacing legacy three-lane model
 - [Agent Owns Wiki](decisions/agent-owns-wiki.decision.md) — Accepted — Agent has full control of wiki/, humans curate raw/
 - [Typed Documents](decisions/typed-documents.decision.md) — Accepted — Nine document types with distinct truth relationships
 - [Knowledge Command Namespace](decisions/knowledge-command-namespace.decision.md) — Accepted — `$knowledge` is the shared Codex command surface for init/query/ingest/research/lint
@@ -27,7 +27,7 @@ Updated: 2026-05-08
 
 ## Roadmaps
 
-- [Framework V1](roadmaps/framework-v1.roadmap.md) — Active — Framework deliverables through D11: bootstrap, distribution tooling, managed runtime bootstrap, registry-backed search, composable init, and the project/skill rename
+- [Framework V1](roadmaps/framework-v1.roadmap.md) — Active — Framework deliverables through D11: bootstrap, distribution tooling, managed runtime bootstrap, registry-backed search, completed composable init, and the project/skill rename
 
 ## References
 
@@ -37,6 +37,7 @@ Updated: 2026-05-08
 - [NiharShrotri/llm-wiki](references/niharshrotri-llm-wiki.reference.md) — Sourced — Full implementation with 3-pass ingest, QMD, CLI, web UI, auto-lint
 - [LLM Wiki Ecosystem Survey](references/llm-wiki-ecosystem.reference.md) — Sourced — 30+ implementations organized by delivery model and architectural innovation
 - [Three-Phase Ingest Pipeline](references/three-phase-ingest-pipeline.reference.md) — Sourced — Web-sourced explanation of extraction, page drafting, and bookkeeping as separate ingest phases
+- [Askama Template Engine for D10 Composable Init](references/askama-template-engine.reference.md) — Sourced — Askama 0.16 implementation guidance for D10 templates, fragments, escaping, whitespace, and schema-crate caveats
 
 ## Proposals
 
@@ -56,7 +57,7 @@ Updated: 2026-05-08
 - [qmd-rs Search Backend](plans/qmd-rs-search-backend.plan.md) — Completed — D9 backend slice landed qmd-rs adapter, query sanitization, metadata, snippets, doctor checks, eval replay, and release findings
 - [Project Registry and Search Artifacts](plans/project-registry-search-artifacts.plan.md) — Completed — Implemented D9 registry/search commands and default-on qmd-rs release behavior
 - [Project and Skill Rename](plans/project-and-skill-rename.plan.md) — Draft — D11 execution: rename the package and `knowledge*` surface to `wiki-*`, prove the new runtime surface, and handle the few legacy symlinked repos through a one-off `.claude.legacy/` / `.codex.legacy/` migration
-- [Composable Project Init](plans/composable-project-init.plan.md) — Draft — D10 execution: pick the template engine, migrate the existing init template, ship the blueprint + pack catalog, two-step interactive flow, and `.llm_wiki/init.toml` writer
+- [Composable Project Init](plans/composable-project-init.plan.md) — Completed — D10 execution adopted Askama, migrated init templates, shipped blueprints + packs, two-step interactive flow, AGENTS/CLAUDE schema handling, and `.llm_wiki/init.toml`
 
 ## Experiments
 

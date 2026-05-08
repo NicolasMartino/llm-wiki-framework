@@ -5,8 +5,8 @@
 - Date: 2026-05-07
 - Promoted To: wiki/decisions/composable-project-init.decision.md, wiki/plans/composable-project-init.plan.md, wiki/roadmaps/framework-v1.roadmap.md (D10)
 - Category: Tooling, project scaffolding, init UX
-- Scope: Evolve `llm-wiki init` from one static template gated by two conditional flags (`SECTION:ML_AI`, `SECTION:QMD`) into a composable generator that produces a tailored `AGENTS.md` and `project_guidelines.md` from a chosen blueprint plus a set of opt-in packs, and add a per-project `.llm_wiki/` folder for project-specific config and an init manifest.
-- Sources: assets/templates/project_guidelines.md, assets/templates/CLAUDE.md, src/init/{profile,answers,template,scaffold,command}.rs
+- Scope: Evolve `llm-wiki init` from one static template gated by two conditional flags (`SECTION:ML_AI`, `SECTION:QMD`) into a composable generator that produces a tailored canonical `AGENTS.md` and `project_guidelines.md` from a chosen blueprint plus a set of opt-in packs, and add a per-project `.llm_wiki/` folder for project-specific config and an init manifest.
+- Sources: templates/base/project_guidelines.md, templates/base/agents.md, templates/packs/, src/init/{blueprints,packs,compose,manifest,answers,template,scaffold,command}.rs
 - Related: wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-init-skill.spec.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/proposals/skills-template-engine.proposal.md
 
 ## Question
@@ -42,6 +42,10 @@ The non-interactive path (`--non-interactive`, used by `knowledge-init`) accepts
 Every project, regardless of blueprint or pack selection, gets the **epistemic spine**: `specs/`, `decisions/`, `proposals/`, `index.md`, `log.md`, plus the ingest/query/lint operations and the metadata block. The spine is non-negotiable and lives in the base template. Packs only *add* on top of it.
 
 This guarantees that every wiki produced by the framework is recognizable and lintable by the same skills, regardless of which packs were chosen.
+
+`AGENTS.md` is the canonical generated agent schema file. For Claude
+compatibility, init also writes a tiny `CLAUDE.md` shim pointing at
+`AGENTS.md`; pack composition targets the canonical schema file only.
 
 ### Per-project `.llm_wiki/`
 
@@ -90,7 +94,7 @@ The pack list is the actual extensibility surface. Adding a project shape over t
 
 The current dependency set is intentionally lean (`anyhow`, `chrono`, `clap`, `serde`/`serde_json`/`serde_yaml`, `sha2`). Two crate additions plus one already-present crate (`toml` via cargo features, used only for the runtime breadcrumb file) cover composable init:
 
-1. **`askama`** for compile-time template rendering. The template files live under `templates/` and are compiled into typed Rust render functions; field references that don't exist on the driving struct are *build errors*, not runtime surprises. This same engine takes over the existing init template (replacing the ad-hoc `{{PROJECT_NAME}}`/`{{DATE}}` substitution in `src/init/template.rs`) so we have one rendering path, not two. `rinja` (the actively maintained fork) is functionally equivalent and is a drop-in fallback if `askama` ever stalls — same template syntax, swap is a Cargo dependency change. `minijinja`/`tera`/`handlebars` were considered and rejected: the runtime-loading they enable buys nothing here (every template ships with the binary) and forfeits the compile-time check.
+1. **`askama`** for compile-time template rendering. The template files live under `templates/` and are compiled into typed Rust render functions; field references that don't exist on the driving struct are *build errors*, not runtime surprises. Markdown templates use `.md` filenames and `escape = "none"` in Rust derives. This same engine takes over the existing init template (replacing the ad-hoc `{{PROJECT_NAME}}`/`{{DATE}}` substitution in `src/init/template.rs`) so we have one rendering path, not two. `rinja` (the actively maintained fork) is functionally equivalent and is a drop-in fallback if `askama` ever stalls — same template syntax, swap is a Cargo dependency change. `minijinja`/`tera`/`handlebars` were considered and rejected: the runtime-loading they enable buys nothing here (every template ships with the binary) and forfeits the compile-time check.
 2. **`inquire`** for interactive prompts. Step 1 is a `Select` over blueprints; step 2 is a `MultiSelect` over packs with the blueprint's default packs pre-checked — `inquire`'s `MultiSelect::with_default` does exactly this. `dialoguer` works too but its multi-select API is clunkier. The non-interactive path bypasses the crate entirely and reads from `clap`-parsed flags.
 3. **`toml`** for serializing `.llm_wiki/init.toml` only. There is no pack-manifest TOML or blueprint TOML — packs and blueprints are Rust definitions (see below). `toml` shows up purely to write and later read the runtime breadcrumb that records the user's choices.
 
@@ -104,8 +108,8 @@ impl Pack {
     pub fn folders(&self) -> &'static [&'static str] { ... }
     pub fn doc_types(&self) -> &'static [DocType] { ... }
     pub fn status_vocab(&self) -> &'static [StatusEntry] { ... }
-    pub fn agents_fragment(&self) -> Option<&'static str> { ... }      // path key into compiled templates
-    pub fn guidelines_fragment(&self) -> Option<&'static str> { ... }
+    pub fn agents_fragment(&self) -> Option<String> { ... }            // rendered compiled fragment
+    pub fn guidelines_fragment(&self) -> Option<String> { ... }        // rendered compiled fragment
 }
 
 pub enum Blueprint { Generic, WebProduct, LibrarySdk, MlResearch, OpsInfra, Security, Research, Custom }
@@ -115,7 +119,7 @@ impl Blueprint {
 }
 ```
 
-This means: adding a pack is "add an enum variant + implement its accessors + add its template fragment file." No TOML schema, no key-typo failure mode, IDE autocomplete, exhaustive `match` enforcement. The pack catalog is a Rust API surface, not a configuration format.
+This means: adding a pack is "add an enum variant + implement its accessors + add its template fragment file." No TOML schema, no key-typo failure mode, IDE autocomplete, exhaustive `match` enforcement. The pack catalog is a Rust API surface, not a configuration format. Fragment rendering is selected by exhaustive Rust `match` arms, not runtime path lookup.
 
 The composition logic itself stays in `src/init/`, not a new workspace crate. Pack composition and render orchestration are project-internal; if the same shape ever finds a second user (a sibling project generator), that is the moment to extract a `crates/llm-wiki-compose` crate.
 
@@ -126,12 +130,12 @@ A separate, larger refactor — moving `src/skill_render.rs` onto the same templ
 ```
 templates/
   base/                     The spine (always rendered)
-    agents.md.jinja
-    project_guidelines.md.jinja
+    agents.md
+    project_guidelines.md
   packs/                    Per-pack template fragments
     api/
-      agents.md.jinja
-      project_guidelines.md.jinja
+      agents.md
+      project_guidelines.md
     frontend/
       ...
     library/
@@ -144,7 +148,7 @@ templates/
     qmd-scale/
 ```
 
-Each pack directory holds only the template fragments it contributes. There is no `pack.toml`, no blueprint TOML, no manifest. The pack's *metadata* (name, folders, doc types, status vocab, default-blueprint membership, which fragments it owns) lives in Rust, alongside the `Pack` enum. The pack's *content* lives in the template files. The two are tied together by compile-time references: the Rust accessor returns a path key, the engine resolves that key to a compiled template.
+Each pack directory holds only the template fragments it contributes. There is no `pack.toml`, no blueprint TOML, no manifest. The pack's *metadata* (name, folders, doc types, status vocab, default-blueprint membership, which fragments it owns) lives in Rust, alongside the `Pack` enum. The pack's *content* lives in the template files. The two are tied together by compile-time references: Rust match arms render the compiled fragment templates for each pack.
 
 Blueprints have no on-disk presence — they are pure Rust enums whose only behavior is `default_packs()`.
 
@@ -176,7 +180,8 @@ Blueprints have no on-disk presence — they are pure Rust enums whose only beha
 
 ## What Closes This Proposal
 
-Promotion to a decision plus a roadmap entry (likely D9) and an execution plan covering:
+This proposal closed when it was promoted to the D10 decision, roadmap entry,
+and execution plan. The implementation plan covers:
 
 1. Asset layout under `templates/{base,packs/<name>}/`.
 2. `Pack` and `Blueprint` enums plus their accessor traits in `src/init/`.
@@ -187,12 +192,19 @@ Promotion to a decision plus a roadmap entry (likely D9) and an execution plan c
 7. `.llm_wiki/init.toml` schema and writer.
 8. Golden-file tests for at least two contrasting blueprints (e.g. `ml-research` vs. `ops-infra`).
 
-## Open Questions
+## Resolved Questions
 
-1. Whether `custom` should let the user *define* a new pack inline, or only select existing ones. Lean toward the latter for now (defining a pack means writing Rust, which is a framework-release activity).
-2. Whether project-local pack overrides under `.llm_wiki/` are in scope for the first cut. Lean no.
-3. Whether the catalog above survives contact with the first two real bootstrapped projects. Treat the catalog as first-cut; the plan revises after dogfooding.
+1. `custom` only selects existing packs in the first cut. Defining a new pack
+   means writing Rust and shipping a framework release.
+2. Project-local pack overrides under `.llm_wiki/` are out of scope for D10;
+   only `.llm_wiki/init.toml` is written.
+3. The template engine is `askama`, with `rinja` retained as a drop-in fallback
+   if `askama` stalls.
+4. Pack-conflict rules are handled by the compile-time pack model: overlaps are
+   visible in Rust definitions and are either deduplicated explicitly or
+   rejected by shared enum matches.
 
-(The earlier `rinja` vs. `askama` open question is decided: `askama`, on ecosystem size and prior in-house experience. `rinja` remains a drop-in fallback if `askama` stalls.)
+## Remaining Question
 
-(The earlier open question about pack-conflict rules — two packs contributing the same doc type or folder — is resolved by the compile-time pack model: overlaps are visible in the Rust definitions and either deduplicated explicitly or rejected by a `match` on a shared enum.)
+Whether the catalog above survives contact with the first two real bootstrapped
+projects. Treat the catalog as first-cut; the plan revises after dogfooding.

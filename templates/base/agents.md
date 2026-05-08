@@ -1,6 +1,6 @@
-# CLAUDE.md - Project Schema
+# AGENTS.md - Project Schema
 
-This is {{PROJECT_NAME}}: {{PROJECT_DESCRIPTION}}
+This is {{ project_name }}: {{ project_description }}
 
 ## Agent Role
 
@@ -53,10 +53,15 @@ Periodically or on request:
 ## Conventions
 
 - Document types: spec, decision, proposal, roadmap, plan, checklist,
-  reference{{ML_AI_TYPES}}.
+  reference{% if include_ml_ai %}, experiment, eval{% endif %}.
+- Pack-specific document types are listed below when active packs add them.
 - Use the type by role, not convenience. See `project_guidelines.md`.
 - Every wiki page has a metadata block: Document Class, Status, Date,
   Category, Scope, Sources, and Related when useful.
 - Filenames: `[slug].type.md` or `[index]-[slug].type.md`.
 - Archived documents go to `wiki/archive/`.
 - `wiki/log.md` uses format: `## [YYYY-MM-DD] operation | subject`.
+
+{% for fragment in agents_fragments %}
+{{ fragment }}
+{% endfor %}

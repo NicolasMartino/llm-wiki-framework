@@ -31,8 +31,11 @@ path directly. Run `llm-wiki path` for optional shell `PATH` guidance.
 llm-wiki init /path/to/project --non-interactive \
   --name "My Project" \
   --description "One sentence description." \
-  --type web \
-  --scale small
+  --blueprint web-product
 ```
+
+Use repeatable `--pack <name>` flags to override a blueprint's default pack
+selection. For example, `--blueprint custom --pack ml --pack qmd-scale`
+creates an ML-oriented wiki with QMD scale guidance.
 
 Run `llm-wiki --help` for the full command surface.
