@@ -11,12 +11,19 @@ pub fn run(args: &InitArgs) -> Result<()> {
     let profile = ProjectProfile::resolve(&answers.project_type, &answers.scale, answers.existing)?;
     create_project(&args.path, &answers, &profile, &args.initial_sources)?;
 
+    let mut registry_summary = None;
     if !args.no_register {
-        match registry::register_project(&args.path, Some(answers.name.clone()), None, None) {
+        match registry::register_project(Some(&args.path), Some(answers.name.clone()), None, None) {
             Ok(outcome) => {
-                println!("Project registered: {}", registry::outcome_id(&outcome));
+                registry_summary = Some(format!(
+                    "registered as {}",
+                    registry::outcome_id(&outcome)
+                ));
             }
             Err(error) => {
+                registry_summary = Some(
+                    "failed (run `llm-wiki register <path>` to recover)".to_string(),
+                );
                 eprintln!("Warning: project initialized but registry update failed: {error}");
                 eprintln!(
                     "Run `llm-wiki register {}` to register it later.",
@@ -24,6 +31,10 @@ pub fn run(args: &InitArgs) -> Result<()> {
                 );
             }
         }
+    }
+
+    if let Some(summary) = registry_summary {
+        println!("Project initialized. Registry: {summary}.");
     }
 
     Ok(())

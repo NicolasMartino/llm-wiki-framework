@@ -1,4 +1,3 @@
-use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -46,7 +45,6 @@ impl SearchBackend for QmdRsBackend {
         let store = Store::open(store_path)
             .with_context(|| format!("open qmd-rs store {}", store_path.display()))?;
         let collection = collection_name(project_id);
-        let mut current_paths = BTreeSet::new();
 
         for doc in &docs {
             let body = fs::read_to_string(&doc.absolute_path)
@@ -68,13 +66,6 @@ impl SearchBackend for QmdRsBackend {
                 &modified_at,
                 &modified_at,
             )?;
-            current_paths.insert(doc.canonical_path.clone());
-        }
-
-        for active in store.get_active_document_paths(&collection)? {
-            if !current_paths.contains(&active) {
-                store.deactivate_document(&collection, &active)?;
-            }
         }
 
         StoreMetadata {
@@ -201,6 +192,10 @@ struct WikiDocument {
     content_hash: String,
 }
 
+/// Two snapshots are equal iff they contain the same canonical paths, every
+/// path has the same `content_hash`, and every path has the same
+/// `modified_unix_seconds`. The hash catches same-second content edits; the
+/// mtime catches metadata-only rewrites that preserve content.
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct WikiSnapshot {
     files: Vec<FileSnapshot>,
@@ -564,12 +559,12 @@ mod tests {
     }
 
     #[test]
-    fn snapshots_detect_content_changes_even_with_same_count_and_mtime() {
-        let before = WikiSnapshot {
+    fn wiki_snapshot_equality_falsification() {
+        let baseline = WikiSnapshot {
             files: vec![
                 FileSnapshot {
                     path: "wiki/a.md".to_string(),
-                    content_hash: "old".to_string(),
+                    content_hash: "same".to_string(),
                     modified_unix_seconds: 10,
                 },
                 FileSnapshot {
@@ -579,12 +574,45 @@ mod tests {
                 },
             ],
         };
-        let after = WikiSnapshot {
+        let path_added = WikiSnapshot {
             files: vec![
                 FileSnapshot {
                     path: "wiki/a.md".to_string(),
-                    content_hash: "new".to_string(),
+                    content_hash: "same".to_string(),
                     modified_unix_seconds: 10,
+                },
+                FileSnapshot {
+                    path: "wiki/b.md".to_string(),
+                    content_hash: "same".to_string(),
+                    modified_unix_seconds: 20,
+                },
+                FileSnapshot {
+                    path: "wiki/c.md".to_string(),
+                    content_hash: "same".to_string(),
+                    modified_unix_seconds: 20,
+                },
+            ],
+        };
+        let content_changed_same_mtime = WikiSnapshot {
+            files: vec![
+                FileSnapshot {
+                    path: "wiki/a.md".to_string(),
+                    content_hash: "changed".to_string(),
+                    modified_unix_seconds: 10,
+                },
+                FileSnapshot {
+                    path: "wiki/b.md".to_string(),
+                    content_hash: "same".to_string(),
+                    modified_unix_seconds: 20,
+                },
+            ],
+        };
+        let mtime_changed_same_content = WikiSnapshot {
+            files: vec![
+                FileSnapshot {
+                    path: "wiki/a.md".to_string(),
+                    content_hash: "same".to_string(),
+                    modified_unix_seconds: 11,
                 },
                 FileSnapshot {
                     path: "wiki/b.md".to_string(),
@@ -594,12 +622,9 @@ mod tests {
             ],
         };
 
-        assert_eq!(before.file_count(), after.file_count());
-        assert_eq!(
-            before.max_modified_unix_seconds(),
-            after.max_modified_unix_seconds()
-        );
-        assert_ne!(before, after);
+        assert_ne!(baseline, path_added);
+        assert_ne!(baseline, content_changed_same_mtime);
+        assert_ne!(baseline, mtime_changed_same_content);
     }
 
     #[test]

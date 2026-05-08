@@ -60,7 +60,7 @@ pub struct UninstallArgs {
 pub struct RegisterArgs {
     #[arg(long)]
     pub update: Option<String>,
-    pub path: PathBuf,
+    pub path: Option<PathBuf>,
     #[arg(long)]
     pub name: Option<String>,
     #[arg(long)]

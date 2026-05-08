@@ -1,5 +1,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command as StdCommand;
+use std::thread;
+use std::time::Duration;
 
 use assert_cmd::Command;
 use predicates::prelude::*;
@@ -89,6 +92,30 @@ fn register_update_changes_existing_project_without_duplicate() {
 }
 
 #[test]
+fn register_update_changes_existing_project_without_path_argument() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project", true);
+
+    llm_wiki(home.path())
+        .args(["register", "--id", "fixture", "--name", "Fixture"])
+        .arg(&project)
+        .assert()
+        .success();
+    llm_wiki(home.path())
+        .args(["register", "--update", "fixture", "--name", "Renamed Again"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Updated project: fixture"));
+
+    let registry = read_registry(home.path());
+    let projects = registry["projects"].as_array().expect("projects");
+    assert_eq!(projects.len(), 1);
+    assert_eq!(projects[0]["name"], "Renamed Again");
+    assert_eq!(projects[0]["root"], project.to_string_lossy().as_ref());
+}
+
+#[test]
 fn same_root_with_different_explicit_id_is_rejected() {
     let home = TempDir::new().expect("home");
     let workspace = TempDir::new().expect("workspace");
@@ -131,6 +158,78 @@ fn forget_removes_registry_entry_and_cache_when_requested() {
     let registry = read_registry(home.path());
     assert_eq!(registry["projects"].as_array().expect("projects").len(), 0);
     assert!(!cache_dir.exists());
+}
+
+#[cfg(unix)]
+#[test]
+fn forget_delete_cache_refuses_to_escape_cache_home() {
+    use std::os::unix::fs::symlink;
+
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let escape = TempDir::new().expect("escape");
+    let project = fixture_project(workspace.path(), "Fixture Project", true);
+    let cache_dir = home.path().join(".cache/llm-wiki/indexes/fixture");
+
+    llm_wiki(home.path())
+        .args(["register", "--id", "fixture"])
+        .arg(&project)
+        .assert()
+        .success();
+
+    fs::create_dir_all(cache_dir.parent().expect("parent")).expect("cache parent");
+    symlink(escape.path(), &cache_dir).expect("symlink");
+
+    llm_wiki(home.path())
+        .args(["forget", "fixture", "--delete-cache"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("refusing to delete cache outside"));
+}
+
+#[test]
+fn concurrent_registry_writers_do_not_lose_updates() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let alpha = fixture_project(workspace.path(), "Alpha Project", true);
+    let beta = fixture_project(workspace.path(), "Beta Project", true);
+
+    llm_wiki(home.path())
+        .args(["register", "--id", "alpha"])
+        .arg(&alpha)
+        .assert()
+        .success();
+
+    let binary = assert_cmd::cargo::cargo_bin("llm-wiki");
+    let mut register = StdCommand::new(&binary);
+    register
+        .env("HOME", home.path())
+        .env_remove("XDG_CACHE_HOME")
+        .env_remove("XDG_DATA_HOME")
+        .env("LLM_WIKI_TEST_REGISTRY_WRITE_DELAY_MS", "200")
+        .args(["register", "--id", "beta"])
+        .arg(&beta);
+    let register = register.spawn().expect("spawn register");
+
+    thread::sleep(Duration::from_millis(50));
+
+    let mut forget = StdCommand::new(&binary);
+    let forget_output = forget
+        .env("HOME", home.path())
+        .env_remove("XDG_CACHE_HOME")
+        .env_remove("XDG_DATA_HOME")
+        .args(["forget", "alpha"])
+        .output()
+        .expect("forget output");
+    let register_output = register.wait_with_output().expect("register output");
+
+    assert!(register_output.status.success());
+    assert!(forget_output.status.success());
+
+    let registry = read_registry(home.path());
+    let projects = registry["projects"].as_array().expect("projects");
+    assert_eq!(projects.len(), 1);
+    assert_eq!(projects[0]["id"], "beta");
 }
 
 #[test]

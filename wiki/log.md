@@ -1192,6 +1192,27 @@ partial success, and fixes the orientation-file casing to `AGENTS.md`.
 Pages updated: wiki/plans/project-registry-search-artifacts.plan.md,
 wiki/log.md
 
+## [2026-05-08] fix | D9 pre-merge quality and safety hardening
+
+Implemented the D9 pre-merge hardening sweep across registry mutation safety,
+search promotion retry behavior, registry validation, and CLI output
+contracts. Registry writes now serialize across processes with a shared lock and
+unique temp files, `search`/`search-all` retry through the qmd-rs promotion
+window, project-root and `wiki_path` invariants are revalidated when
+`projects.json` is read, and `register --update` can rename an existing project
+without retyping the path.
+
+The JSON search contract is now emitted from typed structs, stale warnings are
+structured per project in `search-all`, and the integration suite now covers
+cross-process index locking, crashed indexer recovery, concurrent registry
+writers, structured warning output, JSON field presence, and stale-promotion
+retry behavior. A manual cached-source license check was also recorded for the
+qmd/qmd-rs dependency chain because `cargo-deny` is not installed in this local
+environment.
+
+Pages updated: wiki/roadmaps/framework-v1.roadmap.md,
+wiki/plans/qmd-rs-search-backend.plan.md, wiki/index.md, wiki/log.md
+
 ## [2026-05-07] complete | default-on qmd-rs release behavior
 
 Implemented the default-on qmd-rs release addendum. The `qmd-rs` Cargo feature

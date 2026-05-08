@@ -1,6 +1,8 @@
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::time::UNIX_EPOCH;
+use std::fs::{self, File, OpenOptions};
+use std::io::Write;
+use std::path::{Component, Path, PathBuf};
+use std::process;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, bail};
 use chrono::{DateTime, Utc};
@@ -53,7 +55,7 @@ pub enum RegisterOutcome {
 
 pub fn register(args: &RegisterArgs) -> Result<()> {
     let outcome = register_project(
-        &args.path,
+        args.path.as_deref(),
         args.name.clone(),
         args.id.clone(),
         args.update.clone(),
@@ -68,21 +70,24 @@ pub fn register(args: &RegisterArgs) -> Result<()> {
 }
 
 pub fn register_project(
-    path: &Path,
+    path: Option<&Path>,
     name: Option<String>,
     id: Option<String>,
     update: Option<String>,
 ) -> Result<RegisterOutcome> {
     let paths = Paths::from_env()?;
-    let mut registry = ProjectRegistry::read(&paths.project_registry())?;
-    let root = validate_project_root(path)?;
+    let registry_path = paths.project_registry();
+    let _lock = RegistryMutationLock::acquire(&registry_path)?;
+    let mut registry = ProjectRegistry::read(&registry_path)?;
+    let root = resolve_register_root(&registry, path, update.as_deref())?;
     let outcome = registry.register(RegisterRequest {
         root,
         name,
         id,
         update,
     })?;
-    registry.write_atomic(&paths.project_registry())?;
+    maybe_sleep_for_test("LLM_WIKI_TEST_REGISTRY_WRITE_DELAY_MS");
+    registry.write_atomic(&registry_path)?;
     Ok(outcome)
 }
 
@@ -96,13 +101,27 @@ pub fn outcome_id(outcome: &RegisterOutcome) -> &str {
 
 pub fn forget(args: &ForgetArgs) -> Result<()> {
     let paths = Paths::from_env()?;
-    let mut registry = ProjectRegistry::read(&paths.project_registry())?;
+    let registry_path = paths.project_registry();
+    let _lock = RegistryMutationLock::acquire(&registry_path)?;
+    let mut registry = ProjectRegistry::read(&registry_path)?;
     let removed = registry.remove(&args.project_id)?;
-    registry.write_atomic(&paths.project_registry())?;
+    maybe_sleep_for_test("LLM_WIKI_TEST_REGISTRY_WRITE_DELAY_MS");
+    registry.write_atomic(&registry_path)?;
 
     if args.delete_cache {
         let cache_dir = paths.project_index_dir(&removed.id);
         if cache_dir.exists() {
+            let canonical_cache_home = fs::canonicalize(paths.cache_home())
+                .with_context(|| format!("canonicalize cache home {}", paths.cache_home().display()))?;
+            let canonical_cache_dir = fs::canonicalize(&cache_dir)
+                .with_context(|| format!("canonicalize search cache {}", cache_dir.display()))?;
+            if !canonical_cache_dir.starts_with(&canonical_cache_home) {
+                bail!(
+                    "refusing to delete cache outside {}: {}",
+                    canonical_cache_home.display(),
+                    canonical_cache_dir.display()
+                );
+            }
             fs::remove_dir_all(&cache_dir)
                 .with_context(|| format!("remove search cache {}", cache_dir.display()))?;
         }
@@ -123,6 +142,8 @@ pub fn projects(args: &ProjectsArgs) -> Result<()> {
     Ok(())
 }
 
+/// Output is `\t`-separated; the first row is a header. The field set and
+/// order are part of the public CLI contract.
 fn print_projects_text(view: &ProjectsView) {
     if view.projects.is_empty() {
         println!("No registered projects.");
@@ -274,6 +295,10 @@ impl ProjectRegistry {
         for project in &registry.projects {
             validate_project_id(&project.id)
                 .with_context(|| format!("invalid project id in {}", path.display()))?;
+            validate_registered_root(&project.root)
+                .with_context(|| format!("invalid project root in {}", path.display()))?;
+            validate_registered_wiki_path(&project.wiki_path)
+                .with_context(|| format!("invalid wiki path in {}", path.display()))?;
         }
         Ok(registry)
     }
@@ -283,7 +308,7 @@ impl ProjectRegistry {
             fs::create_dir_all(parent)
                 .with_context(|| format!("create registry dir {}", parent.display()))?;
         }
-        let tmp = path.with_extension("json.tmp");
+        let tmp = unique_temp_path(path, "json.tmp");
         fs::write(&tmp, serde_json::to_string_pretty(self)?)
             .with_context(|| format!("write registry temp {}", tmp.display()))?;
         fs::rename(&tmp, path).with_context(|| {
@@ -363,7 +388,11 @@ impl ProjectRegistry {
         let requested_id = request
             .id
             .clone()
-            .unwrap_or_else(|| self.available_id(&base_project_id(&request)));
+            .unwrap_or_else(|| {
+                let base = base_project_id(&request);
+                debug_assert!(validate_project_id(&base).is_ok());
+                self.available_id(&base)
+            });
         validate_project_id(&requested_id)?;
         if self
             .projects
@@ -442,6 +471,7 @@ impl ProjectRegistry {
         }
         for index in 2.. {
             let candidate = format!("{base}-{index}");
+            debug_assert!(validate_project_id(&candidate).is_ok());
             if !self.projects.iter().any(|project| project.id == candidate) {
                 return candidate;
             }
@@ -483,6 +513,34 @@ fn validate_project_root(path: &Path) -> Result<PathBuf> {
     Ok(root)
 }
 
+fn validate_registered_root(root: &Path) -> Result<()> {
+    if !root.is_absolute() {
+        bail!("registered root {} must be absolute", root.display());
+    }
+    if root.exists() {
+        let canonical = fs::canonicalize(root)
+            .with_context(|| format!("canonicalize registered root {}", root.display()))?;
+        if canonical != root {
+            bail!(
+                "registered root {} is not canonical; re-register the project to repair the registry",
+                root.display()
+            );
+        }
+    }
+    Ok(())
+}
+
+fn validate_registered_wiki_path(path: &Path) -> Result<()> {
+    let mut components = path.components();
+    let Some(Component::Normal(_)) = components.next() else {
+        bail!("wiki path {} must be a single relative component", path.display());
+    };
+    if components.next().is_some() {
+        bail!("wiki path {} must be a single relative component", path.display());
+    }
+    Ok(())
+}
+
 fn validate_project_id(id: &str) -> Result<()> {
     if id.is_empty() || id.trim() != id || id == "." || id == ".." {
         bail!("invalid project id {id:?}: use letters, numbers, '-' or '_'");
@@ -494,6 +552,101 @@ fn validate_project_id(id: &str) -> Result<()> {
         bail!("invalid project id {id:?}: use letters, numbers, '-' or '_'");
     }
     Ok(())
+}
+
+fn resolve_register_root(
+    registry: &ProjectRegistry,
+    path: Option<&Path>,
+    update: Option<&str>,
+) -> Result<PathBuf> {
+    match (path, update) {
+        (Some(path), _) => validate_project_root(path),
+        (None, Some(project_id)) => {
+            let project = registry
+                .project_by_id(project_id)
+                .with_context(|| format!("project id {project_id} is not registered"))?;
+            validate_project_root(&project.root)
+        }
+        (None, None) => bail!("register requires <path> unless --update is set"),
+    }
+}
+
+fn unique_temp_path(path: &Path, suffix: &str) -> PathBuf {
+    let file_name = path.file_name().and_then(|value| value.to_str()).unwrap_or("projects");
+    path.with_file_name(format!(
+        "{file_name}.{suffix}.{}-{}",
+        process::id(),
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|duration| duration.as_nanos())
+            .unwrap_or(0)
+    ))
+}
+
+fn registry_lock_path(path: &Path) -> PathBuf {
+    let file_name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or("projects.json");
+    path.with_file_name(format!("{file_name}.lock"))
+}
+
+fn maybe_sleep_for_test(var: &str) {
+    if let Ok(value) = std::env::var(var)
+        && let Ok(ms) = value.parse::<u64>()
+        && ms > 0
+    {
+        std::thread::sleep(std::time::Duration::from_millis(ms));
+    }
+}
+
+struct RegistryMutationLock {
+    path: PathBuf,
+    _file: File,
+}
+
+impl RegistryMutationLock {
+    fn acquire(registry_path: &Path) -> Result<Self> {
+        let path = registry_lock_path(registry_path);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)
+                .with_context(|| format!("create registry lock dir {}", parent.display()))?;
+        }
+        let mut file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(&path)
+            .with_context(|| format!("open registry lock {}", path.display()))?;
+        file.lock()
+            .with_context(|| format!("lock registry mutations {}", path.display()))?;
+        file.set_len(0)
+            .with_context(|| format!("truncate registry lock {}", path.display()))?;
+        writeln!(file, "pid={}", process::id())
+            .with_context(|| format!("write registry lock {}", path.display()))?;
+        Ok(Self { path, _file: file })
+    }
+}
+
+impl Drop for RegistryMutationLock {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.path);
+    }
+}
+
+pub fn record_index_success(
+    project_id: &str,
+    indexed_files: usize,
+    wiki_root: &Path,
+) -> Result<()> {
+    let paths = Paths::from_env()?;
+    let registry_path = paths.project_registry();
+    let _lock = RegistryMutationLock::acquire(&registry_path)?;
+    let mut registry = ProjectRegistry::read(&registry_path)?;
+    registry.record_index_success(project_id, indexed_files, wiki_root)?;
+    maybe_sleep_for_test("LLM_WIKI_TEST_REGISTRY_WRITE_DELAY_MS");
+    registry.write_atomic(&registry_path)
 }
 
 fn base_project_id(request: &RegisterRequest) -> String {
@@ -588,6 +741,7 @@ fn collect_max_modified(
 #[cfg(test)]
 mod tests {
     use super::{ProjectRegistry, RegisterOutcome, RegisterRequest};
+    use proptest::prelude::*;
     use std::fs;
     use std::path::{Path, PathBuf};
 
@@ -727,6 +881,117 @@ mod tests {
         let error = ProjectRegistry::read(&path).expect_err("unsafe id");
 
         assert!(error.to_string().contains("invalid project id"));
+    }
+
+    #[test]
+    fn registry_read_rejects_non_absolute_roots() {
+        let temp = tempfile::TempDir::new().expect("tempdir");
+        let path = temp.path().join("projects.json");
+        fs::write(
+            &path,
+            serde_json::json!({
+                "version": 1,
+                "projects": [{
+                    "id": "fixture",
+                    "name": "Fixture",
+                    "root": "relative/root",
+                    "wiki_path": "wiki",
+                    "registered_at": "2026-05-07T00:00:00Z",
+                    "last_indexed_at": null,
+                    "last_indexed_wiki_max_mtime": null,
+                    "indexed_file_count": 0,
+                    "backend": "qmd-rs",
+                    "index_schema_version": 1
+                }]
+            })
+            .to_string(),
+        )
+        .expect("write");
+
+        let error = ProjectRegistry::read(&path).expect_err("relative root");
+
+        assert!(error.to_string().contains("invalid project root"));
+    }
+
+    #[test]
+    fn registry_read_rejects_noncanonical_existing_roots() {
+        let temp = tempfile::TempDir::new().expect("tempdir");
+        let project = fixture_project(temp.path(), "fixture");
+        let path = temp.path().join("projects.json");
+        let noncanonical = project.join("..").join("fixture");
+        fs::write(
+            &path,
+            serde_json::json!({
+                "version": 1,
+                "projects": [{
+                    "id": "fixture",
+                    "name": "Fixture",
+                    "root": noncanonical,
+                    "wiki_path": "wiki",
+                    "registered_at": "2026-05-07T00:00:00Z",
+                    "last_indexed_at": null,
+                    "last_indexed_wiki_max_mtime": null,
+                    "indexed_file_count": 0,
+                    "backend": "qmd-rs",
+                    "index_schema_version": 1
+                }]
+            })
+            .to_string(),
+        )
+        .expect("write");
+
+        let error = ProjectRegistry::read(&path).expect_err("noncanonical root");
+
+        assert!(error.to_string().contains("invalid project root"));
+    }
+
+    #[test]
+    fn registry_read_rejects_unsafe_wiki_path() {
+        let temp = tempfile::TempDir::new().expect("tempdir");
+        let project = fixture_project(temp.path(), "fixture");
+        let path = temp.path().join("projects.json");
+        fs::write(
+            &path,
+            serde_json::json!({
+                "version": 1,
+                "projects": [{
+                    "id": "fixture",
+                    "name": "Fixture",
+                    "root": project,
+                    "wiki_path": "../wiki",
+                    "registered_at": "2026-05-07T00:00:00Z",
+                    "last_indexed_at": null,
+                    "last_indexed_wiki_max_mtime": null,
+                    "indexed_file_count": 0,
+                    "backend": "qmd-rs",
+                    "index_schema_version": 1
+                }]
+            })
+            .to_string(),
+        )
+        .expect("write");
+
+        let error = ProjectRegistry::read(&path).expect_err("unsafe wiki path");
+
+        assert!(error.to_string().contains("invalid wiki path"));
+    }
+
+    proptest! {
+        #[test]
+        fn validate_project_id_rejects_anything_outside_safe_charset(value in "\\PC*") {
+            let contains_forbidden = value.contains('/')
+                || value.contains('\\')
+                || value.contains("..")
+                || value.trim() != value
+                || value.is_empty()
+                || value == "."
+                || !value
+                    .chars()
+                    .all(|ch| ch.is_ascii_alphanumeric() || ch == '-' || ch == '_');
+
+            prop_assume!(contains_forbidden);
+            prop_assert!(super::validate_project_id(&value).is_err());
+        }
     }
 
     fn fixture_project(root: &Path, name: &str) -> PathBuf {

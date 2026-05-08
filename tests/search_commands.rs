@@ -1,8 +1,12 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command as StdCommand;
+use std::thread;
+use std::time::Duration;
 
 use assert_cmd::Command;
 use predicates::prelude::*;
+use serde_json::Value;
 use tempfile::TempDir;
 
 fn llm_wiki(home: &Path) -> Command {
@@ -319,6 +323,260 @@ fn index_all_and_search_all_fuse_registered_projects() {
         .success()
         .stdout(predicate::str::contains("\"project_id\": \"alpha\""))
         .stdout(predicate::str::contains("\"project_id\": \"beta\"").not());
+}
+
+#[test]
+fn search_json_envelope_has_all_contract_fields() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+
+    llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let output = llm_wiki(home.path())
+        .args([
+            "search",
+            "reciprocal rank fusion",
+            "--project",
+            "fixture",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("search output");
+    assert!(output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("search json");
+
+    assert_eq!(json["query"], "reciprocal rank fusion");
+    assert_eq!(json["project_id"], "fixture");
+    assert_eq!(json["project_name"], "fixture");
+    assert!(json.get("warning").is_some());
+    assert!(json.get("warnings").is_some());
+    let result = json["results"]
+        .as_array()
+        .and_then(|results| results.first())
+        .expect("first result");
+    for field in [
+        "project_id",
+        "project_name",
+        "path",
+        "title",
+        "document_class",
+        "status",
+        "score",
+        "snippet",
+        "backend",
+        "mode",
+        "freshness",
+    ] {
+        assert!(result.get(field).is_some(), "missing result field {field}");
+    }
+}
+
+#[test]
+fn search_all_warnings_are_structured_per_project() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    for project_id in ["alpha", "beta", "gamma", "delta", "epsilon"] {
+        let project = fixture_project_with_decision(
+            workspace.path(),
+            &format!("{project_id} project"),
+            &format!("{project_id} decision"),
+            "Shared retrieval token appears here.",
+        );
+        register_project_with_id(home.path(), &project, project_id);
+    }
+
+    llm_wiki(home.path())
+        .args(["index-all", "--force"])
+        .assert()
+        .success();
+
+    for project_id in ["beta", "gamma", "delta", "epsilon"] {
+        fs::write(
+            workspace
+                .path()
+                .join(format!("{project_id} project/wiki/plans/stale.plan.md")),
+            "# Stale Plan\n\n- Document Class: Plan\n- Status: Active\n\nShared retrieval token changed.",
+        )
+        .expect("stale write");
+    }
+
+    let output = llm_wiki(home.path())
+        .args(["search-all", "shared retrieval token", "--format", "json"])
+        .output()
+        .expect("search-all output");
+    assert!(output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("search-all json");
+
+    assert!(json["warning"].is_null());
+    let warnings = json["warnings"].as_array().expect("warnings array");
+    assert_eq!(warnings.len(), 4);
+    for warning in warnings {
+        assert!(warning["project_id"].is_string());
+        assert!(warning["message"].as_str().is_some_and(|msg| msg.contains("search index stale")));
+    }
+}
+
+#[test]
+fn search_all_rrf_ordering_is_deterministic() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let alpha = fixture_project_with_decision(
+        workspace.path(),
+        "Alpha Project",
+        "Alpha Decision",
+        "Shared retrieval token appears in alpha project.",
+    );
+    let beta = fixture_project_with_decision(
+        workspace.path(),
+        "Beta Project",
+        "Beta Decision",
+        "Shared retrieval token appears in beta project. Shared retrieval token also appears here.",
+    );
+    register_project_with_id(home.path(), &alpha, "alpha");
+    register_project_with_id(home.path(), &beta, "beta");
+
+    llm_wiki(home.path())
+        .args(["index-all", "--force"])
+        .assert()
+        .success();
+
+    let first = llm_wiki(home.path())
+        .args(["search-all", "shared retrieval token", "--format", "json"])
+        .output()
+        .expect("first output");
+    let second = llm_wiki(home.path())
+        .args(["search-all", "shared retrieval token", "--format", "json"])
+        .output()
+        .expect("second output");
+    assert!(first.status.success());
+    assert!(second.status.success());
+
+    let first_json: Value = serde_json::from_slice(&first.stdout).expect("first json");
+    let second_json: Value = serde_json::from_slice(&second.stdout).expect("second json");
+    assert_eq!(first_json["results"], second_json["results"]);
+}
+
+#[test]
+fn search_retries_once_during_concurrent_promotion() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+
+    llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    fs::write(
+        project.join("wiki/decisions/search.decision.md"),
+        "# Search Decision\n\n- Document Class: Decision\n- Status: Accepted\n- Date: 2026-05-07\n- Category: Search\n- Scope: Test\n- Sources: raw/test.md\n\n## Decision\nReciprocal rank fusion changes during promotion.",
+    )
+    .expect("decision update");
+
+    let binary = assert_cmd::cargo::cargo_bin("llm-wiki");
+    let marker = workspace.path().join("promote.marker");
+    let mut search = StdCommand::new(&binary);
+    let mut index = StdCommand::new(&binary);
+    let index = index
+        .env("HOME", home.path())
+        .env_remove("XDG_CACHE_HOME")
+        .env_remove("XDG_DATA_HOME")
+        .env("LLM_WIKI_TEST_PROMOTE_MARKER", &marker)
+        .env("LLM_WIKI_TEST_PROMOTE_PRE_COMMIT_SLEEP_MS", "200")
+        .args(["index", "--project", "fixture", "--force"])
+        .spawn()
+        .expect("spawn index");
+
+    for _ in 0..50 {
+        if marker.exists() {
+            break;
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+    assert!(marker.exists(), "promotion marker was never created");
+    thread::sleep(Duration::from_millis(170));
+
+    search
+        .env("HOME", home.path())
+        .env_remove("XDG_CACHE_HOME")
+        .env_remove("XDG_DATA_HOME")
+        .args(["search", "reciprocal rank fusion", "--project", "fixture"]);
+    let search_output = search.output().expect("search output");
+    let index_output = index.wait_with_output().expect("index output");
+    assert!(index_output.status.success());
+    assert!(search_output.status.success());
+    let stdout = String::from_utf8(search_output.stdout).expect("stdout");
+    assert!(stdout.contains("Search Decision"));
+}
+
+#[test]
+fn cross_process_index_lock_is_exclusive() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+
+    let binary = assert_cmd::cargo::cargo_bin("llm-wiki");
+    let mut first = StdCommand::new(&binary);
+    first
+        .env("HOME", home.path())
+        .env_remove("XDG_CACHE_HOME")
+        .env_remove("XDG_DATA_HOME")
+        .env("LLM_WIKI_TEST_INDEX_SLEEP_MS", "300")
+        .args(["index", "--project", "fixture", "--force"]);
+    let first = first.spawn().expect("spawn first");
+
+    thread::sleep(Duration::from_millis(50));
+
+    let mut second = StdCommand::new(&binary);
+    let second_output = second
+        .env("HOME", home.path())
+        .env_remove("XDG_CACHE_HOME")
+        .env_remove("XDG_DATA_HOME")
+        .args(["index", "--project", "fixture", "--force"])
+        .output()
+        .expect("second output");
+    let first_output = first.wait_with_output().expect("first output");
+
+    let outputs = [first_output, second_output];
+    assert_eq!(outputs.iter().filter(|output| output.status.success()).count(), 1);
+    assert!(outputs.iter().any(|output| {
+        String::from_utf8_lossy(&output.stderr).contains("project index is already locked")
+    }));
+}
+
+#[test]
+fn crashed_indexer_does_not_block_next_acquire() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+
+    let binary = assert_cmd::cargo::cargo_bin("llm-wiki");
+    let mut child = StdCommand::new(&binary)
+        .env("HOME", home.path())
+        .env_remove("XDG_CACHE_HOME")
+        .env_remove("XDG_DATA_HOME")
+        .env("LLM_WIKI_TEST_INDEX_SLEEP_MS", "5000")
+        .args(["index", "--project", "fixture", "--force"])
+        .spawn()
+        .expect("spawn indexer");
+    thread::sleep(Duration::from_millis(100));
+    child.kill().expect("kill child");
+    let _ = child.wait();
+
+    llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Indexed project: fixture"));
 }
 
 fn register_project(home: &Path, project: &Path) {

@@ -397,6 +397,17 @@ Proof:
   semantic-model sections separately.
 - `just verify` and `cargo test --workspace` pass.
 
+Release Notes:
+- New commands: `register`, `forget`, `projects`, `index`, `index-all`,
+  `search`, and `search-all`.
+- New default behavior: qmd-rs is always compiled in normal builds, and the
+  first `llm-wiki index --project <id>` creates the per-project search store.
+- New framework paths: `~/.cache/llm-wiki/` for rebuildable indexes/model cache
+  and `~/.local/share/llm-wiki/projects.json` for the host-local project
+  registry.
+- Migration: no user action is required. Existing projects remain valid; search
+  state appears when each project is first indexed.
+
 Promotion Target:
 - wiki/specs/documentation-model.spec.md (scale search becomes
   `llm-wiki search` / `search-all`)

@@ -151,7 +151,7 @@ fn init_auto_registers_successful_project() {
         .assert()
         .success()
         .stdout(predicate::str::contains(
-            "Project registered: fixture-project",
+            "Project initialized. Registry: registered as fixture-project.",
         ));
 
     let registry = read_registry(home.path());
@@ -226,6 +226,9 @@ fn init_registry_write_failure_is_recoverable_warning() {
         .assert()
         .success()
         .stdout(predicate::str::contains("Initialized LLM Wiki project"))
+        .stdout(predicate::str::contains(
+            "Project initialized. Registry: failed",
+        ))
         .stderr(predicate::str::contains("registry update failed"))
         .stderr(predicate::str::contains("llm-wiki register"));
 

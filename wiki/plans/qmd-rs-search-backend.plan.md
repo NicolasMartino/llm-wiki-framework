@@ -97,7 +97,7 @@ Responsibilities:
   registry lands.
 - `qmd_rs.rs`: qmd-rs implementation behind the internal adapter.
 
-## Superseded Initial Implementation Notes
+## Historical (Superseded by Addendum)
 
 Phase 0 implementation started on 2026-05-07.
 

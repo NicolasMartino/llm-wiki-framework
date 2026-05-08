@@ -1,34 +1,35 @@
 use std::collections::BTreeMap;
+use std::env;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process;
+use std::thread::sleep;
+use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, bail};
-use serde_json::json;
+use serde::Serialize;
 
 use crate::cli::{IndexAllArgs, IndexArgs, OutputFormat, SearchAllArgs, SearchArgs};
 use crate::paths::Paths;
-use crate::registry::{ProjectRegistry, RegisteredProject};
+use crate::registry::{self, ProjectRegistry, RegisteredProject};
 use crate::search::adapter::{
-    BackendState, Freshness, Score, SearchBackend, SearchFilters, SearchResult,
+    BackendState, BackendStatus, Freshness, Score, SearchBackend, SearchFilters, SearchResult,
 };
 use crate::search::project::discover_from_cwd;
 use crate::search::qmd_rs::QmdRsBackend;
 
 pub fn index(args: &IndexArgs) -> Result<()> {
     let paths = Paths::from_env()?;
-    let registry_path = paths.project_registry();
-    let mut registry = ProjectRegistry::read(&registry_path)?;
+    let registry = ProjectRegistry::read(&paths.project_registry())?;
     let project = select_project(&registry, args.project.as_deref())?;
-    index_registered_project(&paths, &registry_path, &mut registry, &project, args.force)
+    index_registered_project(&paths, &project, args.force)
 }
 
 pub fn index_all(args: &IndexAllArgs) -> Result<()> {
     let paths = Paths::from_env()?;
-    let registry_path = paths.project_registry();
-    let mut registry = ProjectRegistry::read(&registry_path)?;
+    let registry = ProjectRegistry::read(&paths.project_registry())?;
     if registry.projects.is_empty() {
         println!("No registered projects.");
         return Ok(());
@@ -43,9 +44,7 @@ pub fn index_all(args: &IndexAllArgs) -> Result<()> {
             failures.push(format!("{}: root missing", project.id));
             continue;
         }
-        if let Err(error) =
-            index_registered_project(&paths, &registry_path, &mut registry, &project, args.force)
-        {
+        if let Err(error) = index_registered_project(&paths, &project, args.force) {
             failures.push(format!("{}: {error}", project.id));
         } else {
             indexed_projects += 1;
@@ -60,18 +59,13 @@ pub fn index_all(args: &IndexAllArgs) -> Result<()> {
     Ok(())
 }
 
-fn index_registered_project(
-    paths: &Paths,
-    registry_path: &std::path::Path,
-    registry: &mut ProjectRegistry,
-    project: &RegisteredProject,
-    force: bool,
-) -> Result<()> {
+fn index_registered_project(paths: &Paths, project: &RegisteredProject, force: bool) -> Result<()> {
     let store_path = paths.qmd_rs_store_path(&project.id);
     let project_index_dir = paths.project_index_dir(&project.id);
     fs::create_dir_all(&project_index_dir)
         .with_context(|| format!("create search index dir {}", project_index_dir.display()))?;
     let _lock = ProjectIndexLock::acquire(&project_index_dir)?;
+    maybe_sleep_for_test("LLM_WIKI_TEST_INDEX_SLEEP_MS");
     let temp_build = TempIndexBuild::new(&project_index_dir)?;
 
     let backend = QmdRsBackend::new();
@@ -93,8 +87,7 @@ fn index_registered_project(
 
     promote_qmd_rs_store(&temp_build.store_path, &store_path)?;
     temp_build.cleanup()?;
-    registry.record_index_success(&project.id, status.indexed_files, &project.wiki_root())?;
-    registry.write_atomic(registry_path)?;
+    registry::record_index_success(&project.id, status.indexed_files, &project.wiki_root())?;
     println!(
         "Indexed project: {} ({} files)",
         project.id, status.indexed_files
@@ -109,6 +102,11 @@ struct ProjectIndexLock {
 }
 
 impl ProjectIndexLock {
+    /// Do not add a retry loop on `try_lock` failure. The OS lock is keyed on
+    /// the inode; if the lockfile is unlinked between attempts, a retry can
+    /// lock a dead inode and stop conflicting with a fresh acquisition. Any
+    /// future retry must reopen the file after verifying it still names the
+    /// live inode.
     fn acquire(project_index_dir: &Path) -> Result<Self> {
         let path = project_index_dir.join("qmd-rs.lock");
         let mut file = OpenOptions::new()
@@ -135,6 +133,46 @@ impl ProjectIndexLock {
 impl Drop for ProjectIndexLock {
     fn drop(&mut self) {
         let _ = fs::remove_file(&self.path);
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum StoreFileRole {
+    Sqlite,
+    Metadata,
+    Wal,
+    Shm,
+}
+
+impl StoreFileRole {
+    const ALL: [Self; 4] = [Self::Sqlite, Self::Metadata, Self::Wal, Self::Shm];
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct RelatedStorePaths {
+    sqlite: PathBuf,
+    metadata: PathBuf,
+    wal: PathBuf,
+    shm: PathBuf,
+}
+
+impl RelatedStorePaths {
+    fn new(store_path: &Path) -> Self {
+        Self {
+            sqlite: store_path.to_path_buf(),
+            metadata: store_path.with_extension("llm-wiki.json"),
+            wal: store_path.with_extension("sqlite-wal"),
+            shm: store_path.with_extension("sqlite-shm"),
+        }
+    }
+
+    fn path(&self, role: StoreFileRole) -> &Path {
+        match role {
+            StoreFileRole::Sqlite => &self.sqlite,
+            StoreFileRole::Metadata => &self.metadata,
+            StoreFileRole::Wal => &self.wal,
+            StoreFileRole::Shm => &self.shm,
+        }
     }
 }
 
@@ -180,6 +218,13 @@ fn promote_qmd_rs_store(temp_store: &Path, live_store: &Path) -> Result<()> {
     promote_qmd_rs_store_inner(temp_store, live_store, None)
 }
 
+/// Promotes a fully-built qmd-rs store into place.
+///
+/// Assumptions:
+/// - All paths live on the same filesystem, so `rename` stays atomic.
+/// - The caller already holds the per-project index lock.
+/// - Readers can briefly observe `Missing` between backup-rename and
+///   final-rename, and are expected to retry once.
 fn promote_qmd_rs_store_inner(
     temp_store: &Path,
     live_store: &Path,
@@ -193,8 +238,11 @@ fn promote_qmd_rs_store_inner(
     }
 
     let suffix = unique_suffix();
+    let temp_files = RelatedStorePaths::new(temp_store);
+    let live_files = RelatedStorePaths::new(live_store);
     let mut backups = Vec::new();
-    for live in related_store_paths(live_store) {
+    for role in StoreFileRole::ALL {
+        let live = live_files.path(role).to_path_buf();
         if live.exists() {
             let backup = backup_path(&live, &suffix);
             fs::rename(&live, &backup).with_context(|| {
@@ -210,19 +258,20 @@ fn promote_qmd_rs_store_inner(
 
     let mut promoted = Vec::new();
     let promote_result = (|| -> Result<()> {
-        for (temp, live) in related_store_paths(temp_store)
-            .into_iter()
-            .zip(related_store_paths(live_store))
-        {
+        maybe_write_test_marker("LLM_WIKI_TEST_PROMOTE_MARKER");
+        maybe_sleep_for_test("LLM_WIKI_TEST_PROMOTE_PRE_COMMIT_SLEEP_MS");
+        for role in StoreFileRole::ALL {
+            let temp = temp_files.path(role);
+            let live = live_files.path(role);
             if temp.exists() {
-                fs::rename(&temp, &live).with_context(|| {
+                fs::rename(temp, live).with_context(|| {
                     format!(
                         "promote qmd-rs store file {} to {}",
                         temp.display(),
                         live.display()
                     )
                 })?;
-                promoted.push(live.clone());
+                promoted.push(live.to_path_buf());
                 if fail_after_promotes.is_some_and(|limit| promoted.len() >= limit) {
                     bail!("simulated qmd-rs store promotion failure");
                 }
@@ -232,6 +281,7 @@ fn promote_qmd_rs_store_inner(
     })();
 
     if let Err(error) = promote_result {
+        maybe_remove_test_marker("LLM_WIKI_TEST_PROMOTE_MARKER");
         for live in promoted.iter().rev() {
             if live.exists() {
                 let _ = fs::remove_file(live);
@@ -247,6 +297,7 @@ fn promote_qmd_rs_store_inner(
         }
         return Err(error);
     }
+    maybe_remove_test_marker("LLM_WIKI_TEST_PROMOTE_MARKER");
 
     for (_, backup) in backups {
         if backup.exists() {
@@ -255,15 +306,6 @@ fn promote_qmd_rs_store_inner(
         }
     }
     Ok(())
-}
-
-fn related_store_paths(store_path: &Path) -> Vec<PathBuf> {
-    vec![
-        store_path.to_path_buf(),
-        store_path.with_extension("llm-wiki.json"),
-        store_path.with_extension("sqlite-wal"),
-        store_path.with_extension("sqlite-shm"),
-    ]
 }
 
 fn backup_path(path: &Path, suffix: &str) -> PathBuf {
@@ -279,52 +321,33 @@ pub fn search(args: &SearchArgs) -> Result<()> {
     let registry = ProjectRegistry::read(&paths.project_registry())?;
     let project = select_project(&registry, args.project.as_deref())?;
     ensure_project_root_exists(&project)?;
-    let backend = QmdRsBackend::new();
-    let store_path = paths.qmd_rs_store_path(&project.id);
-    let wiki_root = project.wiki_root();
-    let status = backend.status(&store_path, &wiki_root)?;
-
-    match status.state {
-        BackendState::Missing => bail!(
-            "search index missing for project {}; run `llm-wiki index --project {}`",
-            project.id,
-            project.id
-        ),
-        BackendState::Corrupt | BackendState::SchemaMismatch => bail!(
-            "search index unusable for project {}; run `llm-wiki index --project {} --force`",
-            project.id,
-            project.id
-        ),
-        BackendState::Ready | BackendState::Stale => {}
-    }
-
     let filters = SearchFilters {
         document_class: args.document_class.clone(),
         status: args.status.clone(),
     };
-    let mut results =
-        backend.search_project(&store_path, &wiki_root, &args.query, &filters, args.limit)?;
+    let store_path = paths.qmd_rs_store_path(&project.id);
+    let wiki_root = project.wiki_root();
+    let search = perform_project_search(
+        &QmdRsBackend::new(),
+        &project,
+        &store_path,
+        &wiki_root,
+        &args.query,
+        &filters,
+        args.limit,
+    )?;
+    let mut results = search.results;
     for result in &mut results {
         result.project_id = project.id.clone();
         result.project_name = Some(project.name.clone());
     }
-    let warning = if matches!(status.state, BackendState::Stale) {
-        Some(format!(
-            "search index stale for project {}; run `llm-wiki index --project {}`",
-            project.id, project.id
-        ))
-    } else {
-        None
-    };
+    let warning = search.warnings.first().map(|warning| warning.message.as_str());
 
     match args.format {
-        OutputFormat::Text => print_search_text(warning.as_deref(), &results),
-        OutputFormat::Json => print_search_json(
-            &args.query,
-            Some((&project.id, &project.name)),
-            warning.as_deref(),
-            &results,
-        ),
+        OutputFormat::Text => print_search_text(&search.warnings, &results),
+        OutputFormat::Json => {
+            print_search_json(&args.query, Some((&project.id, &project.name)), warning, &[], &results)
+        }
     }
     Ok(())
 }
@@ -345,29 +368,17 @@ pub fn search_all(args: &SearchAllArgs) -> Result<()> {
         ensure_project_root_exists(project)?;
         let store_path = paths.qmd_rs_store_path(&project.id);
         let wiki_root = project.wiki_root();
-        let status = backend.status(&store_path, &wiki_root)?;
-        match status.state {
-            BackendState::Missing => bail!(
-                "search index missing for project {}; run `llm-wiki index --project {}`",
-                project.id,
-                project.id
-            ),
-            BackendState::Corrupt | BackendState::SchemaMismatch => bail!(
-                "search index unusable for project {}; run `llm-wiki index --project {} --force`",
-                project.id,
-                project.id
-            ),
-            BackendState::Ready | BackendState::Stale => {}
-        }
-        if matches!(status.state, BackendState::Stale) {
-            warnings.push(format!(
-                "search index stale for project {}; run `llm-wiki index --project {}`",
-                project.id, project.id
-            ));
-        }
-
-        let mut results =
-            backend.search_project(&store_path, &wiki_root, &args.query, &filters, 20)?;
+        let search = perform_project_search(
+            &backend,
+            project,
+            &store_path,
+            &wiki_root,
+            &args.query,
+            &filters,
+            20,
+        )?;
+        warnings.extend(search.warnings);
+        let mut results = search.results;
         for (rank, result) in results.iter_mut().enumerate() {
             result.project_id = project.id.clone();
             result.project_name = Some(project.name.clone());
@@ -402,15 +413,10 @@ pub fn search_all(args: &SearchAllArgs) -> Result<()> {
             fused.result
         })
         .collect::<Vec<_>>();
-    let warning = if warnings.is_empty() {
-        None
-    } else {
-        Some(warnings.join("; "))
-    };
 
     match args.format {
-        OutputFormat::Text => print_search_text(warning.as_deref(), &results),
-        OutputFormat::Json => print_search_json(&args.query, None, warning.as_deref(), &results),
+        OutputFormat::Text => print_search_text(&warnings, &results),
+        OutputFormat::Json => print_search_json(&args.query, None, None, &warnings, &results),
     }
     Ok(())
 }
@@ -490,9 +496,37 @@ struct FusedResult {
     score: f64,
 }
 
-fn print_search_text(warning: Option<&str>, results: &[SearchResult]) {
-    if let Some(warning) = warning {
-        println!("Warning: {warning}");
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+struct SearchWarning {
+    project_id: String,
+    message: String,
+}
+
+#[derive(Debug)]
+struct SearchExecution {
+    results: Vec<SearchResult>,
+    warnings: Vec<SearchWarning>,
+}
+
+enum SearchAttempt {
+    Success(SearchExecution),
+    Missing,
+    ForceReindex,
+    RetryableUnavailable,
+}
+
+fn print_search_text(warnings: &[SearchWarning], results: &[SearchResult]) {
+    match warnings {
+        [] => {}
+        [warning] => println!("Warning: {}", warning.message),
+        many => {
+            for warning in many.iter().take(3) {
+                println!("Warning: {}", warning.message);
+            }
+            if many.len() > 3 {
+                println!("Warning: ...{} more stale projects", many.len() - 3);
+            }
+        }
     }
     if results.is_empty() {
         println!("No results.");
@@ -514,39 +548,78 @@ fn print_search_text(warning: Option<&str>, results: &[SearchResult]) {
     }
 }
 
+#[derive(Clone, Debug, Serialize)]
+struct SearchResultJson {
+    project_id: String,
+    project_name: Option<String>,
+    path: String,
+    title: String,
+    document_class: Option<String>,
+    status: Option<String>,
+    score: f64,
+    snippet: Option<String>,
+    backend: String,
+    mode: String,
+    freshness: &'static str,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct SearchWarningJson {
+    project_id: String,
+    message: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct SearchEnvelopeJson {
+    query: String,
+    project_id: Option<String>,
+    project_name: Option<String>,
+    warning: Option<String>,
+    warnings: Vec<SearchWarningJson>,
+    results: Vec<SearchResultJson>,
+}
+
+/// Public JSON contract from the D9 project-registry/search output plan.
 fn print_search_json(
     query: &str,
     project: Option<(&str, &str)>,
     warning: Option<&str>,
+    warnings: &[SearchWarning],
     results: &[SearchResult],
 ) {
     let results = results
         .iter()
-        .map(|result| {
-            json!({
-                "project_id": result.project_id,
-                "project_name": result.project_name,
-                "path": result.path.to_string_lossy(),
-                "title": result.title,
-                "document_class": result.document_class,
-                "status": result.status,
-                "score": result.score.0,
-                "snippet": result.snippet,
-                "backend": result.backend,
-                "mode": result.mode.to_string(),
-                "freshness": freshness_label(result.freshness),
-            })
+        .map(|result| SearchResultJson {
+            project_id: result.project_id.clone(),
+            project_name: result.project_name.clone(),
+            path: result.path.to_string_lossy().to_string(),
+            title: result.title.clone(),
+            document_class: result.document_class.clone(),
+            status: result.status.clone(),
+            score: result.score.0,
+            snippet: result.snippet.clone(),
+            backend: result.backend.clone(),
+            mode: result.mode.to_string(),
+            freshness: freshness_label(result.freshness),
+        })
+        .collect::<Vec<_>>();
+    let warnings = warnings
+        .iter()
+        .map(|warning| SearchWarningJson {
+            project_id: warning.project_id.clone(),
+            message: warning.message.clone(),
         })
         .collect::<Vec<_>>();
     println!(
         "{}",
-        serde_json::to_string_pretty(&json!({
-            "query": query,
-            "project_id": project.map(|(id, _)| id),
-            "project_name": project.map(|(_, name)| name),
-            "warning": warning,
-            "results": results,
-        }))
+        serde_json::to_string_pretty(&SearchEnvelopeJson {
+            query: query.to_string(),
+            project_id: project.map(|(id, _)| id.to_string()),
+            project_name: project.map(|(_, name)| name.to_string()),
+            warning: warning.map(ToString::to_string),
+            warnings,
+            results,
+        })
         .expect("serialize search json")
     );
 }
@@ -559,11 +632,129 @@ fn freshness_label(freshness: Freshness) -> &'static str {
     }
 }
 
+fn perform_project_search(
+    backend: &QmdRsBackend,
+    project: &RegisteredProject,
+    store_path: &Path,
+    wiki_root: &Path,
+    query: &str,
+    filters: &SearchFilters,
+    limit: usize,
+) -> Result<SearchExecution> {
+    for attempt in 0..2 {
+        match search_attempt(backend, project, store_path, wiki_root, query, filters, limit)? {
+            SearchAttempt::Success(search) => return Ok(search),
+            SearchAttempt::Missing if attempt == 0 => retry_search_delay(),
+            SearchAttempt::RetryableUnavailable if attempt == 0 => retry_search_delay(),
+            SearchAttempt::Missing => {
+                bail!(
+                    "search index missing for project {}; run `llm-wiki index --project {}`",
+                    project.id,
+                    project.id
+                );
+            }
+            SearchAttempt::ForceReindex => {
+                bail!(
+                    "search index unusable for project {}; run `llm-wiki index --project {} --force`",
+                    project.id,
+                    project.id
+                );
+            }
+            SearchAttempt::RetryableUnavailable => {
+                bail!(
+                    "search index unavailable for project {}; run `llm-wiki index --project {} --force`",
+                    project.id,
+                    project.id
+                );
+            }
+        }
+    }
+    unreachable!("search retry loop returns or bails")
+}
+
+fn search_attempt(
+    backend: &QmdRsBackend,
+    project: &RegisteredProject,
+    store_path: &Path,
+    wiki_root: &Path,
+    query: &str,
+    filters: &SearchFilters,
+    limit: usize,
+) -> Result<SearchAttempt> {
+    let status = backend.status(store_path, wiki_root)?;
+    match status.state {
+        BackendState::Missing => return Ok(SearchAttempt::Missing),
+        BackendState::Corrupt | BackendState::SchemaMismatch => {
+            return Ok(SearchAttempt::ForceReindex);
+        }
+        BackendState::Ready | BackendState::Stale => {}
+    }
+    maybe_sleep_for_test("LLM_WIKI_TEST_SEARCH_AFTER_STATUS_SLEEP_MS");
+    let results = match backend.search_project(store_path, wiki_root, query, filters, limit) {
+        Ok(results) => results,
+        Err(error) if is_retryable_search_open_error(&error) => {
+            return Ok(SearchAttempt::RetryableUnavailable);
+        }
+        Err(error) => return Err(error),
+    };
+    Ok(SearchAttempt::Success(SearchExecution {
+        results,
+        warnings: stale_warning(project, &status).into_iter().collect(),
+    }))
+}
+
+fn stale_warning(project: &RegisteredProject, status: &BackendStatus) -> Option<SearchWarning> {
+    matches!(status.state, BackendState::Stale).then(|| SearchWarning {
+        project_id: project.id.clone(),
+        message: format!(
+            "search index stale for project {}; run `llm-wiki index --project {}`",
+            project.id, project.id
+        ),
+    })
+}
+
+fn retry_search_delay() {
+    sleep(Duration::from_millis(50));
+}
+
+fn is_retryable_search_open_error(error: &anyhow::Error) -> bool {
+    let message = error.to_string();
+    message.contains("open qmd-rs store") || message.contains("qmd-rs store could not be opened")
+}
+
+fn maybe_sleep_for_test(var: &str) {
+    if let Ok(value) = env::var(var)
+        && let Ok(ms) = value.parse::<u64>()
+        && ms > 0
+    {
+        sleep(Duration::from_millis(ms));
+    }
+}
+
+fn maybe_write_test_marker(var: &str) {
+    if let Ok(path) = env::var(var) {
+        let marker = PathBuf::from(path);
+        if let Some(parent) = marker.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        let _ = fs::write(marker, b"ready");
+    }
+}
+
+fn maybe_remove_test_marker(var: &str) {
+    if let Ok(path) = env::var(var) {
+        let _ = fs::remove_file(path);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs;
+    use std::path::Path;
 
-    use super::{ProjectIndexLock, promote_qmd_rs_store_inner};
+    use super::{
+        ProjectIndexLock, RelatedStorePaths, StoreFileRole, promote_qmd_rs_store_inner,
+    };
 
     #[test]
     fn project_index_lock_is_exclusive() {
@@ -612,6 +803,29 @@ mod tests {
         assert_eq!(
             fs::read_to_string(live.with_extension("llm-wiki.json")).expect("live metadata"),
             "old metadata"
+        );
+    }
+
+    #[test]
+    fn promote_pairs_temp_and_live_files_by_role() {
+        let temp = RelatedStorePaths::new(Path::new("/tmp/temp/qmd-rs.sqlite"));
+        let live = RelatedStorePaths::new(Path::new("/tmp/live/qmd-rs.sqlite"));
+
+        assert_eq!(
+            temp.path(StoreFileRole::Sqlite).file_name(),
+            live.path(StoreFileRole::Sqlite).file_name()
+        );
+        assert_eq!(
+            temp.path(StoreFileRole::Metadata).extension(),
+            live.path(StoreFileRole::Metadata).extension()
+        );
+        assert_eq!(
+            temp.path(StoreFileRole::Wal).extension(),
+            live.path(StoreFileRole::Wal).extension()
+        );
+        assert_eq!(
+            temp.path(StoreFileRole::Shm).extension(),
+            live.path(StoreFileRole::Shm).extension()
         );
     }
 }
