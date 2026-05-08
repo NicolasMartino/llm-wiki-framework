@@ -6,7 +6,11 @@ use anyhow::Result;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SearchMode {
     Fts,
+    // Semantic and hybrid modes remain in the adapter contract so doctor/status
+    // can grow into them without reshaping result types or backend APIs.
+    #[allow(dead_code)]
     Semantic,
+    #[allow(dead_code)]
     Hybrid,
 }
 
