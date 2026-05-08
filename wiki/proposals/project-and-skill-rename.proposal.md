@@ -108,3 +108,27 @@ Promotion to a decision plus an execution plan covering:
 
 1. Whether the on-disk repo directory (`llm_wiki_framework/`) should be renamed to `llm-wiki-rs/` as part of this change or left alone as a local-checkout concern. Lean: leave alone; the package name is what travels.
 2. Whether `wiki/specs/knowledge-init-skill.spec.md` and similar spec/plan filenames are renamed in the same change or in a follow-up sweep. Lean: same change, since stale spec filenames undermine the rename's clarity goal (already reflected in the close criteria above).
+
+## One-Off Legacy Migration
+
+This rename does not make the next framework version responsible for legacy
+compatibility. The product change is still a clean break to `wiki-*`, with no
+runtime aliases, no dual namespace, and no new framework behavior whose job is
+to preserve `knowledge*`.
+
+For the small number of older local projects that still depend on the pre-rename
+skill tree, do a one-off migration outside the framework contract:
+
+1. Rename the in-repo runtime mirrors from `.claude/` to `.claude.legacy/` and
+   from `.codex/` to `.codex.legacy/` in those legacy projects only.
+2. Repoint the existing home-level skill symlinks under `~/.claude/skills/` and
+   `~/.codex/skills/` so they target the legacy folders instead of the current
+   canonical `.claude/skills/` and `.codex/skills/` paths.
+3. Leave the renamed framework repo free to regenerate only the new canonical
+   `.claude/` and `.codex/` surfaces for `wiki-*`.
+
+This is intentionally a transition tactic for a couple of local repos, not an
+ongoing architecture. Do not generalize it into `llm-wiki install`, the
+manifest model, the projector, or the init template system. The framework
+should remain clean; the legacy projects carry their own frozen transition
+surface.
