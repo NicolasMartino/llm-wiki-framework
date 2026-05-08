@@ -203,7 +203,6 @@ fn init_with_invalid_initial_sources_leaves_no_partial_scaffold() {
         .expect("binary")
         .arg("init")
         .arg(temp.path())
->>>>>>> d98a449 (Fix init scaffold recovery and doc rendering)
         .args([
             "--non-interactive",
             "--name",
