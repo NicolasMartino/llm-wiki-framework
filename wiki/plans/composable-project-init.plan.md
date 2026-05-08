@@ -2,9 +2,9 @@
 
 - Document Class: Plan
 - Status: Draft
-- Date: 2026-05-07
+- Date: 2026-05-08
 - Category: Tooling, project scaffolding, template engine adoption
-- Scope: Implement D10 composable init: introduce a compile-time template engine, migrate the existing init template onto it, and ship the blueprint + pack composition system from `wiki/decisions/composable-project-init.decision.md`.
+- Scope: Implement D10 composable init: introduce a compile-time template engine, migrate the existing init template onto it, replace generated `CLAUDE.md` output with `AGENTS.md`, retire the static template assets under `assets/templates/`, and ship the blueprint + pack composition system from `wiki/decisions/composable-project-init.decision.md`.
 - Sources: wiki/proposals/blueprint-pack-init.proposal.md, wiki/decisions/composable-project-init.decision.md, assets/templates/project_guidelines.md, assets/templates/CLAUDE.md, src/init/{profile,answers,template,scaffold,command}.rs
 - Related: wiki/roadmaps/framework-v1.roadmap.md (D10), wiki/proposals/skills-template-engine.proposal.md, wiki/specs/knowledge-init-skill.spec.md
 
@@ -19,12 +19,13 @@ Two contrasting blueprints (`ml-research` and `ops-infra`) bootstrap green wikis
 Inspect these sites before changing code:
 
 - `src/init/template.rs` — current ad-hoc `{{PROJECT_NAME}}`/`{{DATE}}` substitution. Becomes a thin wrapper around the engine.
-- `src/init/scaffold.rs` — folder and file creation. Extends to per-pack folder additions.
+- `src/init/scaffold.rs` — folder and file creation. Extends to per-pack folder additions and switches generated schema output from `CLAUDE.md` to `AGENTS.md`.
 - `src/init/profile.rs`, `src/init/answers.rs` — current question flow. Step-1 (blueprint) and step-2 (pack multiselect) hook in here.
 - `src/init/command.rs` — the CLI entry point; gains `--blueprint <name>` and `--pack <name>` flags for the non-interactive path.
-- `assets/templates/project_guidelines.md`, `assets/templates/CLAUDE.md` — the templates being migrated and split.
+- `assets/templates/project_guidelines.md`, `assets/templates/CLAUDE.md` — the static templates being retired and replaced by `templates/base/project_guidelines.md.jinja` and `templates/base/agents.md.jinja`.
 - `Cargo.toml` — adds `askama`, `inquire`, and `toml` to `[workspace.dependencies]` and `[dependencies]`.
 - `tests/init.rs` (and any existing `cargo insta` snapshots covering init) — the golden-file harness extends to cover the new blueprint × pack matrix.
+- Active wiki pages that still describe generated `CLAUDE.md` output or the old static-template asset path. D10 must leave active documentation aligned with the shipped scaffold behavior.
 
 ## In Scope
 
@@ -37,9 +38,10 @@ Inspect these sites before changing code:
 - Non-interactive path: `--blueprint <name>` and repeatable `--pack <name>` flags, with the same defaulting rules.
 - Per-project `.llm_wiki/` folder, with `init.toml` recording chosen blueprint, resolved pack list, and framework version.
 - Migration of the existing init template onto the same engine in this change set.
+- Migration of generated schema output from `CLAUDE.md` to `AGENTS.md` in the same change set.
 - Retirement of `<!-- SECTION:ML_AI -->` / `<!-- SECTION:QMD -->` flags (replaced by the `ml` and `qmd-scale` packs).
 - Golden-file snapshots for `ml-research` and `ops-infra` rendering, plus at least one `custom`-with-no-packs control case.
-- Documentation updates: `wiki/specs/knowledge-init-skill.spec.md` reflects the new flow and flag surface.
+- Documentation updates: `wiki/specs/knowledge-init-skill.spec.md` reflects the new flow and flag surface, and active wiki pages stop describing generated `CLAUDE.md` output except where preserved as historical record in archive/log context.
 
 ## Out Of Scope
 
@@ -61,9 +63,10 @@ Inspect these sites before changing code:
 
 1. Move `assets/templates/project_guidelines.md` and `assets/templates/CLAUDE.md` into `templates/base/project_guidelines.md.jinja` and `templates/base/agents.md.jinja`.
 2. Replace `{{PROJECT_NAME}}`, `{{PROJECT_DESCRIPTION}}`, `{{DATE}}` substitutions with engine syntax driven by a typed `BaseContext` struct.
-3. Translate the existing `<!-- SECTION:ML_AI -->` / `<!-- SECTION:QMD -->` blocks into engine `{% if %}` blocks driven by booleans on `BaseContext`. (These booleans become pack-derived in Phase 4 — for now they are explicit fields, used to keep golden-file output byte-identical to the current `init` behavior.)
-4. Rewrite `src/init/template.rs` to populate `BaseContext` and call `.render()`.
-5. Verify byte-identical output for the current init flow against existing snapshots. Any drift here must be intentional and called out.
+3. Rewrite the schema-file references in the base templates from `CLAUDE.md` to `AGENTS.md`. The generated project shape after D10 is `raw/` + `wiki/` + `AGENTS.md` + `project_guidelines.md`; the old filename survives only in archived history and log provenance.
+4. Translate the existing `<!-- SECTION:ML_AI -->` / `<!-- SECTION:QMD -->` blocks into engine `{% if %}` blocks driven by booleans on `BaseContext`. (These booleans become pack-derived in Phase 4 — for now they are explicit fields, used to keep golden-file output byte-identical to the current `init` behavior where the content is otherwise unchanged.)
+5. Rewrite `src/init/template.rs` to populate `BaseContext` and call `.render()`.
+6. Verify the migrated output is byte-stable relative to the intended post-D10 baseline, with the filename/schema-file rename called out as the deliberate diff from the pre-D10 scaffold.
 
 ### 2. Pack and Blueprint enums
 
@@ -116,10 +119,11 @@ Implement the smallest set of packs that exercises every code path: `ml`, `ops`,
 ### 9. Documentation and cleanup
 
 1. Update `wiki/specs/knowledge-init-skill.spec.md` to describe the new flag surface and the two-step flow.
-2. Update `README.md` if it documents the old static template behavior.
-3. Delete `assets/templates/project_guidelines.md` and `assets/templates/CLAUDE.md` (now superseded by `templates/base/`).
-4. Update `wiki/index.md` to link the new decision and plan.
-5. Append to `wiki/log.md`.
+2. Update `wiki/specs/documentation-model.spec.md`, `wiki/decisions/three-layer-architecture.decision.md`, `wiki/decisions/llm-wiki-binary-distribution.decision.md`, and any other active wiki page that still claims generated projects use `CLAUDE.md`, so active docs match the shipped D10 scaffold. Historical mentions remain only in `wiki/archive/` and `wiki/log.md`.
+3. Update `README.md` if it documents the old static template behavior or the old generated schema filename.
+4. Delete `assets/templates/project_guidelines.md` and `assets/templates/CLAUDE.md` (now superseded by `templates/base/`).
+5. Update `wiki/index.md` to reflect any renamed or materially revised active pages.
+6. Append to `wiki/log.md`.
 
 ## Verification Gates
 
@@ -127,8 +131,9 @@ Implement the smallest set of packs that exercises every code path: `ml`, `ops`,
 2. `cargo build --release` produces a binary that runs `llm-wiki init` interactively to completion.
 3. Two integration tests through `assert_cmd`: `--blueprint ml-research` and `--blueprint ops-infra` non-interactive runs each produce a green wiki passing `llm-wiki doctor` (or its current equivalent).
 4. Snapshot tests for the base template, every pack standalone, and every named blueprint at default selection. Byte-stable across re-runs.
-5. The migrated existing init template's output is byte-identical to the pre-migration output for at least one fixed input set, proving the engine swap was a refactor.
-6. `.llm_wiki/init.toml` round-trips: `init` writes it, a follow-up read parses it back into the same enum values.
+5. The migrated existing init template's rendered content is byte-stable for at least one fixed input set aside from the intentional D10 diffs: `AGENTS.md` replaces `CLAUDE.md`, and pack-driven sections replace legacy conditional markers.
+6. No active wiki page, README section, or generated scaffold output claims that `init` writes `CLAUDE.md`; that filename appears only in archive/log history or in code/docs that explicitly describe pre-D10 behavior.
+7. `.llm_wiki/init.toml` round-trips: `init` writes it, a follow-up read parses it back into the same enum values.
 
 ## Pages To Update On Completion
 
@@ -136,7 +141,9 @@ Implement the smallest set of packs that exercises every code path: `ml`, `ops`,
 - `wiki/decisions/composable-project-init.decision.md` — no status change; remains Accepted.
 - `wiki/proposals/blueprint-pack-init.proposal.md` — Status already Accepted with Promoted To set; verify still current.
 - `wiki/specs/knowledge-init-skill.spec.md` — describes the new flow and flags.
-- `wiki/specs/documentation-model.spec.md` — references the composable init flow if it currently describes the static template.
+- `wiki/specs/documentation-model.spec.md` — references the composable init flow and the post-D10 generated schema file shape.
+- `wiki/decisions/three-layer-architecture.decision.md` — update if the project-level schema artifact described there changes from `CLAUDE.md` to `AGENTS.md` for generated projects.
+- `wiki/decisions/llm-wiki-binary-distribution.decision.md` — update if it still describes `CLAUDE.md` as generated scaffold output rather than historical D8 behavior.
 - `wiki/roadmaps/framework-v1.roadmap.md` — D10 status → Completed.
 - `wiki/index.md` — entry status updates.
 - `wiki/log.md` — completion entry.

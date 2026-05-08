@@ -1,5 +1,33 @@
 # Wiki Log
 
+## [2026-05-08] update | Rename proposal now defaults to wiki-* over wiki:*
+
+Revised `wiki/proposals/project-and-skill-rename.proposal.md` after review.
+The proposal now treats `wiki-*` as the intended canonical namespace and
+narrows `wiki:*` to a speculative variant that must overcome cross-platform
+filesystem objections before it can stay alive. The scope/sources list now
+includes `assets/templates/`, the root `AGENTS.md`, and the accepted
+research-intake split; the runtime-proof section distinguishes installed
+skill-directory names from user-facing invocation surfaces; consequences now
+call out the `cargo install` crate-name discontinuity and explicitly keep
+`~/.llm_wiki/` and per-project `.llm_wiki/init.toml` unchanged.
+
+Pages updated: wiki/proposals/project-and-skill-rename.proposal.md,
+wiki/log.md
+
+## [2026-05-08] update | D10 plan tightened around template retirement and AGENTS.md
+
+Revised `wiki/plans/composable-project-init.plan.md` so D10 explicitly owns
+the bookkeeping around `assets/templates/project_guidelines.md` and
+`assets/templates/CLAUDE.md`: retire both static assets into
+`templates/base/`, switch generated schema output from `CLAUDE.md` to
+`AGENTS.md`, and sweep active wiki pages so no current documentation claims
+that `init` still writes `CLAUDE.md`. Verification gates now require the
+post-D10 scaffold shape and an active-doc audit, not just code-level template
+migration.
+
+Pages updated: wiki/plans/composable-project-init.plan.md, wiki/log.md
+
 ## [2026-05-07] create | Composable project init proposal
 
 Filed `wiki/proposals/blueprint-pack-init.proposal.md`. Captures the
