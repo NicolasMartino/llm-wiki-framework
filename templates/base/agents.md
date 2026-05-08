@@ -53,7 +53,7 @@ Periodically or on request:
 ## Conventions
 
 - Document types: spec, decision, proposal, roadmap, plan, checklist,
-  reference{{ ml_ai_types }}.
+  reference{% if include_ml_ai %}, experiment, eval{% endif %}.
 - Pack-specific document types are listed below when active packs add them.
 - Use the type by role, not convenience. See `project_guidelines.md`.
 - Every wiki page has a metadata block: Document Class, Status, Date,

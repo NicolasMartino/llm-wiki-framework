@@ -12,6 +12,7 @@ const SKILLS: &[&str] = &[
 
 fn main() {
     let root = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").expect("manifest dir"));
+    println!("cargo:rerun-if-changed=templates");
 
     for skill in SKILLS {
         let path = root.join("assets/skills").join(skill).join("SKILL.md");

@@ -10,6 +10,8 @@ pub(super) struct Answers {
     pub(super) name: String,
     pub(super) description: String,
     pub(super) blueprint: Blueprint,
+    // `None` means "use blueprint defaults"; `Some(vec![])` means
+    // "explicitly select no packs".
     pub(super) packs: Option<Vec<Pack>>,
     pub(super) existing: bool,
 }
@@ -124,4 +126,25 @@ fn parse_choice_name(selected: &str) -> Result<&str> {
         .split_once(" - ")
         .map(|(name, _)| name)
         .ok_or_else(|| anyhow::anyhow!("invalid selection: {selected}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn catalog_descriptions_do_not_use_choice_delimiter() {
+        for blueprint in Blueprint::ALL {
+            assert!(
+                !blueprint.description().contains(" - "),
+                "blueprint description must not contain the choice delimiter"
+            );
+        }
+        for pack in Pack::ALL {
+            assert!(
+                !pack.description().contains(" - "),
+                "pack description must not contain the choice delimiter"
+            );
+        }
+    }
 }

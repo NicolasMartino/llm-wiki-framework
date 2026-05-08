@@ -111,7 +111,6 @@ Format:
 
 ```
 ## [YYYY-MM-DD] operation | subject
-
 Brief description of what changed and why.
 Pages affected: [list of paths]
 ```
@@ -205,7 +204,6 @@ wiki/
   plans/                      Tactical execution
   checklists/                 Repeatable procedures
   references/                 External evidence synthesis
-
   archive/                    Completed, superseded, or rejected documents
 ```
 
@@ -228,13 +226,11 @@ wiki/
     plans/
     checklists/
     references/
-
     archive/
   src/                        Application code
   tests/                      Automated tests
   scripts/                    Utilities and automation
   infra/                      Infrastructure definitions
-
 ```
 
 ## Naming And Metadata
@@ -342,24 +338,18 @@ The deliverable rule:
 
 ```md
 ### D1 - [Deliverable Name]
-
 Status: [Draft / Active / Blocked / Completed]
 Promise: [Externally observable result]
 Depends On: [None / D0 / external prerequisite]
 Execution Plan: [path or "Not created yet"]
-
 Included:
 - ...
-
 Excluded:
 - ...
-
 Proof:
 - ...
-
 Promotion Target:
 - ...
-
 Unlocks:
 - ...
 ```

@@ -195,6 +195,37 @@ fn initial_sources_are_copied_without_ingest() {
 }
 
 #[test]
+fn init_with_invalid_initial_sources_leaves_no_partial_scaffold() {
+    let temp = TempDir::new().expect("tempdir");
+    let missing = temp.path().join("missing-source.md");
+
+    Command::cargo_bin("llm-wiki")
+        .expect("binary")
+        .arg("init")
+        .arg(temp.path())
+>>>>>>> d98a449 (Fix init scaffold recovery and doc rendering)
+        .args([
+            "--non-interactive",
+            "--name",
+            "Fixture Project",
+            "--description",
+            "A fixture project.",
+            "--blueprint",
+            "generic",
+            "--initial-sources",
+        ])
+        .arg(&missing)
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("initial source does not exist"));
+
+    assert!(!temp.path().join("AGENTS.md").exists());
+    assert!(!temp.path().join("project_guidelines.md").exists());
+    assert!(!temp.path().join("wiki").exists());
+    assert!(!temp.path().join(".llm_wiki").exists());
+}
+
+#[test]
 fn init_auto_registers_successful_project() {
     let project = TempDir::new().expect("project");
     let home = TempDir::new().expect("home");

@@ -111,7 +111,6 @@ Format:
 
 ```
 ## [YYYY-MM-DD] operation | subject
-
 Brief description of what changed and why.
 Pages affected: [list of paths]
 ```
@@ -217,7 +216,6 @@ wiki/
   references/                 External evidence synthesis
   experiments/                Investigation records
   evals/                      Evaluation reports
-
   archive/                    Completed, superseded, or rejected documents
 ```
 
@@ -242,7 +240,6 @@ wiki/
     references/
     experiments/
     evals/
-
     archive/
   src/                        Application code
   tests/                      Automated tests
@@ -252,7 +249,6 @@ wiki/
   data/                       Datasets, schemas, pipelines
   notebooks/                  Exploratory analysis
   evals/                      Evaluation harnesses (code)
-
 ```
 
 Note: `evals/` at root contains evaluation code and harnesses. `wiki/evals/`
@@ -401,24 +397,18 @@ The deliverable rule:
 
 ```md
 ### D1 - [Deliverable Name]
-
 Status: [Draft / Active / Blocked / Completed]
 Promise: [Externally observable result]
 Depends On: [None / D0 / external prerequisite]
 Execution Plan: [path or "Not created yet"]
-
 Included:
 - ...
-
 Excluded:
 - ...
-
 Proof:
 - ...
-
 Promotion Target:
 - ...
-
 Unlocks:
 - ...
 ```
@@ -636,7 +626,6 @@ Periodically or on request:
 - Archived documents go to `wiki/archive/`.
 - `wiki/log.md` uses format: `## [YYYY-MM-DD] operation | subject`.
 
-
 ## Pack Document Types
 
 | Document type | Filename suffix | Folder |
@@ -649,20 +638,17 @@ Periodically or on request:
 | Literature Note | `literature-note.md` | `wiki/literature` |
 | Hypothesis | `hypothesis.md` | `wiki/hypotheses` |
 
-
 ## ML Pack
 
 - Use `wiki/experiments/` for uncertain investigations and `wiki/evals/` for measured evaluations.
 - Use `wiki/model-cards/` for model-card records and lineage notes.
 - Keep model artifacts, notebooks, and eval harnesses separate from wiki evidence.
 
-
 ## Data Pack
 
 - Use `wiki/datasets/` for dataset cards and `wiki/data/` for schemas or transformations.
 - Store data samples, schema exports, and lineage sources under `raw/data/`.
 - Document transformation inputs, outputs, and provenance before treating data behavior as validated.
-
 
 ## Research Pack
 

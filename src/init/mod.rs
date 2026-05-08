@@ -1,8 +1,8 @@
 pub mod collision;
 pub mod manifest;
-pub mod profile;
+pub(crate) mod profile;
 pub mod sources;
-pub mod template;
+pub(crate) mod template;
 
 mod answers;
 pub mod blueprints;

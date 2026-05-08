@@ -325,7 +325,7 @@ impl Pack {
         }
     }
 
-    pub fn agents_fragment(self) -> Result<Option<String>> {
+    pub fn agents_fragment(self) -> Result<String> {
         let rendered = match self {
             Pack::Api => render_fragment(ApiAgentsTemplate)?,
             Pack::Frontend => render_fragment(FrontendAgentsTemplate)?,
@@ -338,10 +338,10 @@ impl Pack {
             Pack::Research => render_fragment(ResearchAgentsTemplate)?,
             Pack::QmdScale => render_fragment(QmdScaleAgentsTemplate)?,
         };
-        Ok(Some(rendered))
+        Ok(rendered)
     }
 
-    pub fn guidelines_fragment(self) -> Result<Option<String>> {
+    pub fn guidelines_fragment(self) -> Result<String> {
         let rendered = match self {
             Pack::Api => render_fragment(ApiGuidelinesTemplate)?,
             Pack::Frontend => render_fragment(FrontendGuidelinesTemplate)?,
@@ -354,7 +354,7 @@ impl Pack {
             Pack::Research => render_fragment(ResearchGuidelinesTemplate)?,
             Pack::QmdScale => render_fragment(QmdScaleGuidelinesTemplate)?,
         };
-        Ok(Some(rendered))
+        Ok(rendered)
     }
 }
 
@@ -408,8 +408,8 @@ mod tests {
                     pack.name()
                 );
             }
-            assert!(pack.agents_fragment().unwrap().is_some());
-            assert!(pack.guidelines_fragment().unwrap().is_some());
+            assert!(!pack.agents_fragment().unwrap().is_empty());
+            assert!(!pack.guidelines_fragment().unwrap().is_empty());
         }
     }
 }

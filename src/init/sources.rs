@@ -4,23 +4,38 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, bail};
 use chrono::Utc;
 
+pub fn validate_initial_sources(sources: &[PathBuf]) -> Result<()> {
+    for source in sources {
+        if !source.exists() {
+            bail!("initial source does not exist: {}", source.display());
+        }
+        source
+            .canonicalize()
+            .with_context(|| format!("failed to resolve {}", source.display()))?;
+        source
+            .file_name()
+            .context("initial source path has no file name")?;
+    }
+    Ok(())
+}
+
 pub fn copy_initial_sources(project_root: &Path, sources: &[PathBuf]) -> Result<Option<PathBuf>> {
     if sources.is_empty() {
         return Ok(None);
     }
+    validate_initial_sources(sources)?;
+
+    let copied_at = Utc::now();
     let base = project_root.join("raw/initial");
-    let dest_dir = base.join(Utc::now().format("%Y-%m-%dT%H%M%SZ").to_string());
+    let dest_dir = base.join(copied_at.format("%Y-%m-%dT%H%M%SZ").to_string());
     let sources_dir = dest_dir.join("sources");
     fs::create_dir_all(&sources_dir)
         .with_context(|| format!("failed to create {}", dest_dir.display()))?;
 
     let mut manifest = String::from("# Initial Sources Manifest\n\n");
-    manifest.push_str(&format!("- Copied At: {}\n", Utc::now().to_rfc3339()));
+    manifest.push_str(&format!("- Copied At: {}\n", copied_at.to_rfc3339()));
     manifest.push_str("- Sources:\n");
     for source in sources {
-        if !source.exists() {
-            bail!("initial source does not exist: {}", source.display());
-        }
         let canonical = source
             .canonicalize()
             .with_context(|| format!("failed to resolve {}", source.display()))?;

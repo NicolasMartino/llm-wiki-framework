@@ -12,6 +12,7 @@ struct ProjectGuidelinesTemplate<'a> {
     date: &'a str,
     include_ml_ai: bool,
     include_qmd: bool,
+    is_existing: bool,
     guidelines_fragments: &'a [String],
 }
 
@@ -20,7 +21,7 @@ struct ProjectGuidelinesTemplate<'a> {
 struct AgentsTemplate<'a> {
     project_name: &'a str,
     project_description: &'a str,
-    ml_ai_types: &'a str,
+    include_ml_ai: bool,
     agents_fragments: &'a [String],
 }
 
@@ -37,6 +38,7 @@ pub fn render_project_guidelines_with_fragments(
         date: &date,
         include_ml_ai: profile.include_ml_ai,
         include_qmd: profile.include_qmd,
+        is_existing: profile.is_existing,
         guidelines_fragments,
     };
     template
@@ -54,21 +56,33 @@ pub fn render_agent_template_with_fragments(
     let template = AgentsTemplate {
         project_name: name,
         project_description: description,
-        ml_ai_types: if profile.include_ml_ai {
-            ", experiment, eval"
-        } else {
-            ""
-        },
+        include_ml_ai: profile.include_ml_ai,
         agents_fragments,
     };
-    template.render().context("failed to render AGENTS.md")
+    template
+        .render()
+        .map(|rendered| compact_blank_lines(&rendered))
+        .context("failed to render AGENTS.md")
 }
 
 fn compact_blank_lines(input: &str) -> String {
     let mut output = String::new();
     let mut blank_count = 0;
+    let mut in_fenced_block = false;
+
     for line in input.lines() {
+        if line.trim_start().starts_with("```") {
+            in_fenced_block = !in_fenced_block;
+            blank_count = 0;
+            output.push_str(line.trim_end());
+            output.push('\n');
+            continue;
+        }
+
         if line.trim().is_empty() {
+            if in_fenced_block {
+                continue;
+            }
             blank_count += 1;
             if blank_count > 1 {
                 continue;

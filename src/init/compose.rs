@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 
 use anyhow::Result;
 use chrono::Utc;
@@ -23,6 +23,7 @@ const SPINE_FOLDERS: &[&str] = &[
 ];
 
 const CODE_FOLDERS: &[&str] = &["src", "tests", "scripts", "infra"];
+const CLAUDE_REDIRECT: &str = "See @AGENTS.md.\n";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RenderPlan {
@@ -97,7 +98,7 @@ pub fn compose(plan: &RenderPlan) -> Result<InitOutput> {
         },
         InitFile {
             path: "CLAUDE.md".to_string(),
-            contents: "See @AGENTS.md.\n".to_string(),
+            contents: CLAUDE_REDIRECT.to_string(),
         },
         InitFile {
             path: "wiki/index.md".to_string(),
@@ -119,17 +120,20 @@ pub fn compose(plan: &RenderPlan) -> Result<InitOutput> {
 }
 
 fn dedupe_packs(packs: &[Pack]) -> Vec<Pack> {
-    let mut deduped = BTreeSet::new();
-    deduped.extend(packs.iter().copied());
-    deduped.into_iter().collect()
+    let mut seen = HashSet::new();
+    let mut deduped = Vec::new();
+    for pack in packs {
+        if seen.insert(*pack) {
+            deduped.push(*pack);
+        }
+    }
+    deduped
 }
 
 fn collect_agents_fragments(packs: &[Pack]) -> Result<Vec<String>> {
     let mut fragments = agent_catalog_fragments(packs);
     for pack in packs {
-        if let Some(fragment) = pack.agents_fragment()? {
-            fragments.push(fragment);
-        }
+        fragments.push(pack.agents_fragment()?);
     }
     Ok(fragments)
 }
@@ -137,44 +141,18 @@ fn collect_agents_fragments(packs: &[Pack]) -> Result<Vec<String>> {
 fn collect_guidelines_fragments(packs: &[Pack]) -> Result<Vec<String>> {
     let mut fragments = catalog_fragments(packs);
     for pack in packs {
-        if let Some(fragment) = pack.guidelines_fragment()? {
-            fragments.push(fragment);
-        }
+        fragments.push(pack.guidelines_fragment()?);
     }
     Ok(fragments)
 }
 
 fn agent_catalog_fragments(packs: &[Pack]) -> Vec<String> {
-    let doc_types = dedupe_doc_types(packs);
-    if doc_types.is_empty() {
-        return Vec::new();
-    }
-
-    let mut fragment =
-        "## Pack Document Types\n\n| Document type | Filename suffix | Folder |\n| --- | --- | --- |\n"
-            .to_string();
-    for doc_type in doc_types {
-        fragment.push_str(&format!(
-            "| {} | `{}` | `{}` |\n",
-            doc_type.name, doc_type.suffix, doc_type.folder
-        ));
-    }
-    vec![fragment]
+    doc_types_fragment(packs).into_iter().collect()
 }
 
 fn catalog_fragments(packs: &[Pack]) -> Vec<String> {
     let mut fragments = Vec::new();
-    let doc_types = dedupe_doc_types(packs);
-    if !doc_types.is_empty() {
-        let mut fragment =
-            "## Pack Document Types\n\n| Document type | Filename suffix | Folder |\n| --- | --- | --- |\n"
-                .to_string();
-        for doc_type in doc_types {
-            fragment.push_str(&format!(
-                "| {} | `{}` | `{}` |\n",
-                doc_type.name, doc_type.suffix, doc_type.folder
-            ));
-        }
+    if let Some(fragment) = doc_types_fragment(packs) {
         fragments.push(fragment);
     }
 
@@ -195,6 +173,24 @@ fn catalog_fragments(packs: &[Pack]) -> Vec<String> {
         fragments.push(fragment);
     }
     fragments
+}
+
+fn doc_types_fragment(packs: &[Pack]) -> Option<String> {
+    let doc_types = dedupe_doc_types(packs);
+    if doc_types.is_empty() {
+        return None;
+    }
+
+    let mut fragment =
+        "## Pack Document Types\n\n| Document type | Filename suffix | Folder |\n| --- | --- | --- |\n"
+            .to_string();
+    for doc_type in doc_types {
+        fragment.push_str(&format!(
+            "| {} | `{}` | `{}` |\n",
+            doc_type.name, doc_type.suffix, doc_type.folder
+        ));
+    }
+    Some(fragment)
 }
 
 fn dedupe_doc_types(packs: &[Pack]) -> Vec<DocType> {
@@ -331,6 +327,20 @@ mod tests {
                 .filter(|entry| entry.document_class == "Runbooks")
                 .count(),
             1
+        );
+    }
+
+    #[test]
+    fn resolved_packs_preserve_first_selected_order() {
+        let output = compose(&plan(
+            Blueprint::Custom,
+            vec![Pack::Research, Pack::Ml, Pack::Research, Pack::Data],
+        ))
+        .unwrap();
+
+        assert_eq!(
+            output.resolved_packs,
+            vec![Pack::Research, Pack::Ml, Pack::Data]
         );
     }
 
