@@ -390,16 +390,38 @@ fn hash_file(path: &Path) -> Result<String> {
 }
 
 fn find_match_span(body: &str, terms: &[String]) -> Option<MatchSpan> {
-    let lower = body.to_lowercase();
     terms
         .iter()
         .filter(|term| !term.is_empty())
-        .find_map(|term| {
-            lower.find(term).map(|start| MatchSpan {
-                start,
-                end: start + term.len(),
-            })
-        })
+        .find_map(|term| find_lowercase_term_span(body, term))
+}
+
+fn find_lowercase_term_span(body: &str, term: &str) -> Option<MatchSpan> {
+    if term.is_empty() {
+        return None;
+    }
+
+    let starts = body
+        .char_indices()
+        .map(|(index, _)| index)
+        .chain(std::iter::once(body.len()));
+
+    for start in starts {
+        let mut probe = String::new();
+        for (offset, ch) in body[start..].char_indices() {
+            probe.extend(ch.to_lowercase());
+            if probe == term {
+                return Some(MatchSpan {
+                    start,
+                    end: start + offset + ch.len_utf8(),
+                });
+            }
+            if !term.starts_with(&probe) || probe.len() > term.len() {
+                break;
+            }
+        }
+    }
+    None
 }
 
 fn snippet(body: &str, span: MatchSpan) -> String {
@@ -456,7 +478,7 @@ fn remove_store_files(store_path: &Path) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{FileSnapshot, QmdRsBackend, WikiSnapshot};
+    use super::{FileSnapshot, QmdRsBackend, WikiSnapshot, find_match_span, snippet};
     use crate::search::adapter::{
         BackendState, Freshness, IndexOptions, SearchBackend, SearchFilters, SearchMode,
     };
@@ -578,6 +600,16 @@ mod tests {
             after.max_modified_unix_seconds()
         );
         assert_ne!(before, after);
+    }
+
+    #[test]
+    fn snippets_handle_unicode_lowercase_expansion() {
+        let body = "Heading\n\nİstanbul and Straße stay searchable.";
+        let span = find_match_span(body, &[String::from("i\u{307}stanbul")]).expect("span");
+
+        assert_eq!(&body[span.start..span.end], "İstanbul");
+        let snippet = snippet(body, span);
+        assert!(snippet.contains("İstanbul"));
     }
 
     #[test]

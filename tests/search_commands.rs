@@ -46,6 +46,54 @@ fn search_refuses_missing_index() {
 }
 
 #[test]
+fn search_refuses_missing_project_root() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+    fs::remove_dir_all(&project).expect("remove project root");
+
+    llm_wiki(home.path())
+        .args(["search", "reciprocal rank", "--project", "fixture"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("project root missing for fixture"))
+        .stderr(predicate::str::contains("llm-wiki forget fixture"));
+}
+
+#[test]
+fn search_all_refuses_missing_project_root() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let alpha = fixture_project_with_decision(
+        workspace.path(),
+        "Alpha Project",
+        "Alpha Decision",
+        "Shared retrieval token appears in alpha project.",
+    );
+    let beta = fixture_project_with_decision(
+        workspace.path(),
+        "Beta Project",
+        "Beta Decision",
+        "Shared retrieval token appears in beta project.",
+    );
+    register_project_with_id(home.path(), &alpha, "alpha");
+    register_project_with_id(home.path(), &beta, "beta");
+    llm_wiki(home.path())
+        .args(["index-all", "--force"])
+        .assert()
+        .success();
+    fs::remove_dir_all(&beta).expect("remove beta root");
+
+    llm_wiki(home.path())
+        .args(["search-all", "shared retrieval token"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("project root missing for beta"))
+        .stderr(predicate::str::contains("llm-wiki forget beta"));
+}
+
+#[test]
 fn index_and_search_registered_project_with_filters() {
     let home = TempDir::new().expect("home");
     let workspace = TempDir::new().expect("workspace");

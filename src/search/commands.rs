@@ -278,6 +278,7 @@ pub fn search(args: &SearchArgs) -> Result<()> {
     let paths = Paths::from_env()?;
     let registry = ProjectRegistry::read(&paths.project_registry())?;
     let project = select_project(&registry, args.project.as_deref())?;
+    ensure_project_root_exists(&project)?;
     let backend = QmdRsBackend::new();
     let store_path = paths.qmd_rs_store_path(&project.id);
     let wiki_root = project.wiki_root();
@@ -341,6 +342,7 @@ pub fn search_all(args: &SearchAllArgs) -> Result<()> {
     let mut fused: BTreeMap<(String, String), FusedResult> = BTreeMap::new();
 
     for project in &projects {
+        ensure_project_root_exists(project)?;
         let store_path = paths.qmd_rs_store_path(&project.id);
         let wiki_root = project.wiki_root();
         let status = backend.status(&store_path, &wiki_root)?;
@@ -437,6 +439,17 @@ fn select_project(
                 discovered.project_root.display()
             )
         })
+}
+
+fn ensure_project_root_exists(project: &RegisteredProject) -> Result<()> {
+    if !project.root.exists() {
+        bail!(
+            "project root missing for {}; run `llm-wiki projects` or `llm-wiki forget {}`",
+            project.id,
+            project.id
+        );
+    }
+    Ok(())
 }
 
 fn select_projects(
