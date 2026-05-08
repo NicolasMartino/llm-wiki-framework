@@ -1,5 +1,24 @@
 # Wiki Log
 
+## [2026-05-08] create | Rename execution plan and one-off legacy migration inventory
+
+Filed `wiki/plans/project-and-skill-rename.plan.md` to turn the rename
+proposal into executable work. Captured the live local symlink inventory:
+`~/.claude` and `~/.codex` are real directories, while the legacy linkage sits
+under `~/.claude/skills/` and `~/.codex/skills/` as skill-level symlinks
+pointing into this repo's `.claude/skills/` and `.codex/skills/` trees.
+Recorded the agreed migration boundary: the next framework version stays clean
+and legacy handling is a one-off repo migration only, using frozen
+`.claude.legacy/` / `.codex.legacy/` trees in the few old repos that still
+depend on the pre-rename surface. Also recorded a local filesystem pre-flight:
+both `wiki-*` and `wiki:*` directory names are accepted on this host, though
+`wiki-*` remains the intended portable canonical form. Baseline
+`cargo build` and `cargo test --workspace` were run on the pre-rename branch
+and both passed, so the rename sweep starts from a green Rust workspace.
+
+Pages updated: wiki/plans/project-and-skill-rename.plan.md, wiki/index.md,
+wiki/log.md
+
 ## [2026-05-08] update | Rename proposal now defaults to wiki-* over wiki:*
 
 Revised `wiki/proposals/project-and-skill-rename.proposal.md` after review.
