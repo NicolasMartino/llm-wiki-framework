@@ -71,7 +71,7 @@ Updated: 2026-05-09
 
 ## Checklists
 
-- [V1 Fixture Smoke](checklists/v1-fixture-smoke.checklist.md) — Completed — Temp fixture smoke ingested a raw source, answered from fixture spec/decision, and linted bookkeeping with no unresolved issues
+- [V1 Fixture Smoke](checklists/v1-fixture-smoke.checklist.md) — Active — Repeatable fixture smoke; 2026-05-09 run ingested a raw source, answered from fixture spec/decision, and linted bookkeeping with no unresolved issues
 
 ## Archive
 

@@ -16,7 +16,7 @@ The framework is distributed as a single Rust binary, `llm-wiki`. The binary own
 
 1. **Global skill installation**: `llm-wiki install` writes rendered framework skills directly to `~/.claude/skills/` and `~/.codex/skills/` with an ownership manifest. The pre-release D8 implementation used `~/.local/share/llm-wiki/manifest.json`; D8.1 corrects this before public release to a managed runtime home at `~/.llm_wiki/` with manifest `~/.llm_wiki/manifest.json` and installed skills invoking `~/.llm_wiki/bin/llm-wiki` by absolute path. No symlinks.
 2. **Project scaffolding**: `llm-wiki init <path>` creates new project structure (Create mode only; Update mode remains agent-owned) deterministically from embedded templates.
-3. **Skill projection**: canonical markdown under `skills/<name>/SKILL.md` (clean, no `legacy tag marker` blocks) is embedded at compile time via `include_str!` and projected into Claude/Codex variants by typed Rust code.
+3. **Skill projection**: canonical markdown under `assets/skills/<name>/SKILL.md` (clean, no `legacy tag marker` blocks) is embedded at compile time via `include_str!` and projected into Claude/Codex variants by typed Rust code.
 4. **State diagnostics**: `llm-wiki status` and `llm-wiki doctor` read the manifest plus filesystem to report install state, drift, and pre-binary symlink breakage.
 5. **Removal**: `llm-wiki uninstall` deletes only manifest-owned files in reverse install order.
 
@@ -59,6 +59,8 @@ The binary is now the operating model:
   ownership manifest. D8.1 moves runtime install state into `~/.llm_wiki/` so
   installed skills do not depend on shell `PATH`. No symlinks are required.
 - `llm-wiki init <path>` owns deterministic Create-mode scaffolding.
+- Canonical skill assets live under `assets/skills/`; committed `.claude/` and
+  `.codex/` runtime mirrors are generated convenience outputs.
 - The `wiki-init` skill is a thin conversational wrapper over
   `llm-wiki init --non-interactive`; the pre-release `init-project` name was
   corrected by D8.1, and the `knowledge-init` name was renamed to `wiki-init`
@@ -76,7 +78,7 @@ The compat surface is enumerated in the accepted proposal and is load-bearing:
 2. Metadata block fields declared in the documentation-model spec
 3. Folder layout under `wiki/`
 4. Status vocabulary
-5. The three-layer architecture invariant (`raw/`, `wiki/`, `CLAUDE.md` + `project_guidelines.md`)
+5. The three-layer architecture invariant (`raw/`, `wiki/`, `AGENTS.md` + `project_guidelines.md`, with `CLAUDE.md` allowed as a compatibility shim)
 
 Anything outside this list — skill internals, CLI flags, manifest schema, embedded template wording — may evolve freely between binary versions.
 

@@ -6,7 +6,12 @@
 - Category: Distribution tooling, install UX
 - Scope: Implement D8.1 managed binary install behavior so runtime skills call `~/.llm_wiki/bin/llm-wiki` by absolute path and PATH setup is only convenience guidance.
 - Sources: wiki/proposals/binary-path-bootstrap.proposal.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/decisions/llm-wiki-binary-distribution.decision.md
-- Related: wiki/roadmaps/framework-v1.roadmap.md (D8.1), wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-init-skill.spec.md
+- Related: wiki/roadmaps/framework-v1.roadmap.md (D8.1), wiki/specs/documentation-model.spec.md, wiki/specs/wiki-init-skill.spec.md
+
+Post-D11 note: this plan was written before the crate and skill rename. The
+current Cargo package is `llm-wiki-rs`, and the active init-skill spec is
+`wiki/specs/wiki-init-skill.spec.md`; historical phase text below may still
+refer to the pre-rename package or `knowledge-init`.
 
 ## Deliverable
 
@@ -18,11 +23,11 @@ PATH only as terminal convenience.
 All binary acquisition paths must converge on this same install behavior. The
 release installer may invoke or offer to invoke `llm-wiki install`, but it must
 not duplicate skill-copy, manifest, backup, or managed-binary logic. `cargo
-install llm-wiki-framework` cannot rely on a Cargo post-install hook, so its
+install llm-wiki-rs` cannot rely on a Cargo post-install hook, so its
 documented completion step is:
 
 ```bash
-cargo install llm-wiki-framework
+cargo install llm-wiki-rs
 llm-wiki install
 ```
 
@@ -86,7 +91,7 @@ renderer. At implementation start, inspect these sites first:
    `assert_cmd` + `tempfile::TempDir` + redirected `HOME` pattern from
    `tests/install.rs` and `tests/post_install.rs`.
 4. Identify every hard-coded skill name and embedded asset path that the
-   `init-project` to `knowledge-init` rename must update.
+   pre-D11 `init-project` to `knowledge-init` rename must update.
 
 Verification: add a short Phase 0 note to this plan, under a new
 `Implementation Notes` section, identifying the exact rendering entry point,
@@ -240,7 +245,7 @@ manifest-owned state unless `--include-binary` is passed.
 5. Run `rg -n "init-project" wiki assets src crates tests` and classify every
    remaining mention as historical documentation, current spec text pending
    promotion, or a bug to fix. This explicitly includes
-   `wiki/specs/knowledge-init-skill.spec.md` and any `Sources` / `Related`
+   the active init-skill spec and any `Sources` / `Related`
    metadata that names it.
 
 Verification: no runtime asset, generated skill, embed path, dispatcher route,
@@ -252,7 +257,7 @@ promotion.
 1. Update installation documentation so the Cargo path is explicitly:
 
    ```bash
-   cargo install llm-wiki-framework
+   cargo install llm-wiki-rs
    llm-wiki install
    ```
 
@@ -269,7 +274,7 @@ promotion.
 2. Install without shell profile edits.
 3. Invoke an installed skill or skill-equivalent stub.
 4. Confirm the stub executes the managed binary path.
-5. Verify the `cargo install llm-wiki-framework` documented path ends in
+5. Verify the `cargo install llm-wiki-rs` documented path ends in
    `llm-wiki install` and uses the same install code path.
 6. Verify the release installer invokes or offers to invoke `llm-wiki install`
    rather than implementing separate install behavior.
@@ -287,7 +292,7 @@ After implementation and tests pass:
 
 1. Update `wiki/specs/documentation-model.spec.md` with the managed binary
    runtime home and manifest v2 as validated behavior.
-2. Replace `wiki/specs/knowledge-init-skill.spec.md` with the validated
+2. Replace the active init-skill spec with the validated
    `knowledge-init` skill spec.
 3. Update affected `knowledge-*` skill specs if dispatcher or installed path
    behavior changes.

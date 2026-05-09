@@ -326,6 +326,44 @@ fn index_all_and_search_all_fuse_registered_projects() {
 }
 
 #[test]
+fn search_all_honors_limits_above_default_per_project_fetch() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    for index in 0..25 {
+        fs::write(
+            project.join(format!("wiki/decisions/bulk-{index:02}.decision.md")),
+            format!(
+                "# Bulk Decision {index:02}\n\n- Document Class: Decision\n- Status: Accepted\n- Date: 2026-05-09\n- Category: Search\n- Scope: Test\n- Sources: raw/test.md\n\n## Decision\nNeedle limit expansion token {index:02}."
+            ),
+        )
+        .expect("bulk decision");
+    }
+    register_project(home.path(), &project);
+
+    llm_wiki(home.path())
+        .args(["index-all", "--force"])
+        .assert()
+        .success();
+
+    let output = llm_wiki(home.path())
+        .args([
+            "search-all",
+            "needle limit expansion",
+            "--limit",
+            "25",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("search-all output");
+    assert!(output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("search-all json");
+
+    assert_eq!(json["results"].as_array().expect("results").len(), 25);
+}
+
+#[test]
 fn search_json_envelope_has_all_contract_fields() {
     let home = TempDir::new().expect("home");
     let workspace = TempDir::new().expect("workspace");

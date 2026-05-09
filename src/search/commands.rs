@@ -375,6 +375,11 @@ pub fn search_all(args: &SearchAllArgs) -> Result<()> {
         ensure_project_root_exists(project)?;
         let store_path = paths.qmd_rs_store_path(&project.id);
         let wiki_root = project.wiki_root();
+        let per_project_limit = if args.limit == 0 {
+            0
+        } else {
+            args.limit.max(20)
+        };
         let search = perform_project_search(
             &backend,
             project,
@@ -382,7 +387,7 @@ pub fn search_all(args: &SearchAllArgs) -> Result<()> {
             &wiki_root,
             &args.query,
             &filters,
-            20,
+            per_project_limit,
         )?;
         warnings.extend(search.warnings);
         let mut results = search.results;

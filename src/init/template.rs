@@ -81,6 +81,7 @@ fn compact_blank_lines(input: &str) -> String {
 
         if line.trim().is_empty() {
             if in_fenced_block {
+                output.push('\n');
                 continue;
             }
             blank_count += 1;
@@ -94,4 +95,19 @@ fn compact_blank_lines(input: &str) -> String {
         output.push('\n');
     }
     output
+}
+
+#[cfg(test)]
+mod tests {
+    use super::compact_blank_lines;
+
+    #[test]
+    fn compact_blank_lines_preserves_fenced_block_spacing() {
+        let input = "Before\n\n\n```text\nalpha\n\nbeta\n```\n\n\nAfter\n";
+
+        assert_eq!(
+            compact_blank_lines(input),
+            "Before\n\n```text\nalpha\n\nbeta\n```\n\nAfter\n"
+        );
+    }
 }

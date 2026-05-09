@@ -1,7 +1,7 @@
 # V1 Fixture Smoke
 
 - Document Class: Checklist
-- Status: Completed
+- Status: Active
 - Date: 2026-05-06
 - Category: Compatibility, release gate
 - Scope: Agent-driven smoke procedure for the committed v1 wiki fixture.

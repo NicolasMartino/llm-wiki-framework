@@ -160,13 +160,14 @@ Unlocks:
 ### D5 - Framework Spawns a New Project
 
 Status: Completed
-Promise: The `wiki-init` skill creates a new project end-to-end. A fresh agent in the new repo, with only the generated project_guidelines.md and CLAUDE.md, bootstraps a self-managing wiki and is immediately productive.
+Promise: The `wiki-init` skill creates a new project end-to-end. A fresh agent in the new repo, with only the generated `project_guidelines.md`, canonical `AGENTS.md`, and `CLAUDE.md` compatibility shim, bootstraps a self-managing wiki and is immediately productive.
 Depends On: D2, D3, D4
 Execution Plan: wiki/evals/v1-proof-run.eval.md
 
 Included:
 - Run `wiki-init` on a real project
-- Skill asks questions, generates tailored guidelines and CLAUDE.md
+- Skill asks questions, generates tailored guidelines, `AGENTS.md`, and a
+  `CLAUDE.md` shim
 - Scaffolds raw/ + wiki/ with correct profile (ML_AI, QMD flags)
 - Agent in the new project ingests first raw sources
 - Agent answers a query about the new project using only wiki content
@@ -232,7 +233,7 @@ Depends On: D5, D6
 Execution Plan: wiki/evals/v1-proof-run.eval.md
 
 Included:
-- Template CLAUDE.md and project_guidelines.md
+- Template `AGENTS.md`, `CLAUDE.md` shim, and `project_guidelines.md`
 - Documented bootstrap procedure (as a checklist)
 - Agent can execute the bootstrap checklist without modification
 - Tested on at least two distinct project domains
@@ -266,7 +267,7 @@ Execution Plan: wiki/plans/llm-wiki-binary.plan.md
 Included:
 - `llm-wiki install`: writes skills directly to `~/.claude/skills/` and `~/.codex/skills/` with an ownership manifest at `~/.local/share/llm-wiki/manifest.json`. Idempotent; refuses user-authored collisions; `--force` backs up to `<path>.bak.<UTC-ISO8601>` before overwriting.
 - `llm-wiki build [--target] [--out]`: renders canonical skills to a chosen directory without touching global state or writing a manifest. Used for self-dogfooding this repo (`build --out .`) and for CI snapshot tests.
-- `llm-wiki init <path>`: Create-mode scaffolding from embedded templates with conditional-section resolution (ML_AI, QMD, IS_EXISTING). Collision check is on framework artifacts only (`wiki/`, `raw/`, `CLAUDE.md`, `project_guidelines.md`), not on directory emptiness — preserving the IS_EXISTING profile for adding the framework to an existing codebase. Update mode is explicitly out of scope and remains agent-owned.
+- `llm-wiki init <path>`: Create-mode scaffolding from embedded templates with conditional-section resolution (ML_AI, QMD, IS_EXISTING). Collision check is on framework artifacts only (`wiki/`, `raw/`, `.llm_wiki/`, `AGENTS.md`, `CLAUDE.md`, `project_guidelines.md`), not on directory emptiness — preserving the IS_EXISTING profile for adding the framework to an existing codebase. Update mode is explicitly out of scope and remains agent-owned.
 - `llm-wiki status`, `doctor`, `uninstall`: state diagnostics and clean removal.
 - Canonical skill schema: clean markdown with typed YAML frontmatter (no `legacy tag marker` blocks). Embedded into the binary at compile time via `include_str!`.
 - Typed Rust projector with golden-file (`insta`) snapshot tests for all skill × runtime projections and all `init` profile outputs.

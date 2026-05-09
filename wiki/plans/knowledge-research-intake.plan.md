@@ -5,8 +5,12 @@
 - Date: 2026-05-02
 - Category: Tooling
 - Scope: Execute the proposed upgrade of `knowledge-research` into a guided intake workflow with `raw/research/` bundles, `manifest.md`, and `research-summary.md`.
-- Sources: wiki/archive/knowledge-intake-command.proposal.md, wiki/specs/knowledge-research-skill.spec.md, wiki/decisions/knowledge-command-namespace.decision.md, assets/templates/project_guidelines.md
-- Related: wiki/decisions/knowledge-research-intake.decision.md, wiki/specs/knowledge-research-skill.spec.md, .codex/skills/knowledge-research/SKILL.md, .codex/skills/knowledge/SKILL.md, .claude/skills/knowledge-ingest/SKILL.md
+- Sources: wiki/archive/knowledge-intake-command.proposal.md, wiki/specs/wiki-research-skill.spec.md, wiki/archive/knowledge-command-namespace.decision.md, templates/base/project_guidelines.md
+- Related: wiki/decisions/knowledge-research-intake.decision.md, wiki/specs/wiki-research-skill.spec.md, assets/skills/wiki-research/SKILL.md, assets/skills/wiki/SKILL.md, assets/skills/wiki-ingest/SKILL.md
+
+Post-D11 note: this plan executed the pre-rename `knowledge-research` surface.
+The current canonical skill is `wiki-research`; the historical task text below
+is left in its original naming context.
 
 ## Deliverable
 
@@ -39,7 +43,7 @@ bundle under `raw/research/` with provenance plus one bundle-level summary.
 
 1. Promote the proposal direction into an implementation-ready plan and align
    terminology across proposal, skill, and spec.
-2. Update `wiki/specs/knowledge-research-skill.spec.md` so research is defined
+2. Update the active research-skill spec so research is defined
    as a guided intake workflow rather than only a source-mode selector.
 3. Update `.codex/skills/knowledge-research/SKILL.md` with:
    - a short intake exchange for broad requests
@@ -82,7 +86,7 @@ bundle under `raw/research/` with provenance plus one bundle-level summary.
 
 ## Wiki Updates When Done
 
-- `wiki/specs/knowledge-research-skill.spec.md`
+- `wiki/specs/wiki-research-skill.spec.md`
 - `wiki/archive/knowledge-intake-command.proposal.md`
 - `wiki/index.md`
 - `wiki/log.md`
@@ -91,7 +95,7 @@ Potentially:
 
 - `wiki/decisions/knowledge-command-namespace.decision.md`
   if the namespace wording changes materially
-- `wiki/specs/knowledge-ingest-skill.spec.md`
+- `wiki/specs/wiki-ingest-skill.spec.md`
   if Claude/Codex surface conventions need cross-reference updates
 
 ## Closure Criteria

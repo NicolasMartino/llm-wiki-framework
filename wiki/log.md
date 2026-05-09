@@ -1,5 +1,32 @@
 # Wiki Log
 
+## [2026-05-09] lint | project review consistency fixes
+
+Reviewed active framework docs and small Rust quality issues file by file.
+Corrected stale proof limitations in the documentation model, aligned the V1
+fixture smoke checklist with the checklist status vocabulary, updated current
+post-D10/D11 source paths and layout references, and clarified archive guidance
+for completed-but-still-current documents. Fixed two code issues found during
+review: template blank-line compaction now preserves blank lines inside fenced
+blocks, and `search-all --limit` can retrieve more than the old per-project
+default of 20 results.
+
+Pages updated: src/init/template.rs, src/search/commands.rs,
+tests/search_commands.rs, templates/base/project_guidelines.md,
+wiki/specs/documentation-model.spec.md,
+wiki/checklists/v1-fixture-smoke.checklist.md, wiki/index.md,
+wiki/decisions/llm-wiki-binary-distribution.decision.md,
+wiki/decisions/typed-documents.decision.md,
+wiki/plans/llm-wiki-product-layout-addendum.plan.md,
+wiki/plans/knowledge-research-intake.plan.md,
+wiki/plans/composable-project-init.plan.md,
+wiki/plans/binary-path-bootstrap.plan.md,
+wiki/plans/llm-wiki-binary.plan.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/log.md
+Verification: `cargo fmt -- --check`, `cargo test --workspace`,
+`cargo clippy --workspace --all-targets --all-features -- -D warnings -D dead_code`,
+and `qmd embed -f` passed.
+
 ## [2026-05-09] update | D11 legacy symlink migration completed
 
 Completed the one-off D11 legacy migration. Reconstructed frozen pre-rename

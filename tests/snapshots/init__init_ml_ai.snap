@@ -111,6 +111,7 @@ Format:
 
 ```
 ## [YYYY-MM-DD] operation | subject
+
 Brief description of what changed and why.
 Pages affected: [list of paths]
 ```
@@ -216,6 +217,7 @@ wiki/
   references/                 External evidence synthesis
   experiments/                Investigation records
   evals/                      Evaluation reports
+
   archive/                    Completed, superseded, or rejected documents
 ```
 
@@ -240,15 +242,18 @@ wiki/
     references/
     experiments/
     evals/
+
     archive/
   src/                        Application code
   tests/                      Automated tests
   scripts/                    Utilities and automation
   infra/                      Infrastructure definitions
+
   models/                     Model artifacts, configs
   data/                       Datasets, schemas, pipelines
   notebooks/                  Exploratory analysis
   evals/                      Evaluation harnesses (code)
+
 ```
 
 Note: `evals/` at root contains evaluation code and harnesses. `wiki/evals/`
@@ -302,8 +307,10 @@ Optional fields:
 | Checklists | `Active`, `Superseded` |
 | References | `Draft`, `Sourced`, `Archived` |
 
-Archived or completed documents move to `wiki/archive/` and are removed from
-the active index. They remain searchable but do not clutter the primary catalog.
+Superseded, rejected, or no-longer-useful historical documents move to
+`wiki/archive/` and are removed from the active index. Completed plans,
+roadmaps, checklists, and accepted proposals may remain in the active index
+while they are current evidence, reusable procedures, or important context.
 
 ## Pack Document Types
 
@@ -380,18 +387,24 @@ The deliverable rule:
 
 ```md
 ### D1 - [Deliverable Name]
+
 Status: [Draft / Active / Blocked / Completed]
 Promise: [Externally observable result]
 Depends On: [None / D0 / external prerequisite]
 Execution Plan: [path or "Not created yet"]
+
 Included:
 - ...
+
 Excluded:
 - ...
+
 Proof:
 - ...
+
 Promotion Target:
 - ...
+
 Unlocks:
 - ...
 ```

@@ -331,8 +331,10 @@ Optional fields:
 | Checklists | `Active`, `Superseded` |
 | References | `Draft`, `Sourced`, `Archived` |
 
-Archived or completed documents move to `wiki/archive/` and are removed from
-the active index. They remain searchable but do not clutter the primary catalog.
+Superseded, rejected, or no-longer-useful historical documents move to
+`wiki/archive/` and are removed from the active index. Completed plans,
+roadmaps, checklists, and accepted proposals may remain in the active index
+while they are current evidence, reusable procedures, or important context.
 
 {% for fragment in guidelines_fragments %}
 {{ fragment }}

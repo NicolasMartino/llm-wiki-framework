@@ -5,8 +5,14 @@
 - Date: 2026-05-06
 - Category: Tooling, framework distribution
 - Scope: Implement the `llm-wiki` Rust binary that owns global skill installation, project scaffolding, and skill projection per the accepted D8 deliverable.
-- Sources: wiki/proposals/llm-wiki-binary.proposal.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/roadmaps/framework-v1.roadmap.md (D8), wiki/decisions/single-source-skills.decision.md, wiki/decisions/framework-path-resolution.decision.md, wiki/specs/knowledge-init-skill.spec.md
-- Related: wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-research-skill.spec.md, wiki/specs/knowledge-lint-skill.spec.md, skills/README.md
+- Sources: wiki/proposals/llm-wiki-binary.proposal.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/roadmaps/framework-v1.roadmap.md (D8), wiki/archive/single-source-skills.decision.md, wiki/archive/framework-path-resolution.decision.md, wiki/specs/wiki-init-skill.spec.md
+- Related: wiki/specs/documentation-model.spec.md, wiki/specs/wiki-ingest-skill.spec.md, wiki/specs/wiki-query-skill.spec.md, wiki/specs/wiki-research-skill.spec.md, wiki/specs/wiki-lint-skill.spec.md, assets/skills/README.md
+
+Post-D11 note: this plan was written before the crate and skill rename. The
+current Cargo package is `llm-wiki-rs`, canonical skill assets live under
+`assets/skills/`, and the active skill specs use `wiki-*` filenames.
+Historical phase text below may still describe the pre-rename implementation
+surface.
 
 ## 1. Deliverable
 

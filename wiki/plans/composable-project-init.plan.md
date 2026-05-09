@@ -6,7 +6,12 @@
 - Category: Tooling, project scaffolding, template engine adoption
 - Scope: Implement D10 composable init: introduce a compile-time template engine, migrate the existing init template onto it, replace generated `CLAUDE.md` output with `AGENTS.md`, retire the static template assets under `assets/templates/`, and ship the blueprint + pack composition system from `wiki/decisions/composable-project-init.decision.md`.
 - Sources: wiki/proposals/blueprint-pack-init.proposal.md, wiki/decisions/composable-project-init.decision.md, wiki/references/askama-template-engine.reference.md, templates/base/project_guidelines.md, templates/base/agents.md, templates/packs/, src/init/{blueprints,packs,compose,manifest,answers,template,scaffold,command}.rs
-- Related: wiki/roadmaps/framework-v1.roadmap.md (D10), wiki/proposals/skills-template-engine.proposal.md, wiki/specs/knowledge-init-skill.spec.md, wiki/references/askama-template-engine.reference.md
+- Related: wiki/roadmaps/framework-v1.roadmap.md (D10), wiki/proposals/skills-template-engine.proposal.md, wiki/specs/wiki-init-skill.spec.md, wiki/references/askama-template-engine.reference.md
+
+Post-D11 note: this plan was written before the skill family was renamed from
+`knowledge*` to `wiki-*`. Historical phase text below may still name
+`knowledge-init`; the current active initialization spec is
+`wiki/specs/wiki-init-skill.spec.md`.
 
 ## Deliverable
 
@@ -53,7 +58,9 @@ Inspect these sites before changing code:
 - Migration of generated schema output from `CLAUDE.md` to `AGENTS.md` in the same change set.
 - Retirement of `<!-- SECTION:ML_AI -->` / `<!-- SECTION:QMD -->` flags (replaced by the `ml` and `qmd-scale` packs).
 - Golden-file snapshots for `ml-research` and `ops-infra` rendering, plus at least one `custom`-with-no-packs control case.
-- Documentation updates: `wiki/specs/knowledge-init-skill.spec.md` reflects the new flow and flag surface, and active wiki pages stop describing generated `CLAUDE.md` output except where preserved as historical record in archive/log context.
+- Documentation updates: the active init-skill spec reflects the new flow and
+  flag surface, and active wiki pages stop describing generated `CLAUDE.md`
+  output except where preserved as historical record in archive/log context.
 
 ## Out Of Scope
 
@@ -131,7 +138,7 @@ Implement the smallest set of packs that exercises every code path: `ml`, `ops`,
 
 ### 9. Documentation and cleanup
 
-1. Update `wiki/specs/knowledge-init-skill.spec.md` to describe the new flag surface and the two-step flow.
+1. Update the active init-skill spec to describe the new flag surface and the two-step flow.
 2. Update `wiki/specs/documentation-model.spec.md`, `wiki/decisions/three-layer-architecture.decision.md`, `wiki/decisions/llm-wiki-binary-distribution.decision.md`, and any other active wiki page that still claims generated projects use `CLAUDE.md`, so active docs match the shipped D10 scaffold. Historical mentions remain only in `wiki/archive/` and `wiki/log.md`.
 3. Update `README.md` if it documents the old static template behavior or the old generated schema filename.
 4. Delete `assets/templates/project_guidelines.md` and `assets/templates/CLAUDE.md` (now superseded by `templates/base/`).
@@ -153,7 +160,7 @@ Implement the smallest set of packs that exercises every code path: `ml`, `ops`,
 - `wiki/plans/composable-project-init.plan.md` — Status → Completed.
 - `wiki/decisions/composable-project-init.decision.md` — no status change; remains Accepted.
 - `wiki/proposals/blueprint-pack-init.proposal.md` — Status already Accepted with Promoted To set; verify still current.
-- `wiki/specs/knowledge-init-skill.spec.md` — describes the new flow and flags.
+- `wiki/specs/wiki-init-skill.spec.md` — describes the new flow and flags.
 - `wiki/specs/documentation-model.spec.md` — references the composable init flow and the post-D10 generated schema file shape.
 - `wiki/decisions/three-layer-architecture.decision.md` — update if the project-level schema artifact described there changes from `CLAUDE.md` to `AGENTS.md` for generated projects.
 - `wiki/decisions/llm-wiki-binary-distribution.decision.md` — update if it still describes `CLAUDE.md` as generated scaffold output rather than historical D8 behavior.

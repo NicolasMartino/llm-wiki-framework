@@ -6,7 +6,7 @@
 - Category: Tooling, repository layout
 - Scope: Completed post-D8 repository layout correction that makes the `llm-wiki` binary the root product crate and moves embedded product assets under `assets/`.
 - Sources: wiki/plans/llm-wiki-binary.plan.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, README.md, Cargo.toml, src/, assets/, tests/
-- Related: wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-init-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-research-skill.spec.md, wiki/specs/knowledge-lint-skill.spec.md
+- Related: wiki/specs/documentation-model.spec.md, wiki/specs/wiki-init-skill.spec.md, wiki/specs/wiki-query-skill.spec.md, wiki/specs/wiki-ingest-skill.spec.md, wiki/specs/wiki-research-skill.spec.md, wiki/specs/wiki-lint-skill.spec.md
 
 ## Purpose
 
@@ -15,7 +15,9 @@ so the product crate is at the repository root and embedded product assets live
 under `assets/`.
 
 The change did not alter CLI behavior, manifest schema, installed paths, or
-the D8 binary-distribution decision.
+the D8 binary-distribution decision. Later D10/D11 follow-ons changed template
+locations and package/skill names; this plan's current layout section reflects
+those follow-ons.
 
 ## Final Layout
 
@@ -25,7 +27,7 @@ build.rs                    # compile-time embedded asset validation
 src/                        # llm-wiki binary crate
 assets/
   skills/                   # canonical embedded skill assets
-  templates/                # embedded scaffold templates
+templates/                  # Askama scaffold and skill-projection templates
 crates/
   llm-wiki-schema/          # pure parser/projector library
 tests/                      # binary integration tests and fixtures
@@ -35,8 +37,10 @@ raw/                        # framework source material
 .codex/skills/              # generated convenience outputs
 ```
 
-The root package is `llm-wiki-framework`; the installed binary remains
-`llm-wiki`.
+The root package is now `llm-wiki-rs`; the installed binary remains
+`llm-wiki`. D10 later moved scaffold templates from `assets/templates/` to
+`templates/`, and the skill-projection follow-on added
+`templates/skills/` for runtime skill output.
 
 ## Completed Changes
 
@@ -62,7 +66,9 @@ The root package is `llm-wiki-framework`; the installed binary remains
 - `cargo run -- build --out .` regenerates committed runtime outputs.
 - `.claude/skills/` and `.codex/skills/` remain generated convenience outputs.
 - `assets/skills/` is canonical product content.
-- `assets/templates/` is canonical scaffold template content.
+- `templates/base/` and `templates/packs/` are canonical scaffold template
+  content.
+- `templates/skills/` is canonical skill-projection structure.
 - Subcommands, manifest schema, installed file paths, and generated runtime
   skill contents remain unchanged except for removing stale references to the
   retired template filename from ingest/lint skill text.

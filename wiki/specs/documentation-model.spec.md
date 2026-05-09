@@ -2,10 +2,10 @@
 
 - Document Class: Spec
 - Status: Active
-- Date: 2026-05-08
+- Date: 2026-05-09
 - Category: Framework core
 - Scope: The validated documentation and execution model for projects using this framework.
-- Sources: raw/legacy/legacy-project-guidelines.md, raw/research/llm-wiki-pattern-research.md, raw/research/qmd-search-engine.md, raw/research/niharshrotri-llm-wiki-implementation.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/decisions/composable-project-init.decision.md
+- Sources: raw/legacy/legacy-project-guidelines.md, raw/research/llm-wiki-pattern-research.md, raw/research/qmd-search-engine.md, raw/research/niharshrotri-llm-wiki-implementation.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/decisions/composable-project-init.decision.md, wiki/evals/v1-proof-run.eval.md
 - Related: wiki/decisions/three-layer-architecture.decision.md, wiki/decisions/agent-owns-wiki.decision.md, wiki/decisions/typed-documents.decision.md, wiki/references/qmd-search-engine.reference.md, wiki/decisions/search-backend-selection.decision.md, wiki/specs/wiki-init-skill.spec.md
 
 ## Current State
@@ -87,7 +87,7 @@ research -> raw/ -> ingest -> proposal/reference -> roadmap -> plan -> evidence 
   ownership, scoped backup snapshots, and uninstall symmetry
 - `llm-wiki path` prints managed-bin PATH guidance without reinstalling skills
 - `llm-wiki init` produces project scaffolds from embedded templates with
-  profile-specific golden tests
+  blueprint/pack golden tests
 - `llm-wiki register`, `forget`, and `projects` manage host-local project
   registry state without writing to project files
 - `llm-wiki index`, `index-all`, `search`, and `search-all` provide default-on
@@ -101,13 +101,16 @@ research -> raw/ -> ingest -> proposal/reference -> roadmap -> plan -> evidence 
 
 ## Limitations
 
-- Not yet tested on a second project (framework portability unproven)
-- Scale beyond ~50 pages untested
-- Multi-agent coordination not yet addressed
+- Multi-agent coordination is not yet addressed.
+- The committed test suite covers deterministic scaffolding, projection,
+  registry, indexing, and search; proof projects for end-to-end agent
+  bootstrap currently live under `/private/tmp` rather than as committed
+  fixtures.
 - Ingest, query, research, and lint remain agent-owned operations; the binary
-  owns deterministic setup and distribution, not LLM judgment
+  owns deterministic setup, distribution, registry, and retrieval, not LLM
+  judgment.
 - Semantic/hybrid model setup and answer synthesis remain future work; D9 ships
-  project-local and explicit cross-project FTS retrieval first
-- QMD integration identified as the scale solution; generated projects can opt
-  into QMD guidance with the `qmd-scale` pack
-- 3-phase ingest pipeline is documented in skills, but not binary-automated
+  project-local and explicit cross-project FTS retrieval first.
+- Generated projects can opt into QMD guidance with the `qmd-scale` pack, while
+  the binary's own default search path uses qmd-rs-backed FTS.
+- The 3-phase ingest pipeline is documented in skills, but not binary-automated.
