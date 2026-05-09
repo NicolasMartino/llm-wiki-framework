@@ -1,5 +1,5 @@
 [package]
-name = "llm-wiki-framework"
+name = "llm-wiki-rs"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -19,7 +19,7 @@ resolver = "2"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
-repository = "https://github.com/nicolasmartino/llm-wiki-framework"
+repository = "https://github.com/nicolasmartino/llm-wiki-rs"
 
 [workspace.dependencies]
 anyhow = "1.0"

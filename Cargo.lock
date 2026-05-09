@@ -1373,7 +1373,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "llm-wiki-framework"
+name = "llm-wiki-rs"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1398,6 +1398,7 @@ dependencies = [
 name = "llm-wiki-schema"
 version = "0.1.0"
 dependencies = [
+ "askama",
  "insta",
  "serde",
  "serde_yaml",

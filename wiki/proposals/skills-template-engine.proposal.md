@@ -1,13 +1,14 @@
 # Skill Projection on the Composable-Init Template Engine
 
 - Document Class: Proposal
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-05-07
 - Category: Tooling, skill projection, internal architecture
 - Scope: Once the composable-init proposal lands its compile-time template engine (`askama`), migrate skill projection in `crates/llm-wiki-schema/src/projector/` onto the same engine so the framework has a single text-rendering pipeline.
 - Sources: crates/llm-wiki-schema/src/projector/{claude,codex,format,idiom,types}.rs, src/skill_render.rs
 - Related: wiki/proposals/blueprint-pack-init.proposal.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/references/askama-template-engine.reference.md
-- Depends On: wiki/proposals/blueprint-pack-init.proposal.md (must be accepted and the engine adopted before this proposal lands)
+- Depends On: wiki/proposals/blueprint-pack-init.proposal.md (satisfied by D10)
+- Promoted To: wiki/decisions/skill-projection-template-engine.decision.md, wiki/plans/skill-projection-template-engine.plan.md
 
 ## Question
 

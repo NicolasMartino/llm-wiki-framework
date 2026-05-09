@@ -1,10 +1,11 @@
 use llm_wiki_schema::{
-    ClaudeProjector, CodexProjector, ProjectError, Projector, Runtime, TargetRuntime, parse,
+    ClaudeProjector, CodexInterfaceConfig, CodexProjector, CodexRuntimeConfig, ProjectError,
+    Projector, Runtime, TargetRuntime, parse,
 };
 
 fn canonical() -> &'static str {
     r#"---
-name: knowledge-query
+name: wiki-query
 description: "{verb} wiki knowledge in {runtime}."
 runtimes: [claude, codex]
 operations: [query]
@@ -13,7 +14,7 @@ arguments:
     required: true
     description: Question to answer.
 ---
-# Knowledge Query
+# Wiki Query
 
 ## Purpose
 
@@ -26,7 +27,7 @@ Answer from the wiki.
 
 ## Invocation
 
-`<knowledge-query> what is D8?`
+`<wiki-query> what is D8?`
 
 ## Notes
 
@@ -38,31 +39,37 @@ Do not speculate.
 fn claude_projection_uses_slash_idiom_and_no_runtime_config() {
     let doc = parse(canonical()).expect("canonical parses");
     let rendered = ClaudeProjector.project(&doc).expect("project");
-    assert!(rendered.skill_md.contains("# /knowledge-query"));
+    assert!(rendered.skill_md.contains("# /wiki-query"));
     assert!(
         rendered
             .skill_md
             .contains("invoke wiki knowledge in Claude Code")
     );
-    assert!(rendered.skill_md.contains("`/knowledge-query what is D8?`"));
+    assert!(rendered.skill_md.contains("`/wiki-query what is D8?`"));
     assert!(rendered.runtime_config.is_none());
 }
 
 #[test]
 fn codex_projection_uses_namespace_idiom_and_runtime_config() {
     let doc = parse(canonical()).expect("canonical parses");
-    let rendered = CodexProjector::with_runtime_config_template(
-        "interface:\n  display_name: \"{skill_name}\"\n",
-    )
+    let rendered = CodexProjector::with_runtime_config(CodexRuntimeConfig {
+        interface: CodexInterfaceConfig {
+            display_name: "wiki-query".to_string(),
+            short_description: "Query wiki knowledge.".to_string(),
+            default_prompt: "Ask the wiki.".to_string(),
+        },
+    })
     .project(&doc)
     .expect("project");
-    assert!(rendered.skill_md.contains("# Knowledge Query"));
+    assert!(rendered.skill_md.contains("# Wiki Query"));
     assert!(rendered.skill_md.contains("use wiki knowledge in Codex"));
-    assert!(rendered.skill_md.contains("`$knowledge-query what is D8?`"));
-    assert!(rendered.skill_md.contains("- `$knowledge query`"));
+    assert!(rendered.skill_md.contains("`$wiki-query what is D8?`"));
+    assert!(rendered.skill_md.contains("- `$wiki query`"));
     assert_eq!(
         rendered.runtime_config.as_deref(),
-        Some("interface:\n  display_name: \"knowledge-query\"\n")
+        Some(
+            "interface:\n  display_name: \"wiki-query\"\n  short_description: \"Query wiki knowledge.\"\n  default_prompt: \"Ask the wiki.\"\n"
+        )
     );
 }
 
@@ -72,7 +79,9 @@ fn codex_projection_has_default_runtime_config() {
     let rendered = CodexProjector::new().project(&doc).expect("project");
     assert_eq!(
         rendered.runtime_config.as_deref(),
-        Some("interface:\n  display_name: \"knowledge-query\"\n")
+        Some(
+            "interface:\n  display_name: \"Wiki Query\"\n  short_description: \"use wiki knowledge in Codex.\"\n  default_prompt: \"Use $wiki-query in Codex.\"\n"
+        )
     );
 }
 
@@ -86,7 +95,7 @@ fn runtime_restrictions_are_enforced() {
     assert_eq!(
         err,
         ProjectError::UnsupportedRuntime {
-            skill: "knowledge-query".to_string(),
+            skill: "wiki-query".to_string(),
             runtime: TargetRuntime::Codex
         }
     );

@@ -13,15 +13,12 @@ pub fn run(args: &InitArgs) -> Result<()> {
     if !args.no_register {
         match registry::register_project(Some(&args.path), Some(answers.name.clone()), None, None) {
             Ok(outcome) => {
-                registry_summary = Some(format!(
-                    "registered as {}",
-                    registry::outcome_id(&outcome)
-                ));
+                registry_summary =
+                    Some(format!("registered as {}", registry::outcome_id(&outcome)));
             }
             Err(error) => {
-                registry_summary = Some(
-                    "failed (run `llm-wiki register <path>` to recover)".to_string(),
-                );
+                registry_summary =
+                    Some("failed (run `llm-wiki register <path>` to recover)".to_string());
                 eprintln!("Warning: project initialized but registry update failed: {error}");
                 eprintln!(
                     "Run `llm-wiki register {}` to register it later.",

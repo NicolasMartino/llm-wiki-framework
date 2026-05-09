@@ -1,5 +1,91 @@
 # Wiki Log
 
+## [2026-05-09] update | D11 legacy symlink migration completed
+
+Completed the one-off D11 legacy migration. Reconstructed frozen pre-rename
+runtime mirrors from commit `5d33b9e` into `.claude.legacy/` and
+`.codex.legacy/` in this repo, preserving `init-project` plus the
+`knowledge*` skill surface that older home-level links still expected.
+Repointed the known legacy symlinks under `~/.claude/skills/` and
+`~/.codex/skills/` to those frozen trees, verified that the targets now
+resolve, and left `~/.codex/skills/knlg` untouched. With the repoint complete,
+D11 returns to completed state in the index, roadmap, and rename plan.
+
+Pages created: .claude.legacy/skills/init-project/SKILL.md,
+.claude.legacy/skills/knowledge-ingest/SKILL.md,
+.claude.legacy/skills/knowledge-lint/SKILL.md,
+.claude.legacy/skills/knowledge-query/SKILL.md,
+.claude.legacy/skills/knowledge-research/SKILL.md,
+.codex.legacy/skills/init-project/SKILL.md,
+.codex.legacy/skills/init-project/agents/openai.yaml,
+.codex.legacy/skills/knowledge/SKILL.md,
+.codex.legacy/skills/knowledge/agents/openai.yaml,
+.codex.legacy/skills/knowledge-ingest/SKILL.md,
+.codex.legacy/skills/knowledge-ingest/agents/openai.yaml,
+.codex.legacy/skills/knowledge-lint/SKILL.md,
+.codex.legacy/skills/knowledge-lint/agents/openai.yaml,
+.codex.legacy/skills/knowledge-query/SKILL.md,
+.codex.legacy/skills/knowledge-query/agents/openai.yaml,
+.codex.legacy/skills/knowledge-research/SKILL.md,
+.codex.legacy/skills/knowledge-research/agents/openai.yaml
+Pages updated: wiki/index.md, wiki/plans/project-and-skill-rename.plan.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/log.md
+
+## [2026-05-08] lint | D11 completion and migration bookkeeping corrected
+
+Reviewed the D11 rename plan against the live home-level skill state. The
+one-off legacy migration has not yet been performed: the legacy
+`knowledge*` symlinks under `~/.claude/skills/` and `~/.codex/skills/` still
+point into this repo's live `.claude/skills/` and `.codex/skills/` trees
+instead of frozen `.claude.legacy/` / `.codex.legacy/` mirrors in the older
+repos that still depend on them. Reset D11 from completed bookkeeping back to
+active in the index, roadmap, and plan; updated the D11 proof text to reflect
+framework-side rename completion plus outstanding external migration work;
+fixed stale renamed-file references in the plan; and corrected active
+current-truth docs that still referenced retired template paths or the old
+`knowledge*` command surface.
+
+Pages updated: AGENTS.md, wiki/index.md,
+wiki/plans/project-and-skill-rename.plan.md,
+wiki/roadmaps/framework-v1.roadmap.md,
+wiki/specs/documentation-model.spec.md,
+wiki/decisions/knowledge-research-intake.decision.md,
+wiki/checklists/v1-fixture-smoke.checklist.md, wiki/log.md
+
+## [2026-05-08] update | D11 rename executed end-to-end
+
+Executed the D11 project and skill rename. Renamed the Cargo package from
+`llm-wiki-framework` to `llm-wiki-rs`, the embedded canonical skills under
+`assets/skills/` from `knowledge*` to `wiki-*`, the Codex dispatcher from
+`knowledge` to `wiki`, and the active `wiki/specs/` skill specs to match.
+Updated `src/embed.rs`, `build.rs`, the schema projector dispatcher alias, and
+all install/build/doctor/uninstall test fixtures to the new names. Regenerated
+`.claude/skills/` and `.codex/skills/` runtime mirrors via
+`llm-wiki build --out .` and re-accepted the `real_skills` projector
+snapshots. Archived the `knowledge-command-namespace.decision.md` as
+superseded and updated index, roadmap (D11 → Completed), README, and the
+binary/path-bootstrap/composable-init decisions where they still named the
+old surface as current truth. The historical log entries below remain as
+written; they describe what was true at the time. Legacy in-repo symlink
+migration for the few outside repos is still a one-off step outside this
+framework.
+
+Pages updated: Cargo.toml, Cargo.lock, build.rs, src/embed.rs,
+src/init/scaffold.rs, crates/llm-wiki-schema/src/projector/codex.rs, tests/*,
+crates/llm-wiki-schema/tests/*, README.md,
+wiki/proposals/project-and-skill-rename.proposal.md,
+wiki/plans/project-and-skill-rename.plan.md,
+wiki/roadmaps/framework-v1.roadmap.md,
+wiki/decisions/llm-wiki-binary-distribution.decision.md,
+wiki/decisions/binary-path-bootstrap.decision.md,
+wiki/decisions/composable-project-init.decision.md, wiki/index.md,
+wiki/log.md
+Pages renamed: assets/skills/{wiki,wiki-init,wiki-query,wiki-ingest,wiki-research,wiki-lint}/,
+wiki/specs/wiki-{init,query,ingest,research,lint}-skill.spec.md,
+crates/llm-wiki-schema/tests/snapshots/real_skills__wiki*.snap
+Pages moved: wiki/decisions/knowledge-command-namespace.decision.md ->
+wiki/archive/knowledge-command-namespace.decision.md
+
 ## [2026-05-08] update | Rename work promoted to D11 roadmap deliverable
 
 Reclassified the project/package/skill rename from an unnumbered draft effort
@@ -1578,6 +1664,50 @@ requires safe project ID validation, per-project index locks, temp-store
 promotion, `projects` freshness reporting, stale-search CLI warnings,
 `search-all` freshness/exclude cleanup, and tolerant `AGENTS.md` / `AGENTS.MD`
 validation.
+
+Pages updated: wiki/plans/project-registry-search-artifacts.plan.md,
+wiki/log.md
+
+## [2026-05-09] complete | skill projection template engine and v1 fixture smoke
+
+Accepted and completed the skill-projection template-engine follow-on. Claude
+and Codex skill markdown now render from `templates/skills/` through Askama
+contexts in `crates/llm-wiki-schema`, and Codex runtime config renders through
+a typed YAML template fed by `CodexRuntimeConfig`.
+
+Ran the V1 fixture smoke in `/private/tmp/llm-wiki-v1-smoke-20260509`: copied
+the committed fixture, added a raw smoke note, ingested it into a typed
+reference page, answered a query from the fixture spec and decision, and ran
+lint. Lint fixed the temp copy's stale index date and left no unresolved
+bookkeeping issues.
+
+Verification: `cargo test -p llm-wiki-schema`; `cargo test --workspace`.
+
+Pages updated: wiki/decisions/skill-projection-template-engine.decision.md,
+wiki/plans/skill-projection-template-engine.plan.md,
+wiki/proposals/skills-template-engine.proposal.md,
+wiki/checklists/v1-fixture-smoke.checklist.md, wiki/index.md, wiki/log.md
+
+## [2026-05-09] eval | D4-D7 framework proof run
+
+Filed the D4-D7 proof evidence as `wiki/evals/v1-proof-run.eval.md`.
+The proof records durable query knowledge, a spawned web-product temp project,
+a 50-page index-first scale check, and two distinct self-replicating temp
+projects (`web-product` and `ml-research`) bootstrapped through `llm-wiki init`
+and agent-owned wiki ingest.
+
+Pages updated: wiki/evals/v1-proof-run.eval.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
+
+## [2026-05-09] fix | post-rename stale references before commit
+
+Aligned remaining current-truth product references before committing the D11
+rename and follow-on work. Updated the Cargo metadata and README release
+installer URL to the `llm-wiki-rs` repository name, and replaced stale
+`knowledge-query` / `llm-wiki-framework` examples in the completed D9 registry
+and search plan with `wiki-query` / `llm-wiki-rs`.
+
+Verification: `git diff --check`; `cargo test -p llm-wiki-schema`.
 
 Pages updated: wiki/plans/project-registry-search-artifacts.plan.md,
 wiki/log.md

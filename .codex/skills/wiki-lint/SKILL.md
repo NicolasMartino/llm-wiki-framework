@@ -1,0 +1,45 @@
+---
+name: wiki-lint
+description: Run a lint pass on an LLM Wiki project. Use when Codex is asked to lint the wiki, scan for contradictions, stale claims, orphan pages, missing cross-references, or fix wiki bookkeeping issues directly.
+---
+
+# Wiki Lint
+
+## Purpose
+
+Run a lint pass over the current project's wiki and fix real bookkeeping
+problems directly.
+
+## Behavior
+
+1. Require `wiki/index.md` in the current working directory. If it is missing,
+   tell the user the project has not been initialized with the LLM Wiki
+   framework.
+2. Before changing anything, read `wiki/index.md`, `project_guidelines.md`
+   when present, and the relevant wiki pages implicated by candidate issues.
+3. Look for contradictions between wiki pages, stale statuses or claims,
+   orphan pages not linked from `wiki/index.md`, missing cross-references
+   between related pages, and index entries that are missing, wrong, or stale.
+4. Read the minimum set of pages needed to confirm each issue.
+5. If an issue is clear and mechanical, fix it directly. If pages make
+   conflicting substantive claims and the correct answer is not documented
+   anywhere, stop and ask the user to resolve the conflict.
+6. Update `wiki/index.md` when the catalog needs correction.
+7. Append a `lint` entry to `wiki/log.md` listing issues found, pages updated,
+   and outstanding questions.
+
+## Invocation
+
+Use normal language or an explicit skill invocation:
+
+- `$wiki-lint lint the wiki`
+- `$wiki-lint scan for stale statuses`
+
+Dispatcher aliases:
+- `$wiki lint`
+
+
+## Notes
+
+Prefer narrow edits over broad rewrites. Report residual risk or unanswered
+conflicts clearly.

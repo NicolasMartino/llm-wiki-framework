@@ -1,4 +1,6 @@
-use llm_wiki_schema::{ClaudeProjector, CodexProjector, Projector, Runtime, parse};
+use llm_wiki_schema::{
+    ClaudeProjector, CodexProjector, CodexRuntimeConfig, Projector, Runtime, parse,
+};
 
 struct SkillFixture {
     name: &'static str,
@@ -8,45 +10,45 @@ struct SkillFixture {
 
 const SKILLS: &[SkillFixture] = &[
     SkillFixture {
-        name: "knowledge-init",
-        skill_md: include_str!("../../../assets/skills/knowledge-init/SKILL.md"),
+        name: "wiki-init",
+        skill_md: include_str!("../../../assets/skills/wiki-init/SKILL.md"),
         codex_config: Some(include_str!(
-            "../../../assets/skills/knowledge-init/codex/openai.yaml"
+            "../../../assets/skills/wiki-init/codex/openai.yaml"
         )),
     },
     SkillFixture {
-        name: "knowledge-query",
-        skill_md: include_str!("../../../assets/skills/knowledge-query/SKILL.md"),
+        name: "wiki-query",
+        skill_md: include_str!("../../../assets/skills/wiki-query/SKILL.md"),
         codex_config: Some(include_str!(
-            "../../../assets/skills/knowledge-query/codex/openai.yaml"
+            "../../../assets/skills/wiki-query/codex/openai.yaml"
         )),
     },
     SkillFixture {
-        name: "knowledge-ingest",
-        skill_md: include_str!("../../../assets/skills/knowledge-ingest/SKILL.md"),
+        name: "wiki-ingest",
+        skill_md: include_str!("../../../assets/skills/wiki-ingest/SKILL.md"),
         codex_config: Some(include_str!(
-            "../../../assets/skills/knowledge-ingest/codex/openai.yaml"
+            "../../../assets/skills/wiki-ingest/codex/openai.yaml"
         )),
     },
     SkillFixture {
-        name: "knowledge-research",
-        skill_md: include_str!("../../../assets/skills/knowledge-research/SKILL.md"),
+        name: "wiki-research",
+        skill_md: include_str!("../../../assets/skills/wiki-research/SKILL.md"),
         codex_config: Some(include_str!(
-            "../../../assets/skills/knowledge-research/codex/openai.yaml"
+            "../../../assets/skills/wiki-research/codex/openai.yaml"
         )),
     },
     SkillFixture {
-        name: "knowledge-lint",
-        skill_md: include_str!("../../../assets/skills/knowledge-lint/SKILL.md"),
+        name: "wiki-lint",
+        skill_md: include_str!("../../../assets/skills/wiki-lint/SKILL.md"),
         codex_config: Some(include_str!(
-            "../../../assets/skills/knowledge-lint/codex/openai.yaml"
+            "../../../assets/skills/wiki-lint/codex/openai.yaml"
         )),
     },
     SkillFixture {
-        name: "knowledge",
-        skill_md: include_str!("../../../assets/skills/knowledge/SKILL.md"),
+        name: "wiki",
+        skill_md: include_str!("../../../assets/skills/wiki/SKILL.md"),
         codex_config: Some(include_str!(
-            "../../../assets/skills/knowledge/codex/openai.yaml"
+            "../../../assets/skills/wiki/codex/openai.yaml"
         )),
     },
 ];
@@ -64,11 +66,12 @@ fn real_skills_project_to_snapshots() {
         }
 
         if doc.frontmatter.runtimes.contains(&Runtime::Codex) {
-            let rendered = CodexProjector::with_runtime_config_template(
-                fixture.codex_config.expect("codex config"),
-            )
-            .project(&doc)
-            .expect("codex projection");
+            let runtime_config =
+                CodexRuntimeConfig::from_yaml(fixture.codex_config.expect("codex config"))
+                    .expect("codex config parses");
+            let rendered = CodexProjector::with_runtime_config(runtime_config)
+                .project(&doc)
+                .expect("codex projection");
             let mut snapshot = rendered.skill_md;
             snapshot.push_str("\n--- agents/openai.yaml ---\n");
             snapshot.push_str(rendered.runtime_config.as_deref().expect("runtime config"));

@@ -1,12 +1,12 @@
 # Plan: Project and Skill Rename
 
 - Document Class: Plan
-- Status: Draft
+- Status: Completed
 - Date: 2026-05-08
 - Category: Branding, naming, migration
 - Scope: Execute D11: the rename from `llm-wiki-framework` to `llm-wiki-rs` and from `knowledge*` skills to `wiki-*`, while handling the small set of legacy symlinked repos through a one-off migration that is explicitly outside the framework's long-term architecture.
 - Sources: wiki/proposals/project-and-skill-rename.proposal.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/decisions/composable-project-init.decision.md, live local skill-symlink inspection under `~/.claude/skills/` and `~/.codex/skills/` on 2026-05-08
-- Related: wiki/roadmaps/framework-v1.roadmap.md, wiki/specs/knowledge-init-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-research-skill.spec.md, wiki/specs/knowledge-lint-skill.spec.md
+- Related: wiki/roadmaps/framework-v1.roadmap.md, wiki/specs/wiki-init-skill.spec.md, wiki/specs/wiki-query-skill.spec.md, wiki/specs/wiki-ingest-skill.spec.md, wiki/specs/wiki-research-skill.spec.md, wiki/specs/wiki-lint-skill.spec.md
 
 ## Deliverable
 
@@ -26,8 +26,8 @@ the existing home-level skill symlinks under `~/.claude/skills/` and
 
 ## Current Legacy Inventory
 
-The live state inspected on 2026-05-08 matters because the migration target is
-not hypothetical:
+The live state inspected on 2026-05-08 established the migration target, and
+the final migrated state was verified on 2026-05-09:
 
 1. `~/.claude` and `~/.codex` themselves are real directories, not symlinks.
    The legacy linkage lives at the skill-directory level.
@@ -37,38 +37,39 @@ not hypothetical:
 3. `~/.codex/skills/` currently contains symlinks for:
    `init-project`, `knowledge`, `knowledge-ingest`, `knowledge-lint`,
    `knowledge-query`, `knowledge-research`.
-4. Those `knowledge*` symlinks point into this repo's current in-repo runtime
-   mirrors under `.claude/skills/` and `.codex/skills/`.
+4. Before migration, those `knowledge*` symlinks pointed into this repo's
+   current in-repo runtime mirrors under `.claude/skills/` and
+   `.codex/skills/`.
 5. `~/.codex/skills/knlg` separately points at
    `/Users/nicolasmartino/Documents/local_llm_wiki/es_llm_wiki/.codex/skills/knlg`.
    That link is not part of this rename and should be left alone.
+6. Final migrated state: the known legacy symlinks now point at frozen
+   `.claude.legacy/skills/...` and `.codex.legacy/skills/...` trees in this
+   repo, while the active `wiki*` runtime mirrors remain under `.claude/` and
+   `.codex/`.
 
 ## Runtime Proof Status
 
-Proof work is split into what can be verified now and what is blocked until the
-rename implementation exists.
+The framework-side rename proof landed first. The one-off legacy migration is
+now complete.
 
-### Verified Now
+### Verified
 
 1. Filesystem separator pre-flight on this macOS host accepts both `wiki-*`
    and `wiki:*` directory names under `/private/tmp/llm-wiki-rename-proof/`.
    This keeps `wiki-*` as the preferred portable form but confirms `wiki:*`
    is not rejected immediately on the current machine.
-2. Baseline `cargo build` and `cargo test --workspace` are green on the
+2. Baseline `cargo build` and `cargo test --workspace` were green on the
    pre-rename branch.
-3. Live symlink topology is now documented precisely enough to execute the
-   one-off migration without guessing.
+3. Post-rename framework work landed: active `wiki-*` specs exist, the runtime
+   mirrors were regenerated, and the rename is recorded in `wiki/log.md`.
+4. Live home-level legacy symlink topology is documented precisely enough to
+   execute the one-off migration without guessing.
 
-### Still Blocked Until Rename Code Exists
-
-1. `llm-wiki install` emitting `wiki/`, `wiki-init/`, `wiki-query/`, and the
-   rest under `~/.claude/skills/` and `~/.codex/skills/`
-2. Runtime discovery in Claude and Codex under the new names
-3. Direct invocation of `wiki-init`, `wiki-query`, and `wiki-lint`
-4. `llm-wiki uninstall` removing the renamed install set with no orphans
-
-Do not perform the one-off legacy symlink repoint until these renamed-surface
-checks pass on the new code.
+5. The home-level legacy symlinks under `~/.claude/skills/` and
+   `~/.codex/skills/` were repointed on 2026-05-09 to frozen
+   `.claude.legacy/` / `.codex.legacy/` trees in this repo.
+6. `~/.codex/skills/knlg` was left untouched.
 
 ## In Scope
 
@@ -178,9 +179,9 @@ This phase is deliberately not product behavior.
 ## Pages To Update On Completion
 
 - `wiki/proposals/project-and-skill-rename.proposal.md`
-- `wiki/decisions/knowledge-command-namespace.decision.md`
-- `wiki/specs/knowledge-init-skill.spec.md` and the active `knowledge-*-skill`
-  spec family, renamed to `wiki-*-skill`
+- `wiki/archive/knowledge-command-namespace.decision.md`
+- `wiki/specs/wiki-init-skill.spec.md` and the active `wiki-*-skill`
+  spec family
 - `wiki/decisions/llm-wiki-binary-distribution.decision.md` if wording still
   names the old surface as current truth
 - `wiki/index.md`
@@ -189,6 +190,6 @@ This phase is deliberately not product behavior.
 ## What Closes The Plan
 
 The plan closes when the product emits only the renamed `wiki-*` surface, the
-active docs agree, the new runtime proof passes, and the few legacy local repos
-have been moved onto frozen `.claude.legacy/` / `.codex.legacy/` trees without
-teaching the framework to care about them.
+active docs agree, the new runtime proof passes, and the known home-level
+legacy symlinks have been moved onto frozen `.claude.legacy/` /
+`.codex.legacy/` trees without teaching the framework to care about them.

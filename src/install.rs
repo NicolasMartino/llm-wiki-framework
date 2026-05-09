@@ -514,8 +514,9 @@ fn render_install_files(paths: &Paths) -> Result<Vec<InstallFile>> {
             ));
         }
         if doc.frontmatter.runtimes.contains(&Runtime::Codex) {
-            let rendered =
-                CodexProjector::with_runtime_config_template(asset.codex_openai).project(&doc)?;
+            let runtime_config = llm_wiki_schema::CodexRuntimeConfig::from_yaml(asset.codex_openai)
+                .with_context(|| format!("failed to parse {} Codex runtime config", asset.name))?;
+            let rendered = CodexProjector::with_runtime_config(runtime_config).project(&doc)?;
             files.push(InstallFile::new(
                 paths.codex_skill(asset.name),
                 asset.name,

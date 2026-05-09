@@ -32,7 +32,7 @@ fn status_reports_drift() {
     let home = TempDir::new().expect("home");
     llm_wiki(home.path()).arg("install").assert().success();
     fs::write(
-        home.path().join(".claude/skills/knowledge-init/SKILL.md"),
+        home.path().join(".claude/skills/wiki-init/SKILL.md"),
         "tampered",
     )
     .expect("write");
@@ -48,13 +48,13 @@ fn status_reports_drift() {
 fn doctor_reports_missing_and_unknown_files() {
     let home = TempDir::new().expect("home");
     llm_wiki(home.path()).arg("install").assert().success();
-    fs::remove_file(home.path().join(".claude/skills/knowledge-init/SKILL.md")).expect("remove");
+    fs::remove_file(home.path().join(".claude/skills/wiki-init/SKILL.md")).expect("remove");
     fs::write(
-        home.path().join(".claude/skills/knowledge-query/SKILL.md"),
+        home.path().join(".claude/skills/wiki-query/SKILL.md"),
         "tampered",
     )
     .expect("write");
-    let unknown = home.path().join(".claude/skills/knowledge-lint/SKILL.md");
+    let unknown = home.path().join(".claude/skills/wiki-lint/SKILL.md");
     fs::remove_file(&unknown).expect("remove");
     let manifest = home.path().join(".llm_wiki/manifest.json");
     fs::remove_file(manifest).expect("remove manifest");
@@ -82,7 +82,7 @@ fn path_command_prints_guidance_without_installing() {
     assert!(
         !home
             .path()
-            .join(".claude/skills/knowledge-init/SKILL.md")
+            .join(".claude/skills/wiki-init/SKILL.md")
             .exists()
     );
 }
@@ -174,10 +174,10 @@ fn doctor_reports_legacy_symlink() {
     use std::os::unix::fs::symlink;
 
     let home = TempDir::new().expect("home");
-    let path = home.path().join(".codex/skills/knowledge-init/SKILL.md");
+    let path = home.path().join(".codex/skills/wiki-init/SKILL.md");
     fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
     symlink(
-        "/tmp/software_project_management/.codex/skills/knowledge-init/SKILL.md",
+        "/tmp/software_project_management/.codex/skills/wiki-init/SKILL.md",
         &path,
     )
     .expect("symlink");
@@ -195,10 +195,10 @@ fn doctor_legacy_symlink_marker_can_be_overridden() {
     use std::os::unix::fs::symlink;
 
     let home = TempDir::new().expect("home");
-    let path = home.path().join(".codex/skills/knowledge-init/SKILL.md");
+    let path = home.path().join(".codex/skills/wiki-init/SKILL.md");
     fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
     symlink(
-        "/tmp/custom_legacy_repo/.codex/skills/knowledge-init/SKILL.md",
+        "/tmp/custom_legacy_repo/.codex/skills/wiki-init/SKILL.md",
         &path,
     )
     .expect("symlink");

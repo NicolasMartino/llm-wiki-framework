@@ -2,13 +2,11 @@
 
 - Document Class: Spec
 - Status: Active
-- Date: 2026-05-07
+- Date: 2026-05-08
 - Category: Framework core
 - Scope: The validated documentation and execution model for projects using this framework.
-- Sources: raw/legacy/legacy-project-guidelines.md, raw/research/llm-wiki-pattern-research.md, raw/research/qmd-search-engine.md, raw/research/niharshrotri-llm-wiki-implementation.md, wiki/plans/project-registry-search-artifacts.plan.md
-- Related: wiki/decisions/three-layer-architecture.decision.md, wiki/decisions/agent-owns-wiki.decision.md, wiki/decisions/typed-documents.decision.md, wiki/references/qmd-search-engine.reference.md, wiki/decisions/search-backend-selection.decision.md
 - Sources: raw/legacy/legacy-project-guidelines.md, raw/research/llm-wiki-pattern-research.md, raw/research/qmd-search-engine.md, raw/research/niharshrotri-llm-wiki-implementation.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/decisions/composable-project-init.decision.md
-- Related: wiki/decisions/three-layer-architecture.decision.md, wiki/decisions/agent-owns-wiki.decision.md, wiki/decisions/typed-documents.decision.md, wiki/references/qmd-search-engine.reference.md, wiki/decisions/search-backend-selection.decision.md, wiki/specs/knowledge-init-skill.spec.md
+- Related: wiki/decisions/three-layer-architecture.decision.md, wiki/decisions/agent-owns-wiki.decision.md, wiki/decisions/typed-documents.decision.md, wiki/references/qmd-search-engine.reference.md, wiki/decisions/search-backend-selection.decision.md, wiki/specs/wiki-init-skill.spec.md
 
 ## Current State
 
@@ -45,8 +43,8 @@ Three core operations:
 2. **Query** - answer questions using the wiki, file durable answers back
 3. **Lint** - scan for contradictions, stale content, orphans; fix directly
 
-In Codex, lint can be exposed through a dedicated skill (`knowledge-lint`) or
-through the dispatcher alias `$knowledge lint`.
+In Codex, lint can be exposed through a dedicated skill (`wiki-lint`) or
+through the dispatcher alias `$wiki lint`.
 
 Research is a supporting acquisition step, not a fourth core mutation
 operation. Research gathers candidate material into `raw/`, then ingest

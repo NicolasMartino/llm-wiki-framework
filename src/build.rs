@@ -2,7 +2,9 @@ use std::fs;
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use llm_wiki_schema::{ClaudeProjector, CodexProjector, Projector, Runtime, parse};
+use llm_wiki_schema::{
+    ClaudeProjector, CodexProjector, CodexRuntimeConfig, Projector, Runtime, parse,
+};
 
 use crate::cli::{BuildArgs, BuildTarget};
 use crate::embed;
@@ -33,7 +35,9 @@ pub fn run(args: &BuildArgs) -> Result<()> {
         if matches!(args.target, BuildTarget::Codex | BuildTarget::Both)
             && doc.frontmatter.runtimes.contains(&Runtime::Codex)
         {
-            let rendered = CodexProjector::with_runtime_config_template(asset.codex_openai)
+            let runtime_config = CodexRuntimeConfig::from_yaml(asset.codex_openai)
+                .with_context(|| format!("failed to parse {} Codex runtime config", asset.name))?;
+            let rendered = CodexProjector::with_runtime_config(runtime_config)
                 .project(&doc)
                 .with_context(|| format!("failed to render {} for Codex", asset.name))?;
             let skill_dir = args.out.join(".codex/skills").join(asset.name);

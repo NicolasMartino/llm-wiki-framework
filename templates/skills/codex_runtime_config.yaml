@@ -1,0 +1,4 @@
+interface:
+  display_name: {{ self.display_name_yaml() }}
+  short_description: {{ self.short_description_yaml() }}
+  default_prompt: {{ self.default_prompt_yaml() }}

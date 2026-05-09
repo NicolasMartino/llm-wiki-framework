@@ -2,12 +2,12 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 const SKILLS: &[&str] = &[
-    "knowledge-init",
-    "knowledge-query",
-    "knowledge-ingest",
-    "knowledge-research",
-    "knowledge-lint",
-    "knowledge",
+    "wiki-init",
+    "wiki-query",
+    "wiki-ingest",
+    "wiki-research",
+    "wiki-lint",
+    "wiki",
 ];
 
 fn main() {

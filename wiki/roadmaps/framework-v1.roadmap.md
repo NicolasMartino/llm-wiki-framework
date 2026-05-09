@@ -127,10 +127,10 @@ Unlocks:
 
 ### D4 - Query Produces Durable Knowledge
 
-Status: Draft
+Status: Completed
 Promise: A non-trivial question is asked, the agent answers from wiki content, and the answer is valuable enough to file as a new wiki page.
 Depends On: D2
-Execution Plan: Not created yet
+Execution Plan: wiki/evals/v1-proof-run.eval.md
 
 Included:
 - A real question that requires synthesizing multiple wiki pages
@@ -146,6 +146,8 @@ Proof:
 - New wiki page exists from a query answer
 - Page cites multiple existing wiki pages
 - wiki/index.md includes the new page
+- Captured in wiki/evals/v1-proof-run.eval.md after the "what's left to do?"
+  query produced durable implementation and proof knowledge.
 
 Promotion Target:
 - wiki/specs/documentation-model.spec.md (update query as proven)
@@ -157,13 +159,13 @@ Unlocks:
 
 ### D5 - Framework Spawns a New Project
 
-Status: Draft
-Promise: The `knowledge-init` skill creates a new project end-to-end. A fresh agent in the new repo, with only the generated project_guidelines.md and CLAUDE.md, bootstraps a self-managing wiki and is immediately productive.
+Status: Completed
+Promise: The `wiki-init` skill creates a new project end-to-end. A fresh agent in the new repo, with only the generated project_guidelines.md and CLAUDE.md, bootstraps a self-managing wiki and is immediately productive.
 Depends On: D2, D3, D4
-Execution Plan: Not created yet
+Execution Plan: wiki/evals/v1-proof-run.eval.md
 
 Included:
-- Run `knowledge-init` on a real project
+- Run `wiki-init` on a real project
 - Skill asks questions, generates tailored guidelines and CLAUDE.md
 - Scaffolds raw/ + wiki/ with correct profile (ML_AI, QMD flags)
 - Agent in the new project ingests first raw sources
@@ -177,6 +179,9 @@ Proof:
 - New project has a navigable wiki after bootstrap
 - Agent can answer a domain question from the wiki
 - No human edited wiki/ directly
+- Proven with `/private/tmp/llm-wiki-proof-web-product`, which was initialized
+  with `llm-wiki init`, ingested its initial raw source, and answered its first
+  domain question from typed wiki pages.
 
 Promotion Target:
 - wiki/specs/documentation-model.spec.md (update portability as proven)
@@ -188,10 +193,10 @@ Unlocks:
 
 ### D6 - Scale Test
 
-Status: Draft
+Status: Completed
 Promise: The wiki handles 50+ pages across multiple document types without degrading agent navigation. Index remains usable.
 Depends On: D5
-Execution Plan: Not created yet
+Execution Plan: wiki/evals/v1-proof-run.eval.md
 
 Included:
 - A project with 50+ wiki pages
@@ -208,6 +213,8 @@ Proof:
 - Agent answers 10 questions correctly using only index navigation
 - Index token count measured and recorded
 - If sub-indexes needed: implemented and working
+- Proven against the current 50-page project wiki. The index remained compact
+  enough for first-pass navigation, so sub-indexes were not needed.
 
 Promotion Target:
 - wiki/specs/documentation-model.spec.md (update scale characteristics)
@@ -219,10 +226,10 @@ Unlocks:
 
 ### D7 - Self-Replicating Framework
 
-Status: Draft
+Status: Completed
 Promise: The framework is packaged so that creating a new self-managing project is a single operation: point the agent at a domain, provide initial raw sources, and the agent produces a working wiki.
 Depends On: D5, D6
-Execution Plan: Not created yet
+Execution Plan: wiki/evals/v1-proof-run.eval.md
 
 Included:
 - Template CLAUDE.md and project_guidelines.md
@@ -238,6 +245,8 @@ Proof:
 - Two distinct projects bootstrapped by agents using the framework
 - Both projects have navigable wikis
 - Neither required human editing of wiki/
+- Proven with `/private/tmp/llm-wiki-proof-web-product` (`web-product`) and
+  `/private/tmp/llm-wiki-proof-ml-research` (`ml-research`).
 
 Promotion Target:
 - wiki/specs/documentation-model.spec.md (framework is proven self-replicating)
@@ -285,8 +294,8 @@ Proof:
 
 Promotion Target:
 - wiki/specs/documentation-model.spec.md (distribution model recorded as proven)
-- wiki/specs/knowledge-init-skill.spec.md (binary as the authority for scaffolding; agent retains intake)
-- wiki/specs/knowledge-*-skill.spec.md (canonical source location updated to `skills/<name>/SKILL.md`)
+- wiki/specs/wiki-init-skill.spec.md (binary as the authority for scaffolding; agent retains intake)
+- wiki/specs/wiki-*-skill.spec.md (canonical source location updated to `skills/<name>/SKILL.md`)
 - wiki/decisions/llm-wiki-binary-distribution.decision.md (already accepted; status confirmed as proven)
 
 Unlocks:
@@ -327,7 +336,8 @@ Included:
 - `llm-wiki path` for PATH guidance without reinstalling skills.
 - `doctor` reports managed binary drift, stale transaction state, and PATH
   visibility as convenience status.
-- `knowledge-init` is the initialization skill name before public release.
+- `wiki-init` is the initialization skill name before public release (renamed
+  from `knowledge-init` by D11).
 
 Excluded:
 - Silent shell profile edits.
@@ -346,9 +356,8 @@ Proof:
 Promotion Target:
 - wiki/specs/documentation-model.spec.md (managed runtime home and manifest v2
   recorded as validated distribution behavior)
-- wiki/specs/knowledge-init-skill.spec.md (replaced or superseded by
-  `knowledge-init` once implementation lands)
-- wiki/specs/knowledge-*-skill.spec.md if dispatcher or installed-path behavior
+- wiki/specs/wiki-init-skill.spec.md (replaced or superseded once implementation lands)
+- wiki/specs/wiki-*-skill.spec.md if dispatcher or installed-path behavior
   changes
 
 Unlocks:
@@ -381,7 +390,7 @@ Included:
 
 Excluded:
 - Answer synthesis or a `query` command.
-- Automatic `search-all` use by `knowledge-query`.
+- Automatic `search-all` use by `wiki-query`.
 - Indexing `raw/` by default.
 - Automatic semantic model downloads.
 
@@ -417,7 +426,7 @@ Promotion Target:
 Unlocks:
 - Framework-owned search at scale without asking agents to manage external QMD
   indexes manually.
-- Later explicit `knowledge-query` scope expansion for registered
+- Later explicit `wiki-query` scope expansion for registered
   cross-project search.
 
 ---
@@ -479,7 +488,7 @@ Proof:
   it back into the same enum values.
 
 Promotion Target:
-- wiki/specs/knowledge-init-skill.spec.md (new flow, two-step prompts, flag
+- wiki/specs/wiki-init-skill.spec.md (new flow, two-step prompts, flag
   surface).
 - wiki/specs/documentation-model.spec.md (composable init replacing the static
   template description, if the spec currently leans on it).
@@ -494,7 +503,7 @@ Unlocks:
 
 ### D11 - Project and Skill Rename
 
-Status: Draft
+Status: Completed
 Promise: The framework's user-facing product surface is renamed coherently:
 the Cargo package becomes `llm-wiki-rs`, canonical skills and installed runtime
 surfaces move from `knowledge*` to `wiki-*`, active documentation matches the
@@ -527,12 +536,15 @@ Proof:
 - Claude and Codex expose and invoke the renamed commands successfully.
 - Active documentation no longer describes `knowledge*` or
   `llm-wiki-framework` as current truth.
-- Legacy local repos run from frozen `.claude.legacy/` / `.codex.legacy/`
-  trees without teaching the framework to preserve them.
+- The one-off local legacy migration is recorded in `wiki/log.md`, and the
+  affected home-level `knowledge*` symlinks now target frozen
+  `.claude.legacy/` / `.codex.legacy/` trees instead of this repo's live
+  `.claude/skills/` / `.codex/skills/` trees.
 
 Promotion Target:
-- wiki/decisions/knowledge-command-namespace.decision.md (superseded by a new
-  rename decision or equivalent accepted active-doc state).
+- wiki/archive/knowledge-command-namespace.decision.md is now archived as
+  superseded; the active namespace is documented in the renamed `wiki-*`
+  skill specs and the dispatcher canonical at `assets/skills/wiki/SKILL.md`.
 
 Unlocks:
 - Clean post-rename baseline for future public-facing documentation and any

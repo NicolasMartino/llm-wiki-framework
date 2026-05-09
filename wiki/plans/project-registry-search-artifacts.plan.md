@@ -44,7 +44,7 @@ and cross-project retrieval is explicit through `search-all`.
 ## Out Of Scope
 
 - Answer synthesis or a `query` command.
-- Automatic use of `search-all` by `knowledge-query`.
+- Automatic use of `search-all` by `wiki-query`.
 - Indexing `raw/` by default.
 - Semantic/hybrid model downloads or automatic model setup.
 - Direct SQLite FTS5 fallback implementation unless the documented fallback
@@ -81,7 +81,7 @@ Initial schema:
   "version": 1,
   "projects": [
     {
-      "id": "llm-wiki-framework",
+      "id": "llm-wiki-rs",
       "name": "LLM Wiki Framework",
       "root": "/absolute/project/root",
       "wiki_path": "wiki",
@@ -395,7 +395,7 @@ When implemented and verified:
   details.
 - Update `wiki/evals/search-backend-selection.eval.md` with user-visible
   command replay if it changes measured behavior.
-- Decide whether `knowledge-query` should mention `search-all` as explicit
+- Decide whether `wiki-query` should mention `search-all` as explicit
   user-requested scope expansion. Do not make it automatic.
 
 ## Implementation Result

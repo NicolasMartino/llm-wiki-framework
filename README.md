@@ -9,7 +9,7 @@ knowledge.
 Install the binary from a release, then install the framework skills globally:
 
 ```bash
-curl -L https://github.com/nicolasmartino/llm-wiki-framework/releases/latest/download/llm-wiki-installer.sh | sh
+curl -L https://github.com/nicolasmartino/llm-wiki-rs/releases/latest/download/llm-wiki-installer.sh | sh
 llm-wiki install
 ```
 
@@ -17,7 +17,7 @@ Users with a Rust toolchain can install from crates.io after the package is
 published:
 
 ```bash
-cargo install llm-wiki-framework
+cargo install llm-wiki-rs
 llm-wiki install
 ```
 

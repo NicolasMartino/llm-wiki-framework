@@ -1,0 +1,4 @@
+interface:
+  display_name: "Wiki Research"
+  short_description: "Gather and save sources into raw/ before ingest."
+  default_prompt: "Use $wiki-research to gather sources from docs.example.com about authentication."

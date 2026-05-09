@@ -418,7 +418,11 @@ fn search_all_warnings_are_structured_per_project() {
     assert_eq!(warnings.len(), 4);
     for warning in warnings {
         assert!(warning["project_id"].is_string());
-        assert!(warning["message"].as_str().is_some_and(|msg| msg.contains("search index stale")));
+        assert!(
+            warning["message"]
+                .as_str()
+                .is_some_and(|msg| msg.contains("search index stale"))
+        );
     }
 }
 
@@ -546,7 +550,13 @@ fn cross_process_index_lock_is_exclusive() {
     let first_output = first.wait_with_output().expect("first output");
 
     let outputs = [first_output, second_output];
-    assert_eq!(outputs.iter().filter(|output| output.status.success()).count(), 1);
+    assert_eq!(
+        outputs
+            .iter()
+            .filter(|output| output.status.success())
+            .count(),
+        1
+    );
     assert!(outputs.iter().any(|output| {
         String::from_utf8_lossy(&output.stderr).contains("project index is already locked")
     }));

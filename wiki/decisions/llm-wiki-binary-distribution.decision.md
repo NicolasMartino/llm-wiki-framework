@@ -6,7 +6,7 @@
 - Category: Tooling, framework distribution
 - Scope: Distribute the framework as a single Rust binary (`llm-wiki`) that owns global skill installation, project scaffolding, and skill projection from canonical markdown.
 - Sources: wiki/proposals/llm-wiki-binary.proposal.md, wiki/archive/single-source-skills.decision.md, wiki/archive/framework-path-resolution.decision.md, wiki/archive/project-local-codex-skills.decision.md, review.md §9-10, wiki/log.md (line-loss audit, 2026-05-06)
-- Related: wiki/roadmaps/framework-v1.roadmap.md (D8, D8.1), wiki/specs/knowledge-init-skill.spec.md, wiki/specs/documentation-model.spec.md, wiki/decisions/binary-path-bootstrap.decision.md
+- Related: wiki/roadmaps/framework-v1.roadmap.md (D8, D8.1, D11), wiki/specs/wiki-init-skill.spec.md, wiki/specs/documentation-model.spec.md, wiki/decisions/binary-path-bootstrap.decision.md
 - Supersedes: wiki/archive/single-source-skills.decision.md, wiki/archive/framework-path-resolution.decision.md, wiki/archive/project-local-codex-skills.decision.md, wiki/archive/single-source-skills.plan.md
 - Amended By: wiki/decisions/binary-path-bootstrap.decision.md
 
@@ -20,7 +20,7 @@ The framework is distributed as a single Rust binary, `llm-wiki`. The binary own
 4. **State diagnostics**: `llm-wiki status` and `llm-wiki doctor` read the manifest plus filesystem to report install state, drift, and pre-binary symlink breakage.
 5. **Removal**: `llm-wiki uninstall` deletes only manifest-owned files in reverse install order.
 
-Distribution: multi-arch prebuilt binaries via `cargo-dist` on GitHub Releases (macOS arm64, macOS x86_64, Linux x86_64, Linux arm64), plus `cargo install llm-wiki-framework` for users with a Rust toolchain.
+Distribution: multi-arch prebuilt binaries via `cargo-dist` on GitHub Releases (macOS arm64, macOS x86_64, Linux x86_64, Linux arm64), plus `cargo install llm-wiki-rs` for users with a Rust toolchain.
 
 Versioning follows the `git` model: one global install, the framework guarantees backward compatibility with older `wiki/` shapes (precisely defined in the accepted proposal), no per-project version pinning. Compat fixtures committed under `tests/fixtures/wikis/` lock the promise.
 
@@ -59,9 +59,10 @@ The binary is now the operating model:
   ownership manifest. D8.1 moves runtime install state into `~/.llm_wiki/` so
   installed skills do not depend on shell `PATH`. No symlinks are required.
 - `llm-wiki init <path>` owns deterministic Create-mode scaffolding.
-- The `knowledge-init` skill is a thin conversational wrapper over
+- The `wiki-init` skill is a thin conversational wrapper over
   `llm-wiki init --non-interactive`; the pre-release `init-project` name was
-  corrected by D8.1 before public release.
+  corrected by D8.1, and the `knowledge-init` name was renamed to `wiki-init`
+  by D11 before public release.
 - Spawned projects need no framework skill directories. Users install skills
   globally once, then scaffold each project with the binary.
 - `wiki/checklists/v1-fixture-smoke.checklist.md` captures the agent-driven

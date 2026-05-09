@@ -24,4 +24,6 @@ pub enum ProjectError {
         skill: String,
         runtime: TargetRuntime,
     },
+    #[error("failed to render skill: {0}")]
+    Render(String),
 }

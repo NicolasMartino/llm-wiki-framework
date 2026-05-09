@@ -111,8 +111,9 @@ pub fn forget(args: &ForgetArgs) -> Result<()> {
     if args.delete_cache {
         let cache_dir = paths.project_index_dir(&removed.id);
         if cache_dir.exists() {
-            let canonical_cache_home = fs::canonicalize(paths.cache_home())
-                .with_context(|| format!("canonicalize cache home {}", paths.cache_home().display()))?;
+            let canonical_cache_home = fs::canonicalize(paths.cache_home()).with_context(|| {
+                format!("canonicalize cache home {}", paths.cache_home().display())
+            })?;
             let canonical_cache_dir = fs::canonicalize(&cache_dir)
                 .with_context(|| format!("canonicalize search cache {}", cache_dir.display()))?;
             if !canonical_cache_dir.starts_with(&canonical_cache_home) {
@@ -385,14 +386,11 @@ impl ProjectRegistry {
             });
         }
 
-        let requested_id = request
-            .id
-            .clone()
-            .unwrap_or_else(|| {
-                let base = base_project_id(&request);
-                debug_assert!(validate_project_id(&base).is_ok());
-                self.available_id(&base)
-            });
+        let requested_id = request.id.clone().unwrap_or_else(|| {
+            let base = base_project_id(&request);
+            debug_assert!(validate_project_id(&base).is_ok());
+            self.available_id(&base)
+        });
         validate_project_id(&requested_id)?;
         if self
             .projects
@@ -533,10 +531,16 @@ fn validate_registered_root(root: &Path) -> Result<()> {
 fn validate_registered_wiki_path(path: &Path) -> Result<()> {
     let mut components = path.components();
     let Some(Component::Normal(_)) = components.next() else {
-        bail!("wiki path {} must be a single relative component", path.display());
+        bail!(
+            "wiki path {} must be a single relative component",
+            path.display()
+        );
     };
     if components.next().is_some() {
-        bail!("wiki path {} must be a single relative component", path.display());
+        bail!(
+            "wiki path {} must be a single relative component",
+            path.display()
+        );
     }
     Ok(())
 }
@@ -572,7 +576,10 @@ fn resolve_register_root(
 }
 
 fn unique_temp_path(path: &Path, suffix: &str) -> PathBuf {
-    let file_name = path.file_name().and_then(|value| value.to_str()).unwrap_or("projects");
+    let file_name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or("projects");
     path.with_file_name(format!(
         "{file_name}.{suffix}.{}-{}",
         process::id(),

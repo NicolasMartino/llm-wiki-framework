@@ -6,33 +6,33 @@ pub struct SkillAsset {
 
 pub const SKILLS: &[SkillAsset] = &[
     SkillAsset {
-        name: "knowledge-init",
-        skill_md: include_str!("../assets/skills/knowledge-init/SKILL.md"),
-        codex_openai: include_str!("../assets/skills/knowledge-init/codex/openai.yaml"),
+        name: "wiki-init",
+        skill_md: include_str!("../assets/skills/wiki-init/SKILL.md"),
+        codex_openai: include_str!("../assets/skills/wiki-init/codex/openai.yaml"),
     },
     SkillAsset {
-        name: "knowledge-query",
-        skill_md: include_str!("../assets/skills/knowledge-query/SKILL.md"),
-        codex_openai: include_str!("../assets/skills/knowledge-query/codex/openai.yaml"),
+        name: "wiki-query",
+        skill_md: include_str!("../assets/skills/wiki-query/SKILL.md"),
+        codex_openai: include_str!("../assets/skills/wiki-query/codex/openai.yaml"),
     },
     SkillAsset {
-        name: "knowledge-ingest",
-        skill_md: include_str!("../assets/skills/knowledge-ingest/SKILL.md"),
-        codex_openai: include_str!("../assets/skills/knowledge-ingest/codex/openai.yaml"),
+        name: "wiki-ingest",
+        skill_md: include_str!("../assets/skills/wiki-ingest/SKILL.md"),
+        codex_openai: include_str!("../assets/skills/wiki-ingest/codex/openai.yaml"),
     },
     SkillAsset {
-        name: "knowledge-research",
-        skill_md: include_str!("../assets/skills/knowledge-research/SKILL.md"),
-        codex_openai: include_str!("../assets/skills/knowledge-research/codex/openai.yaml"),
+        name: "wiki-research",
+        skill_md: include_str!("../assets/skills/wiki-research/SKILL.md"),
+        codex_openai: include_str!("../assets/skills/wiki-research/codex/openai.yaml"),
     },
     SkillAsset {
-        name: "knowledge-lint",
-        skill_md: include_str!("../assets/skills/knowledge-lint/SKILL.md"),
-        codex_openai: include_str!("../assets/skills/knowledge-lint/codex/openai.yaml"),
+        name: "wiki-lint",
+        skill_md: include_str!("../assets/skills/wiki-lint/SKILL.md"),
+        codex_openai: include_str!("../assets/skills/wiki-lint/codex/openai.yaml"),
     },
     SkillAsset {
-        name: "knowledge",
-        skill_md: include_str!("../assets/skills/knowledge/SKILL.md"),
-        codex_openai: include_str!("../assets/skills/knowledge/codex/openai.yaml"),
+        name: "wiki",
+        skill_md: include_str!("../assets/skills/wiki/SKILL.md"),
+        codex_openai: include_str!("../assets/skills/wiki/codex/openai.yaml"),
     },
 ];

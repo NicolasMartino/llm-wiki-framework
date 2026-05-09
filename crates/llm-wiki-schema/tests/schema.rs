@@ -2,7 +2,7 @@ use llm_wiki_schema::{ParseError, Runtime, parse, schema_field_names};
 
 fn valid_doc() -> &'static str {
     r#"---
-name: knowledge-query
+name: wiki-query
 description: Query the wiki.
 runtimes: [claude, codex]
 operations: [query]
@@ -12,7 +12,7 @@ arguments:
     description: Question to answer.
 invocation_style: namespace
 ---
-# Knowledge Query
+# Wiki Query
 
 ## Purpose
 
@@ -25,7 +25,7 @@ Answer from the wiki.
 
 ## Invocation
 
-`<knowledge-query> what is D8?`
+`<wiki-query> what is D8?`
 
 ## Notes
 
@@ -36,12 +36,12 @@ Stay inside documented knowledge.
 #[test]
 fn parses_valid_canonical() {
     let doc = parse(valid_doc()).expect("valid doc parses");
-    assert_eq!(doc.frontmatter.name, "knowledge-query");
+    assert_eq!(doc.frontmatter.name, "wiki-query");
     assert_eq!(
         doc.frontmatter.runtimes,
         vec![Runtime::Claude, Runtime::Codex]
     );
-    assert_eq!(doc.body.title, "Knowledge Query");
+    assert_eq!(doc.body.title, "Wiki Query");
 }
 
 #[test]
@@ -76,7 +76,7 @@ fn rejects_conflicting_dispatcher_fields() {
 
 #[test]
 fn rejects_missing_required_body_section() {
-    let input = valid_doc().replace("## Invocation\n\n`<knowledge-query> what is D8?`\n\n", "");
+    let input = valid_doc().replace("## Invocation\n\n`<wiki-query> what is D8?`\n\n", "");
     let err = parse(&input).expect_err("missing invocation section");
     assert!(matches!(err, ParseError::MissingSection("Invocation")));
 }
@@ -95,7 +95,7 @@ fn rejects_duplicate_body_section() {
 fn accepts_crlf_frontmatter_boundaries() {
     let input = valid_doc().replace('\n', "\r\n");
     let doc = parse(&input).expect("crlf doc parses");
-    assert_eq!(doc.frontmatter.name, "knowledge-query");
+    assert_eq!(doc.frontmatter.name, "wiki-query");
 }
 
 #[test]

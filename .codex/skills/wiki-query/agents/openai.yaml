@@ -1,0 +1,4 @@
+interface:
+  display_name: "Wiki Query"
+  short_description: "Answer questions from the project wiki with citations."
+  default_prompt: "Query the project wiki and answer with citations."

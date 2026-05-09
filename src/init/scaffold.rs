@@ -39,7 +39,7 @@ pub(super) fn create_project(
 
     if let Some(bundle) = copy_initial_sources(path, initial_sources)? {
         println!(
-            "Sources copied to `{}`. Run `knowledge-ingest` to compile them into the wiki.",
+            "Sources copied to `{}`. Run `wiki-ingest` to compile them into the wiki.",
             bundle.display()
         );
     }

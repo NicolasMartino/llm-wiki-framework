@@ -341,13 +341,20 @@ pub fn search(args: &SearchArgs) -> Result<()> {
         result.project_id = project.id.clone();
         result.project_name = Some(project.name.clone());
     }
-    let warning = search.warnings.first().map(|warning| warning.message.as_str());
+    let warning = search
+        .warnings
+        .first()
+        .map(|warning| warning.message.as_str());
 
     match args.format {
         OutputFormat::Text => print_search_text(&search.warnings, &results),
-        OutputFormat::Json => {
-            print_search_json(&args.query, Some((&project.id, &project.name)), warning, &[], &results)
-        }
+        OutputFormat::Json => print_search_json(
+            &args.query,
+            Some((&project.id, &project.name)),
+            warning,
+            &[],
+            &results,
+        ),
     }
     Ok(())
 }
@@ -642,7 +649,9 @@ fn perform_project_search(
     limit: usize,
 ) -> Result<SearchExecution> {
     for attempt in 0..2 {
-        match search_attempt(backend, project, store_path, wiki_root, query, filters, limit)? {
+        match search_attempt(
+            backend, project, store_path, wiki_root, query, filters, limit,
+        )? {
             SearchAttempt::Success(search) => return Ok(search),
             SearchAttempt::Missing if attempt == 0 => retry_search_delay(),
             SearchAttempt::RetryableUnavailable if attempt == 0 => retry_search_delay(),
@@ -752,9 +761,7 @@ mod tests {
     use std::fs;
     use std::path::Path;
 
-    use super::{
-        ProjectIndexLock, RelatedStorePaths, StoreFileRole, promote_qmd_rs_store_inner,
-    };
+    use super::{ProjectIndexLock, RelatedStorePaths, StoreFileRole, promote_qmd_rs_store_inner};
 
     #[test]
     fn project_index_lock_is_exclusive() {

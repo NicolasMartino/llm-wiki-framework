@@ -1,13 +1,13 @@
 # Rename Project to `llm-wiki-rs` and Skills to `wiki-*`
 
 - Document Class: Proposal
-- Status: Draft
+- Status: Accepted
 - Date: 2026-05-08
 - Category: Branding, naming, developer ergonomics
 - Scope: Rename the workspace package from `llm-wiki-framework` to `llm-wiki-rs`, leave the binary name (`llm-wiki`) intact, and re-namespace every Claude/Codex skill directory and user-facing invocation surface from `knowledge*` to `wiki-*`. Canonical skills are projected from embedded source by the binary (per the LLM Wiki Binary Distribution decision), so the rename touches the embedded canonical skill set, the projector, the global install paths under `~/.claude/skills/` and `~/.codex/skills/`, the in-repo runtime mirrors under `.claude/` and `.codex/`, the source tree under `src/`, the package metadata in `Cargo.toml` / `Cargo.lock`, the prose in `assets/templates/`, the project-root `AGENTS.md`, and every active `wiki/` document that references the old names. Managed runtime state under `~/.llm_wiki/` and per-project `.llm_wiki/init.toml` are intentionally unchanged by this rename. The on-disk wiki layout, document classes, and status vocabulary are untouched.
 - Sources: Cargo.toml, Cargo.lock, README.md, AGENTS.md, .claude/skills/{knowledge,knowledge-ingest,knowledge-lint,knowledge-query,knowledge-research,init-project}/, .codex/skills/, src/ (skill projector and any user-visible identifiers), assets/skills/ (canonical embedded source), assets/templates/project_guidelines.md, assets/templates/CLAUDE.md, wiki/specs/knowledge-*-skill.spec.md, wiki/decisions/knowledge-command-namespace.decision.md, wiki/decisions/knowledge-research-intake.decision.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/specs/documentation-model.spec.md, wiki/index.md, wiki/log.md
-- Related: wiki/proposals/llm-wiki-binary.proposal.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/specs/knowledge-init-skill.spec.md, wiki/proposals/blueprint-pack-init.proposal.md
-- Supersedes: wiki/decisions/knowledge-command-namespace.decision.md (replaces the `$knowledge` namespace and the "existing direct skill names remain acceptable aliases" clause with a clean `wiki-*` namespace and no aliases)
+- Related: wiki/proposals/llm-wiki-binary.proposal.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/specs/wiki-init-skill.spec.md, wiki/proposals/blueprint-pack-init.proposal.md, wiki/plans/project-and-skill-rename.plan.md
+- Supersedes: wiki/archive/knowledge-command-namespace.decision.md (replaces the `$knowledge` namespace and the "existing direct skill names remain acceptable aliases" clause with a clean `wiki-*` namespace and no aliases)
 
 ## Question
 

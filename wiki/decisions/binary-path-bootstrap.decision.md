@@ -6,7 +6,7 @@
 - Category: Distribution tooling, install UX
 - Scope: Amend `llm-wiki install` so installed skills invoke a managed binary by absolute path and `PATH` is only terminal convenience.
 - Sources: wiki/proposals/binary-path-bootstrap.proposal.md, proposal review 2026-05-06, wiki/decisions/llm-wiki-binary-distribution.decision.md
-- Related: wiki/roadmaps/framework-v1.roadmap.md (D8.1), wiki/plans/binary-path-bootstrap.plan.md, wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-init-skill.spec.md
+- Related: wiki/roadmaps/framework-v1.roadmap.md (D8.1, D11), wiki/plans/binary-path-bootstrap.plan.md, wiki/specs/documentation-model.spec.md, wiki/specs/wiki-init-skill.spec.md
 - Amends: wiki/decisions/llm-wiki-binary-distribution.decision.md
 
 ## Choice
@@ -81,13 +81,13 @@ This avoids overloading `install` with a non-installing mode.
 
 Every binary acquisition path should converge on the same install behavior.
 
-`cargo install llm-wiki-framework` installs the executable onto the user's
+`cargo install llm-wiki-rs` installs the executable onto the user's
 Cargo bin path, but Cargo does not provide a reliable package-defined
 post-install hook for mutating user home directories. The documented Cargo path
 is therefore:
 
 ```bash
-cargo install llm-wiki-framework
+cargo install llm-wiki-rs
 llm-wiki install
 ```
 
@@ -97,23 +97,23 @@ logic. One code path owns global runtime installation.
 
 When `which llm-wiki` resolves to a different binary than the managed runtime
 copy, `doctor` should warn about version drift. After `cargo install
-llm-wiki-framework --force` or a release-installer upgrade, drift is the default
+llm-wiki-rs --force` or a release-installer upgrade, drift is the default
 state until the user reruns `llm-wiki install`.
 
 ## Skill Rename
 
-The agent-facing initialization skill is renamed from `init-project` to
-`knowledge-init` for namespace consistency with `knowledge-query`,
-`knowledge-ingest`, `knowledge-research`, `knowledge-lint`, and the Codex
-`knowledge` dispatcher.
+The agent-facing initialization skill was renamed from `init-project` to
+`knowledge-init` in D8.1 for namespace consistency with the rest of the
+framework skills. D11 then renamed the entire skill family from `knowledge*`
+to `wiki-*` (and the Codex dispatcher from `knowledge` to `wiki`); the active
+init-skill spec is `wiki/specs/wiki-init-skill.spec.md`.
 
-The rename is implemented as a separable phase inside D8.1. Managed binary
-installation must remain coherent if the rename phase finds a collision, but
-there is no public `init-project` compatibility surface to preserve.
+The D8.1 rename was implemented as a separable phase. There is no public
+`init-project` or `knowledge-init` compatibility surface to preserve — both
+predate public release.
 
-The validated spec is now `wiki/specs/knowledge-init-skill.spec.md`; historical
-proposal and log text may still mention `init-project` when describing
-pre-release state.
+Historical proposal and log text may still mention `init-project` or
+`knowledge-init` when describing pre-release state.
 
 ## Why
 
@@ -135,7 +135,9 @@ behavior a concrete state root to inspect.
   behavior remains pending until implementation and tests land.
 - `wiki/decisions/llm-wiki-binary-distribution.decision.md` remains the base
   binary-distribution decision, amended by this decision for install runtime
-  paths, manifest location, PATH guidance, and the `knowledge-init` rename.
+  paths, manifest location, PATH guidance, and the D8.1 `knowledge-init`
+  rename. D11 later renamed the full skill family from `knowledge*` to
+  `wiki-*`.
 
 ## Revisit When
 

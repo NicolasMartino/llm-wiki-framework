@@ -51,12 +51,12 @@ fn v1_fixture_index_references_current_skills() {
     }
 
     for skill in [
-        "knowledge-init",
-        "knowledge-query",
-        "knowledge-ingest",
-        "knowledge-research",
-        "knowledge-lint",
-        "knowledge",
+        "wiki-init",
+        "wiki-query",
+        "wiki-ingest",
+        "wiki-research",
+        "wiki-lint",
+        "wiki",
     ] {
         assert!(
             Path::new(env!("CARGO_MANIFEST_DIR"))
