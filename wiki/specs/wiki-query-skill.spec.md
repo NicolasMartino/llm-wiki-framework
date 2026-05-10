@@ -15,7 +15,8 @@ first, reads relevant pages, cites wiki paths, flags gaps and contradictions,
 and offers save-back when a synthesized answer creates durable knowledge.
 
 The skill must not browse the filesystem for project knowledge. The index is
-the entry point. QMD may supplement navigation when available and useful.
+the entry point. `{llm_wiki_binary} search` may supplement navigation when the
+current project is registered and the index is not enough.
 
 ## Runtime Projection
 

@@ -62,7 +62,7 @@ pub fn compose(plan: &RenderPlan) -> Result<InitOutput> {
     let packs = plan.resolved_packs();
     let profile = ProjectProfile {
         include_ml_ai: packs.contains(&Pack::Ml),
-        include_qmd: packs.contains(&Pack::QmdScale),
+        include_qmd: packs.contains(&Pack::QmdRsScale),
         is_existing: plan.is_existing,
     };
     let agents_fragments = collect_agents_fragments(&packs)?;

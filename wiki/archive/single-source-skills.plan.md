@@ -26,7 +26,7 @@ A symlink forces identical content. The runtimes legitimately need different sur
 
 ## 3. Target Architecture
 
-Reuse the conditional-section pattern already proven in `project_guidelines.template.md` (which uses `<!-- SECTION:ML_AI -->` and `<!-- SECTION:QMD -->` markers).
+Reuse the conditional-section pattern already proven in `project_guidelines.template.md` (which uses `<!-- SECTION:ML_AI -->` and `<!-- SECTION:SEARCH -->` markers).
 
 ```text
 skills/

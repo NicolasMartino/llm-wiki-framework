@@ -5,7 +5,7 @@
 - Date: 2026-05-06
 - Category: Search infrastructure, framework tooling
 - Scope: Add project registration, centralized per-project search artifacts, and explicit cross-project search commands to the `llm-wiki` binary after D8 ships.
-- Sources: wiki/plans/llm-wiki-binary.plan.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/specs/documentation-model.spec.md, wiki/references/qmd-search-engine.reference.md, wiki/references/qmd-rs-search-crate.reference.md, user discussion 2026-05-06
+- Sources: wiki/plans/llm-wiki-binary.plan.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/specs/documentation-model.spec.md, wiki/references/qmd-rs-search-crate.reference.md, user discussion 2026-05-06
 - Related: wiki/proposals/llm-wiki-binary.proposal.md, wiki/proposals/search-backend-selection.proposal.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/roadmaps/framework-v1.roadmap.md
 - Promoted To: wiki/plans/project-registry-search-artifacts.plan.md
 
@@ -30,9 +30,9 @@ registry, command surface, and cross-project orchestration rather than backend
 selection.
 
 This proposal is about the registry, command surface, cache model, lifecycle,
-and output contracts. It does **not** choose the search backend. qmd-rs, Tobi
-QMD shell-out, and a direct BM25-only SQLite implementation are backend options
-covered by `wiki/proposals/search-backend-selection.proposal.md`.
+and output contracts. It does **not** choose the search backend. qmd-rs and a
+direct BM25-only SQLite implementation are backend options covered by
+`wiki/proposals/search-backend-selection.proposal.md`.
 
 The command split is intentional:
 
@@ -76,11 +76,10 @@ that lands registry/index lifecycle before hybrid search.
 
 ## Why
 
-The current framework already identifies QMD as the scale solution once
-`wiki/index.md` stops being enough. Today that solution is external: install
-QMD separately, index each wiki separately, and teach agents when to invoke it.
-That works for one project, but it does not give the framework a durable
-project registry or a clean cross-project search surface.
+The current framework already uses `llm-wiki search` as the scale solution once
+`wiki/index.md` stops being enough. That works for one project, but it does not
+give the framework a durable project registry or a clean cross-project search
+surface without binary-owned registration, indexing, and cache lifecycle.
 
 A binary-owned registry and search cache gives the framework four useful
 properties:
@@ -333,7 +332,7 @@ The accepted D9 backend is qmd-rs, selected in
 `wiki/evals/search-backend-selection.eval.md`.
 
 The implementation should still depend on an internal adapter trait so direct
-SQLite FTS5 can remain a fallback and Tobi QMD can be compared later.
+SQLite FTS5 can remain a fallback.
 
 Because qmd-rs can use local GGUF model artifacts for semantic modes,
 `llm-wiki doctor` should report store existence, schema/version state,
@@ -362,7 +361,7 @@ Execution plan for the backend slice:
 | Risk | Likelihood | Impact | Mitigation |
 | --- | --- | --- | --- |
 | Cross-project search leaks context across project boundaries | Medium | High | Separate `search-all` command, explicit registration/auto-registration visibility, project labels on every result, ID filters |
-| qmd-rs eval fails | Medium | Medium | Backend choice is separate; fallback to Tobi QMD shell-out, direct BM25-only SQLite, or defer hybrid search |
+| qmd-rs eval fails | Medium | Medium | Backend choice is separate; fallback to direct BM25-only SQLite or defer hybrid search |
 | Registry rots after project moves | High | Medium | `register --update <id> <path>`, `forget`, and `projects` missing-root diagnostics |
 | Concurrent indexing corrupts state | Medium | High | Per-project lockfile, temp index build, atomic swap |
 | Crash mid-index leaves partial state | Medium | Medium | Per-project transaction boundary; old index remains until swap succeeds |
@@ -426,18 +425,9 @@ Execution plan for the backend slice:
 9. Add text and JSON output formats.
 10. Add integration tests with two tempdir projects and synthetic wiki pages.
 11. Update `wiki/specs/documentation-model.spec.md` so the scale-search surface
-    points to `llm-wiki search` / `llm-wiki search-all` rather than directly to
-    QMD MCP once D9 lands.
+    points to `llm-wiki search` / `llm-wiki search-all`.
 12. Decide separately whether `knowledge-query` should mention `search-all` as
     an explicit scope expansion; do not make it automatic.
-
-## Transitional Note
-
-Until D9 lands, `wiki/specs/documentation-model.spec.md` remains correct to
-describe QMD MCP as the documented scale-search mechanism. If D9 is accepted
-and implemented, that spec must be updated because the framework-facing surface
-becomes `llm-wiki search` and `llm-wiki search-all`; QMD or qmd-rs becomes an
-implementation detail behind the binary.
 
 ## Revisit When
 

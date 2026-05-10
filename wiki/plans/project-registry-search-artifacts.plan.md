@@ -341,7 +341,7 @@ Verification:
 1. Update `doctor` to report registry file status, registered project count,
    missing roots, stale indexes, and qmd-rs feature state.
 2. Update `wiki/specs/documentation-model.spec.md` so scale search points to
-   `llm-wiki search` / `search-all` instead of direct QMD use.
+   `llm-wiki search` / `search-all` instead of direct search-backend use.
 3. Update skill specs only if the command guidance changes.
 4. Append implementation measurements to the search eval if user-visible
    command replay produces new data.
@@ -476,7 +476,7 @@ implementation evidence, but it is no longer the target release behavior.
 11. Remove or repurpose `BackendState::FeatureDisabled` only if no other
    diagnostics need that generic state; otherwise leave it unused only if the
    strict dead-code gate still passes.
-12. Update command tests so default builds exercise real qmd-rs indexing and
+12. Update command tests so default builds exercise real search indexing and
    search behavior instead of feature-disabled diagnostics.
 13. Update doctor tests so default builds report qmd-rs store states, not
    feature-disabled search.

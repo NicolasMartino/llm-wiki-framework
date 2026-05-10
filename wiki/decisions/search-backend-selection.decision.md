@@ -5,7 +5,7 @@
 - Date: 2026-05-07
 - Category: Search infrastructure, framework tooling
 - Scope: Use qmd-rs as the D9 backend for `llm-wiki search` and `llm-wiki search-all`.
-- Sources: wiki/evals/search-backend-selection.eval.md, wiki/proposals/search-backend-selection.proposal.md, wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/references/qmd-search-engine.reference.md, wiki/references/qmd-rs-search-crate.reference.md
+- Sources: wiki/evals/search-backend-selection.eval.md, wiki/proposals/search-backend-selection.proposal.md, wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/references/qmd-rs-search-crate.reference.md
 - Related: wiki/proposals/search-backend-selection.proposal.md, wiki/proposals/project-registry-search-artifacts.proposal.md
 
 ## Choice
@@ -56,17 +56,14 @@ The reason not to choose it is product direction, not technical failure. It is
 BM25-only and does not advance the framework toward the LLM-enhanced search path
 the project expects to need.
 
-### Tobi QMD Shell-Out Adapter
+### External Shell-Out Adapter
 
-Tobi QMD remains the current reference for large-wiki hybrid search, but it is
-not the right first backend behind the Rust binary.
+An external shell-out adapter is not the right first backend behind the Rust
+binary.
 
-The eval found that Tobi QMD BM25 is useful for direct textual queries, but it
-missed command-heavy or hyphenated queries in the fixed set, maps dotted
-filenames into hyphenated URI paths, and produced SQLite lock failures during
-concurrent shell-out searches against the same temporary index. A shell-out
-adapter would also require Node/Bun, QMD config, sqlite-vec readiness, model
-cache management, and path mapping.
+The eval found that a shell-out backend weakens the one-binary experience and
+adds extra operational boundaries around executable discovery, cache state,
+path mapping, and concurrent index access.
 
 ### Defer Search
 
@@ -80,7 +77,7 @@ path toward the intended hybrid search capability.
 2. `llm-wiki search` and `search-all` should expose retrieval results, not
    synthesized answers.
 3. The implementation must use an internal adapter trait so direct SQLite FTS5
-   remains available as a fallback and Tobi QMD can be compared later.
+   remains available as a fallback.
 4. Result metadata must be added at the adapter boundary: project ID, project
    name, wiki file path, title, document class, status, score, snippet, and
    freshness marker.
@@ -98,5 +95,4 @@ path toward the intended hybrid search capability.
 - Cross-project search is evaluated on at least two real registered projects.
 - Direct SQLite FTS5 proves materially easier to maintain while meeting observed
   retrieval needs.
-- Tobi QMD changes its CLI/MCP behavior or shell-out reliability.
 - qmd-rs releases a materially new version.

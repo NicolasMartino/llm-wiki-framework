@@ -168,7 +168,7 @@ Included:
 - Run `wiki-init` on a real project
 - Skill asks questions, generates tailored guidelines, `AGENTS.md`, and a
   `CLAUDE.md` shim
-- Scaffolds raw/ + wiki/ with correct profile (ML_AI, QMD flags)
+- Scaffolds raw/ + wiki/ with correct profile (ML_AI, SEARCH flags)
 - Agent in the new project ingests first raw sources
 - Agent answers a query about the new project using only wiki content
 
@@ -267,7 +267,7 @@ Execution Plan: wiki/plans/llm-wiki-binary.plan.md
 Included:
 - `llm-wiki install`: writes skills directly to `~/.claude/skills/` and `~/.codex/skills/` with an ownership manifest at `~/.local/share/llm-wiki/manifest.json`. Idempotent; refuses user-authored collisions; `--force` backs up to `<path>.bak.<UTC-ISO8601>` before overwriting.
 - `llm-wiki build [--target] [--out]`: renders canonical skills to a chosen directory without touching global state or writing a manifest. Used for self-dogfooding this repo (`build --out .`) and for CI snapshot tests.
-- `llm-wiki init <path>`: Create-mode scaffolding from embedded templates with conditional-section resolution (ML_AI, QMD, IS_EXISTING). Collision check is on framework artifacts only (`wiki/`, `raw/`, `.llm_wiki/`, `AGENTS.md`, `CLAUDE.md`, `project_guidelines.md`), not on directory emptiness — preserving the IS_EXISTING profile for adding the framework to an existing codebase. Update mode is explicitly out of scope and remains agent-owned.
+- `llm-wiki init <path>`: Create-mode scaffolding from embedded templates with conditional-section resolution (ML_AI, SEARCH, IS_EXISTING). Collision check is on framework artifacts only (`wiki/`, `raw/`, `.llm_wiki/`, `AGENTS.md`, `CLAUDE.md`, `project_guidelines.md`), not on directory emptiness — preserving the IS_EXISTING profile for adding the framework to an existing codebase. Update mode is explicitly out of scope and remains agent-owned.
 - `llm-wiki status`, `doctor`, `uninstall`: state diagnostics and clean removal.
 - Canonical skill schema: clean markdown with typed YAML frontmatter (no `legacy tag marker` blocks). Embedded into the binary at compile time via `include_str!`.
 - Typed Rust projector with golden-file (`insta`) snapshot tests for all skill × runtime projections and all `init` profile outputs.
@@ -425,8 +425,8 @@ Promotion Target:
   behavior changes)
 
 Unlocks:
-- Framework-owned search at scale without asking agents to manage external QMD
-  indexes manually.
+- Framework-owned search at scale without asking agents to manage separate
+  search indexes manually.
 - Later explicit `wiki-query` scope expansion for registered
   cross-project search.
 
@@ -440,7 +440,7 @@ Promise: `llm-wiki init` produces a tailored canonical `AGENTS.md` and
 set of opt-in packs, rendered through a compile-time template engine. Claude
 compatibility is preserved by writing a tiny `CLAUDE.md` shim pointing at
 `AGENTS.md`. The current static template gated by `<!-- SECTION:ML_AI -->` /
-`<!-- SECTION:QMD -->` is retired in the same change set. Each new project
+`<!-- SECTION:SEARCH -->` is retired in the same change set. Each new project
 gains a `.llm_wiki/init.toml` recording the choices for a future `upgrade`
 command.
 Depends On: D8.1
@@ -457,7 +457,7 @@ Included:
 - Rust `Pack` and `Blueprint` enums in `src/init/` with accessor methods —
   the pack catalog is a Rust API surface, not a TOML schema.
 - Initial pack catalog: `api`, `frontend`, `library`, `ml`, `data`, `ops`,
-  `ops-lite`, `security`, `research`, `qmd-scale`.
+  `ops-lite`, `security`, `research`, `qmd-rs-scale`.
 - Initial blueprint catalog: `generic`, `web-product`, `library-sdk`,
   `ml-research`, `ops-infra`, `security`, `research`, `custom`.
 - Two-step interactive flow with `inquire`: blueprint `Select`, then pack

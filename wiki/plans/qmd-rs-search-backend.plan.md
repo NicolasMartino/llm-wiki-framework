@@ -5,7 +5,7 @@
 - Date: 2026-05-07
 - Category: Search infrastructure, framework tooling
 - Scope: Implement the internal qmd-rs backend slice for D9 project-local search; user-visible D9 search commands and cross-project `search-all` remain later work.
-- Sources: wiki/decisions/search-backend-selection.decision.md, wiki/evals/search-backend-selection.eval.md, wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/references/qmd-rs-search-crate.reference.md, wiki/references/qmd-search-engine.reference.md
+- Sources: wiki/decisions/search-backend-selection.decision.md, wiki/evals/search-backend-selection.eval.md, wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/references/qmd-rs-search-crate.reference.md
 - Related: wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/decisions/search-backend-selection.decision.md
 
 ## Deliverable
@@ -53,7 +53,7 @@ the registry and D9 command-surface design lands.
 - Automatic model downloads without explicit user action or clear reporting.
 - Embedding multi-gigabyte GGUF model files into the binary.
 - Replacing `wiki/index.md` as the small-wiki orientation entry point.
-- Shelling out to Tobi QMD in D9 V1.
+- Shelling out to a separate search executable in D9 V1.
 
 ## Existing Implementation Touchpoints
 

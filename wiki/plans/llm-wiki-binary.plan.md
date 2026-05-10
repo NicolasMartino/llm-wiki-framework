@@ -114,7 +114,7 @@ tools/
                                     # crate's build.rs at the crate root)
       init/
         mod.rs                      # init subcommand
-        profile.rs                  # ML_AI, QMD, IS_EXISTING resolution
+        profile.rs                  # ML_AI, SEARCH, IS_EXISTING resolution
         template.rs                 # conditional-section resolution
         collision.rs                # framework-artifact detection
         sources.rs                  # initial-source copying (binary owns the copy; ingest
@@ -230,7 +230,7 @@ This is the content-completeness pass that the pre-binary renderer skipped (the 
 ### 5.8 `init` subcommand (Create mode only)
 
 1. Embed `project_guidelines.template.md` and the `CLAUDE.md` template.
-2. Conditional-section resolution: `<!-- SECTION:ML_AI -->` and `<!-- SECTION:QMD -->` markers in the embedded template are kept or stripped based on flags.
+2. Conditional-section resolution: `<!-- SECTION:ML_AI -->` and `<!-- SECTION:SEARCH -->` markers in the embedded template are kept or stripped based on flags.
 3. Framework-artifact collision check: if any of `<path>/wiki/`, `<path>/raw/`, `<path>/CLAUDE.md`, `<path>/project_guidelines.md` exists, refuse with a clear error naming which artifact was found.
 4. Interactive mode: clap-driven prompts for the six questions from the existing skill spec.
 5. `--non-interactive` mode: requires `--name`, `--type`, `--scale` (and optional `--existing`, `--initial-sources`); errors on missing required flags.
@@ -246,7 +246,7 @@ This is the content-completeness pass that the pre-binary renderer skipped (the 
 
 This preserves the principle: deterministic file ops in the binary, LLM-driven judgment in the agent.
 
-7. Golden-file tests for all five profiles: baseline, ML_AI, QMD, ML_AI+QMD, IS_EXISTING (the IS_EXISTING profile asserts that pre-existing source code, configs, tests at `<path>` are untouched and only framework files are added).
+7. Golden-file tests for all five profiles: baseline, ML_AI, SEARCH, ML_AI+qmd-rs, IS_EXISTING (the IS_EXISTING profile asserts that pre-existing source code, configs, tests at `<path>` are untouched and only framework files are added).
 8. Additional fixture for `--initial-sources`: a list of three sample files copied into `raw/initial/`; manifest is checked; `wiki/` content is asserted to contain no ingest results (the binary did not ingest).
 
 **Verification:** `cargo insta test --check` green for all five `init` profiles plus the initial-source fixture. Framework-artifact collision is rejected even when the directory contains unrelated files. Initial-source copying never writes to `wiki/`.

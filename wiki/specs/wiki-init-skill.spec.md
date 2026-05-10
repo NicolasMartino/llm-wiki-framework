@@ -32,7 +32,7 @@ The wrapper gathers the binary's flag set:
 4. blueprint: `generic`, `web-product`, `library-sdk`, `ml-research`,
    `ops-infra`, `security`, `research`, or `custom`
 5. optional pack overrides: `api`, `frontend`, `library`, `ml`, `data`,
-   `ops`, `ops-lite`, `security`, `research`, or `qmd-scale`
+   `ops`, `ops-lite`, `security`, `research`, or `qmd-rs-scale`
 6. whether the target is an existing codebase
 7. optional initial source paths
 
@@ -75,7 +75,7 @@ The `custom` blueprint starts with no pack defaults.
 
 ## Proven By
 
-- `llm-wiki init` has golden tests for baseline, ML, QMD, combined ML+QMD,
+- `llm-wiki init` has golden tests for baseline, ML, qmd-rs, combined ML+qmd-rs,
   existing-code, `ml-research`, and `ops-infra` profiles.
 - `llm-wiki init` refuses paths containing framework artifacts.
 - Initial-source tests assert files are copied into `raw/initial/` and no ingest results appear in `wiki/`.

@@ -10,7 +10,8 @@
 
 ## Choice
 
-Replace the static project-guidelines template (gated today by `<!-- SECTION:ML_AI -->` and `<!-- SECTION:QMD -->`) with a composable generator built on a compile-time template engine (`askama`).
+Replace the static project-guidelines template with a composable generator
+built on a compile-time template engine (`askama`).
 
 Vocabulary is fixed:
 

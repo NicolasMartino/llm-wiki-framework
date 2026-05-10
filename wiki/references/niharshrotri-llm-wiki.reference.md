@@ -4,14 +4,14 @@
 - Status: Sourced
 - Date: 2026-04-23
 - Category: Implementation reference
-- Scope: Full working implementation of the LLM Wiki pattern with QMD search, CLI tooling, and web UI.
+- Scope: Full working implementation of the LLM Wiki pattern with hybrid search, CLI tooling, and web UI.
 - Sources: raw/research/niharshrotri-llm-wiki-implementation.md
-- Related: wiki/references/llm-wiki-pattern.reference.md, wiki/references/qmd-search-engine.reference.md, wiki/references/llm-wiki-ecosystem.reference.md
+- Related: wiki/references/llm-wiki-pattern.reference.md, wiki/references/qmd-rs-search-crate.reference.md, wiki/references/llm-wiki-ecosystem.reference.md
 
 ## What It Is
 
 A complete, working implementation of Karpathy's LLM Wiki pattern. 100%
-local, using Ollama + Qwen3-14B for reasoning and QMD for search. Includes
+local, using Ollama + Qwen3-14B for reasoning and local search. Includes
 CLI, web UI, Obsidian integration, and automated lint.
 
 ## Architecture Choices Worth Noting
@@ -83,7 +83,7 @@ wiki serve                web UI
 | Organization | By knowledge type (entity, concept, synthesis) | By truth relationship (spec, decision, proposal) |
 | Schema file | schema/AGENTS.md | CLAUDE.md |
 | Ingest | 3-pass automated pipeline | Agent-driven manual operation |
-| Search | QMD hybrid search always on | index.md first, QMD at scale |
+| Search | Hybrid markdown search always on | index.md first, `llm-wiki search` at scale |
 | Tooling | Python CLI + FastAPI UI | No tooling yet (agent-only) |
 | LLM | Ollama + Qwen3-14B (local) | Any LLM (Claude, etc.) |
 | Target | Personal knowledge bases | Software project management |
@@ -93,11 +93,11 @@ wiki serve                web UI
 
 ## What We Could Adopt
 
-1. **QMD as search layer** — solves our scale ceiling without cloud infra
+1. **Local search as search layer** — solves our scale ceiling without cloud infra
 2. **3-pass ingest** — separating extraction, drafting, and bookkeeping
    could improve ingest quality
 3. **Source audit pages** — explicit record of what each raw source touched
-4. **Auto-reindex after mutations** — QMD rebuilds index after ingest/lint
+4. **Auto-reindex after mutations** — the search backend rebuilds its index after ingest/lint
 5. **CLI tooling** — `wiki init`, `wiki ingest`, `wiki lint` as automation
 6. **Query scopes** — searching compiled wiki vs raw sources vs both
 7. **Synthesis pages** — a formal document type for query answers filed back

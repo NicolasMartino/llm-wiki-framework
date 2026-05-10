@@ -6,7 +6,7 @@
 - Category: Search infrastructure
 - Scope: Rust `qmd` crate as a candidate library backend for future `llm-wiki` search commands.
 - Sources: https://docs.rs/qmd/latest/qmd/ (qmd 0.3.2 docs)
-- Related: wiki/references/qmd-search-engine.reference.md, wiki/proposals/project-registry-search-artifacts.proposal.md
+- Related: wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/decisions/search-backend-selection.decision.md
 
 ## What It Is
 
@@ -14,9 +14,8 @@
 local search engine for markdown files with full-text search, vector semantic
 search, and LLM-powered features.
 
-This page calls the crate **qmd-rs** to distinguish it from the Tobi Lutke
-Node/Bun QMD implementation documented in
-`wiki/references/qmd-search-engine.reference.md`.
+This page calls the crate **qmd-rs** to make clear that the framework search
+path is the Rust crate embedded behind the `llm-wiki` binary.
 
 ## Documented Capabilities
 
@@ -36,34 +35,31 @@ download helpers.
 
 ## Why It Matters
 
-D8 makes `llm-wiki` a Rust binary. A Rust search crate could let future
-`llm-wiki` versions provide local markdown search without requiring users to
-install Node/Bun QMD separately.
+D8 makes `llm-wiki` a Rust binary. A Rust search crate lets `llm-wiki` provide
+local markdown search without requiring a second command-line package.
 
 The crate appears to expose enough primitives for a future internal adapter:
 project-local stores, full-text and vector retrieval, hybrid fusion, reranking,
 collection metadata, and model-cache management.
 
-## Difference From Tobi QMD
+## Integration Requirements
 
-The existing QMD reference page documents Tobi Lutke's Node/Bun package,
-installed as `@tobilu/qmd`. That implementation is the currently documented
-scale solution for large wikis and includes an MCP server surface.
-
-qmd-rs is a separate artifact. Feature parity with Tobi QMD is unconfirmed.
-Any proposal that replaces or wraps QMD with qmd-rs must evaluate:
+qmd-rs is a library artifact. The framework-owned `llm-wiki` adapter must
+therefore provide the user-facing command surface and operational diagnostics.
+The adapter must evaluate:
 
 1. Retrieval quality on representative wiki queries.
-2. Whether query expansion, reranking, and fusion behavior match the current
-   QMD expectations closely enough for agent navigation.
-3. Whether qmd-rs exposes or can support the command/MCP surfaces the framework
-   needs.
-4. Model download, cache, license, and release-packaging implications.
+2. Whether query expansion, reranking, and fusion behavior are useful for agent
+   navigation.
+3. Model download, cache, license, and release-packaging implications.
+4. The command contract for `llm-wiki search`, `search-all`, `index`, and
+   `doctor`.
 
 ## Open Questions
 
 - Is the crate API stable enough to depend on from `llm-wiki`?
-- Does qmd-rs have CLI/MCP parity with Tobi QMD, or only library-level parity?
+- Which qmd-rs APIs are stable enough for the adapter to expose through
+  `llm-wiki` commands?
 - What models does qmd-rs download by default, and are they acceptable for
   framework distribution?
 - What is the practical index size, cold-start time, and query latency for a

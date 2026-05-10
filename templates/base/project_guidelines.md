@@ -91,35 +91,30 @@ The index must fit in a single context window. If it grows beyond ~50,000
 tokens, split into a root index with per-type sub-indexes.
 
 {% if include_qmd %}
-### QMD Search (scale beyond index.md)
+### qmd-rs Search (scale beyond index.md)
 
 For wikis that grow beyond ~100 pages, supplement index.md navigation with
-QMD hybrid search. QMD indexes all wiki/ markdown files locally and provides
-BM25 keyword search, vector semantic search, and LLM re-ranking in a single
-pipeline. All processing runs on-device.
+`llm-wiki search`. The binary indexes wiki markdown into qmd-rs-backed stores
+under host-local cache state. Markdown remains canonical, and all search
+results still point back to wiki pages that must be read directly.
 
 Setup:
 
 ```bash
-npm install -g @tobilu/qmd
-qmd collection add wiki/ --name wiki
-qmd context add qmd://wiki "Project wiki: specs, decisions, proposals, plans"
-qmd embed
+llm-wiki register .
+llm-wiki index
+llm-wiki search "query"
 ```
-
-The agent uses `qmd query` to find relevant pages when the index is
-insufficient, then reads those pages directly. QMD exposes an MCP server
-(`qmd mcp`) for direct agent integration.
 
 Navigation strategy becomes tiered:
 1. Read `wiki/index.md` first for orientation
-2. If the index does not surface the needed page, use `qmd query`
+2. If the index does not surface the needed page, use `llm-wiki search`
 3. Read the identified pages
 
-Auto-reindex after ingest or lint:
+Refresh the search index after ingest or lint:
 
 ```bash
-qmd embed -f
+llm-wiki index --force
 ```
 {% endif %}
 

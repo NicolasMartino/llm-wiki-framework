@@ -17,7 +17,7 @@ pub enum Pack {
     OpsLite,
     Security,
     Research,
-    QmdScale,
+    QmdRsScale,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -216,10 +216,10 @@ fragment_template!(
     ResearchGuidelinesTemplate,
     "packs/research/project_guidelines.md"
 );
-fragment_template!(QmdScaleAgentsTemplate, "packs/qmd-scale/agents.md");
+fragment_template!(QmdRsScaleAgentsTemplate, "packs/qmd-rs-scale/agents.md");
 fragment_template!(
-    QmdScaleGuidelinesTemplate,
-    "packs/qmd-scale/project_guidelines.md"
+    QmdRsScaleGuidelinesTemplate,
+    "packs/qmd-rs-scale/project_guidelines.md"
 );
 
 impl Pack {
@@ -233,7 +233,7 @@ impl Pack {
         Pack::OpsLite,
         Pack::Security,
         Pack::Research,
-        Pack::QmdScale,
+        Pack::QmdRsScale,
     ];
 
     pub fn name(self) -> &'static str {
@@ -247,7 +247,7 @@ impl Pack {
             Pack::OpsLite => "ops-lite",
             Pack::Security => "security",
             Pack::Research => "research",
-            Pack::QmdScale => "qmd-scale",
+            Pack::QmdRsScale => "qmd-rs-scale",
         }
     }
 
@@ -262,7 +262,7 @@ impl Pack {
             Pack::OpsLite => "Runbooks without full SLO/on-call/postmortem machinery",
             Pack::Security => "Threat models, findings, audits, and controls",
             Pack::Research => "Literature notes, hypotheses, citations, and lab-note conventions",
-            Pack::QmdScale => "QMD search guidance for large wikis",
+            Pack::QmdRsScale => "qmd-rs-backed llm-wiki search guidance for large wikis",
         }
     }
 
@@ -294,7 +294,7 @@ impl Pack {
                 "raw/audits",
             ],
             Pack::Research => &["wiki/literature", "wiki/hypotheses", "raw/papers"],
-            Pack::QmdScale => &[".qmd"],
+            Pack::QmdRsScale => &[],
         }
     }
 
@@ -309,7 +309,7 @@ impl Pack {
             Pack::OpsLite => OPS_LITE_DOC_TYPES,
             Pack::Security => SECURITY_DOC_TYPES,
             Pack::Research => RESEARCH_DOC_TYPES,
-            Pack::QmdScale => EMPTY_DOC_TYPES,
+            Pack::QmdRsScale => EMPTY_DOC_TYPES,
         }
     }
 
@@ -319,7 +319,7 @@ impl Pack {
             Pack::Ops | Pack::OpsLite => OPS_STATUS,
             Pack::Security => SECURITY_STATUS,
             Pack::Research => RESEARCH_STATUS,
-            Pack::Api | Pack::Frontend | Pack::Library | Pack::Data | Pack::QmdScale => {
+            Pack::Api | Pack::Frontend | Pack::Library | Pack::Data | Pack::QmdRsScale => {
                 EMPTY_STATUS
             }
         }
@@ -336,7 +336,7 @@ impl Pack {
             Pack::OpsLite => render_fragment(OpsLiteAgentsTemplate)?,
             Pack::Security => render_fragment(SecurityAgentsTemplate)?,
             Pack::Research => render_fragment(ResearchAgentsTemplate)?,
-            Pack::QmdScale => render_fragment(QmdScaleAgentsTemplate)?,
+            Pack::QmdRsScale => render_fragment(QmdRsScaleAgentsTemplate)?,
         };
         Ok(rendered)
     }
@@ -352,7 +352,7 @@ impl Pack {
             Pack::OpsLite => render_fragment(OpsLiteGuidelinesTemplate)?,
             Pack::Security => render_fragment(SecurityGuidelinesTemplate)?,
             Pack::Research => render_fragment(ResearchGuidelinesTemplate)?,
-            Pack::QmdScale => render_fragment(QmdScaleGuidelinesTemplate)?,
+            Pack::QmdRsScale => render_fragment(QmdRsScaleGuidelinesTemplate)?,
         };
         Ok(rendered)
     }
@@ -400,8 +400,8 @@ mod tests {
         for pack in Pack::ALL {
             assert!(!pack.name().is_empty());
             assert!(!pack.description().is_empty());
-            assert!(!pack.folders().is_empty(), "{} has no folders", pack.name());
-            if *pack != Pack::QmdScale {
+            if *pack != Pack::QmdRsScale {
+                assert!(!pack.folders().is_empty(), "{} has no folders", pack.name());
                 assert!(
                     !pack.doc_types().is_empty(),
                     "{} has no doc types",

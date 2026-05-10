@@ -676,8 +676,11 @@ mod tests {
                 ],
             ),
             (
-                "QMD hybrid search MCP",
-                &["wiki/references/qmd-search-engine.reference.md"],
+                "qmd-rs scale search llm-wiki binary",
+                &[
+                    "wiki/roadmaps/framework-v1.roadmap.md",
+                    "wiki/specs/documentation-model.spec.md",
+                ],
             ),
             (
                 "three phase ingest extraction drafting bookkeeping",

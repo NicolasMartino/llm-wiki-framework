@@ -41,8 +41,8 @@ fn init_profiles_match_snapshots() {
     let cases = [
         ("baseline", "generic", vec![], vec![]),
         ("ml_ai", "custom", vec!["ml"], vec![]),
-        ("qmd", "custom", vec!["qmd-scale"], vec![]),
-        ("ml_ai_qmd", "custom", vec!["ml", "qmd-scale"], vec![]),
+        ("qmd_rs", "custom", vec!["qmd-rs-scale"], vec![]),
+        ("ml_ai_qmd_rs", "custom", vec!["ml", "qmd-rs-scale"], vec![]),
         ("is_existing", "generic", vec![], vec!["--existing"]),
         ("ml_research", "ml-research", vec![], vec![]),
         ("ops_infra", "ops-infra", vec![], vec![]),

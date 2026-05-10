@@ -1,8 +1,8 @@
 # Wiki Index
 
 Project: Software Project Management Framework
-Stage: D1-D11 Completed; skill projection template-engine follow-on completed
-Updated: 2026-05-09
+Stage: D1-D11 Completed; CLI observability proposal drafted
+Updated: 2026-05-10
 
 ## Specs
 
@@ -32,9 +32,8 @@ Updated: 2026-05-09
 ## References
 
 - [LLM Wiki Pattern](references/llm-wiki-pattern.reference.md) — Sourced — Karpathy's pattern, v2 extensions, production lessons, wiki vs RAG
-- [QMD Search Engine](references/qmd-search-engine.reference.md) — Sourced — On-device hybrid search for markdown, MCP integration, solves scale ceiling
 - [qmd-rs Rust Search Crate](references/qmd-rs-search-crate.reference.md) — Sourced — Rust `qmd` crate selected as the backend for `llm-wiki` search commands
-- [NiharShrotri/llm-wiki](references/niharshrotri-llm-wiki.reference.md) — Sourced — Full implementation with 3-pass ingest, QMD, CLI, web UI, auto-lint
+- [NiharShrotri/llm-wiki](references/niharshrotri-llm-wiki.reference.md) — Sourced — Full implementation with 3-pass ingest, search, CLI, web UI, auto-lint
 - [LLM Wiki Ecosystem Survey](references/llm-wiki-ecosystem.reference.md) — Sourced — 30+ implementations organized by delivery model and architectural innovation
 - [Three-Phase Ingest Pipeline](references/three-phase-ingest-pipeline.reference.md) — Sourced — Web-sourced explanation of extraction, page drafting, and bookkeeping as separate ingest phases
 - [Askama Template Engine for D10 Composable Init](references/askama-template-engine.reference.md) — Sourced — Askama 0.16 implementation guidance for D10 templates, fragments, escaping, whitespace, and schema-crate caveats
@@ -47,6 +46,7 @@ Updated: 2026-05-09
 - [Managed Binary Install and PATH Guidance](proposals/binary-path-bootstrap.proposal.md) — Accepted — Promoted to D8.1 decision and plan; make installed skills call a managed binary path while PATH remains convenience guidance
 - [Composable Project Init: Blueprints and Packs](proposals/blueprint-pack-init.proposal.md) — Accepted — Promoted to D10 decision and plan; replace the static project guidelines template with a blueprint + pack composition model and add a per-project `.llm_wiki/` folder with an `init.toml` manifest
 - [Skill Projection on the Composable-Init Template Engine](proposals/skills-template-engine.proposal.md) — Accepted — Promoted to decision and completed plan; skill projection now uses the shared Askama template engine
+- [CLI Observability and Dry-Run UX](proposals/cli-observability.proposal.md) — Proposed — Add concise command summaries, global quiet/verbose controls, dry-run previews for risky commands, and report-backed output
 
 ## Plans
 
@@ -66,7 +66,7 @@ Updated: 2026-05-09
 
 ## Evals
 
-- [Search Backend Selection Eval](evals/search-backend-selection.eval.md) — Accepted — Fixed query set, qmd-rs/Tobi QMD/SQLite BM25 baselines, and recommendation for qmd-rs as D9 backend
+- [Search Backend Selection Eval](evals/search-backend-selection.eval.md) — Accepted — Fixed query set, qmd-rs and SQLite BM25 baselines, and recommendation for qmd-rs as D9 backend
 - [V1 Proof Run](evals/v1-proof-run.eval.md) — Accepted — Evidence for D4-D7: durable query knowledge, temp project spawning, 50-page index check, and two-blueprint self-replication proof
 
 ## Checklists

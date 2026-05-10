@@ -44,8 +44,9 @@ organized, cited knowledge instead of re-reading raw sources.
    contradicts an existing page, show the conflict and ask the user which
    claim is correct before updating.
 10. Update `wiki/index.md` for every created or modified page, append an
-    `ingest` entry to `wiki/log.md`, and run `qmd embed -f` when QMD is
-    available and configured.
+    `ingest` entry to `wiki/log.md`, and run
+    `llm-wiki index --force` when the current project is registered
+    and search results may be stale.
 
 ## Invocation
 

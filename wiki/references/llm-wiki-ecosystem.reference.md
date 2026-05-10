@@ -6,7 +6,7 @@
 - Category: Ecosystem analysis
 - Scope: 30+ implementations of Karpathy's LLM Wiki pattern, organized by architectural innovation and delivery model.
 - Sources: raw/research/llm-wiki-ecosystem-survey.md
-- Related: wiki/references/llm-wiki-pattern.reference.md, wiki/references/niharshrotri-llm-wiki.reference.md, wiki/references/qmd-search-engine.reference.md
+- Related: wiki/references/llm-wiki-pattern.reference.md, wiki/references/niharshrotri-llm-wiki.reference.md, wiki/references/qmd-rs-search-crate.reference.md
 
 ## Context
 
@@ -172,7 +172,7 @@ if the framework ever supports team use.
 | Approach | Implementations |
 | --- | --- |
 | Index.md only (no search infra) | Most agent skills |
-| QMD (BM25 + vector + rerank) | NiharShrotri, rarce |
+| qmd-rs (BM25 + vector + rerank) | NiharShrotri, rarce |
 | LanceDB | nashsu |
 | Three-layer (grep + BM25 + embeddings) | MauricioPerera |
 | Graphthulhu (Datalog over knowledge graph) | skridlevsky (MCP server for Logseq/Obsidian) |

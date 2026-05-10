@@ -1,5 +1,32 @@
 # Wiki Log
 
+## [2026-05-10] create | CLI observability proposal
+
+Filed `wiki/proposals/cli-observability.proposal.md` after real debug-binary
+install testing exposed sparse CLI feedback. The proposal defines concise
+default summaries, global `--verbose` / `--quiet`, dry-run previews for
+install/uninstall/indexing, a report-backed implementation shape, and a
+tracing-based diagnostic layer that stays local to the CLI.
+
+Pages created: wiki/proposals/cli-observability.proposal.md
+Pages updated: wiki/index.md, wiki/log.md
+
+## [2026-05-10] lint | qmd-rs search surface cleanup
+
+Removed active references to the standalone markdown-search package surface.
+The init pack is now `qmd-rs-scale`, generated guidance tells skills and agents
+to use the managed `llm-wiki` binary for `search` and `index --force`, and the
+Rust qmd crate remains an implementation detail behind the binary. Archived
+legacy skill trees were left unchanged.
+
+Pages updated: README.md, assets/skills/wiki-init/SKILL.md,
+assets/skills/wiki-query/SKILL.md, assets/skills/wiki-ingest/SKILL.md,
+templates/base/project_guidelines.md, templates/packs/qmd-rs-scale/,
+src/init/, src/search/qmd_rs.rs, tests/, crates/llm-wiki-schema/tests/snapshots/,
+wiki/index.md, wiki/specs/, wiki/decisions/, wiki/proposals/, wiki/plans/,
+wiki/roadmaps/, wiki/references/, wiki/evals/, wiki/log.md
+Verification: old standalone package string scan passed; `cargo insta test --workspace --accept` passed; isolated temp-HOME `target/debug/llm-wiki index --force` passed.
+
 ## [2026-05-09] lint | project review consistency fixes
 
 Reviewed active framework docs and small Rust quality issues file by file.
@@ -25,7 +52,7 @@ wiki/plans/llm-wiki-binary.plan.md,
 wiki/roadmaps/framework-v1.roadmap.md, wiki/log.md
 Verification: `cargo fmt -- --check`, `cargo test --workspace`,
 `cargo clippy --workspace --all-targets --all-features -- -D warnings -D dead_code`,
-and `qmd embed -f` passed.
+and `llm-wiki index --force` passed.
 
 ## [2026-05-09] update | D11 legacy symlink migration completed
 
@@ -186,8 +213,8 @@ Pages created: wiki/references/askama-template-engine.reference.md
 Pages updated: wiki/plans/composable-project-init.plan.md,
 wiki/proposals/skills-template-engine.proposal.md, wiki/index.md,
 wiki/log.md
-Verification: `qmd embed -f` completed after re-running with filesystem access
-to update the local QMD index.
+Verification: `llm-wiki index --force` completed after re-running with filesystem access
+to update the local search index.
 
 ## [2026-05-07] lint | D10 bookkeeping consistency
 
@@ -249,7 +276,7 @@ Extended `wiki/proposals/blueprint-pack-init.proposal.md` with a first-cut
 blueprint catalog (`generic`, `web-product`, `library-sdk`, `ml-research`,
 `ops-infra`, `security`, `research`, plus `custom`), an initial pack catalog
 (`api`, `frontend`, `library`, `ml`, `data`, `ops`, `ops-lite`, `security`,
-`research`, `qmd-scale`), and a generator-implementation section. Recommended
+`research`, `qmd-rs-scale`), and a generator-implementation section. Recommended
 crate additions: `minijinja` (template rendering with light conditionals),
 `inquire` (Select for blueprint, MultiSelect with default-checked packs for
 step 2), and `toml` (pack and blueprint manifest parsing). Composition logic
@@ -385,27 +412,27 @@ Created wiki/index.md (master catalog) and wiki/log.md (this file).
 Initial index catalogs 6 wiki pages across 4 document types.
 Pages created: wiki/index.md, wiki/log.md
 
-## [2026-04-23] ingest | QMD search engine and NiharShrotri/llm-wiki implementation
+## [2026-04-23] ingest | qmd-rs search engine and NiharShrotri/llm-wiki implementation
 
 Ingested two new raw sources:
-- raw/research/qmd-search-engine.md (Tobi Lutke's on-device markdown search)
+- raw/research/markdown-search-engine.md (Tobi Lutke's on-device markdown search)
 - raw/research/niharshrotri-llm-wiki-implementation.md (full LLM Wiki implementation)
 
 Key findings:
-- QMD solves our scale ceiling (>100 pages) with local hybrid search via MCP
+- qmd-rs solves our scale ceiling (>100 pages) with local hybrid search via MCP
 - 3-pass ingest pipeline (extraction → drafting → bookkeeping) improves quality
 - Source audit pages provide provenance tracking
 - Our typed-document approach (spec/decision/proposal) is differentiated from
   the entity/concept/synthesis model — both valid, ours better for software projects
 
-Pages created: wiki/references/qmd-search-engine.reference.md, wiki/references/niharshrotri-llm-wiki.reference.md
+Pages created: wiki/references/qmd-rs-search-crate.reference.md, wiki/references/niharshrotri-llm-wiki.reference.md
 Pages updated: wiki/specs/documentation-model.spec.md (navigation, limitations, sources), wiki/references/llm-wiki-pattern.reference.md (cross-references), wiki/index.md
 
 ## [2026-04-23] create | Init project skill and template
 
 Created /init-project skill for spawning new projects from the framework.
 Renamed project_guidelines.md to project_guidelines.template.md with
-conditional section markers (ML_AI, QMD). Skill asks 6 questions to
+conditional section markers (ML_AI, SEARCH). Skill asks 6 questions to
 determine project profile, generates tailored guidelines and CLAUDE.md,
 scaffolds folder structure, optionally ingests initial sources. Supports
 create and update modes.
@@ -438,7 +465,7 @@ Created /knowledge-query skill for querying the project wiki with citations
 and optional save-back. Single-project scope. Reads index.md to orient,
 identifies relevant pages, synthesizes answer with citations, flags gaps
 and contradictions, offers to save durable answers as new wiki pages.
-Optionally uses QMD if available. Symlinked to global skills.
+Optionally uses qmd-rs if available. Symlinked to global skills.
 Pages created: .claude/skills/knowledge-query/SKILL.md, wiki/specs/knowledge-query-skill.spec.md
 Pages updated: wiki/index.md
 
@@ -1048,7 +1075,7 @@ Pages updated: wiki/plans/llm-wiki-binary.plan.md, wiki/index.md, wiki/log.md
 ## [2026-05-06] create | Project registry and search artifacts proposal
 
 Created a post-D8 proposal for adding project registration, centralized
-per-project QMD search artifacts, and explicit cross-project search to the
+per-project search artifacts, and explicit cross-project search to the
 `llm-wiki` binary.
 
 The proposal keeps D8 unchanged and treats the active
@@ -1119,10 +1146,10 @@ Applied review feedback to
 `wiki/proposals/project-registry-search-artifacts.proposal.md`.
 
 Changes:
-- Split Tobi QMD and the Rust `qmd` crate into distinct concepts. Added
+- Split external markdown search and the Rust `qmd` crate into distinct concepts. Added
   `wiki/references/qmd-rs-search-crate.reference.md` for the Rust crate and
   updated the proposal to call it qmd-rs.
-- Made qmd-rs feature parity with Tobi QMD explicitly unconfirmed and part of
+- Made qmd-rs feature parity with external markdown search explicitly unconfirmed and part of
   the required eval before backend acceptance.
 - Defined stale-index detection: store `last_indexed_wiki_max_mtime` and
   `indexed_file_count`, then compare against current `wiki/**/*.md` state.
@@ -1131,7 +1158,7 @@ Changes:
 - Promoted cross-project result fusion from optional wording to a default:
   federated per-project retrieval followed by RRF with `k=60`.
 - Added the required future `documentation-model.spec.md` update so D9's
-  search surface becomes `llm-wiki search` / `search-all`, not direct QMD MCP.
+  search surface becomes `llm-wiki search` / `search-all`, not direct framework search surface.
 - Made `knowledge-query` integration explicitly out of scope unless a later
   accepted plan chooses to add it.
 
@@ -1164,7 +1191,7 @@ contracts. Backend choice is no longer part of that proposal's acceptance
 criteria.
 
 Added `wiki/proposals/search-backend-selection.proposal.md` to evaluate qmd-rs,
-Tobi QMD shell-out, direct SQLite FTS5/BM25, or deferring D9 if no backend clears
+external markdown search shell-out, direct SQLite FTS5/BM25, or deferring D9 if no backend clears
 the bar.
 
 Registry proposal revisions:
@@ -1444,7 +1471,7 @@ after project files and initial sources are created.
 The shipped catalog includes blueprints `generic`, `web-product`,
 `library-sdk`, `ml-research`, `ops-infra`, `security`, `research`, and
 `custom`, plus packs `api`, `frontend`, `library`, `ml`, `data`, `ops`,
-`ops-lite`, `security`, `research`, and `qmd-scale`.
+`ops-lite`, `security`, `research`, and `qmd-rs-scale`.
 
 Verification run: `cargo insta test --workspace --accept`.
 
@@ -1458,9 +1485,9 @@ wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
 ## [2026-05-07] create | Search backend selection eval
 
 Created the first eval artifact required by the search backend selection
-proposal. The eval fixes the corpus and query set, records a Tobi QMD BM25-only
+proposal. The eval fixes the corpus and query set, records a external markdown search BM25-only
 baseline against this repo's `wiki/`, captures measured index size and latency,
-and documents observed concurrent-search lock failures. qmd-rs, hybrid QMD, and
+and documents observed concurrent-search lock failures. qmd-rs, hybrid search, and
 first-party SQLite FTS5 checks remain pending before a backend decision can be
 accepted.
 
@@ -1634,7 +1661,7 @@ wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
 
 ## [2026-05-07] fix | qmd-rs promotion and lock hardening
 
-Closed follow-up review findings in the qmd-rs indexing path. Store promotion
+Closed follow-up review findings in the search indexing path. Store promotion
 rollback now removes any partially promoted new files before restoring all old
 backups, with a unit test that injects a promotion-phase failure. Project index
 locking now uses an advisory lock held by an open `qmd-rs.lock` file, so a
@@ -1660,7 +1687,7 @@ doctor diagnostics.
 
 Default builds keep qmd-rs feature-gated and report clear
 qmd-rs-feature-disabled diagnostics for search-backed commands. Feature-enabled
-tests cover qmd-rs indexing/search and two-project `search-all` behavior.
+tests cover search indexing/search and two-project `search-all` behavior.
 
 Verification: `just verify`; `cargo test --workspace --features qmd-rs`.
 
@@ -1675,7 +1702,7 @@ Added a post-completion addendum to the D9 registry/search plan. The addendum
 supersedes the earlier feature-gated release contract and sets the next target:
 remove the `qmd-rs` Cargo feature, make qmd-rs part of normal `llm-wiki`
 builds and release artifacts, delete feature-disabled diagnostics, and make
-default builds exercise real qmd-rs index/search behavior.
+default builds exercise real search index/search behavior.
 
 The qmd-rs backend plan now points to this addendum so implementers do not
 continue treating feature-gated qmd-rs as the target release state.

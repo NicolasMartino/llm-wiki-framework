@@ -73,7 +73,7 @@ Renders canonical skills to a chosen output directory without touching global st
 
 Scaffolds a new project at `<path>`. **Create mode only in V1** — `Update` mode is explicitly out of scope and remains agent-owned (see Non-Goals).
 
-Create mode produces: `raw/`, `wiki/` (with `index.md` and `log.md`), `CLAUDE.md`, `project_guidelines.md` from embedded templates with conditional-section resolution per project profile (ML_AI, QMD, IS_EXISTING).
+Create mode produces: `raw/`, `wiki/` (with `index.md` and `log.md`), `CLAUDE.md`, `project_guidelines.md` from embedded templates with conditional-section resolution per project profile (ML_AI, SEARCH, IS_EXISTING).
 
 - Interactive mode (default): prompts for the six questions documented in `wiki/specs/knowledge-init-skill.spec.md:44-51` (name, description, type, new/existing, scale, optional initial sources).
 - `--non-interactive`: requires all answer flags. Used by the `init-project` skill (which still owns the conversational intake) and by CI.
@@ -206,7 +206,7 @@ Tests are not an afterthought. The drift the pre-binary renderer experienced —
 - Projector trait implementations: Claude variant produces expected idiom (slash-command syntax, description-match frontmatter); Codex variant produces expected idiom (`$namespace` syntax, `agents/openai.yaml` emission).
 - Embedded template loader: every canonical skill loads at compile time; missing or malformed canonical fails the build, not the run.
 - Path resolution: `install` writes to `~/.claude/skills/` and `~/.codex/skills/` derived from `HOME` (not `dirs::home_dir` defaults that vary across platforms); `build --out <dir>` writes exactly under `<dir>` and never escapes it.
-- Project-profile resolution for `init`: ML_AI, QMD, IS_EXISTING flags produce correct conditional-section output.
+- Project-profile resolution for `init`: ML_AI, SEARCH, IS_EXISTING flags produce correct conditional-section output.
 
 **Integration tests** (`tests/`):
 
@@ -223,7 +223,7 @@ Tests are not an afterthought. The drift the pre-binary renderer experienced —
 **Golden-file tests** (`insta` snapshots, committed under `tests/snapshots/`):
 
 - Every canonical skill produces a snapshot for each target runtime — currently 6 skills × 2 runtimes minus the Codex-only `knowledge` dispatcher = 11 snapshots.
-- Every `init` profile produces a snapshot for the generated `project_guidelines.md` and `CLAUDE.md`. Profiles to lock: baseline, ML_AI, QMD, ML_AI+QMD, IS_EXISTING (no scaffolding).
+- Every `init` profile produces a snapshot for the generated `project_guidelines.md` and `CLAUDE.md`. Profiles to lock: baseline, ML_AI, SEARCH, ML_AI+qmd-rs, IS_EXISTING (no scaffolding).
 - Snapshots are reviewed on every change — `cargo insta review` is part of the contributor workflow. `cargo insta test --check` runs in CI and fails on undeclared diff.
 
 **Property tests** (`proptest`, where genuinely useful):

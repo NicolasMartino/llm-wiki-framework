@@ -27,9 +27,9 @@ knowledge from the filesystem.
    findings, and references for external evidence.
 4. Start with the three to five most relevant pages. Read more only when the
    answer is incomplete or cross-references point to important context.
-5. If the index is large or the question is complex, check whether QMD is
-   available with `which qmd`. If available and configured, use
-   `qmd query "<question>" -c wiki` to supplement index navigation.
+5. If the index is large or the question is complex, use
+   `llm-wiki search "<question>"` to supplement index navigation when
+   the current project is registered.
 6. Synthesize a direct answer with citations to wiki page paths. Include raw
    source paths transitively when a cited wiki page depends on a key raw
    source.

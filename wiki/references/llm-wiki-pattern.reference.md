@@ -6,7 +6,7 @@
 - Category: Knowledge management architecture
 - Scope: Synthesis of Karpathy's LLM Wiki pattern and extensions, applied to software project management.
 - Sources: raw/research/llm-wiki-pattern-research.md
-- Related: wiki/references/qmd-search-engine.reference.md, wiki/references/niharshrotri-llm-wiki.reference.md, wiki/references/llm-wiki-ecosystem.reference.md
+- Related: wiki/references/qmd-rs-search-crate.reference.md, wiki/references/niharshrotri-llm-wiki.reference.md, wiki/references/llm-wiki-ecosystem.reference.md
 
 ## Origin
 

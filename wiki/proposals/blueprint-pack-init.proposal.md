@@ -5,7 +5,7 @@
 - Date: 2026-05-07
 - Promoted To: wiki/decisions/composable-project-init.decision.md, wiki/plans/composable-project-init.plan.md, wiki/roadmaps/framework-v1.roadmap.md (D10)
 - Category: Tooling, project scaffolding, init UX
-- Scope: Evolve `llm-wiki init` from one static template gated by two conditional flags (`SECTION:ML_AI`, `SECTION:QMD`) into a composable generator that produces a tailored canonical `AGENTS.md` and `project_guidelines.md` from a chosen blueprint plus a set of opt-in packs, and add a per-project `.llm_wiki/` folder for project-specific config and an init manifest.
+- Scope: Evolve `llm-wiki init` from one static template gated by two conditional flags (`SECTION:ML_AI`, `SECTION:SEARCH`) into a composable generator that produces a tailored canonical `AGENTS.md` and `project_guidelines.md` from a chosen blueprint plus a set of opt-in packs, and add a per-project `.llm_wiki/` folder for project-specific config and an init manifest.
 - Sources: templates/base/project_guidelines.md, templates/base/agents.md, templates/packs/, src/init/{blueprints,packs,compose,manifest,answers,template,scaffold,command}.rs
 - Related: wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-init-skill.spec.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/proposals/skills-template-engine.proposal.md
 
@@ -15,7 +15,7 @@ Should `llm-wiki init` become a composable generator — picking a blueprint and
 
 ## Proposal
 
-Yes. The framework already aspires to be a "machine that builds the machine": one binary that scaffolds many kinds of projects. Today's template is too generic for any given project (every wiki gets the same skeleton) and too rigid for cross-domain use (only ML/AI and QMD scale are toggleable). Replace it with a small composition system.
+Yes. The framework already aspires to be a "machine that builds the machine": one binary that scaffolds many kinds of projects. Today's template is too generic for any given project (every wiki gets the same skeleton) and too rigid for cross-domain use (only ML/AI and qmd-rs scale are toggleable). Replace it with a small composition system.
 
 ### Vocabulary
 
@@ -68,7 +68,7 @@ Eight entries (seven named blueprints plus `custom`). Each blueprint is a name, 
 | `ml-research` | Pre-production model work: experiments, datasets, evaluation. | `ml`, `data`, `research` |
 | `ops-infra` | Infrastructure or platform work without a product surface: runbooks, on-call, postmortems. | `ops` |
 | `security` | Security review, threat modeling, audit, or finding tracking. | `security`, `ops-lite` |
-| `research` | Non-ML research project: literature notes, hypotheses, citation graph. | `research`, `qmd-scale` |
+| `research` | Non-ML research project: literature notes, hypotheses, citation graph. | `research`, `qmd-rs-scale` |
 | `custom` | Empty default; user ticks packs by hand. | (none) |
 
 A productionized ML system (sometimes called "ml-product") is intentionally not a separate blueprint: it is `ml-research` plus the `ops` pack ticked in step 2. If that combination becomes the most common ML use case in practice, it can be promoted to its own blueprint later.
@@ -86,7 +86,7 @@ A productionized ML system (sometimes called "ml-product") is intentionally not 
 | `ops-lite` | Smaller `ops`: runbooks only, no SLO/on-call/postmortem machinery |
 | `security` | `threat-models/`, findings doc type, audit notes, controls register |
 | `research` | Literature-note doc type, hypothesis doc, citation conventions, lab-notebook style |
-| `qmd-scale` | The QMD search section currently gated behind `<!-- SECTION:QMD -->` |
+| `qmd-rs-scale` | qmd-rs-backed `llm-wiki search` guidance for large wikis |
 
 The pack list is the actual extensibility surface. Adding a project shape over time is "add a pack" or "add a blueprint that picks an existing combination," not "add another flag to a monolithic template."
 
@@ -101,7 +101,7 @@ The current dependency set is intentionally lean (`anyhow`, `chrono`, `clap`, `s
 Packs and blueprints are expressed as Rust:
 
 ```rust
-pub enum Pack { Api, Frontend, Library, Ml, Data, Ops, OpsLite, Security, Research, QmdScale }
+pub enum Pack { Api, Frontend, Library, Ml, Data, Ops, OpsLite, Security, Research, QmdRsScale }
 
 impl Pack {
     pub fn name(&self) -> &'static str { ... }
@@ -145,7 +145,7 @@ templates/
     ops-lite/
     security/
     research/
-    qmd-scale/
+    qmd-rs-scale/
 ```
 
 Each pack directory holds only the template fragments it contributes. There is no `pack.toml`, no blueprint TOML, no manifest. The pack's *metadata* (name, folders, doc types, status vocab, default-blueprint membership, which fragments it owns) lives in Rust, alongside the `Pack` enum. The pack's *content* lives in the template files. The two are tied together by compile-time references: Rust match arms render the compiled fragment templates for each pack.

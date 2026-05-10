@@ -103,35 +103,30 @@ Contents:
 The index must fit in a single context window. If it grows beyond ~50,000
 tokens, split into a root index with per-type sub-indexes.
 
-### QMD Search (scale beyond index.md)
+### qmd-rs Search (scale beyond index.md)
 
 For wikis that grow beyond ~100 pages, supplement index.md navigation with
-QMD hybrid search. QMD indexes all wiki/ markdown files locally and provides
-BM25 keyword search, vector semantic search, and LLM re-ranking in a single
-pipeline. All processing runs on-device.
+`llm-wiki search`. The binary indexes wiki markdown into qmd-rs-backed stores
+under host-local cache state. Markdown remains canonical, and all search
+results still point back to wiki pages that must be read directly.
 
 Setup:
 
 ```bash
-npm install -g @tobilu/qmd
-qmd collection add wiki/ --name wiki
-qmd context add qmd://wiki "Project wiki: specs, decisions, proposals, plans"
-qmd embed
+llm-wiki register .
+llm-wiki index
+llm-wiki search "query"
 ```
-
-The agent uses `qmd query` to find relevant pages when the index is
-insufficient, then reads those pages directly. QMD exposes an MCP server
-(`qmd mcp`) for direct agent integration.
 
 Navigation strategy becomes tiered:
 1. Read `wiki/index.md` first for orientation
-2. If the index does not surface the needed page, use `qmd query`
+2. If the index does not surface the needed page, use `llm-wiki search`
 3. Read the identified pages
 
-Auto-reindex after ingest or lint:
+Refresh the search index after ingest or lint:
 
 ```bash
-qmd embed -f
+llm-wiki index --force
 ```
 
 ### log.md
@@ -212,6 +207,13 @@ Use the document type by role, not by convenience.
 | `*.checklist.md` | What repeatable procedure must be followed? | Operational, release, deployment, or incident procedure |
 | `*.reference.md` | What external evidence exists? | Source notes for papers, APIs, vendor docs, benchmarks |
 
+### ML/AI Document Types (ML/AI projects only)
+
+| Document type | Core question | Purpose |
+| --- | --- | --- |
+| `*.experiment.md` | What uncertain question are we testing? | Investigation: setup, observations, measurements, conclusion |
+| `*.eval.md` | How did a candidate perform? | Evaluation report: metrics, failure analysis, recommendation |
+
 Short version:
 
 - Spec - validated truth
@@ -219,6 +221,9 @@ Short version:
 - Proposal - direction
 - Roadmap - ordering
 - Plan - execution
+
+- Experiment - uncertainty
+- Eval - measured performance
 
 - Checklist - repeatable procedure
 - Reference - raw evidence
@@ -236,6 +241,8 @@ wiki/
   plans/                      Tactical execution
   checklists/                 Repeatable procedures
   references/                 External evidence synthesis
+  experiments/                Investigation records
+  evals/                      Evaluation reports
 
   archive/                    Completed, superseded, or rejected documents
 ```
@@ -259,6 +266,8 @@ wiki/
     plans/
     checklists/
     references/
+    experiments/
+    evals/
 
     archive/
   src/                        Application code
@@ -266,8 +275,15 @@ wiki/
   scripts/                    Utilities and automation
   infra/                      Infrastructure definitions
 
+  models/                     Model artifacts, configs
+  data/                       Datasets, schemas, pipelines
+  notebooks/                  Exploratory analysis
+  evals/                      Evaluation harnesses (code)
 
 ```
+
+Note: `evals/` at root contains evaluation code and harnesses. `wiki/evals/`
+contains evaluation report documents. Code and documentation are separate.
 
 ## Naming And Metadata
 
@@ -322,11 +338,33 @@ Superseded, rejected, or no-longer-useful historical documents move to
 roadmaps, checklists, and accepted proposals may remain in the active index
 while they are current evidence, reusable procedures, or important context.
 
-## QMD Scale Pack Additions
+## Pack Document Types
 
-Large wikis may supplement `wiki/index.md` navigation with QMD hybrid search.
-QMD is a discovery layer over `wiki/`; it does not replace source citations,
-typed documents, or index maintenance.
+| Document type | Filename suffix | Folder |
+| --- | --- | --- |
+| Experiment | `experiment.md` | `wiki/experiments` |
+| Eval | `eval.md` | `wiki/evals` |
+| Model Card | `model-card.md` | `wiki/model-cards` |
+
+## Pack Status Vocabulary
+
+| Document class | Statuses |
+| --- | --- |
+| Evals | `Planned`, `Baseline`, `Candidate`, `Accepted`, `Rejected`, `Superseded` |
+
+## ML Pack Additions
+
+ML projects add experiment, eval, and model-card records. Eval statuses include
+`Planned`, `Baseline`, `Candidate`, `Accepted`, `Rejected`, and `Superseded`.
+Claims about model quality require eval conditions, metrics, and comparison
+context.
+
+## qmd-rs Scale Pack Additions
+
+Large wikis may supplement `wiki/index.md` navigation with `llm-wiki search`
+and `llm-wiki search-all`, backed by qmd-rs stores managed by the llm-wiki
+binary. Search is a discovery layer over `wiki/`; it does not replace source
+citations, typed documents, or index maintenance.
 
 ## Core Rule
 
@@ -416,6 +454,31 @@ A plan answers:
 6. What evidence will be recorded?
 7. What wiki pages should be updated when done?
 8. What closes the plan?
+
+## Experiment Template
+
+An experiment captures:
+
+1. Objective
+2. Hypothesis
+3. Setup
+4. Procedure
+5. Observations
+6. Measurements
+7. Conclusion
+8. Next action
+
+## Eval Template
+
+An eval captures:
+
+1. Model or system version
+2. Eval suite and dataset versions
+3. Metrics and variance
+4. Comparison to baseline
+5. Failure analysis
+6. Resource profile
+7. Recommendation
 
 ## Spec Template
 
@@ -523,7 +586,7 @@ maintains, cross-references, and keeps the wiki consistent.
 5. specs and decisions record validated truth
 6. roadmaps coordinate deliverables
 7. plans execute bounded work
-8. tests, demos, and operational checks produce evidence
+8. experiments and evals produce evidence
 9. the index is always current
 10. knowledge compounds with every ingest
 
@@ -583,7 +646,7 @@ Periodically or on request:
 ## Conventions
 
 - Document types: spec, decision, proposal, roadmap, plan, checklist,
-  reference.
+  reference, experiment, eval.
 - Pack-specific document types are listed below when active packs add them.
 - Use the type by role, not convenience. See `project_guidelines.md`.
 - Every wiki page has a metadata block: Document Class, Status, Date,
@@ -592,11 +655,25 @@ Periodically or on request:
 - Archived documents go to `wiki/archive/`.
 - `wiki/log.md` uses format: `## [YYYY-MM-DD] operation | subject`.
 
-## QMD Scale Pack
+## Pack Document Types
 
-- Use `qmd query` when `wiki/index.md` no longer surfaces the needed page.
-- Re-run `qmd embed -f` after ingest or lint when QMD is configured.
-- Treat QMD as navigation support; answers still cite wiki pages.
+| Document type | Filename suffix | Folder |
+| --- | --- | --- |
+| Experiment | `experiment.md` | `wiki/experiments` |
+| Eval | `eval.md` | `wiki/evals` |
+| Model Card | `model-card.md` | `wiki/model-cards` |
+
+## ML Pack
+
+- Use `wiki/experiments/` for uncertain investigations and `wiki/evals/` for measured evaluations.
+- Use `wiki/model-cards/` for model-card records and lineage notes.
+- Keep model artifacts, notebooks, and eval harnesses separate from wiki evidence.
+
+## qmd-rs Scale Pack
+
+- Use `llm-wiki search "<query>"` when `wiki/index.md` no longer surfaces the needed page.
+- Re-run `llm-wiki index --force` after ingest or lint when search results may be stale.
+- Treat qmd-rs-backed search as navigation support; answers still cite wiki pages.
 
 
 # CLAUDE.md
@@ -605,7 +682,10 @@ See @AGENTS.md.
 # .llm_wiki/init.toml
 framework_version = "0.1.0"
 blueprint = "custom"
-packs = ["qmd-scale"]
+packs = [
+    "ml",
+    "qmd-rs-scale",
+]
 
 # wiki/index.md
 # Wiki Index
@@ -639,6 +719,14 @@ Updated: [date]
 (none yet)
 
 ## Checklists
+
+(none yet)
+
+## Experiments
+
+(none yet)
+
+## Evals
 
 (none yet)
 

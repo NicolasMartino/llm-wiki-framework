@@ -41,7 +41,7 @@ Inspect these sites before changing code:
 - Pack fragment accessors are fallible: prefer `anyhow::Result<Option<String>>` over plain `Option<String>` so Askama render errors propagate through `init`.
 - Base templates expose fixed insertion points by rendering `agents_fragments` and `guidelines_fragments` from the typed render context. Do not use Askama inheritance blocks as dynamic pack anchors.
 - Preserve Askama's default whitespace mode initially; use local whitespace markers only when snapshots show drift.
-- The old `ProjectProfile` booleans remain only as a Phase 1 compatibility bridge to prove the engine migration is byte-stable. By the end of D10, `ml` and `qmd-scale` packs replace `include_ml_ai` and `include_qmd`.
+- The old `ProjectProfile` booleans remain only as a Phase 1 compatibility bridge to prove the engine migration is byte-stable. By the end of D10, `ml` and `qmd-rs-scale` packs replace `include_ml_ai` and `include_qmd`.
 - The final CLI surface for non-interactive init is `--blueprint <name>` plus repeatable `--pack <name>`. The old `--type` and `--scale` flags are retired in the same change set, with `knowledge-init`, README, and specs updated accordingly.
 
 ## In Scope
@@ -49,14 +49,14 @@ Inspect these sites before changing code:
 - The `askama` compile-time template engine.
 - A `templates/` root containing `templates/base/` (project-guidelines spine and agent schema) and `templates/packs/<name>/` (per-pack fragments).
 - Rust enums `Pack` and `Blueprint` in `src/init/` with accessor methods (`folders`, `doc_types`, `status_vocab`, `agents_fragment`, `guidelines_fragment`, `default_packs`).
-- The full pack catalog from the accepted proposal: `api`, `frontend`, `library`, `ml`, `data`, `ops`, `ops-lite`, `security`, `research`, `qmd-scale`.
+- The full pack catalog from the accepted proposal: `api`, `frontend`, `library`, `ml`, `data`, `ops`, `ops-lite`, `security`, `research`, `qmd-rs-scale`.
 - The full blueprint catalog: `generic`, `web-product`, `library-sdk`, `ml-research`, `ops-infra`, `security`, `research`, `custom`.
 - Two-step interactive flow with `inquire`: `Select` over blueprints, then `MultiSelect` over packs with the blueprint's defaults pre-checked.
 - Non-interactive path: `--blueprint <name>` and repeatable `--pack <name>` flags, with the same defaulting rules.
 - Per-project `.llm_wiki/` folder, with `init.toml` recording chosen blueprint, resolved pack list, and framework version.
 - Migration of the existing init template onto the same engine in this change set.
 - Migration of generated schema output from `CLAUDE.md` to `AGENTS.md` in the same change set.
-- Retirement of `<!-- SECTION:ML_AI -->` / `<!-- SECTION:QMD -->` flags (replaced by the `ml` and `qmd-scale` packs).
+- Retirement of `<!-- SECTION:ML_AI -->` / `<!-- SECTION:SEARCH -->` flags (replaced by the `ml` and `qmd-rs-scale` packs).
 - Golden-file snapshots for `ml-research` and `ops-infra` rendering, plus at least one `custom`-with-no-packs control case.
 - Documentation updates: the active init-skill spec reflects the new flow and
   flag surface, and active wiki pages stop describing generated `CLAUDE.md`
@@ -83,7 +83,7 @@ Inspect these sites before changing code:
 1. Move `assets/templates/project_guidelines.md` and `assets/templates/CLAUDE.md` into `templates/base/project_guidelines.md` and `templates/base/agents.md`.
 2. Replace `{{PROJECT_NAME}}`, `{{PROJECT_DESCRIPTION}}`, `{{DATE}}` substitutions with engine syntax driven by a typed `BaseContext` struct.
 3. Rewrite the schema-file references in the base templates from `CLAUDE.md` to `AGENTS.md`. The generated project shape after D10 is `raw/` + `wiki/` + `AGENTS.md` + `project_guidelines.md`; the old filename survives only in archived history and log provenance.
-4. Translate the existing `<!-- SECTION:ML_AI -->` / `<!-- SECTION:QMD -->` blocks into engine `{% if %}` blocks driven by booleans on `BaseContext`. (These booleans become pack-derived in Phase 4 — for now they are explicit fields, used to keep golden-file output byte-identical to the current `init` behavior where the content is otherwise unchanged.)
+4. Translate the existing `<!-- SECTION:ML_AI -->` / `<!-- SECTION:SEARCH -->` blocks into engine `{% if %}` blocks driven by booleans on `BaseContext`. (These booleans become pack-derived in Phase 4 — for now they are explicit fields, used to keep golden-file output byte-identical to the current `init` behavior where the content is otherwise unchanged.)
 5. Rewrite `src/init/template.rs` to populate `BaseContext` and call `.render()`.
 6. Start writing `AGENTS.md` as the canonical rendered schema file and `CLAUDE.md` as `See @AGENTS.md.`.
 7. Verify the migrated output is byte-stable relative to the intended post-D10 baseline, with the filename/schema-file rename called out as the deliberate diff from the pre-D10 scaffold.
@@ -105,7 +105,7 @@ Inspect these sites before changing code:
 
 ### 4. First three packs end-to-end
 
-Implement the smallest set of packs that exercises every code path: `ml`, `ops`, `qmd-scale`. For each:
+Implement the smallest set of packs that exercises every code path: `ml`, `ops`, `qmd-rs-scale`. For each:
 
 1. Create `templates/packs/<name>/agents.md` and `templates/packs/<name>/project_guidelines.md`.
 2. Wire the pack's `agents_fragment` / `guidelines_fragment` accessors to render the new template files through explicit Rust matches.

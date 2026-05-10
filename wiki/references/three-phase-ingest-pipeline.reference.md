@@ -153,7 +153,7 @@ The same source describes three post-ingest updates:
 
 - rebuild `index.md`
 - append to `log.md`
-- refresh the QMD search index
+- refresh the qmd-rs search index
 
 Karpathy's original gist independently supports the first two by treating
 `index.md` and `log.md` as mandatory navigation files updated during ingest.

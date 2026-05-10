@@ -26,7 +26,7 @@ Collect project setup answers, then delegate deterministic scaffolding to the
    `generic`, `web-product`, `library-sdk`, `ml-research`, `ops-infra`,
    `security`, `research`, and `custom`. Accepted packs are `api`,
    `frontend`, `library`, `ml`, `data`, `ops`, `ops-lite`, `security`,
-   `research`, and `qmd-scale`.
+   `research`, and `qmd-rs-scale`.
 4. Run:
    `{llm_wiki_binary} init <path> --non-interactive --name <name> --description <description> --blueprint <blueprint>`
    Add one `--pack <pack>` flag per explicit pack override; omit `--pack` to

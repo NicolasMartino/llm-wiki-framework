@@ -67,7 +67,7 @@ impl Blueprint {
             Blueprint::MlResearch => &[Pack::Ml, Pack::Data, Pack::Research],
             Blueprint::OpsInfra => &[Pack::Ops],
             Blueprint::Security => &[Pack::Security, Pack::OpsLite],
-            Blueprint::Research => &[Pack::Research, Pack::QmdScale],
+            Blueprint::Research => &[Pack::Research, Pack::QmdRsScale],
         }
     }
 }

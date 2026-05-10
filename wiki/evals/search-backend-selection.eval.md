@@ -5,7 +5,7 @@
 - Date: 2026-05-07
 - Category: Search infrastructure, framework tooling
 - Scope: Evaluate candidate search backends for future `llm-wiki search` and `llm-wiki search-all` commands.
-- Sources: wiki/proposals/search-backend-selection.proposal.md, wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/references/qmd-search-engine.reference.md, wiki/references/qmd-rs-search-crate.reference.md, raw/legacy/legacy-project-guidelines.md
+- Sources: wiki/proposals/search-backend-selection.proposal.md, wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/references/qmd-rs-search-crate.reference.md, raw/legacy/legacy-project-guidelines.md
 - Related: wiki/proposals/search-backend-selection.proposal.md, wiki/proposals/project-registry-search-artifacts.proposal.md
 
 ## Objective
@@ -27,8 +27,8 @@ post-implementation eval replay.
 
 1. **qmd-rs library adapter** - preferred if quality, packaging, and API
    stability are good enough.
-2. **Tobi QMD shell-out adapter** - fallback if current QMD behavior is needed
-   and an external Node/Bun dependency is acceptable.
+2. **External shell-out adapter** - fallback only if a separate executable is
+   acceptable.
 3. **SQLite FTS5 BM25 adapter** - fallback if a deterministic, model-free first
    version is more valuable than hybrid search.
 4. **Defer D9 search** - fallback if no backend clears the bar.
@@ -42,19 +42,9 @@ Current measured corpus on 2026-05-07:
 - Indexed files: 37
 - Included file types: `wiki/**/*.md`
 
-Tobi QMD measured baseline:
-
-- Tool: Tobi QMD `qmd 0.9.0 (b9763ee528)`
-- Collection command: `qmd --index llm-wiki-search-backend-eval collection add wiki --name search-backend-eval --mask "**/*.md"`
-- Cache isolation: `HOME=/private/tmp/qmd-home`, `XDG_CACHE_HOME=/private/tmp/qmd-cache`
-- Indexed files: 37
-- Index path: `/private/tmp/qmd-cache/qmd/llm-wiki-search-backend-eval.sqlite`
-- Index size: 928 KB
-- Vectors: 0 embedded
-- Pending embeddings: 37
-
-The Tobi QMD measured baseline is BM25-only. Vector search, hybrid query
-expansion, and reranking remain unmeasured because `qmd embed` was not run.
+An external shell-out baseline was considered during selection, but the
+accepted implementation path is the framework-owned qmd-rs adapter behind the
+`llm-wiki` binary.
 
 ## Query Set
 
@@ -67,42 +57,10 @@ cross-document operational language:
 | Q2 | `agent owns wiki humans curate raw` | `wiki/decisions/agent-owns-wiki.decision.md` |
 | Q3 | `search backend selection qmd-rs eval` | `wiki/proposals/search-backend-selection.proposal.md` |
 | Q4 | `knowledge research intake bundle manifest summary` | `wiki/plans/knowledge-research-intake.plan.md` or `wiki/decisions/knowledge-research-intake.decision.md` |
-| Q5 | `QMD hybrid search MCP` | `wiki/references/qmd-search-engine.reference.md` |
+| Q5 | `qmd-rs scale search llm-wiki binary` | `wiki/roadmaps/framework-v1.roadmap.md` or `wiki/specs/documentation-model.spec.md` |
 | Q6 | `three phase ingest extraction drafting bookkeeping` | `wiki/references/three-phase-ingest-pipeline.reference.md` |
 | Q7 | `project registry search-all reciprocal rank fusion` | `wiki/plans/project-registry-search-artifacts.plan.md` or `wiki/proposals/project-registry-search-artifacts.proposal.md` |
 | Q8 | `D8 distribution tooling cargo dist skill projection` | `wiki/plans/llm-wiki-binary.plan.md` or `wiki/proposals/llm-wiki-binary.proposal.md` |
-
-## Tobi QMD BM25 Baseline
-
-Command shape:
-
-```bash
-/usr/bin/time -p env HOME=/private/tmp/qmd-home XDG_CACHE_HOME=/private/tmp/qmd-cache qmd --index llm-wiki-search-backend-eval search "<query>" -c search-backend-eval --files -n 5
-```
-
-| Query | Top result | Judgment | Time |
-| --- | --- | --- | --- |
-| Q1 | `plans/binary-path-bootstrap-plan.md` | Good | 0.20s |
-| Q2 | `decisions/agent-owns-wiki-decision.md` | Good | 0.20s |
-| Q3 | No results | Fail | 0.18s |
-| Q4 | `archive/knowledge-intake-command-proposal.md` | Partial; relevant plan/decision were ranks 2 and 3 | 0.18s |
-| Q5 | `references/qmd-search-engine-reference.md` | Good | 0.20s |
-| Q6 | `references/three-phase-ingest-pipeline-reference.md` | Good | 0.25s |
-| Q7 | No results | Fail | 0.19s |
-| Q8 | `plans/llm-wiki-product-layout-addendum-plan.md` | Partial; expected binary plan was rank 2 | 0.20s |
-
-Summary:
-
-- Good: 4 of 8
-- Partial: 2 of 8
-- Fail: 2 of 8
-- Sequential BM25-only latency was acceptable for this corpus.
-- BM25-only retrieval missed command-heavy or hyphenated concepts such as
-  `qmd-rs`, `search-all`, and `reciprocal rank fusion`.
-- After refreshing the corpus to 37 files, Q3 and Q7 still returned no results.
-- The result path format replaced dotted filename segments with hyphenated
-  URI paths, so an adapter would need to map QMD result IDs back to canonical
-  wiki file paths before exposing stable `llm-wiki search` output.
 
 ## qmd-rs FTS Baseline
 
@@ -133,7 +91,7 @@ Measured baseline on 2026-05-07:
 | Q2 | `decisions/agent-owns-wiki.decision.md` | 1 | Good |
 | Q3 | `evals/search-backend-selection.eval.md` | 2 | Partial; raw query errored on `qmd-rs`, sanitized query found proposal at rank 2 |
 | Q4 | `archive/knowledge-intake-command.proposal.md` | 2 | Partial |
-| Q5 | `references/qmd-search-engine.reference.md` | 1 | Good |
+| Q5 | `roadmaps/framework-v1.roadmap.md` | 1 | Good |
 | Q6 | `references/three-phase-ingest-pipeline.reference.md` | 1 | Good |
 | Q7 | `evals/search-backend-selection.eval.md` | 2 | Partial; raw query errored on `search-all`, sanitized query found proposal at rank 2 |
 | Q8 | `plans/llm-wiki-binary.plan.md` | 1 | Good |
@@ -150,9 +108,8 @@ Summary:
   collection, modified timestamp, and body length.
 - It does not directly return framework document class or status, but the body
   can be fetched through `get_document` and metadata parsed by the adapter.
-- It does not expose a binary or MCP server from the crate package; Cargo
-  metadata declares library and example targets only. Parity with Tobi QMD is
-  therefore library-level, not CLI/MCP-level.
+- It exposes a library surface rather than the framework command surface, so
+  `llm-wiki` owns command behavior, diagnostics, and user-visible output.
 - Default model constants point to GGUF files for embedding, reranking, and
   query expansion: `embeddinggemma-300M-Q8_0.gguf`,
   `qwen3-reranker-0.6b-q8_0.gguf`, and
@@ -183,7 +140,7 @@ Measured baseline on 2026-05-07:
 | Q2 | `decisions/agent-owns-wiki.decision.md` | 1 | Good |
 | Q3 | `evals/search-backend-selection.eval.md` | 2 | Partial; eval page quotes the query set |
 | Q4 | `archive/knowledge-intake-command.proposal.md` | 2 | Partial |
-| Q5 | `references/qmd-search-engine.reference.md` | 1 | Good |
+| Q5 | `specs/documentation-model.spec.md` | 2 | Partial |
 | Q6 | `references/three-phase-ingest-pipeline.reference.md` | 1 | Good |
 | Q7 | `evals/search-backend-selection.eval.md` | 2 | Partial; eval page quotes the query set |
 | Q8 | `evals/search-backend-selection.eval.md` | 2 | Partial; eval page quotes the query set |
@@ -203,19 +160,9 @@ Summary:
 
 ## Operational Observations
 
-Concurrent `qmd search` invocations against the same temporary index produced
-SQLite lock failures during startup. Sequential searches succeeded.
-
-Observed failure:
-
-```text
-sqlite-vec extension is unavailable. sqlite-vec probe failed (database is locked)
-```
-
-Implication: if D9 shells out to Tobi QMD, `llm-wiki index`, `search`, and
-`search-all` need explicit concurrency handling. A shell-out backend also needs
-doctor checks for QMD installation, SQLite/sqlite-vec readiness, model cache
-state, and index health.
+A framework-owned adapter keeps concurrency, path mapping, diagnostics, and
+cache reporting inside the `llm-wiki` binary. Search stores remain rebuildable
+cache state, not canonical project knowledge.
 
 ## Remaining Unmeasured Work
 
@@ -223,9 +170,8 @@ The following checks remain useful but are not required before choosing the D9
 V1 backend:
 
 1. qmd-rs vector search and hybrid behavior after model downloads.
-2. Tobi QMD vector and hybrid `query` performance after embeddings exist.
-3. Cross-project retrieval quality with at least two real projects.
-4. Larger-corpus behavior once the wiki exceeds the current index navigation
+2. Cross-project retrieval quality with at least two real projects.
+3. Larger-corpus behavior once the wiki exceeds the current index navigation
    scale.
 
 ## Recommendation
@@ -249,10 +195,7 @@ Rationale:
    defer the qmd-rs adapter work that will likely be necessary anyway.
 
 Direct SQLite FTS5 remains the fallback if qmd-rs packaging or runtime behavior
-proves unacceptable during implementation. Tobi QMD shell-out remains the
-external reference for hybrid behavior, but should not be the D9 backend because
-it introduces Node/Bun, QMD config, sqlite-vec, path-mapping, and concurrency
-concerns outside the Rust binary.
+proves unacceptable during implementation.
 
 ## Production Adapter Replay
 

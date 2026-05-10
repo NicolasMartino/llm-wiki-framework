@@ -5,8 +5,8 @@
 - Date: 2026-05-09
 - Category: Framework core
 - Scope: The validated documentation and execution model for projects using this framework.
-- Sources: raw/legacy/legacy-project-guidelines.md, raw/research/llm-wiki-pattern-research.md, raw/research/qmd-search-engine.md, raw/research/niharshrotri-llm-wiki-implementation.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/decisions/composable-project-init.decision.md, wiki/evals/v1-proof-run.eval.md
-- Related: wiki/decisions/three-layer-architecture.decision.md, wiki/decisions/agent-owns-wiki.decision.md, wiki/decisions/typed-documents.decision.md, wiki/references/qmd-search-engine.reference.md, wiki/decisions/search-backend-selection.decision.md, wiki/specs/wiki-init-skill.spec.md
+- Sources: raw/legacy/legacy-project-guidelines.md, raw/research/llm-wiki-pattern-research.md, raw/research/niharshrotri-llm-wiki-implementation.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/decisions/composable-project-init.decision.md, wiki/evals/v1-proof-run.eval.md
+- Related: wiki/decisions/three-layer-architecture.decision.md, wiki/decisions/agent-owns-wiki.decision.md, wiki/decisions/typed-documents.decision.md, wiki/references/qmd-rs-search-crate.reference.md, wiki/decisions/search-backend-selection.decision.md, wiki/specs/wiki-init-skill.spec.md
 
 ## Current State
 
@@ -111,6 +111,6 @@ research -> raw/ -> ingest -> proposal/reference -> roadmap -> plan -> evidence 
   judgment.
 - Semantic/hybrid model setup and answer synthesis remain future work; D9 ships
   project-local and explicit cross-project FTS retrieval first.
-- Generated projects can opt into QMD guidance with the `qmd-scale` pack, while
+- Generated projects can opt into qmd-rs guidance with the `qmd-rs-scale` pack, while
   the binary's own default search path uses qmd-rs-backed FTS.
 - The 3-phase ingest pipeline is documented in skills, but not binary-automated.
