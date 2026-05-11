@@ -6,7 +6,7 @@
 - Category: Search UX, semantic retrieval, qmd-rs adapter
 - Scope: Implement natural-language `llm-wiki search` through explicit lexical, semantic, hybrid, and auto modes while preserving current lexical behavior and keeping model/index state inspectable under `~/.llm_wiki`.
 - Sources: wiki/proposals/search-query-interpretation.proposal.md, wiki/proposals/cli-observability.proposal.md, wiki/decisions/search-backend-selection.decision.md, wiki/evals/search-backend-selection.eval.md, wiki/references/qmd-rs-search-crate.reference.md, assets/skills/wiki-query/SKILL.md, user instruction 2026-05-11 to treat CLI observability as finished in a separate worktree
-- Related: wiki/proposals/search-query-interpretation.proposal.md, wiki/proposals/cli-observability.proposal.md, wiki/decisions/search-backend-selection.decision.md, wiki/evals/search-backend-selection.eval.md, wiki/references/qmd-rs-search-crate.reference.md, wiki/specs/wiki-query-skill.spec.md, wiki/specs/documentation-model.spec.md
+- Related: wiki/proposals/search-query-interpretation.proposal.md, wiki/proposals/cli-observability.proposal.md, wiki/decisions/search-backend-selection.decision.md, wiki/evals/search-backend-selection.eval.md, wiki/evals/natural-language-search.eval.md, wiki/references/qmd-rs-search-crate.reference.md, wiki/references/llm-search-model-licensing.reference.md, wiki/specs/wiki-query-skill.spec.md, wiki/specs/documentation-model.spec.md
 
 ## Deliverable
 

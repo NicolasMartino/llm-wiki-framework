@@ -1,5 +1,28 @@
 # Wiki Log
 
+## [2026-05-11] ingest | semantic hybrid Stage 0 artifacts
+
+Created the Stage 0 research bundle and promoted it into two wiki artifacts:
+`wiki/references/llm-search-model-licensing.reference.md` records the accepted
+embedding, query-expansion, and reranker candidates with licenses, terms,
+source-reported hashes, sizes, and qmd-rs resolver implications; and
+`wiki/evals/natural-language-search.eval.md` records the 30-query eval shape,
+10/20 calibration split, draft target labels, candidate threshold inputs,
+fail-closed threshold gate, no-match maintenance, and landed observability
+evidence for `CliContext` plus `search` / `search-all` diagnostics.
+
+Pages created: wiki/references/llm-search-model-licensing.reference.md,
+wiki/evals/natural-language-search.eval.md,
+raw/research/2026-05-11-llm-search-model-licensing/manifest.md,
+raw/research/2026-05-11-llm-search-model-licensing/research-summary.md,
+raw/research/2026-05-11-llm-search-model-licensing/sources/01-qmd-rs-docs.md,
+raw/research/2026-05-11-llm-search-model-licensing/sources/02-embeddinggemma-model.md,
+raw/research/2026-05-11-llm-search-model-licensing/sources/03-qwen3-reranker-model.md,
+raw/research/2026-05-11-llm-search-model-licensing/sources/04-qmd-query-expansion-model.md,
+raw/research/2026-05-11-llm-search-model-licensing/sources/05-observability-implementation.md
+Pages updated: wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md,
+wiki/log.md
+
 ## [2026-05-11] update | semantic hybrid plan review fixes
 
 Hardened `wiki/plans/semantic-hybrid-search.plan.md` after plan review. The

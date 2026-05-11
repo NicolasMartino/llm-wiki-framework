@@ -1,7 +1,7 @@
 # Wiki Index
 
 Project: Software Project Management Framework
-Stage: D1-D11 Completed; code-pack/CLI blueprint and CLI observability completed; semantic/hybrid search plan active; crash-report proposal open
+Stage: D1-D11 Completed; code-pack/CLI blueprint and CLI observability completed; semantic/hybrid search Stage 0 artifacts drafted; crash-report proposal open
 Updated: 2026-05-11
 
 ## Specs
@@ -34,6 +34,7 @@ Updated: 2026-05-11
 
 - [LLM Wiki Pattern](references/llm-wiki-pattern.reference.md) — Sourced — Karpathy's pattern, v2 extensions, production lessons, wiki vs RAG
 - [qmd-rs Rust Search Crate](references/qmd-rs-search-crate.reference.md) — Sourced — Rust `qmd` crate selected as the backend for `llm-wiki` search commands
+- [LLM Search Model Licensing](references/llm-search-model-licensing.reference.md) — Sourced — Stage 0 model candidates, licenses, terms, hashes, and download/cache implications for semantic/hybrid search
 - [NiharShrotri/llm-wiki](references/niharshrotri-llm-wiki.reference.md) — Sourced — Full implementation with 3-pass ingest, search, CLI, web UI, auto-lint
 - [LLM Wiki Ecosystem Survey](references/llm-wiki-ecosystem.reference.md) — Sourced — 30+ implementations organized by delivery model and architectural innovation
 - [Three-Phase Ingest Pipeline](references/three-phase-ingest-pipeline.reference.md) — Sourced — Web-sourced explanation of extraction, page drafting, and bookkeeping as separate ingest phases
@@ -74,6 +75,7 @@ Updated: 2026-05-11
 ## Evals
 
 - [Search Backend Selection Eval](evals/search-backend-selection.eval.md) — Accepted — Fixed query set, qmd-rs and SQLite BM25 baselines, and recommendation for qmd-rs as D9 backend
+- [Natural-Language Search Eval](evals/natural-language-search.eval.md) — Planned — Stage 0 30-query semantic/hybrid eval suite with calibration split, draft target labels, threshold methodology, and observability evidence
 - [V1 Proof Run](evals/v1-proof-run.eval.md) — Accepted — Evidence for D4-D7: durable query knowledge, temp project spawning, 50-page index check, and two-blueprint self-replication proof
 
 ## Checklists
