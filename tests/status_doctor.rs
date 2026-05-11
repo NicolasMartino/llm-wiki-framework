@@ -28,6 +28,40 @@ fn status_reports_installed_files() {
 }
 
 #[test]
+fn verbose_path_status_and_doctor_emit_diagnostics() {
+    let home = TempDir::new().expect("home");
+    let cwd = TempDir::new().expect("cwd");
+
+    llm_wiki(home.path())
+        .args(["--verbose", "path"])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("command: path"))
+        .stderr(predicate::str::contains("managed home:"))
+        .stderr(predicate::str::contains("managed binary:"));
+
+    llm_wiki(home.path()).arg("install").assert().success();
+    llm_wiki(home.path())
+        .args(["--verbose", "status"])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("command: status"))
+        .stderr(predicate::str::contains("manifest:"))
+        .stderr(predicate::str::contains("manifest files:"))
+        .stderr(predicate::str::contains("manifest file status:"));
+
+    llm_wiki(home.path())
+        .current_dir(cwd.path())
+        .args(["--verbose", "doctor"])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("command: doctor"))
+        .stderr(predicate::str::contains("registry:"))
+        .stderr(predicate::str::contains("index root:"))
+        .stderr(predicate::str::contains("model cache:"));
+}
+
+#[test]
 fn status_reports_drift() {
     let home = TempDir::new().expect("home");
     llm_wiki(home.path()).arg("install").assert().success();

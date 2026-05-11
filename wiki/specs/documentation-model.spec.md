@@ -5,7 +5,7 @@
 - Date: 2026-05-09
 - Category: Framework core
 - Scope: The validated documentation and execution model for projects using this framework.
-- Sources: raw/legacy/legacy-project-guidelines.md, raw/research/llm-wiki-pattern-research.md, raw/research/niharshrotri-llm-wiki-implementation.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/decisions/composable-project-init.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/evals/v1-proof-run.eval.md
+- Sources: raw/legacy/legacy-project-guidelines.md, raw/research/llm-wiki-pattern-research.md, raw/research/niharshrotri-llm-wiki-implementation.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/plans/cli-observability.plan.md, wiki/decisions/composable-project-init.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/evals/v1-proof-run.eval.md
 - Related: wiki/decisions/three-layer-architecture.decision.md, wiki/decisions/agent-owns-wiki.decision.md, wiki/decisions/typed-documents.decision.md, wiki/references/qmd-rs-search-crate.reference.md, wiki/decisions/search-backend-selection.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/specs/wiki-init-skill.spec.md
 
 ## Current State
@@ -96,6 +96,9 @@ research -> raw/ -> ingest -> proposal/reference -> roadmap -> plan -> evidence 
   registry state without writing to project files
 - `llm-wiki index`, `index-all`, `search`, and `search-all` provide default-on
   qmd-rs-backed search over registered project wiki pages
+- Every `llm-wiki` binary command accepts global `-v` / `--verbose` and emits
+  command-specific diagnostics to stderr while preserving normal stdout and
+  JSON result contracts
 - `llm-wiki init` produces project scaffolds from Askama-compiled templates
   using `--blueprint` and repeatable `--pack`, with golden tests for generic,
   custom-pack, `research`, `web-product`, `cli-tool`, `ml-research`, and

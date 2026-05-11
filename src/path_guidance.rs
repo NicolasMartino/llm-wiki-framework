@@ -5,8 +5,18 @@ use anyhow::Result;
 
 use crate::paths::Paths;
 
-pub fn run(_context: &crate::cli::CliContext) -> Result<()> {
+pub fn run(context: &crate::cli::CliContext) -> Result<()> {
+    context.diagnostic("command: path");
     let paths = Paths::from_env()?;
+    context.diagnostic(format!("managed home: {}", paths.managed_home().display()));
+    context.diagnostic(format!(
+        "managed binary: {}",
+        paths.managed_binary().display()
+    ));
+    context.diagnostic(format!(
+        "managed bin dir: {}",
+        paths.managed_bin_dir().display()
+    ));
     print_guidance(&paths);
     Ok(())
 }

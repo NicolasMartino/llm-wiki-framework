@@ -79,6 +79,22 @@ fn install_is_idempotent() {
 }
 
 #[test]
+fn verbose_install_emits_command_diagnostics() {
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .args(["--verbose", "install", "--skip-path-guidance"])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("command: install"))
+        .stderr(predicate::str::contains("current executable:"))
+        .stderr(predicate::str::contains("managed binary:"))
+        .stderr(predicate::str::contains("partial marker recovery:"))
+        .stderr(predicate::str::contains("render target:"))
+        .stderr(predicate::str::contains("collision classification:"));
+}
+
+#[test]
 fn install_cleans_leaked_partial_marker_after_completed_manifest() {
     let home = TempDir::new().expect("home");
 
@@ -378,6 +394,22 @@ fn uninstall_include_binary_removes_managed_binary() {
         .success();
 
     assert!(!home.path().join(".llm_wiki/bin/llm-wiki").exists());
+}
+
+#[test]
+fn verbose_uninstall_emits_command_diagnostics() {
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path()).arg("install").assert().success();
+    llm_wiki(home.path())
+        .args(["--verbose", "uninstall"])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("command: uninstall"))
+        .stderr(predicate::str::contains("manifest:"))
+        .stderr(predicate::str::contains("include managed binary: false"))
+        .stderr(predicate::str::contains("consider file:"))
+        .stderr(predicate::str::contains("drift check:"));
 }
 
 #[test]

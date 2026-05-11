@@ -21,16 +21,30 @@ use crate::search::project::discover_from_cwd;
 use crate::search::qmd_rs::QmdRsBackend;
 use crate::search::sanitize::sanitize_fts_query;
 
-pub fn index(args: &IndexArgs, _context: &CliContext) -> Result<()> {
+pub fn index(args: &IndexArgs, context: &CliContext) -> Result<()> {
+    context.diagnostic("command: index");
+    context.diagnostic(format!(
+        "requested project id: {}",
+        args.project.as_deref().unwrap_or("<current directory>")
+    ));
+    context.diagnostic(format!("force: {}", args.force));
     let paths = Paths::from_env()?;
-    let registry = ProjectRegistry::read(&paths.project_registry())?;
+    let registry_path = paths.project_registry();
+    context.diagnostic(format!("registry: {}", registry_path.display()));
+    let registry = ProjectRegistry::read(&registry_path)?;
     let project = select_project(&registry, args.project.as_deref())?;
-    index_registered_project(&paths, &project, args.force)
+    context.diagnostic(format!("selected project: {}", project.id));
+    index_registered_project(&paths, &project, args.force, context)
 }
 
-pub fn index_all(args: &IndexAllArgs, _context: &CliContext) -> Result<()> {
+pub fn index_all(args: &IndexAllArgs, context: &CliContext) -> Result<()> {
+    context.diagnostic("command: index-all");
+    context.diagnostic(format!("force: {}", args.force));
     let paths = Paths::from_env()?;
-    let registry = ProjectRegistry::read(&paths.project_registry())?;
+    let registry_path = paths.project_registry();
+    context.diagnostic(format!("registry: {}", registry_path.display()));
+    let registry = ProjectRegistry::read(&registry_path)?;
+    context.diagnostic(format!("registered projects: {}", registry.projects.len()));
     if registry.projects.is_empty() {
         println!("No registered projects.");
         return Ok(());
@@ -41,13 +55,20 @@ pub fn index_all(args: &IndexAllArgs, _context: &CliContext) -> Result<()> {
     let mut indexed_projects = 0usize;
     let mut failures = Vec::new();
     for project in projects {
+        context.diagnostic(format!("index-all project: {}", project.id));
         if !project.root.exists() {
+            context.diagnostic(format!("per-project outcome {}: root missing", project.id));
             failures.push(format!("{}: root missing", project.id));
             continue;
         }
-        if let Err(error) = index_registered_project(&paths, &project, args.force) {
+        if let Err(error) = index_registered_project(&paths, &project, args.force, context) {
+            context.diagnostic(format!(
+                "per-project outcome {}: failed: {error}",
+                project.id
+            ));
             failures.push(format!("{}: {error}", project.id));
         } else {
+            context.diagnostic(format!("per-project outcome {}: indexed", project.id));
             indexed_projects += 1;
         }
     }
@@ -60,14 +81,29 @@ pub fn index_all(args: &IndexAllArgs, _context: &CliContext) -> Result<()> {
     Ok(())
 }
 
-fn index_registered_project(paths: &Paths, project: &RegisteredProject, force: bool) -> Result<()> {
+fn index_registered_project(
+    paths: &Paths,
+    project: &RegisteredProject,
+    force: bool,
+    context: &CliContext,
+) -> Result<()> {
     let store_path = paths.qmd_rs_store_path(&project.id);
     let project_index_dir = paths.project_index_dir(&project.id);
+    let lock_path = project_index_dir.join("qmd-rs.lock");
+    context.diagnostic(format!("project id: {}", project.id));
+    context.diagnostic(format!("wiki root: {}", project.wiki_root().display()));
+    context.diagnostic(format!("store path: {}", store_path.display()));
+    context.diagnostic(format!(
+        "metadata path: {}",
+        store_path.with_extension("llm-wiki.json").display()
+    ));
+    context.diagnostic(format!("lock path: {}", lock_path.display()));
     fs::create_dir_all(&project_index_dir)
         .with_context(|| format!("create search index dir {}", project_index_dir.display()))?;
     let _lock = ProjectIndexLock::acquire(&project_index_dir)?;
     maybe_sleep_for_test("LLM_WIKI_TEST_INDEX_SLEEP_MS");
     let temp_build = TempIndexBuild::new(&project_index_dir)?;
+    context.diagnostic(format!("temp store: {}", temp_build.store_path.display()));
 
     let backend = QmdRsBackend::new();
     let status = backend.rebuild_or_recover(
@@ -86,9 +122,18 @@ fn index_registered_project(paths: &Paths, project: &RegisteredProject, force: b
         );
     }
 
+    context.diagnostic(format!("indexed files: {}", status.indexed_files));
+    context.diagnostic(format!(
+        "promotion: {} -> {}",
+        temp_build.store_path.display(),
+        store_path.display()
+    ));
     promote_qmd_rs_store(&temp_build.store_path, &store_path)?;
+    context.diagnostic("promotion: complete");
     temp_build.cleanup()?;
+    context.diagnostic("temp store cleanup: complete");
     registry::record_index_success(&project.id, status.indexed_files, &project.wiki_root())?;
+    context.diagnostic("registry metadata: recorded index success");
     println!(
         "Indexed project: {} ({} files)",
         project.id, status.indexed_files

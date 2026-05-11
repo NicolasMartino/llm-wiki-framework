@@ -133,6 +133,36 @@ fn index_and_search_registered_project_with_filters() {
 }
 
 #[test]
+fn verbose_index_commands_emit_diagnostics() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+
+    llm_wiki(home.path())
+        .args(["--verbose", "index", "--project", "fixture", "--force"])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("command: index"))
+        .stderr(predicate::str::contains("selected project: fixture"))
+        .stderr(predicate::str::contains("store path:"))
+        .stderr(predicate::str::contains("lock path:"))
+        .stderr(predicate::str::contains("temp store:"))
+        .stderr(predicate::str::contains("indexed files:"));
+
+    llm_wiki(home.path())
+        .args(["--verbose", "index-all", "--force"])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("command: index-all"))
+        .stderr(predicate::str::contains("registered projects: 1"))
+        .stderr(predicate::str::contains("index-all project: fixture"))
+        .stderr(predicate::str::contains(
+            "per-project outcome fixture: indexed",
+        ));
+}
+
+#[test]
 fn non_verbose_search_stdout_contract_stays_clean() {
     let home = TempDir::new().expect("home");
     let workspace = TempDir::new().expect("workspace");

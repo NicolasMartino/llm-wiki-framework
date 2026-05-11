@@ -6,7 +6,7 @@
 - Category: CLI UX, operational diagnostics
 - Scope: Add universal `-v/--verbose` diagnostics so every binary command can explain what it resolved or inspected without changing normal command output.
 - Sources: conversational input 2026-05-10 and proposal review 2026-05-11; no raw source file captured yet
-- Implementation References: src/cli.rs, src/main.rs, src/install.rs, src/uninstall.rs, src/init/command.rs, src/search/commands.rs, src/registry/mod.rs
+- Implementation References: src/cli.rs, src/main.rs, src/build.rs, src/install.rs, src/uninstall.rs, src/init/command.rs, src/search/commands.rs, src/registry/mod.rs, src/path_guidance.rs, src/status.rs, src/doctor.rs
 - Related: wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/plans/llm-wiki-binary.plan.md, wiki/specs/documentation-model.spec.md
 - Promoted To: wiki/plans/cli-observability.plan.md
 - Promotion Target: wiki/specs/documentation-model.spec.md, README.md
@@ -50,6 +50,12 @@ all-command patch:
 
 This keeps the product promise universal while making the first deliverable
 small enough to verify in one implementation slice.
+
+Implementation check, 2026-05-11: the accepted staged outcome matches the
+completed implementation in `wiki/plans/cli-observability.plan.md`. Stage 1
+landed the global flag, shared `CliContext`, tracing stderr diagnostics, and
+`search` / `search-all` proof. Stage 2 extended command-specific diagnostics
+to every remaining binary command and added targeted command fixture tests.
 
 Deferred surfaces:
 

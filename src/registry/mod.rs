@@ -8,7 +8,7 @@ use anyhow::{Context, Result, bail};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::cli::{ForgetArgs, OutputFormat, ProjectsArgs, RegisterArgs};
+use crate::cli::{CliContext, ForgetArgs, OutputFormat, ProjectsArgs, RegisterArgs};
 use crate::paths::Paths;
 use crate::search::adapter::{BackendState, SearchBackend};
 use crate::search::qmd_rs::QmdRsBackend;
@@ -53,13 +53,31 @@ pub enum RegisterOutcome {
     Unchanged(String),
 }
 
-pub fn register(args: &RegisterArgs, _context: &crate::cli::CliContext) -> Result<()> {
-    let outcome = register_project(
+pub fn register(args: &RegisterArgs, context: &CliContext) -> Result<()> {
+    context.diagnostic("command: register");
+    context.diagnostic(format!(
+        "requested path: {}",
+        args.path
+            .as_ref()
+            .map(|path| path.display().to_string())
+            .unwrap_or_else(|| "<current/update>".to_string())
+    ));
+    context.diagnostic(format!(
+        "requested project id: {}",
+        args.id.as_deref().unwrap_or("<auto>")
+    ));
+    context.diagnostic(format!(
+        "requested update id: {}",
+        args.update.as_deref().unwrap_or("<none>")
+    ));
+    let outcome = register_project_with_context(
         args.path.as_deref(),
         args.name.clone(),
         args.id.clone(),
         args.update.clone(),
+        Some(context),
     )?;
+    context.diagnostic(format!("registry outcome: {}", outcome_id(&outcome)));
 
     match outcome {
         RegisterOutcome::Created(id) => println!("Registered project: {id}"),
@@ -75,11 +93,28 @@ pub fn register_project(
     id: Option<String>,
     update: Option<String>,
 ) -> Result<RegisterOutcome> {
+    register_project_with_context(path, name, id, update, None)
+}
+
+pub fn register_project_with_context(
+    path: Option<&Path>,
+    name: Option<String>,
+    id: Option<String>,
+    update: Option<String>,
+    context: Option<&CliContext>,
+) -> Result<RegisterOutcome> {
     let paths = Paths::from_env()?;
     let registry_path = paths.project_registry();
+    if let Some(context) = context {
+        context.diagnostic(format!("registry: {}", registry_path.display()));
+    }
     let _lock = RegistryMutationLock::acquire(&registry_path)?;
     let mut registry = ProjectRegistry::read(&registry_path)?;
     let root = resolve_register_root(&registry, path, update.as_deref())?;
+    if let Some(context) = context {
+        context.diagnostic(format!("canonical root: {}", root.display()));
+        context.diagnostic("validation: ok");
+    }
     let outcome = registry.register(RegisterRequest {
         root,
         name,
@@ -99,17 +134,23 @@ pub fn outcome_id(outcome: &RegisterOutcome) -> &str {
     }
 }
 
-pub fn forget(args: &ForgetArgs, _context: &crate::cli::CliContext) -> Result<()> {
+pub fn forget(args: &ForgetArgs, context: &CliContext) -> Result<()> {
+    context.diagnostic("command: forget");
+    context.diagnostic(format!("requested project id: {}", args.project_id));
+    context.diagnostic(format!("delete cache: {}", args.delete_cache));
     let paths = Paths::from_env()?;
     let registry_path = paths.project_registry();
+    context.diagnostic(format!("registry: {}", registry_path.display()));
     let _lock = RegistryMutationLock::acquire(&registry_path)?;
     let mut registry = ProjectRegistry::read(&registry_path)?;
     let removed = registry.remove(&args.project_id)?;
+    context.diagnostic(format!("canonical root: {}", removed.root.display()));
     maybe_sleep_for_test("LLM_WIKI_TEST_REGISTRY_WRITE_DELAY_MS");
     registry.write_atomic(&registry_path)?;
 
     if args.delete_cache {
         let cache_dir = paths.project_index_dir(&removed.id);
+        context.diagnostic(format!("cache dir: {}", cache_dir.display()));
         if cache_dir.exists() {
             let canonical_cache_home = fs::canonicalize(paths.cache_home()).with_context(|| {
                 format!("canonicalize cache home {}", paths.cache_home().display())
@@ -117,30 +158,54 @@ pub fn forget(args: &ForgetArgs, _context: &crate::cli::CliContext) -> Result<()
             let canonical_cache_dir = fs::canonicalize(&cache_dir)
                 .with_context(|| format!("canonicalize search cache {}", cache_dir.display()))?;
             if !canonical_cache_dir.starts_with(&canonical_cache_home) {
+                context.diagnostic("cache deletion: refused outside cache home");
                 bail!(
                     "refusing to delete cache outside {}: {}",
                     canonical_cache_home.display(),
                     canonical_cache_dir.display()
                 );
             }
+            context.diagnostic("cache deletion: remove cache dir");
             fs::remove_dir_all(&cache_dir)
                 .with_context(|| format!("remove search cache {}", cache_dir.display()))?;
+        } else {
+            context.diagnostic("cache deletion: cache dir missing");
         }
+    } else {
+        context.diagnostic("cache deletion: skipped");
     }
 
     println!("Forgot project: {}", removed.id);
     Ok(())
 }
 
-pub fn projects(args: &ProjectsArgs, _context: &crate::cli::CliContext) -> Result<()> {
+pub fn projects(args: &ProjectsArgs, context: &CliContext) -> Result<()> {
+    context.diagnostic("command: projects");
     let paths = Paths::from_env()?;
-    let registry = ProjectRegistry::read(&paths.project_registry())?;
+    let registry_path = paths.project_registry();
+    context.diagnostic(format!("registry: {}", registry_path.display()));
+    context.diagnostic(format!("format: {}", output_format_label(args.format)));
+    let registry = ProjectRegistry::read(&registry_path)?;
+    context.diagnostic(format!("registered projects: {}", registry.projects.len()));
     let view = ProjectsView::from_registry(&registry, &paths)?;
+    for project in &view.projects {
+        context.diagnostic(format!(
+            "project status: {} root={} index={} freshness={}",
+            project.id, project.root_status, project.index_status, project.freshness
+        ));
+    }
     match args.format {
         OutputFormat::Json => println!("{}", serde_json::to_string_pretty(&view)?),
         OutputFormat::Text => print_projects_text(&view),
     }
     Ok(())
+}
+
+fn output_format_label(format: OutputFormat) -> &'static str {
+    match format {
+        OutputFormat::Text => "text",
+        OutputFormat::Json => "json",
+    }
 }
 
 /// Output is `\t`-separated; the first row is a header. The field set and

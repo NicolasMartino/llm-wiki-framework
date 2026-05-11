@@ -1,7 +1,7 @@
 # Plan: CLI Verbose Diagnostics
 
 - Document Class: Plan
-- Status: Active
+- Status: Completed
 - Date: 2026-05-11
 - Category: CLI UX, operational diagnostics
 - Scope: Implement staged `llm-wiki -v/--verbose` diagnostics, proving the shared surface first with `search` and `search-all`, then extending concise command-specific diagnostics across the binary.
@@ -286,6 +286,21 @@ Stage 2 gates:
 4. targeted assertions for every verbose command
 5. `git diff --check`
 
+Stage 2 proof, recorded 2026-05-11:
+
+- Every binary command accepts global `-v/--verbose`.
+- `build`, `install`, `init`, `register`, `forget`, `projects`, `index`,
+  `index-all`, `path`, `status`, `doctor`, and `uninstall` now emit concise
+  command-specific diagnostics through `CliContext`.
+- Diagnostics cover selected build targets, install collision and render
+  decisions, init blueprint/pack/source decisions, registry mutations, index
+  store/lock/promotion facts, and managed-home/status/doctor paths.
+- Tests assert useful verbose stderr facts beside existing command fixtures in
+  `tests/build.rs`, `tests/init.rs`, `tests/install.rs`, `tests/registry.rs`,
+  `tests/search_commands.rs`, and `tests/status_doctor.rs`.
+
+Proof run: completed the Stage 2 gates listed above.
+
 ## Pages To Update On Completion
 
 After Stage 1 lands:
@@ -298,14 +313,16 @@ After Stage 1 lands:
 
 After Stage 2 lands:
 
-- `wiki/plans/cli-observability.plan.md` - Status -> Completed.
+- `wiki/plans/cli-observability.plan.md` - Status -> Completed. Done
+  2026-05-11.
 - `wiki/proposals/cli-observability.proposal.md` - remains Accepted; verify the
-  accepted outcome still matches implementation.
+  accepted outcome still matches implementation. Done 2026-05-11.
 - `wiki/specs/documentation-model.spec.md` - record validated CLI diagnostics
-  only after tests prove behavior.
-- `README.md` - document the user-visible `-v/--verbose` surface.
-- `wiki/index.md` - update plan status and summaries.
-- `wiki/log.md` - completion entry.
+  only after tests prove behavior. Done 2026-05-11.
+- `README.md` - document the user-visible `-v/--verbose` surface. Done
+  2026-05-11.
+- `wiki/index.md` - update plan status and summaries. Done 2026-05-11.
+- `wiki/log.md` - completion entry. Done 2026-05-11.
 
 ## What Closes The Plan
 

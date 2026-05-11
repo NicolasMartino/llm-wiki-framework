@@ -1,5 +1,27 @@
 # Wiki Log
 
+## [2026-05-11] complete | CLI observability full command coverage
+
+Completed Stage 2 of `wiki/plans/cli-observability.plan.md`. The binary now
+emits concise `-v` / `--verbose` diagnostics for every remaining command:
+`build`, `install`, `init`, `register`, `forget`, `projects`, `index`,
+`index-all`, `path`, `status`, `doctor`, and `uninstall`. Diagnostics stay on
+stderr through `CliContext` / `tracing` and cover build targets, install render
+and collision decisions, init blueprint/pack/source inputs, registry mutations,
+index store/lock/promotion facts, and managed home/status/doctor paths.
+
+Updated the proposal implementation check, promoted the plan to Completed,
+recorded the validated CLI diagnostics in the documentation model spec, and
+documented the user-visible verbose surface in README.
+
+Verification: `cargo fmt`; `cargo test --test build --test init --test install
+--test registry --test status_doctor --test search_commands`;
+`cargo test --workspace`; `just verify`; `git diff --check`.
+
+Pages updated: README.md, wiki/plans/cli-observability.plan.md,
+wiki/proposals/cli-observability.proposal.md,
+wiki/specs/documentation-model.spec.md, wiki/index.md, wiki/log.md
+
 ## [2026-05-11] update | CLI observability stage 1 review fixes
 
 Addressed Stage 1 review feedback for `wiki/plans/cli-observability.plan.md`.

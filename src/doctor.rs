@@ -15,9 +15,28 @@ use crate::search::project::discover_from_cwd;
 use crate::search::qmd_rs::QmdRsBackend;
 use crate::skill_render::{BINARY_MARKER, managed_binary_invocation};
 
-pub fn run(_context: &crate::cli::CliContext) -> Result<()> {
+pub fn run(context: &crate::cli::CliContext) -> Result<()> {
+    context.diagnostic("command: doctor");
     let paths = Paths::from_env()?;
+    context.diagnostic(format!("managed home: {}", paths.managed_home().display()));
+    context.diagnostic(format!(
+        "managed binary: {}",
+        paths.managed_binary().display()
+    ));
+    context.diagnostic(format!("manifest: {}", paths.manifest().display()));
+    context.diagnostic(format!(
+        "partial marker: {}",
+        paths.partial_install().display()
+    ));
     let manifest = Manifest::read(&paths.manifest())?;
+    context.diagnostic(format!(
+        "manifest state: {}",
+        if manifest.is_some() {
+            "present"
+        } else {
+            "missing"
+        }
+    ));
     let manifest_paths: HashSet<PathBuf> = manifest
         .as_ref()
         .map(|manifest| {
@@ -50,6 +69,7 @@ pub fn run(_context: &crate::cli::CliContext) -> Result<()> {
             && path_binary.exists()
             && manifest.binary.path.exists()
         {
+            context.diagnostic(format!("PATH binary: {}", path_binary.display()));
             let path_hash = sha256_hex(&fs::read(&path_binary)?);
             if path_hash != manifest.binary.hash {
                 findings.push(format!(
@@ -120,13 +140,17 @@ pub fn run(_context: &crate::cli::CliContext) -> Result<()> {
             println!("{finding}");
         }
     }
-    print_project_search_diagnostics(&paths)?;
+    print_project_search_diagnostics(&paths, context)?;
     Ok(())
 }
 
-fn print_project_search_diagnostics(paths: &Paths) -> Result<()> {
+fn print_project_search_diagnostics(paths: &Paths, context: &crate::cli::CliContext) -> Result<()> {
     let registry_path = paths.project_registry();
+    context.diagnostic(format!("registry: {}", registry_path.display()));
+    context.diagnostic(format!("index root: {}", paths.index_root().display()));
+    context.diagnostic(format!("model cache: {}", paths.model_cache().display()));
     let registry = ProjectRegistry::read(&registry_path)?;
+    context.diagnostic(format!("registered projects: {}", registry.projects.len()));
 
     println!();
     println!("Registry:");
@@ -157,9 +181,14 @@ fn print_project_search_diagnostics(paths: &Paths) -> Result<()> {
     println!();
     println!("Current project:");
     let Some(discovered) = discover_from_cwd()? else {
+        context.diagnostic("current project: <none>");
         println!("No current wiki project detected; project search checks skipped.");
         return Ok(());
     };
+    context.diagnostic(format!(
+        "current project: {}",
+        discovered.project_root.display()
+    ));
 
     println!(
         "Detected wiki project: {}",
@@ -181,8 +210,15 @@ fn print_project_search_diagnostics(paths: &Paths) -> Result<()> {
     let wiki_root = registered
         .map(RegisteredProject::wiki_root)
         .unwrap_or(discovered.wiki_root);
+    context.diagnostic(format!("wiki root: {}", wiki_root.display()));
+    context.diagnostic(format!("index store: {}", store_path.display()));
     let backend = QmdRsBackend::new();
     let status = backend.doctor(&store_path, &wiki_root, SearchMode::Fts)?;
+    context.diagnostic(format!(
+        "search index status: {}, indexed_files={}",
+        backend_state_label(&status.state),
+        status.indexed_files
+    ));
 
     println!();
     println!("Search index:");
@@ -228,6 +264,16 @@ fn print_project_search_diagnostics(paths: &Paths) -> Result<()> {
     );
 
     Ok(())
+}
+
+fn backend_state_label(state: &BackendState) -> &'static str {
+    match state {
+        BackendState::Ready => "ready",
+        BackendState::Missing => "missing",
+        BackendState::Stale => "stale",
+        BackendState::Corrupt => "corrupt",
+        BackendState::SchemaMismatch => "schema-mismatch",
+    }
 }
 
 fn is_legacy_symlink(path: &Path) -> Result<bool> {

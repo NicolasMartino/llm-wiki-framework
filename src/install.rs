@@ -8,6 +8,7 @@ use chrono::{Timelike, Utc};
 use llm_wiki_schema::{ClaudeProjector, CodexProjector, Projector, Runtime, parse};
 use serde::Serialize;
 
+use crate::cli::CliContext;
 use crate::embed;
 use crate::manifest::collision::{Collision, classify};
 use crate::manifest::hash::sha256_hex;
@@ -19,9 +20,23 @@ use crate::path_guidance;
 use crate::paths::Paths;
 use crate::skill_render::{apply_binary_context, managed_binary_invocation};
 
-pub fn run(force: bool, show_path_guidance: bool, _context: &crate::cli::CliContext) -> Result<()> {
+pub fn run(force: bool, show_path_guidance: bool, context: &CliContext) -> Result<()> {
+    context.diagnostic("command: install");
+    context.diagnostic(format!("force: {force}"));
+    context.diagnostic(format!("path guidance: {show_path_guidance}"));
     let paths = Paths::from_env()?;
+    context.diagnostic(format!("managed home: {}", paths.managed_home().display()));
+    context.diagnostic(format!(
+        "managed binary: {}",
+        paths.managed_binary().display()
+    ));
+    context.diagnostic(format!("manifest: {}", paths.manifest().display()));
+    context.diagnostic(format!(
+        "partial marker: {}",
+        paths.partial_install().display()
+    ));
     let current_exe = env::current_exe().context("failed to resolve current executable")?;
+    context.diagnostic(format!("current executable: {}", current_exe.display()));
     let current_exe_bytes = fs::read(&current_exe).with_context(|| {
         format!(
             "failed to read current executable {}",
@@ -30,20 +45,34 @@ pub fn run(force: bool, show_path_guidance: bool, _context: &crate::cli::CliCont
     })?;
     let current_exe_hash = sha256_hex(&current_exe_bytes);
     let manifest = Manifest::read(&paths.manifest())?;
+    context.diagnostic(format!(
+        "manifest state: {}",
+        if manifest.is_some() {
+            "present"
+        } else {
+            "missing"
+        }
+    ));
 
     let partial_state =
-        recover_or_reject_partial(&paths, manifest.as_ref(), &current_exe_hash, force)?;
+        recover_or_reject_partial(&paths, manifest.as_ref(), &current_exe_hash, force, context)?;
+    context.diagnostic(format!(
+        "partial marker recovery: {}",
+        partial_state.label()
+    ));
 
-    let files = render_install_files(&paths)?;
-    preflight_install(
+    let files = render_install_files(&paths, context)?;
+    context.diagnostic(format!("rendered install files: {}", files.len()));
+    preflight_managed_binary(
         &paths,
-        &files,
-        manifest.as_ref(),
         &current_exe,
         &current_exe_bytes,
+        manifest.as_ref(),
         force,
         partial_state,
+        context,
     )?;
+    preflight_install_files(&files, manifest.as_ref(), force, context)?;
 
     let partial = PartialInstall::new(
         current_exe.clone(),
@@ -60,8 +89,9 @@ pub fn run(force: bool, show_path_guidance: bool, _context: &crate::cli::CliCont
         &manifest,
         force,
         partial_state,
+        context,
     )?;
-    let skill_entries = install_files(files, manifest.as_ref(), force)?;
+    let skill_entries = install_files(files, manifest.as_ref(), force, context)?;
     let mut backups = manifest
         .as_ref()
         .map(|manifest| manifest.backups.clone())
@@ -82,26 +112,6 @@ pub fn run(force: bool, show_path_guidance: bool, _context: &crate::cli::CliCont
     Ok(())
 }
 
-fn preflight_install(
-    paths: &Paths,
-    files: &[InstallFile],
-    manifest: Option<&Manifest>,
-    current_exe: &Path,
-    current_exe_bytes: &[u8],
-    force: bool,
-    partial_state: PartialState,
-) -> Result<()> {
-    preflight_managed_binary(
-        paths,
-        current_exe,
-        current_exe_bytes,
-        manifest,
-        force,
-        partial_state,
-    )?;
-    preflight_install_files(files, manifest, force)
-}
-
 fn preflight_managed_binary(
     paths: &Paths,
     current_exe: &Path,
@@ -109,13 +119,19 @@ fn preflight_managed_binary(
     manifest: Option<&Manifest>,
     force: bool,
     partial_state: PartialState,
+    context: &CliContext,
 ) -> Result<()> {
     let managed_binary = paths.managed_binary();
     let current_hash = sha256_hex(current_exe_bytes);
+    context.diagnostic(format!("managed binary path: {}", managed_binary.display()));
     if same_file_when_possible(current_exe, &managed_binary) {
         let managed_hash = sha256_hex(&fs::read(&managed_binary).with_context(|| {
             format!("failed to read managed binary {}", managed_binary.display())
         })?);
+        context.diagnostic(format!(
+            "managed binary comparison: same-file hash_match={}",
+            managed_hash == current_hash
+        ));
         if managed_hash != current_hash {
             bail!(
                 "managed binary {} differs from current executable",
@@ -126,6 +142,7 @@ fn preflight_managed_binary(
     }
 
     if !managed_binary.exists() {
+        context.diagnostic("managed binary comparison: target missing");
         return Ok(());
     }
 
@@ -134,6 +151,12 @@ fn preflight_managed_binary(
             format!("failed to read managed binary {}", managed_binary.display())
         })?);
     let manifest_owned = manifest.is_some_and(|manifest| manifest.binary.path == managed_binary);
+    context.diagnostic(format!(
+        "managed binary comparison: hash_match={}, manifest_owned={}, force={}",
+        managed_hash == current_hash,
+        manifest_owned,
+        force
+    ));
     if managed_hash != current_hash && !manifest_owned && !force {
         if partial_state == PartialState::Resuming {
             bail!(
@@ -153,11 +176,20 @@ fn preflight_install_files(
     files: &[InstallFile],
     manifest: Option<&Manifest>,
     force: bool,
+    context: &CliContext,
 ) -> Result<()> {
     let manifest_by_path = manifest_entries_by_path(manifest);
 
     for file in files {
         let collision = classify_install_file(file, &manifest_by_path)?;
+        context.diagnostic(format!(
+            "collision classification: skill={} runtime={} kind={} path={} -> {:?}",
+            file.skill,
+            file.runtime.label(),
+            file.kind.label(),
+            file.path.display(),
+            collision
+        ));
         match collision {
             Collision::FreshInstall
             | Collision::RestoreMissing
@@ -190,9 +222,11 @@ fn recover_or_reject_partial(
     manifest: Option<&Manifest>,
     current_exe_hash: &str,
     force: bool,
+    context: &CliContext,
 ) -> Result<PartialState> {
     let partial_path = paths.partial_install();
     let Some(partial) = PartialInstall::read(&partial_path)? else {
+        context.diagnostic("partial marker decision: none");
         return Ok(PartialState::None);
     };
 
@@ -210,19 +244,23 @@ fn recover_or_reject_partial(
                 partial_path.display()
             )
         })?;
+        context.diagnostic("partial marker decision: leaked marker cleaned");
         return Ok(PartialState::LeakedMarkerCleaned);
     }
     if partial.target_binary != managed_binary && !force {
+        context.diagnostic("partial marker decision: stale target refused");
         bail!(
             "stale partial install targets {}; rerun with --force to replace it",
             partial.target_binary.display()
         );
     }
     if partial.current_exe_hash != current_exe_hash && !force {
+        context.diagnostic("partial marker decision: stale hash refused");
         bail!(
             "stale partial install was started by a different binary; rerun with --force to replace it"
         );
     }
+    context.diagnostic("partial marker decision: resuming");
     Ok(PartialState::Resuming)
 }
 
@@ -233,6 +271,16 @@ enum PartialState {
     LeakedMarkerCleaned,
 }
 
+impl PartialState {
+    fn label(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::Resuming => "resuming",
+            Self::LeakedMarkerCleaned => "leaked-marker-cleaned",
+        }
+    }
+}
+
 fn install_managed_binary(
     paths: &Paths,
     current_exe: &Path,
@@ -240,6 +288,7 @@ fn install_managed_binary(
     manifest: &Option<Manifest>,
     force: bool,
     partial_state: PartialState,
+    context: &CliContext,
 ) -> Result<BinaryEntry> {
     let managed_binary = paths.managed_binary();
     if let Some(parent) = managed_binary.parent() {
@@ -252,6 +301,7 @@ fn install_managed_binary(
         let managed_hash = sha256_hex(&fs::read(&managed_binary).with_context(|| {
             format!("failed to read managed binary {}", managed_binary.display())
         })?);
+        context.diagnostic("managed binary action: already running managed binary");
         if managed_hash != current_hash {
             bail!(
                 "managed binary {} differs from current executable",
@@ -276,9 +326,13 @@ fn install_managed_binary(
             );
         }
         if managed_hash != current_hash {
+            context.diagnostic("managed binary action: replace existing target");
             copy_current_exe(current_exe, &managed_binary)?;
+        } else {
+            context.diagnostic("managed binary action: existing target hash matches");
         }
     } else {
+        context.diagnostic("managed binary action: copy new target");
         copy_current_exe(current_exe, &managed_binary)?;
     }
 
@@ -329,12 +383,21 @@ fn install_files(
     files: Vec<InstallFile>,
     manifest: Option<&Manifest>,
     force: bool,
+    context: &CliContext,
 ) -> Result<Vec<ManifestEntry>> {
     let manifest_by_path = manifest_entries_by_path(manifest);
 
     let mut new_entries = Vec::with_capacity(files.len());
     for file in files {
         let collision = classify_install_file(&file, &manifest_by_path)?;
+        context.diagnostic(format!(
+            "install file action: skill={} runtime={} kind={} path={} collision={:?}",
+            file.skill,
+            file.runtime.label(),
+            file.kind.label(),
+            file.path.display(),
+            collision
+        ));
 
         match collision {
             Collision::FreshInstall | Collision::RestoreMissing | Collision::Upgrade => {
@@ -496,7 +559,7 @@ fn write_backup_snapshot(
     })
 }
 
-fn render_install_files(paths: &Paths) -> Result<Vec<InstallFile>> {
+fn render_install_files(paths: &Paths, context: &CliContext) -> Result<Vec<InstallFile>> {
     let mut files = Vec::new();
     for asset in embed::SKILLS {
         let doc = parse(asset.skill_md)
@@ -505,6 +568,11 @@ fn render_install_files(paths: &Paths) -> Result<Vec<InstallFile>> {
         let doc = apply_binary_context(doc, &binary_invocation);
         if doc.frontmatter.runtimes.contains(&Runtime::Claude) {
             let rendered = ClaudeProjector.project(&doc)?;
+            context.diagnostic(format!(
+                "render target: skill={} runtime=claude path={}",
+                asset.name,
+                paths.claude_skill(asset.name).display()
+            ));
             files.push(InstallFile::new(
                 paths.claude_skill(asset.name),
                 asset.name,
@@ -517,6 +585,11 @@ fn render_install_files(paths: &Paths) -> Result<Vec<InstallFile>> {
             let runtime_config = llm_wiki_schema::CodexRuntimeConfig::from_yaml(asset.codex_openai)
                 .with_context(|| format!("failed to parse {} Codex runtime config", asset.name))?;
             let rendered = CodexProjector::with_runtime_config(runtime_config).project(&doc)?;
+            context.diagnostic(format!(
+                "render target: skill={} runtime=codex path={}",
+                asset.name,
+                paths.codex_skill(asset.name).display()
+            ));
             files.push(InstallFile::new(
                 paths.codex_skill(asset.name),
                 asset.name,
@@ -647,6 +720,28 @@ impl InstallFile {
             hash: self.sha256.clone(),
             ownership: Ownership::ManifestOwned,
             installed_by_version: env!("CARGO_PKG_VERSION").to_string(),
+        }
+    }
+}
+
+trait InstallLabel {
+    fn label(self) -> &'static str;
+}
+
+impl InstallLabel for RuntimeName {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Claude => "claude",
+            Self::Codex => "codex",
+        }
+    }
+}
+
+impl InstallLabel for FileKind {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Skill => "skill",
+            Self::RuntimeConfig => "runtime-config",
         }
     }
 }

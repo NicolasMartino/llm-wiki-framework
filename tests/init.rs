@@ -185,6 +185,40 @@ fn init_code_pack_controls_root_code_folders() {
 }
 
 #[test]
+fn verbose_init_emits_command_diagnostics() {
+    let temp = TempDir::new().expect("tempdir");
+    let home = TempDir::new().expect("home");
+    let sources = TempDir::new().expect("sources");
+    let source = sources.path().join("seed.md");
+    fs::write(&source, "# Seed\n").expect("source");
+
+    llm_wiki(home.path())
+        .args(["--verbose", "init"])
+        .arg(temp.path())
+        .args([
+            "--non-interactive",
+            "--name",
+            "Fixture Project",
+            "--description",
+            "A fixture project.",
+            "--blueprint",
+            "ml-research",
+            "--initial-sources",
+        ])
+        .arg(&source)
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("command: init"))
+        .stderr(predicate::str::contains("project path:"))
+        .stderr(predicate::str::contains("blueprint: ml-research"))
+        .stderr(predicate::str::contains(
+            "resolved packs: ml, data, research, code",
+        ))
+        .stderr(predicate::str::contains("initial source:"))
+        .stderr(predicate::str::contains("registry:"));
+}
+
+#[test]
 fn init_agents_lists_pack_document_types_for_pack_driven_projects() {
     let temp = TempDir::new().expect("tempdir");
 

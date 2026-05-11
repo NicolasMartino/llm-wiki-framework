@@ -57,6 +57,23 @@ fn build_target_claude_skips_codex_output() {
 }
 
 #[test]
+fn verbose_build_emits_command_diagnostics() {
+    let temp = TempDir::new().expect("tempdir");
+
+    Command::cargo_bin("llm-wiki")
+        .expect("binary")
+        .args(["--verbose", "build", "--target", "codex", "--out"])
+        .arg(temp.path())
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("command: build"))
+        .stderr(predicate::str::contains("build target: codex"))
+        .stderr(predicate::str::contains("output directory:"))
+        .stderr(predicate::str::contains("render target:"))
+        .stderr(predicate::str::contains("rendered runtime skill counts:"));
+}
+
+#[test]
 fn invalid_target_is_rejected() {
     Command::cargo_bin("llm-wiki")
         .expect("binary")

@@ -116,6 +116,48 @@ fn register_update_changes_existing_project_without_path_argument() {
 }
 
 #[test]
+fn verbose_registry_commands_emit_diagnostics() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project", true);
+
+    llm_wiki(home.path())
+        .args([
+            "--verbose",
+            "register",
+            "--id",
+            "fixture",
+            "--name",
+            "Fixture",
+        ])
+        .arg(&project)
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("command: register"))
+        .stderr(predicate::str::contains("registry:"))
+        .stderr(predicate::str::contains("canonical root:"))
+        .stderr(predicate::str::contains("validation: ok"));
+
+    llm_wiki(home.path())
+        .args(["--verbose", "projects"])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("command: projects"))
+        .stderr(predicate::str::contains("registry:"))
+        .stderr(predicate::str::contains("registered projects: 1"))
+        .stderr(predicate::str::contains("project status: fixture"));
+
+    llm_wiki(home.path())
+        .args(["--verbose", "forget", "fixture", "--delete-cache"])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("command: forget"))
+        .stderr(predicate::str::contains("requested project id: fixture"))
+        .stderr(predicate::str::contains("cache dir:"))
+        .stderr(predicate::str::contains("cache deletion:"));
+}
+
+#[test]
 fn same_root_with_different_explicit_id_is_rejected() {
     let home = TempDir::new().expect("home");
     let workspace = TempDir::new().expect("workspace");

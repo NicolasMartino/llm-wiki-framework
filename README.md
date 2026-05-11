@@ -39,4 +39,16 @@ selection. For example, `--blueprint custom --pack ml --pack qmd-rs-scale`
 creates an ML-oriented wiki with qmd-rs-backed scale guidance.
 For command-line tools and developer utilities, use `--blueprint cli-tool`.
 
+## Diagnostics
+
+Every `llm-wiki` command accepts global `-v` / `--verbose` before or after the
+subcommand. Normal command results stay on stdout; verbose diagnostics go to
+stderr and explain resolved paths, selected projects, index state, install
+decisions, and other command-specific state.
+
+```bash
+llm-wiki -v search "query" --project my-project
+llm-wiki index --project my-project -v
+```
+
 Run `llm-wiki --help` for the full command surface.
