@@ -2397,7 +2397,7 @@ Verification: `cargo fmt`; `cargo check`; `cargo test semantic`;
 `cargo test --test search_commands`; `cargo test --test status_doctor`;
 `cargo clippy --workspace --all-targets`; `cargo test --workspace`;
 `cargo run -- build --out .`; `cargo test -p llm-wiki-schema --test
-real_skills`.
+real_skills`; `just verify`.
 
 Pages updated: src/paths.rs, src/search/semantic.rs, src/search/commands.rs,
 src/doctor.rs, tests/search_commands.rs, assets/skills/wiki-query/SKILL.md,
