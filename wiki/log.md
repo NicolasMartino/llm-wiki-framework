@@ -1,5 +1,29 @@
 # Wiki Log
 
+## [2026-05-11] propose | Always-on crash reports
+
+Added `wiki/proposals/crash-reports.proposal.md` proposing that every panic
+and every post-parse error-exit of `llm-wiki` writes a report under
+`~/.llm_wiki/crashes/<UTC-nanosecond>-<pid>-<tid>.log` with no opt-in flag.
+The panic path captures a full origin-aware backtrace via
+`std::backtrace::Backtrace::force_capture()` inside a chained panic hook;
+the error-return path carries the `anyhow` error chain (origin-frame
+backtrace for returned errors is deferred to Future Improvements). `main`
+switches to `fn main() -> ExitCode` + `run(&cli) -> Result<()>` so the
+binary owns its own `Error: ...` line plus a trailing `crash report: ...`
+pointer; clap retains ownership of CLI parse errors. Environment dumps are
+gated by a two-layer allowlist plus a `(?i)token|secret|key|password|auth
+|credential` redactor. Retention prunes to 20 files; reports fall back to
+a temp dir when `HOME` is unset.
+
+Deferred: origin backtraces for returned errors, `try_parse` integration
+for clap parse-error reports, crash-file collision retry, embedding the
+verbose diagnostic tail, doctor listing recent reports, and an
+env-configurable retention cap.
+
+Pages updated: wiki/proposals/crash-reports.proposal.md, wiki/index.md,
+wiki/log.md
+
 ## [2026-05-11] complete | CLI observability full command coverage
 
 Completed Stage 2 of `wiki/plans/cli-observability.plan.md`. The binary now

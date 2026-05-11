@@ -1,7 +1,7 @@
 # Wiki Index
 
 Project: Software Project Management Framework
-Stage: D1-D11 Completed; code-pack/CLI blueprint and CLI observability completed; semantic/hybrid search proposal open
+Stage: D1-D11 Completed; code-pack/CLI blueprint and CLI observability completed; semantic/hybrid search and crash-report proposals open
 Updated: 2026-05-11
 
 ## Specs
@@ -50,6 +50,7 @@ Updated: 2026-05-11
 - [CLI Verbose Diagnostics](proposals/cli-observability.proposal.md) — Accepted — Implemented through the completed CLI observability plan; every binary command now accepts global `-v/--verbose` diagnostics while normal stdout remains stable
 - [Code Scaffolding As An Opt-In Pack](proposals/code-folders-opt-in.proposal.md) — Accepted — Promoted to code-pack/CLI blueprint decision and implementation plan
 - [Semantic and Hybrid Search for Natural-Language Queries](proposals/search-query-interpretation.proposal.md) — Proposed — Add interactive-only LLM search setup, managed `~/.llm_wiki` model/index state with external dependency inventory and macOS backup policy, default `auto` search, lexical/semantic/hybrid modes, relevance floors, optional reranking, and rank-merged `search-all`
+- [Always-On Crash Reports](proposals/crash-reports.proposal.md) — Proposed — Capture a crash report under `~/.llm_wiki/crashes/` for every panic (full origin backtrace) and every post-parse error-exit (anyhow error chain) of the binary, with no opt-in flag
 
 ## Plans
 
