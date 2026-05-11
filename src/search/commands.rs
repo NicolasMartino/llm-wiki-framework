@@ -568,6 +568,7 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
             Some((&project.id, &project.name)),
             warning,
             &[],
+            &[],
             &results,
             mode_metadata,
         ),
@@ -705,6 +706,11 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
         });
         project_reports.push(ProjectSearchReport {
             project_id: project.id.clone(),
+            requested_mode: resolution.requested_mode.label().to_string(),
+            selected_mode: Some(resolution.selected_mode.label().to_string()),
+            mode_selection_reason: Some(resolution.reason.clone()),
+            fallback_reason: resolution.fallback_reason.clone(),
+            readiness_reason: None,
             result_count: search.results.len(),
             no_result: no_result.flatten(),
         });
@@ -766,7 +772,15 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
                 mode_metadata.zero_result_reason =
                     Some("no selected project returned results".to_string());
             }
-            print_search_json(&args.query, None, None, &warnings, &results, mode_metadata)
+            print_search_json(
+                &args.query,
+                None,
+                None,
+                &warnings,
+                &project_reports,
+                &results,
+                mode_metadata,
+            )
         }
     }
     Ok(())
@@ -1161,6 +1175,7 @@ fn handle_readiness_failure(
             None,
             &[],
             &[],
+            &[],
             SearchModeJson::readiness_failure(
                 requested_mode,
                 &failure.reason,
@@ -1237,6 +1252,11 @@ struct FusedResult {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct ProjectSearchReport {
     project_id: String,
+    requested_mode: String,
+    selected_mode: Option<String>,
+    mode_selection_reason: Option<String>,
+    fallback_reason: Option<String>,
+    readiness_reason: Option<String>,
     result_count: usize,
     no_result: Option<String>,
 }
@@ -1415,6 +1435,18 @@ struct SearchWarningJson {
 }
 
 #[derive(Clone, Debug, Serialize)]
+struct ProjectSearchReportJson {
+    project_id: String,
+    requested_mode: String,
+    selected_mode: Option<String>,
+    mode_selection_reason: Option<String>,
+    fallback_reason: Option<String>,
+    readiness_reason: Option<String>,
+    result_count: usize,
+    zero_result_reason: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
 struct SearchEnvelopeJson {
     query: String,
     project_id: Option<String>,
@@ -1432,6 +1464,7 @@ struct SearchEnvelopeJson {
     rerank_requested: bool,
     warning: Option<String>,
     warnings: Vec<SearchWarningJson>,
+    projects: Vec<ProjectSearchReportJson>,
     results: Vec<SearchResultJson>,
 }
 
@@ -1441,6 +1474,7 @@ fn print_search_json(
     project: Option<(&str, &str)>,
     warning: Option<&str>,
     warnings: &[SearchWarning],
+    project_reports: &[ProjectSearchReport],
     results: &[SearchResult],
     mode: SearchModeJson,
 ) {
@@ -1467,6 +1501,19 @@ fn print_search_json(
             message: warning.message.clone(),
         })
         .collect::<Vec<_>>();
+    let projects = project_reports
+        .iter()
+        .map(|report| ProjectSearchReportJson {
+            project_id: report.project_id.clone(),
+            requested_mode: report.requested_mode.clone(),
+            selected_mode: report.selected_mode.clone(),
+            mode_selection_reason: report.mode_selection_reason.clone(),
+            fallback_reason: report.fallback_reason.clone(),
+            readiness_reason: report.readiness_reason.clone(),
+            result_count: report.result_count,
+            zero_result_reason: report.no_result.clone(),
+        })
+        .collect::<Vec<_>>();
     println!(
         "{}",
         serde_json::to_string_pretty(&SearchEnvelopeJson {
@@ -1486,6 +1533,7 @@ fn print_search_json(
             rerank_requested: mode.rerank_requested,
             warning: warning.map(ToString::to_string),
             warnings,
+            projects,
             results,
         })
         .expect("serialize search json")

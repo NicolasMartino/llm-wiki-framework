@@ -377,8 +377,9 @@ Progress 2026-05-11:
 
 - `search-all` accepts the same mode/fallback/rerank flags, runs the selected
   retrieval branch for each selected project, merges result lists by reciprocal
-  rank, and carries per-result mode/backend/project metadata in JSON. Rich
-  per-project readiness reporting remains open.
+  rank, and carries per-result mode/backend/project metadata in JSON. The JSON
+  envelope also includes per-project requested mode, selected mode,
+  selection/fallback/readiness reason, result count, and zero-result reason.
 - Updated the canonical `wiki-query` skill source and regenerated Claude/Codex
   projections so large or complex queries use `search --mode auto --format
   json`, inspect mode/readiness/fallback/zero-result metadata, and read returned

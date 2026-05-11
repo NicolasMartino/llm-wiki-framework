@@ -801,7 +801,9 @@ fn index_all_and_search_all_fuse_registered_projects() {
         .assert()
         .success()
         .stdout(predicate::str::contains("\"project_id\": \"alpha\""))
-        .stdout(predicate::str::contains("\"project_id\": \"beta\""));
+        .stdout(predicate::str::contains("\"project_id\": \"beta\""))
+        .stdout(predicate::str::contains("\"projects\""))
+        .stdout(predicate::str::contains("\"selected_mode\": \"lexical\""));
 
     llm_wiki(home.path())
         .args([
@@ -947,6 +949,12 @@ fn search_json_envelope_has_all_contract_fields() {
     assert_eq!(json["selected_mode"], "lexical");
     assert!(json.get("warning").is_some());
     assert!(json.get("warnings").is_some());
+    assert!(json.get("projects").is_some());
+    assert!(
+        json["projects"]
+            .as_array()
+            .is_some_and(|items| items.is_empty())
+    );
     let result = json["results"]
         .as_array()
         .and_then(|results| results.first())

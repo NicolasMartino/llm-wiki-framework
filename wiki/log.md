@@ -2381,7 +2381,9 @@ chunking strategy. `--mode semantic` embeds the query, scores chunk vectors,
 applies floors and filters, rolls chunks up to wiki pages, and returns semantic
 snippets. `--mode hybrid` runs configured query expansion, lexical qmd-rs FTS,
 semantic vector retrieval, reciprocal-rank fusion, exact-identifier lexical
-guarding, and optional reranking when a reranker profile exists. The canonical
+guarding, and optional reranking when a reranker profile exists. `search-all`
+JSON now includes per-project requested/selected mode, selection/fallback/
+readiness reason, result count, and zero-result reason. The canonical
 `wiki-query` skill now consumes `search --mode auto --format json` as a
 supplemental navigation surface and inspects mode/readiness/result metadata
 before reading returned pages.
