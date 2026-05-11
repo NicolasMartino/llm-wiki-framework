@@ -261,11 +261,6 @@ wiki/
     evals/
 {% endif %}
     archive/
-{% if !is_existing %}  src/                        Application code
-  tests/                      Automated tests
-  scripts/                    Utilities and automation
-  infra/                      Infrastructure definitions
-{% endif %}
 {% if include_ml_ai %}  models/                     Model artifacts, configs
   data/                       Datasets, schemas, pipelines
   notebooks/                  Exploratory analysis

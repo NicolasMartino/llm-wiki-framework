@@ -1,7 +1,7 @@
 # Wiki Index
 
 Project: Software Project Management Framework
-Stage: D1-D11 Completed; code-pack/CLI implementation planned; CLI observability and semantic/hybrid search proposals open
+Stage: D1-D11 Completed; code-pack/CLI blueprint completed; CLI observability and semantic/hybrid search proposals open
 Updated: 2026-05-11
 
 ## Specs
@@ -62,7 +62,7 @@ Updated: 2026-05-11
 - [Project and Skill Rename](plans/project-and-skill-rename.plan.md) — Completed — D11 executed: package renamed to `llm-wiki-rs`, `knowledge*` skill surface renamed to `wiki-*`, the Codex dispatcher renamed from `knowledge` to `wiki`, runtime mirrors regenerated, and the one-off legacy home-level symlink migration now points at frozen `.claude.legacy/` / `.codex.legacy/` trees
 - [Composable Project Init](plans/composable-project-init.plan.md) — Completed — D10 execution adopted Askama, migrated init templates, shipped blueprints + packs, two-step interactive flow, AGENTS/CLAUDE schema handling, and `.llm_wiki/init.toml`
 - [Skill Projection Template Engine](plans/skill-projection-template-engine.plan.md) — Completed — Migrated Claude/Codex skill markdown and Codex runtime config rendering onto `templates/skills/` Askama templates with byte-stable real-skill snapshots
-- [Code Pack And CLI Tool Blueprint](plans/code-pack-cli-blueprint.plan.md) — Planned — Implement `Pack::Code`, add `cli-tool`, remove unconditional root code folders from init, and add golden tests for research/no-code and software/CLI code defaults
+- [Code Pack And CLI Tool Blueprint](plans/code-pack-cli-blueprint.plan.md) — Completed — Implemented `Pack::Code`, added `cli-tool`, removed unconditional root code folders from init, and added golden tests for research/no-code and software/CLI code defaults
 
 ## Experiments
 

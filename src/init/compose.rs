@@ -22,7 +22,6 @@ const SPINE_FOLDERS: &[&str] = &[
     "wiki/archive",
 ];
 
-const CODE_FOLDERS: &[&str] = &["src", "tests", "scripts", "infra"];
 const CLAUDE_REDIRECT: &str = "See @AGENTS.md.\n";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -70,9 +69,6 @@ pub fn compose(plan: &RenderPlan) -> Result<InitOutput> {
 
     let mut folders = BTreeSet::new();
     folders.extend(SPINE_FOLDERS.iter().map(|folder| (*folder).to_string()));
-    if !plan.is_existing {
-        folders.extend(CODE_FOLDERS.iter().map(|folder| (*folder).to_string()));
-    }
     for pack in &packs {
         folders.extend(pack.folders().iter().map(|folder| (*folder).to_string()));
     }

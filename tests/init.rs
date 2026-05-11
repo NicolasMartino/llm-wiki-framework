@@ -44,6 +44,9 @@ fn init_profiles_match_snapshots() {
         ("qmd_rs", "custom", vec!["qmd-rs-scale"], vec![]),
         ("ml_ai_qmd_rs", "custom", vec!["ml", "qmd-rs-scale"], vec![]),
         ("is_existing", "generic", vec![], vec!["--existing"]),
+        ("research", "research", vec![], vec![]),
+        ("web_product", "web-product", vec![], vec![]),
+        ("cli_tool", "cli-tool", vec![], vec![]),
         ("ml_research", "ml-research", vec![], vec![]),
         ("ops_infra", "ops-infra", vec![], vec![]),
     ];
@@ -118,9 +121,9 @@ fn init_manifest_records_resolved_blueprint_packs() {
     assert!(temp.path().join("wiki/evals").is_dir());
     assert!(temp.path().join("wiki/datasets").is_dir());
     assert!(temp.path().join("wiki/literature").is_dir());
+    assert_code_dirs_exist(temp.path());
 
-    let manifest = fs::read_to_string(temp.path().join(".llm_wiki/init.toml")).expect("manifest");
-    let manifest: toml::Value = toml::from_str(&manifest).expect("toml");
+    let manifest = read_init_manifest(temp.path());
     assert_eq!(manifest["blueprint"].as_str(), Some("ml-research"));
     assert_eq!(
         manifest["packs"].as_array().expect("packs"),
@@ -128,6 +131,7 @@ fn init_manifest_records_resolved_blueprint_packs() {
             toml::Value::String("ml".to_string()),
             toml::Value::String("data".to_string()),
             toml::Value::String("research".to_string()),
+            toml::Value::String("code".to_string()),
         ]
     );
 
@@ -137,6 +141,29 @@ fn init_manifest_records_resolved_blueprint_packs() {
     assert!(guidelines.contains("`model-card.md`"));
     assert!(guidelines.contains("`dataset-card.md`"));
     assert!(guidelines.contains("## Pack Status Vocabulary"));
+}
+
+#[test]
+fn init_code_pack_controls_root_code_folders() {
+    let research = TempDir::new().expect("research");
+    init_project(research.path(), "research", &[], &[]);
+    assert_code_dirs_absent(research.path());
+    assert!(!manifest_packs(research.path()).contains(&"code".to_string()));
+
+    let web_product = TempDir::new().expect("web");
+    init_project(web_product.path(), "web-product", &[], &[]);
+    assert_code_dirs_exist(web_product.path());
+    assert!(manifest_packs(web_product.path()).contains(&"code".to_string()));
+
+    let cli_tool = TempDir::new().expect("cli");
+    init_project(cli_tool.path(), "cli-tool", &[], &[]);
+    assert_code_dirs_exist(cli_tool.path());
+    assert!(manifest_packs(cli_tool.path()).contains(&"code".to_string()));
+
+    let generic_with_code = TempDir::new().expect("generic-code");
+    init_project(generic_with_code.path(), "generic", &["code"], &[]);
+    assert_code_dirs_exist(generic_with_code.path());
+    assert_eq!(manifest_packs(generic_with_code.path()), vec!["code"]);
 }
 
 #[test]
@@ -397,4 +424,30 @@ fn find_file_with_contents(path: &Path, name: &str, contents: &str) -> Option<Pa
 fn read_registry(home: &Path) -> Value {
     let path = home.join(".local/share/llm-wiki/projects.json");
     serde_json::from_str(&fs::read_to_string(path).expect("registry json")).expect("json")
+}
+
+fn read_init_manifest(project: &Path) -> toml::Value {
+    let manifest = fs::read_to_string(project.join(".llm_wiki/init.toml")).expect("manifest");
+    toml::from_str(&manifest).expect("toml")
+}
+
+fn manifest_packs(project: &Path) -> Vec<String> {
+    read_init_manifest(project)["packs"]
+        .as_array()
+        .expect("packs")
+        .iter()
+        .map(|pack| pack.as_str().expect("pack string").to_string())
+        .collect()
+}
+
+fn assert_code_dirs_exist(project: &Path) {
+    for folder in ["src", "tests", "scripts", "infra"] {
+        assert!(project.join(folder).is_dir(), "{folder} should exist");
+    }
+}
+
+fn assert_code_dirs_absent(project: &Path) {
+    for folder in ["src", "tests", "scripts", "infra"] {
+        assert!(!project.join(folder).exists(), "{folder} should not exist");
+    }
 }

@@ -256,11 +256,6 @@ wiki/
     references/
 
     archive/
-  src/                        Application code
-  tests/                      Automated tests
-  scripts/                    Utilities and automation
-  infra/                      Infrastructure definitions
-
 
 ```
 

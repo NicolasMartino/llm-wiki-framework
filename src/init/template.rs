@@ -12,7 +12,6 @@ struct ProjectGuidelinesTemplate<'a> {
     date: &'a str,
     include_ml_ai: bool,
     include_qmd: bool,
-    is_existing: bool,
     guidelines_fragments: &'a [String],
 }
 
@@ -38,7 +37,6 @@ pub fn render_project_guidelines_with_fragments(
         date: &date,
         include_ml_ai: profile.include_ml_ai,
         include_qmd: profile.include_qmd,
-        is_existing: profile.is_existing,
         guidelines_fragments,
     };
     template

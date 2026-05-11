@@ -23,10 +23,10 @@ Collect project setup answers, then delegate deterministic scaffolding to the
    optional pack overrides, whether this is an existing codebase, and optional
    initial source paths.
 3. Validate that required answers are present. Accepted blueprints are
-   `generic`, `web-product`, `library-sdk`, `ml-research`, `ops-infra`,
-   `security`, `research`, and `custom`. Accepted packs are `api`,
-   `frontend`, `library`, `ml`, `data`, `ops`, `ops-lite`, `security`,
-   `research`, and `qmd-rs-scale`.
+   `generic`, `web-product`, `library-sdk`, `cli-tool`, `ml-research`,
+   `ops-infra`, `security`, `research`, and `custom`. Accepted packs are
+   `api`, `frontend`, `library`, `ml`, `data`, `ops`, `ops-lite`, `security`,
+   `research`, `qmd-rs-scale`, and `code`.
 4. Run:
    `{llm_wiki_binary} init <path> --non-interactive --name <name> --description <description> --blueprint <blueprint>`
    Add one `--pack <pack>` flag per explicit pack override; omit `--pack` to

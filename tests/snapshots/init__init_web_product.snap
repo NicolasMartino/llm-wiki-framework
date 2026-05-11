@@ -286,6 +286,51 @@ Superseded, rejected, or no-longer-useful historical documents move to
 roadmaps, checklists, and accepted proposals may remain in the active index
 while they are current evidence, reusable procedures, or important context.
 
+## Pack Document Types
+
+| Document type | Filename suffix | Folder |
+| --- | --- | --- |
+| API Spec | `api.md` | `wiki/apis` |
+| Design | `design.md` | `wiki/designs` |
+| Runbook | `runbook.md` | `wiki/runbooks` |
+
+## Pack Status Vocabulary
+
+| Document class | Statuses |
+| --- | --- |
+| Runbooks | `Draft`, `Active`, `Retired` |
+| Incidents | `Open`, `Mitigated`, `Resolved`, `Reviewed` |
+
+## API Pack Additions
+
+API projects add `*.api.md` documents under `wiki/apis/`. API pages record
+contract shape, versioning, compatibility expectations, schema sources, and
+deprecation plans.
+
+## Frontend Pack Additions
+
+Frontend projects add design documents, component inventory, and screenshot
+source conventions. UI claims should cite screenshots, mockups, or product
+captures when those sources determine behavior or appearance.
+
+## Ops-Lite Pack Additions
+
+Ops-lite projects add runbooks without full incident, SLO, or on-call
+machinery. It is intended for projects that need operational procedures but do
+not yet need a full platform operations model.
+
+## Code Pack Additions
+
+Code projects add root folders for application or tool source, automated tests,
+project utilities, and infrastructure definitions:
+
+```text
+src/                        Application or tool source
+tests/                      Automated tests
+scripts/                    Utilities and automation
+infra/                      Infrastructure definitions
+```
+
 ## Core Rule
 
 Document tested truth, not intended truth.
@@ -550,14 +595,52 @@ Periodically or on request:
 - Archived documents go to `wiki/archive/`.
 - `wiki/log.md` uses format: `## [YYYY-MM-DD] operation | subject`.
 
+## Pack Document Types
+
+| Document type | Filename suffix | Folder |
+| --- | --- | --- |
+| API Spec | `api.md` | `wiki/apis` |
+| Design | `design.md` | `wiki/designs` |
+| Runbook | `runbook.md` | `wiki/runbooks` |
+
+## API Pack
+
+- Track API contracts in `wiki/apis/` using `*.api.md` files.
+- Store source schemas, OpenAPI files, and vendor references under `raw/api/`.
+- Record stability, compatibility, and deprecation notes when API behavior changes.
+
+## Frontend Pack
+
+- Track design decisions in `wiki/designs/` and component inventory in `wiki/components/`.
+- Store screenshots, mockups, and visual QA evidence under `raw/screenshots/`.
+- Cite visual sources when UI behavior or component state is documented.
+
+## Ops-Lite Pack
+
+- Use `wiki/runbooks/` for repeatable operational procedures.
+- Keep runbooks short, actionable, and tied to commands, dashboards, or checks.
+- Escalate to the full ops pack when SLOs, postmortems, or on-call machinery become necessary.
+
+## Code Pack
+
+- Keep application or tool source under `src/`.
+- Keep automated tests under `tests/`.
+- Keep project utilities and automation under `scripts/`.
+- Keep infrastructure definitions under `infra/`.
+
 
 # CLAUDE.md
 See @AGENTS.md.
 
 # .llm_wiki/init.toml
 framework_version = "0.1.0"
-blueprint = "generic"
-packs = []
+blueprint = "web-product"
+packs = [
+    "api",
+    "frontend",
+    "ops-lite",
+    "code",
+]
 
 # wiki/index.md
 # Wiki Index
@@ -591,6 +674,10 @@ Updated: [date]
 (none yet)
 
 ## Checklists
+
+(none yet)
+
+## Runbooks
 
 (none yet)
 

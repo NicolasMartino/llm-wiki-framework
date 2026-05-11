@@ -244,11 +244,6 @@ wiki/
     evals/
 
     archive/
-  src/                        Application code
-  tests/                      Automated tests
-  scripts/                    Utilities and automation
-  infra/                      Infrastructure definitions
-
   models/                     Model artifacts, configs
   data/                       Datasets, schemas, pipelines
   notebooks/                  Exploratory analysis
@@ -349,6 +344,18 @@ transformation logic, and known quality limitations.
 Research projects add literature notes, hypotheses, citation conventions, and
 lab-notebook-style evidence capture. Hypothesis statuses include `Proposed`,
 `Testing`, `Supported`, `Rejected`, and `Superseded`.
+
+## Code Pack Additions
+
+Code projects add root folders for application or tool source, automated tests,
+project utilities, and infrastructure definitions:
+
+```text
+src/                        Application or tool source
+tests/                      Automated tests
+scripts/                    Utilities and automation
+infra/                      Infrastructure definitions
+```
 
 ## Core Rule
 
@@ -669,6 +676,13 @@ Periodically or on request:
 - Store papers and external notes under `raw/papers/`.
 - Separate sourced evidence from interpretation, synthesis, and open questions.
 
+## Code Pack
+
+- Keep application or tool source under `src/`.
+- Keep automated tests under `tests/`.
+- Keep project utilities and automation under `scripts/`.
+- Keep infrastructure definitions under `infra/`.
+
 
 # CLAUDE.md
 See @AGENTS.md.
@@ -680,6 +694,7 @@ packs = [
     "ml",
     "data",
     "research",
+    "code",
 ]
 
 # wiki/index.md

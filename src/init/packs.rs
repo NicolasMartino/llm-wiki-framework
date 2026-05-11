@@ -18,6 +18,7 @@ pub enum Pack {
     Security,
     Research,
     QmdRsScale,
+    Code,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -221,6 +222,8 @@ fragment_template!(
     QmdRsScaleGuidelinesTemplate,
     "packs/qmd-rs-scale/project_guidelines.md"
 );
+fragment_template!(CodeAgentsTemplate, "packs/code/agents.md");
+fragment_template!(CodeGuidelinesTemplate, "packs/code/project_guidelines.md");
 
 impl Pack {
     pub const ALL: &'static [Pack] = &[
@@ -234,6 +237,7 @@ impl Pack {
         Pack::Security,
         Pack::Research,
         Pack::QmdRsScale,
+        Pack::Code,
     ];
 
     pub fn name(self) -> &'static str {
@@ -248,6 +252,7 @@ impl Pack {
             Pack::Security => "security",
             Pack::Research => "research",
             Pack::QmdRsScale => "qmd-rs-scale",
+            Pack::Code => "code",
         }
     }
 
@@ -263,6 +268,7 @@ impl Pack {
             Pack::Security => "Threat models, findings, audits, and controls",
             Pack::Research => "Literature notes, hypotheses, citations, and lab-note conventions",
             Pack::QmdRsScale => "qmd-rs-backed llm-wiki search guidance for large wikis",
+            Pack::Code => "Application code, tests, scripts, and infrastructure folders",
         }
     }
 
@@ -295,6 +301,8 @@ impl Pack {
             ],
             Pack::Research => &["wiki/literature", "wiki/hypotheses", "raw/papers"],
             Pack::QmdRsScale => &[],
+            // infra/ stays in code until a dedicated infra pack is justified.
+            Pack::Code => &["src", "tests", "scripts", "infra"],
         }
     }
 
@@ -309,7 +317,7 @@ impl Pack {
             Pack::OpsLite => OPS_LITE_DOC_TYPES,
             Pack::Security => SECURITY_DOC_TYPES,
             Pack::Research => RESEARCH_DOC_TYPES,
-            Pack::QmdRsScale => EMPTY_DOC_TYPES,
+            Pack::QmdRsScale | Pack::Code => EMPTY_DOC_TYPES,
         }
     }
 
@@ -319,9 +327,12 @@ impl Pack {
             Pack::Ops | Pack::OpsLite => OPS_STATUS,
             Pack::Security => SECURITY_STATUS,
             Pack::Research => RESEARCH_STATUS,
-            Pack::Api | Pack::Frontend | Pack::Library | Pack::Data | Pack::QmdRsScale => {
-                EMPTY_STATUS
-            }
+            Pack::Api
+            | Pack::Frontend
+            | Pack::Library
+            | Pack::Data
+            | Pack::QmdRsScale
+            | Pack::Code => EMPTY_STATUS,
         }
     }
 
@@ -337,6 +348,7 @@ impl Pack {
             Pack::Security => render_fragment(SecurityAgentsTemplate)?,
             Pack::Research => render_fragment(ResearchAgentsTemplate)?,
             Pack::QmdRsScale => render_fragment(QmdRsScaleAgentsTemplate)?,
+            Pack::Code => render_fragment(CodeAgentsTemplate)?,
         };
         Ok(rendered)
     }
@@ -353,6 +365,7 @@ impl Pack {
             Pack::Security => render_fragment(SecurityGuidelinesTemplate)?,
             Pack::Research => render_fragment(ResearchGuidelinesTemplate)?,
             Pack::QmdRsScale => render_fragment(QmdRsScaleGuidelinesTemplate)?,
+            Pack::Code => render_fragment(CodeGuidelinesTemplate)?,
         };
         Ok(rendered)
     }
@@ -402,6 +415,8 @@ mod tests {
             assert!(!pack.description().is_empty());
             if *pack != Pack::QmdRsScale {
                 assert!(!pack.folders().is_empty(), "{} has no folders", pack.name());
+            }
+            if !matches!(*pack, Pack::QmdRsScale | Pack::Code) {
                 assert!(
                     !pack.doc_types().is_empty(),
                     "{} has no doc types",

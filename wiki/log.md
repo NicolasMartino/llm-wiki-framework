@@ -1994,3 +1994,29 @@ revision note unconditionally, and calls for a source comment explaining why
 `infra/` remains folded into `code`.
 
 Pages updated: wiki/plans/code-pack-cli-blueprint.plan.md, wiki/log.md
+
+## [2026-05-11] complete | code pack and CLI tool blueprint
+
+Implemented the accepted code-pack and `cli-tool` blueprint change. The init
+pack catalog now includes `code`, `cli-tool` is a selectable blueprint, and
+root `src/`, `tests/`, `scripts/`, and `infra/` folders are created only when
+`code` is resolved. Software-shaped blueprints default to `code`; `generic`,
+`research`, and `custom` remain no-code by default.
+
+Updated the code pack templates, removed the unconditional base-template code
+folder section, regenerated init and real-skill snapshots, updated the
+canonical `wiki-init` skill plus committed Claude/Codex runtime mirrors, and
+aligned active docs with the new blueprint/pack catalog.
+
+Verification: `cargo fmt`; `cargo test --test init`; `cargo run -- build --out .`;
+`cargo test --workspace`; `git diff --check`.
+
+Pages updated: src/init/blueprints.rs, src/init/packs.rs, src/init/compose.rs,
+src/init/template.rs, templates/base/project_guidelines.md,
+templates/packs/code/, tests/init.rs, tests/snapshots/,
+assets/skills/wiki-init/SKILL.md, .claude/skills/wiki-init/SKILL.md,
+.codex/skills/wiki-init/SKILL.md,
+crates/llm-wiki-schema/tests/snapshots/, README.md,
+wiki/plans/code-pack-cli-blueprint.plan.md,
+wiki/specs/wiki-init-skill.spec.md, wiki/specs/documentation-model.spec.md,
+wiki/index.md, wiki/log.md

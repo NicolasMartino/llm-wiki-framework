@@ -5,8 +5,8 @@
 - Date: 2026-05-08
 - Category: Tooling
 - Scope: The `wiki-init` agent skill as a thin conversational wrapper over the `llm-wiki init` binary command.
-- Sources: assets/skills/wiki-init/SKILL.md, src/init/mod.rs, src/init/blueprints.rs, src/init/packs.rs, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/decisions/composable-project-init.decision.md
-- Related: wiki/specs/documentation-model.spec.md, wiki/specs/wiki-ingest-skill.spec.md, wiki/decisions/composable-project-init.decision.md, wiki/plans/composable-project-init.plan.md
+- Sources: assets/skills/wiki-init/SKILL.md, src/init/mod.rs, src/init/blueprints.rs, src/init/packs.rs, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/decisions/composable-project-init.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md
+- Related: wiki/specs/documentation-model.spec.md, wiki/specs/wiki-ingest-skill.spec.md, wiki/decisions/composable-project-init.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/plans/composable-project-init.plan.md
 
 ## Contract
 
@@ -29,10 +29,10 @@ The wrapper gathers the binary's flag set:
 1. target path
 2. project name
 3. one-sentence description
-4. blueprint: `generic`, `web-product`, `library-sdk`, `ml-research`,
-   `ops-infra`, `security`, `research`, or `custom`
+4. blueprint: `generic`, `web-product`, `library-sdk`, `cli-tool`,
+   `ml-research`, `ops-infra`, `security`, `research`, or `custom`
 5. optional pack overrides: `api`, `frontend`, `library`, `ml`, `data`,
-   `ops`, `ops-lite`, `security`, `research`, or `qmd-rs-scale`
+   `ops`, `ops-lite`, `security`, `research`, `qmd-rs-scale`, or `code`
 6. whether the target is an existing codebase
 7. optional initial source paths
 
@@ -76,7 +76,11 @@ The `custom` blueprint starts with no pack defaults.
 ## Proven By
 
 - `llm-wiki init` has golden tests for baseline, ML, qmd-rs, combined ML+qmd-rs,
-  existing-code, `ml-research`, and `ops-infra` profiles.
+  existing-code, `research`, `web-product`, `cli-tool`, `ml-research`, and
+  `ops-infra` profiles.
+- Code-pack tests assert `research` has no root code folders by default, while
+  `web-product`, `cli-tool`, and explicit `--pack code` do and record `code` in
+  `.llm_wiki/init.toml`.
 - `llm-wiki init` refuses paths containing framework artifacts.
 - Initial-source tests assert files are copied into `raw/initial/` and no ingest results appear in `wiki/`.
 - The D10 manifest writer records blueprint, resolved packs, and framework

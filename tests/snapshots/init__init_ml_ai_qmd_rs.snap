@@ -270,11 +270,6 @@ wiki/
     evals/
 
     archive/
-  src/                        Application code
-  tests/                      Automated tests
-  scripts/                    Utilities and automation
-  infra/                      Infrastructure definitions
-
   models/                     Model artifacts, configs
   data/                       Datasets, schemas, pipelines
   notebooks/                  Exploratory analysis

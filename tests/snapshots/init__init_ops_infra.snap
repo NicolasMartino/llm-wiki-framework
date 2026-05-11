@@ -230,11 +230,6 @@ wiki/
     references/
 
     archive/
-  src/                        Application code
-  tests/                      Automated tests
-  scripts/                    Utilities and automation
-  infra/                      Infrastructure definitions
-
 
 ```
 
@@ -311,6 +306,18 @@ while they are current evidence, reusable procedures, or important context.
 Ops projects add runbooks, SLOs, incident records, on-call conventions, and
 postmortems. Operational status vocabulary includes runbook lifecycle and
 incident states from open through reviewed.
+
+## Code Pack Additions
+
+Code projects add root folders for application or tool source, automated tests,
+project utilities, and infrastructure definitions:
+
+```text
+src/                        Application or tool source
+tests/                      Automated tests
+scripts/                    Utilities and automation
+infra/                      Infrastructure definitions
+```
 
 ## Core Rule
 
@@ -590,6 +597,13 @@ Periodically or on request:
 - Store incident source material under `raw/incidents/`.
 - Keep runbooks actionable and update them after incidents or operational drills.
 
+## Code Pack
+
+- Keep application or tool source under `src/`.
+- Keep automated tests under `tests/`.
+- Keep project utilities and automation under `scripts/`.
+- Keep infrastructure definitions under `infra/`.
+
 
 # CLAUDE.md
 See @AGENTS.md.
@@ -597,7 +611,10 @@ See @AGENTS.md.
 # .llm_wiki/init.toml
 framework_version = "0.1.0"
 blueprint = "ops-infra"
-packs = ["ops"]
+packs = [
+    "ops",
+    "code",
+]
 
 # wiki/index.md
 # Wiki Index

@@ -5,8 +5,8 @@
 - Date: 2026-05-09
 - Category: Framework core
 - Scope: The validated documentation and execution model for projects using this framework.
-- Sources: raw/legacy/legacy-project-guidelines.md, raw/research/llm-wiki-pattern-research.md, raw/research/niharshrotri-llm-wiki-implementation.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/decisions/composable-project-init.decision.md, wiki/evals/v1-proof-run.eval.md
-- Related: wiki/decisions/three-layer-architecture.decision.md, wiki/decisions/agent-owns-wiki.decision.md, wiki/decisions/typed-documents.decision.md, wiki/references/qmd-rs-search-crate.reference.md, wiki/decisions/search-backend-selection.decision.md, wiki/specs/wiki-init-skill.spec.md
+- Sources: raw/legacy/legacy-project-guidelines.md, raw/research/llm-wiki-pattern-research.md, raw/research/niharshrotri-llm-wiki-implementation.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/decisions/composable-project-init.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/evals/v1-proof-run.eval.md
+- Related: wiki/decisions/three-layer-architecture.decision.md, wiki/decisions/agent-owns-wiki.decision.md, wiki/decisions/typed-documents.decision.md, wiki/references/qmd-rs-search-crate.reference.md, wiki/decisions/search-backend-selection.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/specs/wiki-init-skill.spec.md
 
 ## Current State
 
@@ -21,6 +21,10 @@ In this framework repository, canonical reusable init templates live under
 `templates/base/` and `templates/packs/`. Generated projects get a resolved
 `project_guidelines.md` and canonical `AGENTS.md` from a blueprint plus pack
 selection. `CLAUDE.md` is generated as `See @AGENTS.md.` for compatibility.
+Root code/deploy folders (`src/`, `tests/`, `scripts/`, `infra/`) are created
+only when the resolved pack set includes the `code` pack. Software-shaped
+blueprints, including `cli-tool`, default to `code`; `generic`, `research`, and
+`custom` do not.
 
 Framework distribution is binary-owned. The `llm-wiki` Rust binary embeds the
 canonical skill sources and templates, renders runtime skill variants, installs
@@ -94,7 +98,8 @@ research -> raw/ -> ingest -> proposal/reference -> roadmap -> plan -> evidence 
   qmd-rs-backed search over registered project wiki pages
 - `llm-wiki init` produces project scaffolds from Askama-compiled templates
   using `--blueprint` and repeatable `--pack`, with golden tests for generic,
-  custom-pack, `ml-research`, and `ops-infra` outputs
+  custom-pack, `research`, `web-product`, `cli-tool`, `ml-research`, and
+  `ops-infra` outputs
 - `llm-wiki build --out .` regenerates this repo's committed runtime skill
   outputs from canonical skill markdown
 - This project uses the framework to manage itself

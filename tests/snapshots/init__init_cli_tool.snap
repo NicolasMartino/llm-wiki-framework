@@ -286,6 +286,18 @@ Superseded, rejected, or no-longer-useful historical documents move to
 roadmaps, checklists, and accepted proposals may remain in the active index
 while they are current evidence, reusable procedures, or important context.
 
+## Code Pack Additions
+
+Code projects add root folders for application or tool source, automated tests,
+project utilities, and infrastructure definitions:
+
+```text
+src/                        Application or tool source
+tests/                      Automated tests
+scripts/                    Utilities and automation
+infra/                      Infrastructure definitions
+```
+
 ## Core Rule
 
 Document tested truth, not intended truth.
@@ -550,14 +562,21 @@ Periodically or on request:
 - Archived documents go to `wiki/archive/`.
 - `wiki/log.md` uses format: `## [YYYY-MM-DD] operation | subject`.
 
+## Code Pack
+
+- Keep application or tool source under `src/`.
+- Keep automated tests under `tests/`.
+- Keep project utilities and automation under `scripts/`.
+- Keep infrastructure definitions under `infra/`.
+
 
 # CLAUDE.md
 See @AGENTS.md.
 
 # .llm_wiki/init.toml
 framework_version = "0.1.0"
-blueprint = "generic"
-packs = []
+blueprint = "cli-tool"
+packs = ["code"]
 
 # wiki/index.md
 # Wiki Index

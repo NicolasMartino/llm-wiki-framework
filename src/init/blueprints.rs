@@ -12,6 +12,7 @@ pub enum Blueprint {
     Generic,
     WebProduct,
     LibrarySdk,
+    CliTool,
     MlResearch,
     OpsInfra,
     Security,
@@ -24,6 +25,7 @@ impl Blueprint {
         Blueprint::Generic,
         Blueprint::WebProduct,
         Blueprint::LibrarySdk,
+        Blueprint::CliTool,
         Blueprint::MlResearch,
         Blueprint::OpsInfra,
         Blueprint::Security,
@@ -36,6 +38,7 @@ impl Blueprint {
             Blueprint::Generic => "generic",
             Blueprint::WebProduct => "web-product",
             Blueprint::LibrarySdk => "library-sdk",
+            Blueprint::CliTool => "cli-tool",
             Blueprint::MlResearch => "ml-research",
             Blueprint::OpsInfra => "ops-infra",
             Blueprint::Security => "security",
@@ -51,6 +54,9 @@ impl Blueprint {
                 "Frontend, backend, or full-stack product with users and releases"
             }
             Blueprint::LibrarySdk => "Public API surface with semver and external consumers",
+            Blueprint::CliTool => {
+                "Command-line tool or developer utility with commands, flags, local state, and release/install behavior"
+            }
             Blueprint::MlResearch => "Pre-production model work: experiments, datasets, evals",
             Blueprint::OpsInfra => "Infrastructure or platform work: runbooks and incidents",
             Blueprint::Security => "Security review, threat modeling, audit, or finding tracking",
@@ -62,11 +68,12 @@ impl Blueprint {
     pub fn default_packs(self) -> &'static [Pack] {
         match self {
             Blueprint::Generic | Blueprint::Custom => &[],
-            Blueprint::WebProduct => &[Pack::Api, Pack::Frontend, Pack::OpsLite],
-            Blueprint::LibrarySdk => &[Pack::Api, Pack::Library],
-            Blueprint::MlResearch => &[Pack::Ml, Pack::Data, Pack::Research],
-            Blueprint::OpsInfra => &[Pack::Ops],
-            Blueprint::Security => &[Pack::Security, Pack::OpsLite],
+            Blueprint::WebProduct => &[Pack::Api, Pack::Frontend, Pack::OpsLite, Pack::Code],
+            Blueprint::LibrarySdk => &[Pack::Api, Pack::Library, Pack::Code],
+            Blueprint::CliTool => &[Pack::Code],
+            Blueprint::MlResearch => &[Pack::Ml, Pack::Data, Pack::Research, Pack::Code],
+            Blueprint::OpsInfra => &[Pack::Ops, Pack::Code],
+            Blueprint::Security => &[Pack::Security, Pack::OpsLite, Pack::Code],
             Blueprint::Research => &[Pack::Research, Pack::QmdRsScale],
         }
     }

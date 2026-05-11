@@ -1,7 +1,7 @@
 # Plan: Code Pack And CLI Tool Blueprint
 
 - Document Class: Plan
-- Status: Planned
+- Status: Completed
 - Date: 2026-05-11
 - Category: Init UX, project scaffolding, blueprint/pack catalog
 - Scope: Implement the accepted code-pack and `cli-tool` blueprint decision without changing the framework's universal wiki spine.
@@ -17,8 +17,7 @@ The named `cli-tool` blueprint should be available anywhere blueprints are
 listed or parsed, default to the `code` pack, and be recorded in generated
 `.llm_wiki/init.toml` manifests.
 
-No implementation has landed as part of this planning step. This plan is the
-implementation contract for the next coding pass.
+Implementation landed on 2026-05-11.
 
 ## Implementation Steps
 
@@ -88,18 +87,35 @@ Add or update tests so the behavior is locked at the product boundary:
    composition model.
 4. Update `wiki/index.md` and append to `wiki/log.md`.
 
+## Completion Notes
+
+The implementation added `Pack::Code` and `Blueprint::CliTool`, moved root
+code/deploy folder creation out of `compose` and into the new pack, added code
+pack fragments under `templates/packs/code/`, and removed the unconditional
+code-folder section from the base project-guidelines template.
+
+Tests now cover no-code defaults for `research`, code defaults for
+`web-product` and `cli-tool`, explicit `--pack code` on `generic`, and
+manifest recording of `code` when resolved. Init snapshots were expanded to
+cover `research`, `web-product`, and `cli-tool`; existing `ml-research` and
+`ops-infra` snapshots now show `code` in their resolved pack manifests.
+
+The `wiki-init` canonical skill and committed Claude/Codex runtime mirrors were
+updated so agents know about the `cli-tool` blueprint and `code` pack.
+
 ## Verification
 
-Run these before marking the plan completed:
+Commands run:
 
 ```bash
 cargo fmt
+cargo test --test init
+cargo run -- build --out .
 cargo test --workspace
 git diff --check
 ```
 
-If snapshot tests change, review the rendered project structures before
-accepting the snapshots.
+Snapshot updates were reviewed before acceptance.
 
 ## Acceptance Criteria
 

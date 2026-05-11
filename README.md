@@ -37,5 +37,6 @@ llm-wiki init /path/to/project --non-interactive \
 Use repeatable `--pack <name>` flags to override a blueprint's default pack
 selection. For example, `--blueprint custom --pack ml --pack qmd-rs-scale`
 creates an ML-oriented wiki with qmd-rs-backed scale guidance.
+For command-line tools and developer utilities, use `--blueprint cli-tool`.
 
 Run `llm-wiki --help` for the full command surface.

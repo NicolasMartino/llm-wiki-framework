@@ -103,6 +103,32 @@ Contents:
 The index must fit in a single context window. If it grows beyond ~50,000
 tokens, split into a root index with per-type sub-indexes.
 
+### qmd-rs Search (scale beyond index.md)
+
+For wikis that grow beyond ~100 pages, supplement index.md navigation with
+`llm-wiki search`. The binary indexes wiki markdown into qmd-rs-backed stores
+under host-local cache state. Markdown remains canonical, and all search
+results still point back to wiki pages that must be read directly.
+
+Setup:
+
+```bash
+llm-wiki register .
+llm-wiki index
+llm-wiki search "query"
+```
+
+Navigation strategy becomes tiered:
+1. Read `wiki/index.md` first for orientation
+2. If the index does not surface the needed page, use `llm-wiki search`
+3. Read the identified pages
+
+Refresh the search index after ingest or lint:
+
+```bash
+llm-wiki index --force
+```
+
 ### log.md
 
 `wiki/log.md` is an append-only chronological record of all wiki mutations.
@@ -285,6 +311,32 @@ Superseded, rejected, or no-longer-useful historical documents move to
 `wiki/archive/` and are removed from the active index. Completed plans,
 roadmaps, checklists, and accepted proposals may remain in the active index
 while they are current evidence, reusable procedures, or important context.
+
+## Pack Document Types
+
+| Document type | Filename suffix | Folder |
+| --- | --- | --- |
+| Literature Note | `literature-note.md` | `wiki/literature` |
+| Hypothesis | `hypothesis.md` | `wiki/hypotheses` |
+
+## Pack Status Vocabulary
+
+| Document class | Statuses |
+| --- | --- |
+| Hypotheses | `Proposed`, `Testing`, `Supported`, `Rejected`, `Superseded` |
+
+## Research Pack Additions
+
+Research projects add literature notes, hypotheses, citation conventions, and
+lab-notebook-style evidence capture. Hypothesis statuses include `Proposed`,
+`Testing`, `Supported`, `Rejected`, and `Superseded`.
+
+## qmd-rs Scale Pack Additions
+
+Large wikis may supplement `wiki/index.md` navigation with `llm-wiki search`
+and `llm-wiki search-all`, backed by qmd-rs stores managed by the llm-wiki
+binary. Search is a discovery layer over `wiki/`; it does not replace source
+citations, typed documents, or index maintenance.
 
 ## Core Rule
 
@@ -550,14 +602,36 @@ Periodically or on request:
 - Archived documents go to `wiki/archive/`.
 - `wiki/log.md` uses format: `## [YYYY-MM-DD] operation | subject`.
 
+## Pack Document Types
+
+| Document type | Filename suffix | Folder |
+| --- | --- | --- |
+| Literature Note | `literature-note.md` | `wiki/literature` |
+| Hypothesis | `hypothesis.md` | `wiki/hypotheses` |
+
+## Research Pack
+
+- Use `wiki/literature/` for literature notes and `wiki/hypotheses/` for testable claims.
+- Store papers and external notes under `raw/papers/`.
+- Separate sourced evidence from interpretation, synthesis, and open questions.
+
+## qmd-rs Scale Pack
+
+- Use `llm-wiki search "<query>"` when `wiki/index.md` no longer surfaces the needed page.
+- Re-run `llm-wiki index --force` after ingest or lint when search results may be stale.
+- Treat qmd-rs-backed search as navigation support; answers still cite wiki pages.
+
 
 # CLAUDE.md
 See @AGENTS.md.
 
 # .llm_wiki/init.toml
 framework_version = "0.1.0"
-blueprint = "generic"
-packs = []
+blueprint = "research"
+packs = [
+    "research",
+    "qmd-rs-scale",
+]
 
 # wiki/index.md
 # Wiki Index
@@ -591,6 +665,14 @@ Updated: [date]
 (none yet)
 
 ## Checklists
+
+(none yet)
+
+## Literature
+
+(none yet)
+
+## Hypotheses
 
 (none yet)
 
