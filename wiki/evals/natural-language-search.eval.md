@@ -24,9 +24,9 @@ before threshold tuning or implementation gating can use them.
 - Labeling owner: project human maintainer.
 - Agent role: draft queries, expected targets, and pass/fail rules.
 - Human target approval: pending.
-- Calibration can start only after human target approval.
-- Runtime semantic/hybrid thresholds remain unset until calibration results are
-  recorded with model artifact hashes and chunking metadata.
+- Seeded thresholds (see below) unlock runtime execution so the first
+  end-to-end eval run can produce observed scores. Target labels and threshold
+  values are both expected to be revised once observed results land.
 
 ## Calibration Identity
 
@@ -63,32 +63,35 @@ Use 30 total queries:
 Only C1-C10 may influence thresholds. H1-H20 are reserved for regression
 checks after thresholds are chosen.
 
-Accepted runtime thresholds:
+Accepted runtime thresholds (seeded, not calibrated):
 
-| Field | Value |
-| --- | --- |
-| `semantic_similarity_floor` | `TBD` |
-| `hybrid_pre_fusion_semantic_floor` | `TBD` |
-| `reranker_probability_floor` | `TBD` |
-| `lexical_exact_identifier_guard` | `TBD` |
+| Field | Value | Calibration status |
+| --- | --- | --- |
+| `semantic_similarity_floor` | `0.35` | seeded |
+| `hybrid_pre_fusion_semantic_floor` | `0.35` | seeded |
+| `reranker_probability_floor` | `0.50` | seeded |
+| `lexical_exact_identifier_guard` | `preserve_lexical_top_3` | seeded |
 
-Until these values are filled by an approved calibration run, semantic and
-hybrid modes must fail closed with `thresholds_unconfigured`. The runtime
-semantic and hybrid pipelines are implemented behind this gate; they execute
-only when `~/.llm_wiki/search-thresholds.toml` matches the current model
-artifact hash, dimensions, qmd-rs version, adapter schema, and chunking
-strategy.
+These were adopted on 2026-05-11 as a pragmatic starting point so the
+semantic/hybrid runtime can execute end-to-end against this wiki and produce
+the first observed eval results. When `~/.llm_wiki/search-thresholds.toml`
+records these values with the matching embedding model artifact hash,
+dimensions, qmd-rs version, adapter schema, and chunking strategy, explicit
+`--mode semantic` / `--mode hybrid` and `--mode auto` on enabled profiles
+execute instead of returning `thresholds_unconfigured`. Mismatched metadata
+keeps the fail-closed behavior.
 
-Candidate starting values for the first calibration run:
+Seeded vs calibrated:
 
-- `semantic_similarity_floor_candidate = 0.35`
-- `hybrid_pre_fusion_semantic_floor_candidate = 0.35`
-- `reranker_probability_floor_candidate = 0.50`
-- exact identifier guard candidate: exact identifier expected targets must
-  remain top 3 in lexical and top 5 in hybrid.
-
-These candidate values are not accepted runtime thresholds. They exist only to
-make the first calibration run reproducible.
+- Seeded means the value was chosen without observed eval data. The original
+  zero-result failure mode (the battery-technology dogfood query) is still
+  the worst-case shape; seeded floors should not bring it back.
+- A change to any seeded value, or any change to embedding model, query
+  expansion model, reranker model, chunking strategy, or qmd-rs version,
+  must rerun the full 30-query set and update this table.
+- The table is promoted from "seeded" to "calibrated" only after at least
+  one full 30-query run has been recorded below and the human maintainer
+  confirms the result is acceptable.
 
 ## Pass/Fail Rules
 
@@ -193,8 +196,19 @@ second diagnostics system.
 
 ## Next Actions
 
-1. Human maintainer approves or edits the draft target labels.
-2. First calibration run fills the accepted threshold table.
-3. Hold-out results are recorded only after thresholds are fixed.
-4. Record the model-enabled eval output, including semantic vector index
-   fingerprint and artifact hashes.
+1. Install the embedding and query-expansion models through
+   `llm-wiki install --configure-search` so semantic/hybrid retrieval has
+   verified artifacts to read.
+2. Write `~/.llm_wiki/search-thresholds.toml` with the seeded values above
+   plus the matching model artifact hash, dimensions, qmd-rs version,
+   adapter schema, and chunking strategy so `thresholds_match_index_inputs`
+   returns true.
+3. Run the full 30-query set (C1-C10 and H1-H20) through
+   `llm-wiki search --mode auto --format json` and
+   `llm-wiki search --mode hybrid --format json`; record observed results
+   in a new "Observed Runs" section below, including the semantic vector
+   index fingerprint and artifact hashes.
+4. Compare observed results to the pass/fail rules. Adjust seeded floors
+   only after recording the run that motivated the change.
+5. Promote the threshold table from "seeded" to "calibrated" once the
+   human maintainer confirms a run satisfies the pass/fail rules.

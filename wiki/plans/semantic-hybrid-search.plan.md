@@ -344,10 +344,12 @@ Progress 2026-05-11:
   behavior, text output, and JSON result contract.
 - Semantic and hybrid execution now have explicit readiness gates for missing
   install profiles, disabled LLM search, missing model artifacts, and missing
-  accepted thresholds. Because `wiki/evals/natural-language-search.eval.md`
-  still records accepted threshold values as `TBD`, semantic/hybrid retrieval
-  intentionally stops at `thresholds_unconfigured` in normal runtime instead of
-  running with arbitrary floors.
+  accepted thresholds. `wiki/evals/natural-language-search.eval.md` now
+  records seeded (not calibrated) threshold values, so semantic/hybrid
+  retrieval executes when `~/.llm_wiki/search-thresholds.toml` matches the
+  current embedding model artifact hash, dimensions, qmd-rs version, adapter
+  schema, and chunking strategy, and otherwise still fails closed with
+  `thresholds_unconfigured`.
 - Implemented semantic query embedding through qmd-rs, chunk-level vector
   scoring against `semantic-vectors.json`, threshold filtering, class/status
   filters, snippet extraction, and document rollup.

@@ -1,5 +1,23 @@
 # Wiki Log
 
+## [2026-05-11] update | semantic/hybrid thresholds adopt seeded defaults
+
+Replaced the `TBD` row in `wiki/evals/natural-language-search.eval.md` with
+seeded runtime thresholds so the semantic/hybrid pipeline can execute
+end-to-end and produce the first observed eval results: semantic floor 0.35,
+hybrid pre-fusion floor 0.35, reranker floor 0.50, exact-identifier guard
+`preserve_lexical_top_3`. The eval now distinguishes seeded from calibrated
+values and pins promotion to seeded->calibrated to a recorded 30-query run
+plus human confirmation.
+
+This adopts the simpler approach of running the full implementation against
+sane defaults and recording observed results, instead of blocking
+implementation behind an offline calibration. Mismatched
+`~/.llm_wiki/search-thresholds.toml` metadata keeps the fail-closed
+behavior; only matching metadata enables runtime execution.
+
+Pages updated: wiki/evals/natural-language-search.eval.md, wiki/log.md
+
 ## [2026-05-11] update | project search profile seeding
 
 Continued Stage 1 by seeding project-local search state during `llm-wiki init`
