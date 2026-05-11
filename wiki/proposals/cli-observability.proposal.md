@@ -1,60 +1,65 @@
-# CLI Observability and Dry-Run UX
+# CLI Verbose Diagnostics
 
 - Document Class: Proposal
 - Status: Proposed
 - Date: 2026-05-10
 - Category: CLI UX, operational diagnostics
-- Scope: Improve `llm-wiki` command-line feedback so real installs, indexing, scaffolding, and removals explain what changed, what was skipped, and what to do next.
+- Scope: Add universal `-v/--verbose` diagnostics so every binary command can explain what it resolved or inspected without changing normal command output.
 - Sources: user discussion 2026-05-10, src/cli.rs, src/install.rs, src/uninstall.rs, src/init/command.rs, src/search/commands.rs, src/registry/mod.rs, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/specs/documentation-model.spec.md
 - Related: wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/plans/llm-wiki-binary.plan.md, wiki/specs/documentation-model.spec.md
 
 ## Question
 
-After running a real install from the debug binary, should `llm-wiki` expose a
-clearer logging and preview model for operators, instead of relying on sparse
-command output plus errors?
+Should every `llm-wiki` command expose a consistent `-v/--verbose` mode so
+operators can see which paths, projects, indexes, inputs, and decisions the
+binary used?
 
 ## Proposal
 
-Yes. Add a small, consistent CLI observability layer with four parts:
+Yes. Add global `-v/--verbose` diagnostics for every command in the binary.
 
-1. concise default summaries for mutating commands
-2. global `-v/--verbose` and `--quiet`
-3. `--dry-run` for destructive or high-impact commands
-4. structured output where it already fits command semantics
+The minimum product requirement is that every command in the binary supports
+`--verbose` and reports the command-specific resolution path that determines
+behavior. Other observability features can wait until the shared verbose
+surface exists.
 
-The first target is `install`, because it mutates the user's real
-`~/.llm_wiki/`, `~/.claude/skills/`, and `~/.codex/skills/` state. The same
-model should then extend to `uninstall`, `init`, `index`, and `index-all`.
+The first implementation target should be `search`, because a real project
+query produced confusing output: the user needed to know which project was
+selected, which registry and index paths were used, what the index status was,
+how the natural-language query was normalized for FTS, and why no hits were
+returned. The same model should then extend across the full command set:
+`build`, `install`, `init`, `register`, `forget`, `projects`, `index`,
+`index-all`, `search`, `search-all`, `path`, `status`, `doctor`, and
+`uninstall`.
 
 This proposal is not about adding telemetry or remote logging. All output stays
 local to the command invocation.
+
+Deferred surfaces:
+
+- `--quiet`
+- `--dry-run`
+- richer default summaries
+- additional structured output beyond existing `--format text|json` surfaces
+- a separate `--explain` retrospective mode
 
 ## Output Model
 
 Separate three kinds of output:
 
 1. **Result output**: stable command results intended for humans or scripts.
-   This remains `stdout`.
-2. **Progress and diagnostics**: phase information, decisions, skipped work,
-   and warnings. This goes to `stderr` or a tracing subscriber configured for
-   CLI diagnostics.
+   This remains `stdout` and should not change just because verbose mode exists.
+2. **Verbose diagnostics**: phase information, path resolution, project
+   selection, normalization, inspected state, decisions, skipped work, and
+   warnings. This goes to `stderr` or a tracing subscriber configured for CLI
+   diagnostics.
 3. **Errors**: actionable failure messages with enough context to recover.
    Existing `anyhow::Context` remains the main error-enrichment mechanism.
 
-Default output should be useful without being noisy. A successful `install`
-should say what state it touched:
+Default output should stay compact. `--verbose` is the place for resolution
+details that are essential during debugging but too noisy for ordinary use.
 
-```text
-Installing llm-wiki 0.1.0
-Managed binary: ~/.llm_wiki/bin/llm-wiki (copied)
-Claude skills: 5 written, 0 unchanged
-Codex skills: 6 written, 0 unchanged
-Manifest: ~/.llm_wiki/manifest.json
-Done.
-```
-
-`--verbose` adds internal decisions:
+For `install`, verbose output can include internal decisions:
 
 ```text
 resolved current executable: target/debug/llm-wiki
@@ -65,25 +70,42 @@ collision wiki-query/codex: up-to-date
 writing manifest schema_version=2
 ```
 
-`--quiet` suppresses non-error output. It is for scripts and tests that care
-only about exit status or structured output.
+For `search`, verbose output should explain the retrieval target before results:
+
+```text
+selected project: electric-car (/Users/nicolasmartino/Documents/car/electric)
+registry: ~/.local/share/llm-wiki/projects.json
+wiki root: /Users/nicolasmartino/Documents/car/electric/wiki
+index store: ~/.cache/llm-wiki/indexes/electric-car/qmd-rs.sqlite
+index status: ready, freshness=fresh, indexed_files=14
+backend: qmd-rs fts
+query: what are the most cutting edge battery technologies
+fts query: what are the most cutting edge battery technologies
+filters: class=<none>, status=<none>, limit=10
+results: 0
+```
+
+`query` and `fts query` are both shown intentionally. They may be identical for
+simple input, but they diverge when sanitization removes punctuation,
+deduplicates repeated tokens, normalizes casing, or later adds stopword or
+token rewriting. Showing both makes retrieval behavior debuggable without
+guessing what qmd-rs actually received.
 
 ## Global Flags
 
-Add global options on the root CLI:
+Add a global option on the root CLI:
 
 ```text
 llm-wiki -v ...
 llm-wiki --verbose ...
-llm-wiki --quiet ...
 ```
 
 Initial semantics:
 
-- default: print concise summaries for commands that change state
-- `--verbose`: include phase and decision details
-- `--quiet`: suppress summaries and diagnostics except errors
-- `--quiet` and `--verbose` conflict
+- `--verbose`: include phase, path, selection, status, normalization, and
+  decision details for every command
+- default: preserve existing compact command output unless a command already has
+  a documented default summary
 
 Use a single `CliOutput` or `CliContext` object passed to command handlers
 rather than ad-hoc flag checks in each module.
@@ -92,62 +114,66 @@ Do not make `--verbose` a Cargo-style repeatable verbosity counter in the first
 implementation. One verbose level is enough until real usage proves the need
 for trace/debug separation.
 
-## Dry Run
+## TTY And Color
 
-Add `--dry-run` to commands where a preview materially reduces risk:
+Human output may use color only when stdout/stderr is attached to a TTY.
+Piped output must be plain text by default. The CLI should honor `NO_COLOR` by
+disabling color, and may honor `CLICOLOR_FORCE` to force color for users who
+explicitly request it.
 
-```text
-llm-wiki install --dry-run
-llm-wiki uninstall --dry-run
-llm-wiki uninstall --include-binary --dry-run
-llm-wiki index --dry-run
-llm-wiki index-all --dry-run
-```
+Color is presentation only. Tests should prefer plain output unless they are
+specifically covering color detection, and JSON output must never include ANSI
+escape sequences.
 
-`install --dry-run` should perform discovery, rendering, collision
-classification, and manifest comparison, then print the planned changes without
-writing files:
+## Exit Codes
 
-```text
-Would copy binary to ~/.llm_wiki/bin/llm-wiki
-Would write 5 Claude skill files
-Would write 6 Codex skill files
-Would write manifest ~/.llm_wiki/manifest.json
-No changes made.
-```
+Exit semantics should be consistent across commands:
 
-`uninstall --dry-run` should list manifest-owned files and whether drift would
-block a real uninstall.
+1. `0` means the requested operation completed successfully.
+2. nonzero means the command did not complete as requested.
+3. `--verbose` must not change success or failure semantics.
+4. The first implementation does not need a rich taxonomy of numeric exit
+   codes. It should preserve the current nonzero failure behavior and avoid
+   adding command-specific exit meanings until there is a documented need.
 
-`index --dry-run` should report the selected project, target store path, current
-freshness, and file count that would be indexed. It should not build a temp
-store.
+## Progress
 
-`init --dry-run` is useful but lower priority: its output would be a planned
-file/folder list and resolved blueprint/packs. It can follow after install and
-uninstall because `init` normally targets an explicit new project path and
-already refuses framework-artifact collisions.
+Long-running commands should not invent their own progress behavior. Default
+progress should stay as it is unless a later proposal changes default summaries.
+Verbose mode may print phase-level progress such as selected project, file
+counts, lock acquisition, temp store path, promotion steps, and per-project
+`index-all` outcomes.
 
-## Structured Output
+Avoid per-file progress by default. If indexing large wikis later needs
+spinners or per-file progress, that behavior should be gated by TTY detection
+and suppressed for non-TTY output unless explicitly requested.
 
-Do not force JSON onto every command immediately. Keep the existing
-`--format text|json` on `projects`, `search`, and `search-all`.
+## Tracing Boundary
 
-Add JSON later where the command has a stable result object:
+Summaries are direct writes through `CliOutput` / `CliContext`; they are the
+human command contract. Framework diagnostics gated by `--verbose` should flow
+through `tracing` at framework-owned levels, then be formatted by the CLI
+subscriber. Dependency-level logs are not enabled by `--verbose`; `RUST_LOG`
+remains the escape hatch for lower-level crate diagnostics.
 
-- `status --format json`
-- `doctor --format json`
-- `install --dry-run --format json`
-- `uninstall --dry-run --format json`
+This avoids two drifting logging paths: command handlers compute report data and
+emit diagnostic events from the same decisions, while presentation code decides
+what reaches stdout/stderr.
 
-Avoid promising JSON for real `install` or `uninstall` until the operation
-summary structs are stable. Preview mode is the safer first structured surface.
+## Deferred Surfaces
+
+Do not add `--quiet`, `--dry-run`, broader structured output, or richer default
+summaries in the first implementation. They are plausible follow-up work, but
+this proposal closes only the missing command diagnostics problem.
+
+Keep the existing `--format text|json` on `projects`, `search`, and
+`search-all`. Verbose diagnostics must not pollute JSON result output.
 
 ## Implementation Shape
 
 Use `tracing` for diagnostics rather than scattering raw `eprintln!` calls.
-The CLI should still own human summaries explicitly; `tracing` is for
-diagnostic events and verbose mode.
+The CLI should still own human summaries explicitly through the `CliOutput` /
+`CliContext` boundary; `tracing` is for diagnostic events and verbose mode.
 
 Suggested dependencies:
 
@@ -158,38 +184,33 @@ tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 
 Implementation steps:
 
-1. Add a root `CliOutput` context with `verbose` and `quiet`.
-2. Add global flags to `src/cli.rs` and initialize the output/tracing layer in
+1. Add a root `CliOutput` context with `verbose`.
+2. Add the global flag to `src/cli.rs` and initialize the output/tracing layer in
    `src/main.rs`.
-3. Refactor `install` to return an `InstallReport` containing binary action,
-   per-runtime skill counts, manifest path, backup path if any, warnings, and
-   dry-run status.
-4. Add `install --dry-run` using the existing preflight and collision
-   classification machinery without writing the managed binary, skill files,
-   backups, manifest, or partial marker.
-5. Add concise default `install` summaries and verbose diagnostics.
-6. Add `uninstall --dry-run` and an `UninstallReport`.
-7. Extend the same report pattern to `init`, `index`, and `index-all`.
-8. Update integration tests to assert summary output, quiet output, dry-run
-   non-mutation, and verbose detail.
+3. Implement command-specific verbose events for every command before adding
+   richer deferred follow-up surfaces.
+4. Keep stdout result output unchanged in non-verbose mode.
+5. Add integration tests proving every command accepts `--verbose` and emits at
+   least one useful command-specific diagnostic.
+6. Add focused tests for `search` / `search-all` verbose diagnostics because
+   they are the motivating failure case.
 
 The core rule: command handlers should compute a report from real decisions,
 then a presentation layer prints it. Avoid duplicating decision logic in the
 formatter.
 
-## Command-Specific Targets
+## Command-Specific Verbose Targets
+
+Every command must emit at least one command-specific verbose diagnostic. The
+first implementation can keep each target concise.
+
+### `build`
+
+- selected build target
+- output directory
+- rendered runtime skill counts
 
 ### `install`
-
-Default summary:
-
-- binary action: copied, verified, unchanged, or skipped self-copy
-- skill files written/unchanged per runtime
-- manifest path
-- backup snapshot path when created
-- next step when PATH guidance is relevant
-
-Verbose detail:
 
 - current executable path
 - managed binary path and hash comparison outcome
@@ -197,107 +218,112 @@ Verbose detail:
 - collision classification per file
 - render target per skill/runtime
 
-Dry run:
-
-- no managed binary write
-- no skill writes
-- no backup writes
-- no manifest writes
-- no partial marker writes
-
 ### `uninstall`
-
-Default summary:
-
-- number of files removed
-- manifest removed or absent
-- managed binary left in place unless `--include-binary`
-
-Verbose detail:
 
 - manifest path
 - each file considered
 - drift checks
-
-Dry run:
-
-- list files that would be removed
-- report drift blockers before mutation
+- whether the managed binary is included
 
 ### `init`
-
-Default summary:
 
 - project path
 - blueprint
 - resolved packs
-- whether registration succeeded or was skipped
-- initial source bundle path when sources were copied
+- registration path
+- copied initial source paths
 
-Verbose detail:
+### `register` / `forget` / `projects`
 
-- folder/file count
-- manifest path
-- copied source paths
+- registry path
+- requested project ID/path
+- resolved canonical root
+- validation result
+- cache deletion decision for `forget --delete-cache`
 
 ### `index` / `index-all`
 
-Default summary:
-
 - project id
-- indexed file count
-- freshness before/after when available
+- wiki root
 - store path
-
-Verbose detail:
-
 - lock path
 - temp store path
+- indexed file count
 - promotion steps
 - metadata path
+- per-project `index-all` outcome
+
+### `search` / `search-all`
+
+- registry path
+- selected project ID(s), names, and roots
+- whether project selection came from `--project`, CWD discovery, or
+  `search-all` include/exclude filters
+- wiki root for each selected project
+- qmd-rs store path for each selected project
+- backend mode
+- index status, freshness, indexed file count, and stale/unusable reason when
+  available
+- raw query and sanitized FTS query
+- class/status filters and limit
+- per-project result count before cross-project fusion
+- final result count and no-hit explanation when the result set is empty
+
+### `path` / `status` / `doctor`
+
+- managed home
+- managed binary path
+- manifest path
+- registry path where relevant
+- cache/index/model paths where relevant
 
 ## Non-Goals
 
 - Remote telemetry.
 - Persistent log files.
 - A daemon or background service.
+- `--quiet`.
+- `--dry-run`.
+- new structured output formats.
+- richer default summaries.
 - Making agent-owned operations (`wiki-ingest`, `wiki-query`, `wiki-lint`) part
   of the binary.
 - Replacing `doctor`; improved command logging should complement `doctor`, not
   turn every command into a full diagnostic report.
+- A separate `--explain` retrospective mode in the first implementation.
+  `--verbose` is the diagnostic surface for now.
 
 ## Risks
 
 1. **Noisy defaults.** If default output becomes too chatty, scripts and humans
-   both suffer. Keep default summaries short and reserve per-file detail for
-   `--verbose`.
-2. **Dry-run drift.** If dry-run has separate decision logic, it will lie. The
-   implementation must share classification and planning with real execution.
-3. **JSON contract lock-in.** Structured output becomes compatibility surface.
-   Add JSON only for report types that are likely to stay stable.
-4. **Progress output in tests.** Integration tests should use `--quiet` or
-   assert exact summaries where summaries are the contract.
+   both suffer. Keep existing default output unchanged and reserve diagnostic
+   detail for `--verbose`.
+2. **JSON pollution.** Verbose diagnostics must not mix into JSON result output.
+   Put diagnostics on stderr and keep structured stdout stable.
+3. **Progress output in tests.** Integration tests should assert essential
+   verbose diagnostics without coupling to incidental progress wording.
+4. **Verbose output as accidental API.** Once integration tests or scripts
+   assert verbose lines, those lines become compatibility surface. Tests should
+   assert the presence of essential diagnostics without over-specifying
+   incidental wording.
 
 ## What Closes This Proposal
 
-Promotion to a plan covering:
+Promotion to a plan with acceptance criteria:
 
-1. root CLI flags and output context
-2. `tracing` initialization policy
-3. `InstallReport` and `install --dry-run`
-4. `UninstallReport` and `uninstall --dry-run`
-5. default summaries for `install`, `uninstall`, `init`, `index`, and
-   `index-all`
-6. tests for quiet, verbose, dry-run non-mutation, and default summaries
-7. documentation updates in README and affected specs once behavior lands
+1. every `llm-wiki` command accepts global `-v/--verbose`
+2. every command emits at least one command-specific verbose diagnostic that
+   explains its resolution path or inspected state
+3. `search` and `search-all` verbose output explain project selection, registry
+   and index paths, backend/index state, query normalization, filters, result
+   counts, and zero-result cases
+4. verbose diagnostics follow the stdout/stderr,
+   TTY/color, tracing, RUST_LOG, progress, and exit-code policies in this
+   proposal
+5. integration tests cover verbose diagnostics for the full command set and
+   JSON output staying free of ANSI color
+6. README and affected specs document the resulting user-visible behavior
 
 ## Open Questions
 
-1. Should `--verbose` imply `RUST_LOG=debug` style tracing, or should explicit
-   `RUST_LOG` continue to be the only way to enable dependency-level logs?
-   Lean: `--verbose` should enable framework diagnostics only.
-2. Should `install --dry-run` return success when a real install would be
-   blocked by a collision, or fail after printing the blocker? Lean: fail with
-   the same exit code semantics as real install, but without mutation.
-3. Should default install summaries go to `stdout` or `stderr`? Lean:
-   summaries to `stdout`, diagnostics to `stderr`, errors to `stderr`.
+(none)

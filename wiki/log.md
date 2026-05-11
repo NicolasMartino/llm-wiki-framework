@@ -1,5 +1,97 @@
 # Wiki Log
 
+## [2026-05-11] update | search proposal reframed around semantic hybrid retrieval
+
+Reframed `wiki/proposals/search-query-interpretation.proposal.md` from an
+FTS stopword/OR fallback proposal into the larger search product direction:
+semantic retrieval, hybrid fusion, query expansion, and reranking behind the
+qmd-rs adapter. The AND-only failure remains as motivating evidence, but the
+proposal now treats keyword rewriting as a fallback rather than the main fix.
+Updated `wiki/index.md` so the active proposal is discoverable under the
+semantic/hybrid search direction.
+
+Pages updated: wiki/proposals/search-query-interpretation.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-11] update | CLI observability narrowed to verbose
+
+Narrowed `wiki/proposals/cli-observability.proposal.md` to the agreed current
+scope: universal `-v/--verbose` diagnostics for every `llm-wiki` binary
+command. Deferred `--quiet`, `--dry-run`, richer default summaries, new
+structured output, and `--explain` mode. Updated the proposal title, output
+model, implementation shape, command-specific targets, risks, and acceptance
+criteria accordingly.
+
+Pages updated: wiki/proposals/cli-observability.proposal.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-11] update | search query interpretation proposal revised after review
+
+Revised `wiki/proposals/search-query-interpretation.proposal.md` after review.
+The CLI fix is now a two-pass strategy — strict implicit-AND first, then
+stopword-stripped OR fallback only when strict underdelivers — instead of a
+blanket OR rewrite that would regress precise queries like `qmd-rs search-all`.
+Tightened the skill wording so the LLM derives phrases from `wiki/index.md`,
+page metadata, and already-read pages, with lexical extraction from the user's
+question as fallback, and is explicitly told not to invent domain vocabulary
+the corpus has not surfaced. Removed the "documentation-only" claim about the
+skill change and expanded closure to include regenerating committed runtime
+projection snapshots per the skill projection contract. Fixed the D8/D9
+reference to search backend selection.
+
+Pages updated: wiki/proposals/search-query-interpretation.proposal.md,
+wiki/log.md
+
+## [2026-05-11] create | search query interpretation proposal
+
+Filed `wiki/proposals/search-query-interpretation.proposal.md` after the
+electric-car dogfooding session showed `llm-wiki search 'what are the most
+cutting edge battery technologies'` returned zero results while
+`llm-wiki search 'solid state battery'` worked. The proposal makes the split
+explicit: the `wiki-query` skill owns query interpretation (extract keyword
+phrases from the corpus before calling search); the CLI owns being a forgiving
+primitive (strict-first with a stopword-stripped OR fallback when strict
+underdelivers).
+
+Pages created: wiki/proposals/search-query-interpretation.proposal.md
+Pages updated: wiki/index.md, wiki/log.md
+
+## [2026-05-11] create | code-folders opt-in pack proposal
+
+Filed `wiki/proposals/code-folders-opt-in.proposal.md` after the same session
+exposed that `llm-wiki init` creates `src/ tests/ scripts/ infra/` for every
+new project regardless of blueprint (`src/init/compose.rs:25,73-75`). The
+proposal moves those folders behind a new `Pack::Code` and updates the five
+software-shaped blueprints' default pack selections to include it, leaving
+`research / generic / custom` blueprints with no code folders by default.
+
+Pages created: wiki/proposals/code-folders-opt-in.proposal.md
+Pages updated: wiki/index.md, wiki/log.md
+
+## [2026-05-11] update | CLI observability proposal tightened
+
+Tightened `wiki/proposals/cli-observability.proposal.md` after review. Removed
+duplicative proposal structure, added cross-command policies for TTY/color,
+exit codes, long-running progress, and the tracing versus summary boundary,
+promoted the `RUST_LOG` stance into the body, clarified why search verbose
+output shows both raw and sanitized queries, added verbose-output contract risk,
+and converted the close criteria into testable acceptance criteria.
+
+Pages updated: wiki/proposals/cli-observability.proposal.md, wiki/log.md
+
+## [2026-05-11] update | CLI observability proposal broadened
+
+Updated `wiki/proposals/cli-observability.proposal.md` after the electric-car
+search debugging incident. The proposal now treats universal `--verbose`
+diagnostics as the minimum requirement for every `llm-wiki` binary command,
+with search/search-all diagnostics called out explicitly for project
+selection, registry/index paths, backend status, query normalization, filters,
+result counts, and zero-hit explanations. Dry-run and richer report work remain
+command-specific follow-up.
+
+Pages updated: wiki/proposals/cli-observability.proposal.md, wiki/index.md,
+wiki/log.md
+
 ## [2026-05-10] create | CLI observability proposal
 
 Filed `wiki/proposals/cli-observability.proposal.md` after real debug-binary

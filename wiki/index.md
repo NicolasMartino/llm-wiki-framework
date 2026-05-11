@@ -1,8 +1,8 @@
 # Wiki Index
 
 Project: Software Project Management Framework
-Stage: D1-D11 Completed; CLI observability proposal drafted
-Updated: 2026-05-10
+Stage: D1-D11 Completed; CLI observability, code-folder pack, and semantic/hybrid search proposals open
+Updated: 2026-05-11
 
 ## Specs
 
@@ -46,7 +46,9 @@ Updated: 2026-05-10
 - [Managed Binary Install and PATH Guidance](proposals/binary-path-bootstrap.proposal.md) — Accepted — Promoted to D8.1 decision and plan; make installed skills call a managed binary path while PATH remains convenience guidance
 - [Composable Project Init: Blueprints and Packs](proposals/blueprint-pack-init.proposal.md) — Accepted — Promoted to D10 decision and plan; replace the static project guidelines template with a blueprint + pack composition model and add a per-project `.llm_wiki/` folder with an `init.toml` manifest
 - [Skill Projection on the Composable-Init Template Engine](proposals/skills-template-engine.proposal.md) — Accepted — Promoted to decision and completed plan; skill projection now uses the shared Askama template engine
-- [CLI Observability and Dry-Run UX](proposals/cli-observability.proposal.md) — Proposed — Add concise command summaries, global quiet/verbose controls, dry-run previews for risky commands, and report-backed output
+- [CLI Verbose Diagnostics](proposals/cli-observability.proposal.md) — Proposed — Add universal `-v/--verbose` diagnostics for every binary command, starting with search target/query explanation; defer quiet, dry-run, richer summaries, and new structured output
+- [Code Scaffolding As An Opt-In Pack](proposals/code-folders-opt-in.proposal.md) — Proposed — Move `src/ tests/ scripts/ infra/` behind a `Pack::Code` so research/docs-only blueprints stop shipping empty code folders; update software-shaped blueprints' default packs to include it
+- [Semantic and Hybrid Search for Natural-Language Queries](proposals/search-query-interpretation.proposal.md) — Proposed — Add semantic search, hybrid fusion, query expansion, and reranking behind the qmd-rs adapter so natural-language search is not forced through the current FTS-only path
 
 ## Plans
 
