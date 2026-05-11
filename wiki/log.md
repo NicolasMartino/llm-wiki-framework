@@ -1,5 +1,17 @@
 # Wiki Log
 
+## [2026-05-11] update | CLI observability plan hardened for implementation
+
+Hardened `wiki/plans/cli-observability.plan.md` after review. The plan now
+requires Clap global verbose semantics before and after subcommands, commits to
+`CliContext` and `tracing` / `tracing-subscriber`, threads context through every
+handler in Stage 1, maps verbose facts to their implementation sources, defines
+search no-result explanations, pins deterministic `search-all` diagnostic
+ordering, mirrors TTY/color policy, adds `just verify` to Stage 1 gates, and
+points Stage 2 assertions at existing command test files.
+
+Pages updated: wiki/plans/cli-observability.plan.md, wiki/log.md
+
 ## [2026-05-11] promote | CLI observability implementation plan
 
 Promoted `wiki/proposals/cli-observability.proposal.md` to Accepted and created
