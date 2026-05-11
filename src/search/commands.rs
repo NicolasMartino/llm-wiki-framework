@@ -24,7 +24,7 @@ use crate::search::project::discover_from_cwd;
 use crate::search::qmd_rs::QmdRsBackend;
 use crate::search::sanitize::sanitize_fts_query;
 use crate::search::semantic::SemanticIndexMetadata;
-use crate::search_models::{ModelArtifacts, model_by_id};
+use crate::search_models::{ModelArtifacts, SearchThresholds, model_by_id};
 use crate::search_profile::{ProjectSearchConfig, SearchConfig, SearchProfile};
 
 pub fn index(args: &IndexArgs, context: &CliContext) -> Result<()> {
@@ -1012,7 +1012,10 @@ fn readiness_failure(
             return Ok(Some(readiness("model_missing")));
         }
     }
-    Ok(Some(readiness("thresholds_unconfigured")))
+    if SearchThresholds::read(&paths.search_thresholds())?.is_none() {
+        return Ok(Some(readiness("thresholds_unconfigured")));
+    }
+    Ok(Some(readiness("semantic_index_missing")))
 }
 
 fn required_model_ids(

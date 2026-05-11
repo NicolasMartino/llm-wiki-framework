@@ -71,6 +71,10 @@ impl Paths {
         self.managed_home().join("search.toml")
     }
 
+    pub fn search_thresholds(&self) -> PathBuf {
+        self.managed_home().join("search-thresholds.toml")
+    }
+
     pub fn external_dependencies(&self) -> PathBuf {
         self.managed_home().join("external-dependencies.toml")
     }
@@ -229,6 +233,10 @@ mod tests {
         assert_eq!(
             paths.search_config(),
             temp.path().join(".llm_wiki/search.toml")
+        );
+        assert_eq!(
+            paths.search_thresholds(),
+            temp.path().join(".llm_wiki/search-thresholds.toml")
         );
         assert_eq!(
             paths.external_dependencies(),

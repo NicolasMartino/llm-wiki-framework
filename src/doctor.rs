@@ -14,7 +14,7 @@ use crate::search::adapter::{BackendState, SearchBackend, SearchMode};
 use crate::search::project::discover_from_cwd;
 use crate::search::qmd_rs::QmdRsBackend;
 use crate::search::semantic::SemanticIndexMetadata;
-use crate::search_models::{AcceptedLicenses, ModelArtifacts};
+use crate::search_models::{AcceptedLicenses, ModelArtifacts, SearchThresholds};
 use crate::search_profile::{ExternalDependencies, SearchConfig};
 use crate::skill_render::{BINARY_MARKER, managed_binary_invocation};
 
@@ -153,6 +153,7 @@ fn print_search_profile_diagnostics(paths: &Paths, context: &crate::cli::CliCont
     let external_dependencies = paths.external_dependencies();
     let accepted_licenses = paths.accepted_licenses();
     let model_artifacts = paths.model_artifacts();
+    let search_thresholds = paths.search_thresholds();
     context.diagnostic(format!("search config: {}", search_config.display()));
     context.diagnostic(format!(
         "external dependencies: {}",
@@ -163,6 +164,10 @@ fn print_search_profile_diagnostics(paths: &Paths, context: &crate::cli::CliCont
         accepted_licenses.display()
     ));
     context.diagnostic(format!("model artifacts: {}", model_artifacts.display()));
+    context.diagnostic(format!(
+        "search thresholds: {}",
+        search_thresholds.display()
+    ));
 
     println!();
     println!("Search profile:");
@@ -251,6 +256,26 @@ fn print_search_profile_diagnostics(paths: &Paths, context: &crate::cli::CliCont
             println!(
                 "Model artifact records missing: {}",
                 model_artifacts.display()
+            );
+        }
+    }
+
+    match SearchThresholds::read(&search_thresholds)? {
+        Some(thresholds) => {
+            context.diagnostic("search thresholds state: configured");
+            println!(
+                "Search thresholds configured: profile={} semantic_floor={} hybrid_floor={} at {}",
+                thresholds.profile,
+                thresholds.semantic_similarity_floor,
+                thresholds.hybrid_pre_fusion_semantic_floor,
+                search_thresholds.display()
+            );
+        }
+        None => {
+            context.diagnostic("search thresholds state: missing");
+            println!(
+                "Search thresholds missing: {} (semantic/hybrid modes fail closed)",
+                search_thresholds.display()
             );
         }
     }

@@ -11,6 +11,7 @@ use crate::search_profile::{timestamp, write_toml_atomic};
 
 const ACCEPTED_LICENSES_SCHEMA_VERSION: u32 = 1;
 const MODEL_ARTIFACTS_SCHEMA_VERSION: u32 = 1;
+const SEARCH_THRESHOLDS_SCHEMA_VERSION: u32 = 1;
 pub const DEFAULT_PROFILE_ID: &str = "balanced";
 pub const QMD_RS_VERSION: &str = "0.3.2";
 pub const ADAPTER_SCHEMA_VERSION: u32 = 1;
@@ -100,6 +101,23 @@ pub struct ModelArtifactRecord {
     pub qmd_rs_version: String,
     pub adapter_schema_version: u32,
     pub verified_at: String,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct SearchThresholds {
+    pub schema_version: u32,
+    pub updated_at: String,
+    pub profile: String,
+    pub semantic_similarity_floor: f64,
+    pub hybrid_pre_fusion_semantic_floor: f64,
+    pub reranker_probability_floor: f64,
+    pub lexical_exact_identifier_guard: String,
+    pub qmd_rs_version: String,
+    pub adapter_schema_version: u32,
+    pub chunking_strategy: String,
+    pub embedding_model: String,
+    pub embedding_artifact_sha256: String,
+    pub embedding_dimensions: usize,
 }
 
 pub const EMBEDDING_GEMMA_300M: SearchModel = SearchModel {
@@ -243,6 +261,32 @@ impl ModelArtifacts {
 
     pub fn write_atomic(&self, path: &Path) -> Result<()> {
         write_toml_atomic(path, self, "model artifacts")
+    }
+}
+
+impl SearchThresholds {
+    pub fn read(path: &Path) -> Result<Option<Self>> {
+        if !path.exists() {
+            return Ok(None);
+        }
+        let input = fs::read_to_string(path)
+            .with_context(|| format!("failed to read search thresholds {}", path.display()))?;
+        let thresholds: Self = toml::from_str(&input)
+            .with_context(|| format!("failed to parse search thresholds {}", path.display()))?;
+        if thresholds.schema_version != SEARCH_THRESHOLDS_SCHEMA_VERSION {
+            bail!(
+                "unsupported search thresholds schema_version {} in {}; expected {}",
+                thresholds.schema_version,
+                path.display(),
+                SEARCH_THRESHOLDS_SCHEMA_VERSION
+            );
+        }
+        Ok(Some(thresholds))
+    }
+
+    #[allow(dead_code)]
+    pub fn write_atomic(&self, path: &Path) -> Result<()> {
+        write_toml_atomic(path, self, "search thresholds")
     }
 }
 

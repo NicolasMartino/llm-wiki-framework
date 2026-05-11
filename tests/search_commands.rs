@@ -410,6 +410,32 @@ fn explicit_hybrid_with_fallback_uses_lexical() {
 }
 
 #[test]
+fn enabled_profile_without_thresholds_fails_closed() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+    write_enabled_search_profile_with_fake_artifacts(home.path());
+
+    let output = llm_wiki(home.path())
+        .args([
+            "search",
+            "reciprocal rank fusion",
+            "--project",
+            "fixture",
+            "--mode",
+            "hybrid",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("search output");
+    assert!(!output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("readiness json");
+    assert_eq!(json["readiness_reason"], "thresholds_unconfigured");
+}
+
+#[test]
 fn verbose_search_reports_zero_result_reason() {
     let home = TempDir::new().expect("home");
     let workspace = TempDir::new().expect("workspace");
@@ -1088,6 +1114,90 @@ fn ensure_installed(home: &Path) {
         .args(["install", "--skip-path-guidance"])
         .assert()
         .success();
+}
+
+fn write_enabled_search_profile_with_fake_artifacts(home: &Path) {
+    let managed = home.join(".llm_wiki");
+    let embedding_path =
+        managed.join("models/embeddinggemma-300m-q8_0/embeddinggemma-300M-Q8_0.gguf");
+    let expansion_path =
+        managed.join("models/qmd-query-expansion-1.7b-q4_k_m/qmd-query-expansion-1.7B-q4_k_m.gguf");
+    fs::create_dir_all(embedding_path.parent().expect("embedding parent")).expect("embedding dir");
+    fs::create_dir_all(expansion_path.parent().expect("expansion parent")).expect("expansion dir");
+    fs::write(&embedding_path, "fake embedding").expect("embedding file");
+    fs::write(&expansion_path, "fake expansion").expect("expansion file");
+    fs::write(
+        managed.join("search.toml"),
+        r#"
+schema_version = 1
+updated_at = "2026-05-11T00:00:00Z"
+
+[project_default]
+llm_search_enabled = true
+configured_at = "2026-05-11T00:00:00Z"
+configured_by_version = "test"
+profile = "balanced"
+embedding_model = "embeddinggemma-300m-q8_0"
+query_expansion_model = "qmd-query-expansion-1.7b-q4_k_m"
+
+[global_search]
+llm_search_enabled = true
+configured_at = "2026-05-11T00:00:00Z"
+configured_by_version = "test"
+profile = "balanced"
+embedding_model = "embeddinggemma-300m-q8_0"
+query_expansion_model = "qmd-query-expansion-1.7b-q4_k_m"
+"#,
+    )
+    .expect("search profile");
+    fs::create_dir_all(managed.join("models")).expect("models dir");
+    fs::write(
+        managed.join("models/artifacts.toml"),
+        format!(
+            r#"
+schema_version = 1
+updated_at = "2026-05-11T00:00:00Z"
+
+[[artifacts]]
+model_id = "embeddinggemma-300m-q8_0"
+role = "embedding"
+profile = "balanced"
+repository = "ggml-org/embeddinggemma-300M-GGUF"
+revision = "main"
+file = "embeddinggemma-300M-Q8_0.gguf"
+download_url = "https://example.invalid/embedding.gguf"
+path = "{}"
+expected_sha256 = "f470220f84b6235197541352d22f10bf00098a8242c18eaacea9c8a4add557bc"
+observed_sha256 = "f470220f84b6235197541352d22f10bf00098a8242c18eaacea9c8a4add557bc"
+size_bytes = 1
+license = "gemma"
+dimensions = 768
+qmd_rs_version = "0.3.2"
+adapter_schema_version = 1
+verified_at = "2026-05-11T00:00:00Z"
+
+[[artifacts]]
+model_id = "qmd-query-expansion-1.7b-q4_k_m"
+role = "query-expansion"
+profile = "balanced"
+repository = "tobil/qmd-query-expansion-1.7B-gguf"
+revision = "main"
+file = "qmd-query-expansion-1.7B-q4_k_m.gguf"
+download_url = "https://example.invalid/expansion.gguf"
+path = "{}"
+expected_sha256 = "000dfb1c06efa6a049e9f64ba921c3740e2454f62abab6fa10e77bd30bb2bcc0"
+observed_sha256 = "000dfb1c06efa6a049e9f64ba921c3740e2454f62abab6fa10e77bd30bb2bcc0"
+size_bytes = 1
+license = "mit"
+qmd_rs_version = "0.3.2"
+adapter_schema_version = 1
+verified_at = "2026-05-11T00:00:00Z"
+"#,
+            embedding_path.display(),
+            expansion_path.display()
+        ),
+    )
+    .expect("artifacts");
 }
 
 fn fixture_project(root: &Path, name: &str) -> PathBuf {
