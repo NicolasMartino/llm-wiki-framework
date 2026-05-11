@@ -1964,3 +1964,21 @@ justify it.
 
 Pages updated: wiki/proposals/code-folders-opt-in.proposal.md, wiki/index.md,
 wiki/log.md
+
+## [2026-05-11] promote | code pack and CLI tool blueprint
+
+Accepted the code-scaffolding proposal and promoted it to a durable decision
+plus a planned implementation page. The accepted choice moves root code/deploy
+folders behind an explicit `code` pack, adds `cli-tool` as a command-line
+product blueprint, keeps research/generic/custom no-code by default, and
+defers a separate `cli` pack until repeated CLI-specific conventions justify
+one.
+
+No implementation changes landed in this operation. The planned implementation
+page now owns the Rust/template/test checklist for the next coding pass.
+
+Pages updated: wiki/decisions/code-pack-cli-blueprint.decision.md,
+wiki/plans/code-pack-cli-blueprint.plan.md,
+wiki/proposals/code-folders-opt-in.proposal.md,
+wiki/decisions/composable-project-init.decision.md, wiki/index.md,
+wiki/log.md

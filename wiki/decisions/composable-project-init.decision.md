@@ -74,6 +74,15 @@ Rejected: packs ship with the binary. Encoding metadata as Rust enums plus acces
 - One-shot init means existing projects do not pick up future pack additions automatically. `.llm_wiki/init.toml` is the breadcrumb that keeps a future `upgrade` command buildable.
 - Pack authoring discipline becomes a first-class concern; golden-file tests are the enforcement mechanism.
 
+## Dogfooding Revision
+
+On 2026-05-11, the first post-D10 catalog revision was accepted in
+`wiki/decisions/code-pack-cli-blueprint.decision.md`: root code/deploy folders
+move behind an explicit `code` pack, and `cli-tool` becomes a blueprint for
+command-line products. This does not change the D10 composition model; it
+applies it more strictly by removing hidden code scaffolding from the base
+template.
+
 ## What Would Cause This Decision To Be Revisited
 
 - The blueprint catalog stops fitting real project shapes after dogfooding (the third or fourth project can't be expressed as a blueprint + pack combination).

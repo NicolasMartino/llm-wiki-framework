@@ -1,12 +1,13 @@
 # Code Scaffolding As An Opt-In Pack
 
 - Document Class: Proposal
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-05-10
+- Promoted To: wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/plans/code-pack-cli-blueprint.plan.md
 - Category: Init UX, project scaffolding, blueprint/pack catalog
 - Scope: Stop creating `src/`, `tests/`, `scripts/`, `infra/` unconditionally during `llm-wiki init`. Move them behind an opt-in `code` pack so research-only and documentation-only projects do not start with empty code folders, and add `cli-tool` as a first-class blueprint for command-line products.
 - Sources: src/init/compose.rs (CODE_FOLDERS, lines 25, 73-75), templates/base/project_guidelines.md (lines 264-268), src/init/blueprints.rs, src/init/packs.rs, dogfooding session 2026-05-10 against `/Users/nicolasmartino/Documents/car/electric` (research blueprint), user discussion 2026-05-11
-- Related: wiki/proposals/blueprint-pack-init.proposal.md, wiki/decisions/composable-project-init.decision.md, wiki/specs/documentation-model.spec.md
+- Related: wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/plans/code-pack-cli-blueprint.plan.md, wiki/proposals/blueprint-pack-init.proposal.md, wiki/decisions/composable-project-init.decision.md, wiki/specs/documentation-model.spec.md
 
 ## Question
 
@@ -91,7 +92,9 @@ This change affects new inits only. Existing projects keep their code folders (t
 
 ## What Would Close This Proposal
 
-Acceptance, promotion to a decision and a small implementation plan, then:
+This proposal closed by promotion to
+`wiki/decisions/code-pack-cli-blueprint.decision.md` and
+`wiki/plans/code-pack-cli-blueprint.plan.md`. The implementation plan now owns:
 
 1. New `Pack::Code` variant with folders, agents fragment, guidelines fragment.
 2. New `Blueprint::CliTool` variant whose default packs include `Code`.

@@ -1,7 +1,7 @@
 # Wiki Index
 
 Project: Software Project Management Framework
-Stage: D1-D11 Completed; CLI observability, code-folder/CLI blueprint, and semantic/hybrid search proposals open
+Stage: D1-D11 Completed; code-pack/CLI implementation planned; CLI observability and semantic/hybrid search proposals open
 Updated: 2026-05-11
 
 ## Specs
@@ -24,6 +24,7 @@ Updated: 2026-05-11
 - [Search Backend Selection](decisions/search-backend-selection.decision.md) — Accepted — qmd-rs is the D9 backend for `llm-wiki search` and `search-all`, with direct SQLite FTS5 as fallback
 - [Composable Project Init](decisions/composable-project-init.decision.md) — Accepted — `llm-wiki init` becomes a blueprint + pack composition over a compile-time template engine; per-project `.llm_wiki/init.toml` records the choices
 - [Skill Projection Template Engine](decisions/skill-projection-template-engine.decision.md) — Accepted — Claude/Codex skill markdown and Codex runtime config render through shared Askama templates
+- [Code Pack And CLI Tool Blueprint](decisions/code-pack-cli-blueprint.decision.md) — Accepted — Move root code/deploy folders behind an explicit `code` pack and add `cli-tool` as a command-line product blueprint
 
 ## Roadmaps
 
@@ -47,7 +48,7 @@ Updated: 2026-05-11
 - [Composable Project Init: Blueprints and Packs](proposals/blueprint-pack-init.proposal.md) — Accepted — Promoted to D10 decision and plan; replace the static project guidelines template with a blueprint + pack composition model and add a per-project `.llm_wiki/` folder with an `init.toml` manifest
 - [Skill Projection on the Composable-Init Template Engine](proposals/skills-template-engine.proposal.md) — Accepted — Promoted to decision and completed plan; skill projection now uses the shared Askama template engine
 - [CLI Verbose Diagnostics](proposals/cli-observability.proposal.md) — Proposed — Add universal `-v/--verbose` diagnostics for every binary command, starting with search target/query explanation; defer quiet, dry-run, richer summaries, and new structured output
-- [Code Scaffolding As An Opt-In Pack](proposals/code-folders-opt-in.proposal.md) — Proposed — Move `src/ tests/ scripts/ infra/` behind a `Pack::Code`, add `cli-tool` as a command-line product blueprint, and update software-shaped blueprints' default packs to include `Code`
+- [Code Scaffolding As An Opt-In Pack](proposals/code-folders-opt-in.proposal.md) — Accepted — Promoted to code-pack/CLI blueprint decision and implementation plan
 - [Semantic and Hybrid Search for Natural-Language Queries](proposals/search-query-interpretation.proposal.md) — Proposed — Add interactive-only LLM search setup, managed `~/.llm_wiki` model/index state with external dependency inventory and macOS backup policy, default `auto` search, lexical/semantic/hybrid modes, relevance floors, optional reranking, and rank-merged `search-all`
 
 ## Plans
@@ -61,6 +62,7 @@ Updated: 2026-05-11
 - [Project and Skill Rename](plans/project-and-skill-rename.plan.md) — Completed — D11 executed: package renamed to `llm-wiki-rs`, `knowledge*` skill surface renamed to `wiki-*`, the Codex dispatcher renamed from `knowledge` to `wiki`, runtime mirrors regenerated, and the one-off legacy home-level symlink migration now points at frozen `.claude.legacy/` / `.codex.legacy/` trees
 - [Composable Project Init](plans/composable-project-init.plan.md) — Completed — D10 execution adopted Askama, migrated init templates, shipped blueprints + packs, two-step interactive flow, AGENTS/CLAUDE schema handling, and `.llm_wiki/init.toml`
 - [Skill Projection Template Engine](plans/skill-projection-template-engine.plan.md) — Completed — Migrated Claude/Codex skill markdown and Codex runtime config rendering onto `templates/skills/` Askama templates with byte-stable real-skill snapshots
+- [Code Pack And CLI Tool Blueprint](plans/code-pack-cli-blueprint.plan.md) — Planned — Implement `Pack::Code`, add `cli-tool`, remove unconditional root code folders from init, and add golden tests for research/no-code and software/CLI code defaults
 
 ## Experiments
 
