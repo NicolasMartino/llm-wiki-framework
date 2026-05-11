@@ -1,5 +1,101 @@
 # Wiki Log
 
+## [2026-05-11] update | semantic search proposal promotion review fixes
+
+Applied promotion-review fixes to
+`wiki/proposals/search-query-interpretation.proposal.md`. Resolved the
+`auto`/semantic-index readiness contradiction by making missing or stale
+semantic indexes hard errors with `llm-wiki index` guidance, updated JSON reason
+taxonomy to distinguish zero-result outcomes from readiness failures, promoted
+threshold methodology to a decision precondition, documented partial install
+recovery and Time Machine exclusion timing, named the audience for
+`--allow-lexical-fallback`, rejected query-shape routing in `auto`, and split
+pre-promotion gates from post-promotion implementation work.
+
+Pages updated: wiki/proposals/search-query-interpretation.proposal.md,
+wiki/log.md
+
+## [2026-05-11] update | interactive install prerequisite made explicit
+
+Tightened `wiki/proposals/search-query-interpretation.proposal.md` so
+interactive-only install is a decision precondition, not just an implementation
+task. The proposal now requires retiring or explicitly superseding Cargo,
+Homebrew, scripted, release-installer, and other non-interactive install
+guidance before hybrid search can be promoted. Also collapsed default `auto`
+selection to the saved interactive install profile: hybrid when LLM search is
+enabled, lexical when declined or unconfigured.
+
+Pages updated: wiki/proposals/search-query-interpretation.proposal.md,
+wiki/log.md
+
+## [2026-05-11] update | interactive install and managed-state backup policy
+
+Updated `wiki/proposals/search-query-interpretation.proposal.md` with the
+agreed install and storage contract for LLM search: v1 install is
+interactive-only, model downloads happen during the consented install flow, and
+binaries invoked before install should fail with clear `llm-wiki install`
+guidance. Kept `~/.llm_wiki` as the byte root for model/index state, addressed
+the macOS Time Machine concern by excluding large rebuildable subdirectories
+where supported while keeping control-plane manifests backup-friendly, and
+required each generated project's `.llm_wiki/` metadata to record the managed
+install path for future agents and upgrade tooling.
+
+Pages updated: wiki/proposals/search-query-interpretation.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-11] update | external dependency inventory for LLM search
+
+Extended `wiki/proposals/search-query-interpretation.proposal.md` with
+`~/.llm_wiki/external-dependencies.toml` as the inventory for LLM search
+dependencies that cannot reasonably live under the managed runtime home. The
+proposal now requires external path/resolver, reason, version/hash, owning tool,
+last-checked time, removability, and cleanup guidance so `~/.llm_wiki` remains
+the control-plane source of truth even when some bytes live elsewhere.
+Updated the index summary accordingly.
+
+Pages updated: wiki/proposals/search-query-interpretation.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-11] update | LLM search state anchored in managed runtime home
+
+Updated `wiki/proposals/search-query-interpretation.proposal.md` so LLM search
+availability is configured during interactive install and all new LLM search
+artifacts live under `~/.llm_wiki` when practical. The proposal now calls for
+machine diagnostics, ordered model/profile recommendations, persisted
+`~/.llm_wiki/search.toml`, model files, diagnostics, semantic indexes, and
+profile/index metadata under the managed runtime home for easier inspection and
+removal. Updated the index summary accordingly.
+
+Pages updated: wiki/proposals/search-query-interpretation.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-11] update | semantic search proposal skill framing corrected
+
+Adjusted `wiki/proposals/search-query-interpretation.proposal.md` so the
+question and skill contract no longer frame the work as teaching `wiki-query`
+to handcraft better FTS keywords. The proposal now treats query expansion,
+semantic retrieval, fusion, and reranking as mostly transparent search-layer
+behavior; `wiki-query` consumes selected-mode, fallback, and zero-result
+metadata while remaining responsible for reading pages and citing answers.
+
+Pages updated: wiki/proposals/search-query-interpretation.proposal.md,
+wiki/log.md
+
+## [2026-05-11] update | semantic hybrid search proposal contract tightened
+
+Updated `wiki/proposals/search-query-interpretation.proposal.md` after product
+review. The proposal now answers the default-mode question by making
+`--mode auto` the no-flag behavior, distinguishes user-facing `lexical`,
+`semantic`, and `hybrid` modes, makes reranking opt-in, and defines relevance
+floors plus zero-result reasons so hybrid search can fail honestly instead of
+returning unrelated top-K results. Added chunk-level semantic indexing with
+document rollup, incremental re-embedding by content hash, rank-merged
+cross-project search, model licensing as a decision precondition, and CLI
+verbose diagnostics as a prerequisite for shipping hybrid search.
+
+Pages updated: wiki/proposals/search-query-interpretation.proposal.md,
+wiki/index.md, wiki/log.md
+
 ## [2026-05-11] update | search proposal reframed around semantic hybrid retrieval
 
 Reframed `wiki/proposals/search-query-interpretation.proposal.md` from an

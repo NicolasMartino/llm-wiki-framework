@@ -48,7 +48,7 @@ Updated: 2026-05-11
 - [Skill Projection on the Composable-Init Template Engine](proposals/skills-template-engine.proposal.md) — Accepted — Promoted to decision and completed plan; skill projection now uses the shared Askama template engine
 - [CLI Verbose Diagnostics](proposals/cli-observability.proposal.md) — Proposed — Add universal `-v/--verbose` diagnostics for every binary command, starting with search target/query explanation; defer quiet, dry-run, richer summaries, and new structured output
 - [Code Scaffolding As An Opt-In Pack](proposals/code-folders-opt-in.proposal.md) — Proposed — Move `src/ tests/ scripts/ infra/` behind a `Pack::Code` so research/docs-only blueprints stop shipping empty code folders; update software-shaped blueprints' default packs to include it
-- [Semantic and Hybrid Search for Natural-Language Queries](proposals/search-query-interpretation.proposal.md) — Proposed — Add semantic search, hybrid fusion, query expansion, and reranking behind the qmd-rs adapter so natural-language search is not forced through the current FTS-only path
+- [Semantic and Hybrid Search for Natural-Language Queries](proposals/search-query-interpretation.proposal.md) — Proposed — Add interactive-only LLM search setup, managed `~/.llm_wiki` model/index state with external dependency inventory and macOS backup policy, default `auto` search, lexical/semantic/hybrid modes, relevance floors, optional reranking, and rank-merged `search-all`
 
 ## Plans
 
