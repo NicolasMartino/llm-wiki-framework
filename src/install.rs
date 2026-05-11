@@ -8,7 +8,7 @@ use chrono::{Timelike, Utc};
 use llm_wiki_schema::{ClaudeProjector, CodexProjector, Projector, Runtime, parse};
 use serde::Serialize;
 
-use crate::cli::CliContext;
+use crate::cli::{CliContext, InstallArgs};
 use crate::embed;
 use crate::manifest::collision::{Collision, classify};
 use crate::manifest::hash::sha256_hex;
@@ -18,12 +18,20 @@ use crate::manifest::{
 };
 use crate::path_guidance;
 use crate::paths::Paths;
+use crate::search_profile::{ExternalDependencies, SearchConfig};
 use crate::skill_render::{apply_binary_context, managed_binary_invocation};
 
-pub fn run(force: bool, show_path_guidance: bool, context: &CliContext) -> Result<()> {
+pub fn run(args: &InstallArgs, context: &CliContext) -> Result<()> {
+    if args.disable_llm_search && !args.configure_search {
+        context.diagnostic("search configuration: --disable-llm-search implies --configure-search");
+    }
     context.diagnostic("command: install");
-    context.diagnostic(format!("force: {force}"));
-    context.diagnostic(format!("path guidance: {show_path_guidance}"));
+    context.diagnostic(format!("force: {}", args.force));
+    context.diagnostic(format!("path guidance: {}", !args.skip_path_guidance));
+    context.diagnostic(format!(
+        "configure search: {}",
+        should_configure_search(args)
+    ));
     let paths = Paths::from_env()?;
     context.diagnostic(format!("managed home: {}", paths.managed_home().display()));
     context.diagnostic(format!(
@@ -34,6 +42,14 @@ pub fn run(force: bool, show_path_guidance: bool, context: &CliContext) -> Resul
     context.diagnostic(format!(
         "partial marker: {}",
         paths.partial_install().display()
+    ));
+    context.diagnostic(format!(
+        "search config: {}",
+        paths.search_config().display()
+    ));
+    context.diagnostic(format!(
+        "external dependencies: {}",
+        paths.external_dependencies().display()
     ));
     let current_exe = env::current_exe().context("failed to resolve current executable")?;
     context.diagnostic(format!("current executable: {}", current_exe.display()));
@@ -54,8 +70,13 @@ pub fn run(force: bool, show_path_guidance: bool, context: &CliContext) -> Resul
         }
     ));
 
-    let partial_state =
-        recover_or_reject_partial(&paths, manifest.as_ref(), &current_exe_hash, force, context)?;
+    let partial_state = recover_or_reject_partial(
+        &paths,
+        manifest.as_ref(),
+        &current_exe_hash,
+        args.force,
+        context,
+    )?;
     context.diagnostic(format!(
         "partial marker recovery: {}",
         partial_state.label()
@@ -68,11 +89,11 @@ pub fn run(force: bool, show_path_guidance: bool, context: &CliContext) -> Resul
         &current_exe,
         &current_exe_bytes,
         manifest.as_ref(),
-        force,
+        args.force,
         partial_state,
         context,
     )?;
-    preflight_install_files(&files, manifest.as_ref(), force, context)?;
+    preflight_install_files(&files, manifest.as_ref(), args.force, context)?;
 
     let partial = PartialInstall::new(
         current_exe.clone(),
@@ -87,11 +108,11 @@ pub fn run(force: bool, show_path_guidance: bool, context: &CliContext) -> Resul
         &current_exe,
         &current_exe_bytes,
         &manifest,
-        force,
+        args.force,
         partial_state,
         context,
     )?;
-    let skill_entries = install_files(files, manifest.as_ref(), force, context)?;
+    let skill_entries = install_files(files, manifest.as_ref(), args.force, context)?;
     let mut backups = manifest
         .as_ref()
         .map(|manifest| manifest.backups.clone())
@@ -106,9 +127,44 @@ pub fn run(force: bool, show_path_guidance: bool, context: &CliContext) -> Resul
             )
         })?;
     }
-    if show_path_guidance {
+    if should_configure_search(args) {
+        configure_search(args, &paths, context)?;
+    }
+    if !args.skip_path_guidance {
         path_guidance::print_guidance(&paths);
     }
+    Ok(())
+}
+
+fn should_configure_search(args: &InstallArgs) -> bool {
+    args.configure_search || args.disable_llm_search
+}
+
+fn configure_search(args: &InstallArgs, paths: &Paths, context: &CliContext) -> Result<()> {
+    context.diagnostic("search configuration action: start");
+    if !args.disable_llm_search {
+        let enabled = inquire::Confirm::new("Enable semantic/hybrid LLM search now?")
+            .with_default(false)
+            .prompt()?;
+        if enabled {
+            bail!(
+                "LLM search enablement is not implemented yet; rerun with --disable-llm-search to save a lexical profile"
+            );
+        }
+    }
+
+    let config = SearchConfig::disabled();
+    config.write_atomic(&paths.search_config())?;
+    ExternalDependencies::empty().write_atomic(&paths.external_dependencies())?;
+    context.diagnostic("search configuration action: wrote disabled LLM search profile");
+    context.diagnostic(format!(
+        "search config: {}",
+        paths.search_config().display()
+    ));
+    context.diagnostic(format!(
+        "external dependencies: {}",
+        paths.external_dependencies().display()
+    ));
     Ok(())
 }
 

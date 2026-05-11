@@ -67,6 +67,22 @@ impl Paths {
         self.managed_home().join("install.partial.json")
     }
 
+    pub fn search_config(&self) -> PathBuf {
+        self.managed_home().join("search.toml")
+    }
+
+    pub fn external_dependencies(&self) -> PathBuf {
+        self.managed_home().join("external-dependencies.toml")
+    }
+
+    pub fn managed_model_root(&self) -> PathBuf {
+        self.managed_home().join("models")
+    }
+
+    pub fn managed_index_root(&self) -> PathBuf {
+        self.managed_home().join("indexes")
+    }
+
     pub fn cache_home(&self) -> PathBuf {
         self.cache_home.clone()
     }
@@ -174,6 +190,22 @@ mod tests {
         assert_eq!(
             paths.model_cache(),
             temp.path().join(".cache/llm-wiki/models")
+        );
+        assert_eq!(
+            paths.search_config(),
+            temp.path().join(".llm_wiki/search.toml")
+        );
+        assert_eq!(
+            paths.external_dependencies(),
+            temp.path().join(".llm_wiki/external-dependencies.toml")
+        );
+        assert_eq!(
+            paths.managed_model_root(),
+            temp.path().join(".llm_wiki/models")
+        );
+        assert_eq!(
+            paths.managed_index_root(),
+            temp.path().join(".llm_wiki/indexes")
         );
         assert_eq!(
             paths.project_registry(),

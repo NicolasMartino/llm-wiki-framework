@@ -69,6 +69,10 @@ pub struct InstallArgs {
     pub force: bool,
     #[arg(long)]
     pub skip_path_guidance: bool,
+    #[arg(long)]
+    pub configure_search: bool,
+    #[arg(long)]
+    pub disable_llm_search: bool,
 }
 
 #[derive(Debug, clap::Args)]

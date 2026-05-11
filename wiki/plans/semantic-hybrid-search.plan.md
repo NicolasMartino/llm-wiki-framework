@@ -199,6 +199,24 @@ queries that may become valid as the wiki grows.
 6. Record managed binary path, managed runtime home, framework version, and
    install ID/hash in generated projects' `.llm_wiki/` metadata.
 
+Progress 2026-05-11:
+
+- Added the first install-profile state slice. `llm-wiki install` now accepts
+  `--configure-search` and `--disable-llm-search`; the declined path writes
+  `~/.llm_wiki/search.toml` with disabled `[project_default]` and
+  `[global_search]` profiles plus an empty
+  `~/.llm_wiki/external-dependencies.toml`.
+- Added managed path helpers for `search.toml`, `external-dependencies.toml`,
+  `~/.llm_wiki/models/`, and `~/.llm_wiki/indexes/`.
+- Added `doctor` reporting for missing, disabled, or configured LLM search
+  profile state and external-dependency inventory.
+- Search enablement, license acknowledgement, artifact download, hash
+  verification, completed enabled profiles, recoverable partial model
+  downloads, and generated-project `.llm_wiki` runtime metadata remain open.
+- Verification: `cargo fmt`; `cargo test --test install`;
+  `cargo test --test status_doctor`; `cargo test --workspace`;
+  `git diff --check`.
+
 ## Stage 2 - Semantic Indexing
 
 1. Define the semantic chunk schema and adapter schema version.

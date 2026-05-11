@@ -5,6 +5,7 @@ use assert_cmd::Command;
 use predicates::prelude::*;
 use serde_json::Value;
 use tempfile::TempDir;
+use toml::Value as TomlValue;
 
 fn llm_wiki(home: &Path) -> Command {
     let mut command = Command::cargo_bin("llm-wiki").expect("binary");
@@ -32,6 +33,13 @@ fn install_writes_files_and_manifest() {
     assert_eq!(manifest["binary"]["version"], env!("CARGO_PKG_VERSION"));
     assert!(home.path().join(".llm_wiki/bin/llm-wiki").exists());
     assert!(!home.path().join(".llm_wiki/install.partial.json").exists());
+    assert!(!home.path().join(".llm_wiki/search.toml").exists());
+    assert!(
+        !home
+            .path()
+            .join(".llm_wiki/external-dependencies.toml")
+            .exists()
+    );
     let backup_manifest = Path::new(
         manifest["backups"][0]["path"]
             .as_str()
@@ -46,6 +54,44 @@ fn install_writes_files_and_manifest() {
         fs::read_to_string(home.path().join(".claude/skills/wiki-init/SKILL.md")).expect("skill");
     assert!(skill.contains(".llm_wiki/bin/llm-wiki"));
     assert!(!skill.contains("`llm-wiki init "));
+}
+
+#[test]
+fn install_disable_llm_search_writes_disabled_search_profile() {
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .args(["install", "--skip-path-guidance", "--disable-llm-search"])
+        .assert()
+        .success();
+
+    let search = read_toml(&home.path().join(".llm_wiki/search.toml"));
+    assert_eq!(search["schema_version"].as_integer(), Some(1));
+    assert_eq!(
+        search["project_default"]["llm_search_enabled"].as_bool(),
+        Some(false)
+    );
+    assert_eq!(
+        search["project_default"]["reason"].as_str(),
+        Some("llm_search_disabled")
+    );
+    assert_eq!(
+        search["global_search"]["llm_search_enabled"].as_bool(),
+        Some(false)
+    );
+    assert_eq!(
+        search["global_search"]["reason"].as_str(),
+        Some("llm_search_disabled")
+    );
+
+    let external = read_toml(&home.path().join(".llm_wiki/external-dependencies.toml"));
+    assert_eq!(external["schema_version"].as_integer(), Some(1));
+    assert!(
+        external["dependencies"]
+            .as_array()
+            .expect("dependencies array")
+            .is_empty()
+    );
 }
 
 #[cfg(unix)]
@@ -92,6 +138,27 @@ fn verbose_install_emits_command_diagnostics() {
         .stderr(predicate::str::contains("partial marker recovery:"))
         .stderr(predicate::str::contains("render target:"))
         .stderr(predicate::str::contains("collision classification:"));
+}
+
+#[test]
+fn verbose_install_configure_search_emits_profile_diagnostics() {
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .args([
+            "--verbose",
+            "install",
+            "--skip-path-guidance",
+            "--disable-llm-search",
+        ])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("configure search: true"))
+        .stderr(predicate::str::contains("search config:"))
+        .stderr(predicate::str::contains("external dependencies:"))
+        .stderr(predicate::str::contains(
+            "search configuration action: wrote disabled LLM search profile",
+        ));
 }
 
 #[test]
@@ -435,6 +502,10 @@ fn uninstall_refuses_drifted_manifest_file() {
 fn read_manifest(home: &Path) -> Value {
     let raw = fs::read_to_string(home.join(".llm_wiki/manifest.json")).expect("manifest exists");
     serde_json::from_str(&raw).expect("manifest json")
+}
+
+fn read_toml(path: &Path) -> TomlValue {
+    toml::from_str(&fs::read_to_string(path).expect("toml exists")).expect("toml")
 }
 
 fn write_partial(home: &Path, target_binary: impl AsRef<Path>, current_exe_hash: &str) {

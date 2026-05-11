@@ -1,5 +1,24 @@
 # Wiki Log
 
+## [2026-05-11] update | semantic hybrid Stage 1 install profile slice
+
+Implemented the first Stage 1 runtime-state slice for semantic/hybrid search.
+`llm-wiki install` now accepts `--configure-search` and
+`--disable-llm-search`; the declined path writes disabled
+`[project_default]` and `[global_search]` records to
+`~/.llm_wiki/search.toml` and an empty
+`~/.llm_wiki/external-dependencies.toml`. Added managed path helpers for the
+search profile, external dependency inventory, managed model root, and managed
+index root. `doctor` now reports search-profile and external-dependency state.
+
+Verification: `cargo fmt`; `cargo test --test install`;
+`cargo test --test status_doctor`; `cargo test --workspace`;
+`git diff --check`.
+
+Pages updated: src/cli.rs, src/doctor.rs, src/install.rs, src/main.rs,
+src/paths.rs, src/search_profile.rs, tests/install.rs,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
 ## [2026-05-11] proposal | search model selection (per-project override and global default)
 
 Drafted `wiki/proposals/search-model-selection.proposal.md` (Status: Proposed)

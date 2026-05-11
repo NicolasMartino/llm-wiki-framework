@@ -1,7 +1,7 @@
 # Wiki Index
 
 Project: Software Project Management Framework
-Stage: D1-D11 Completed; code-pack/CLI blueprint and CLI observability completed; semantic/hybrid search Stage 0 artifacts drafted; crash-report proposal open
+Stage: D1-D11 Completed; code-pack/CLI blueprint and CLI observability completed; semantic/hybrid search Stage 1 install profile slice in progress; crash-report proposal open
 Updated: 2026-05-11
 
 ## Specs

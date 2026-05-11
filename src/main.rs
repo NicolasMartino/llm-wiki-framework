@@ -9,6 +9,7 @@ mod path_guidance;
 mod paths;
 mod registry;
 mod search;
+mod search_profile;
 mod skill_render;
 mod status;
 mod uninstall;
@@ -28,7 +29,7 @@ fn main() -> Result<()> {
     let context = CliContext::new(cli.verbose);
     match &cli.command {
         Command::Build(args) => build::run(args, &context),
-        Command::Install(args) => install::run(args.force, !args.skip_path_guidance, &context),
+        Command::Install(args) => install::run(args, &context),
         Command::Init(args) => init::run(args, &context),
         Command::Register(args) => registry::register(args, &context),
         Command::Forget(args) => registry::forget(args, &context),

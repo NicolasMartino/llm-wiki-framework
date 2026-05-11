@@ -13,6 +13,7 @@ use crate::registry::{ProjectRegistry, RegisteredProject};
 use crate::search::adapter::{BackendState, SearchBackend, SearchMode};
 use crate::search::project::discover_from_cwd;
 use crate::search::qmd_rs::QmdRsBackend;
+use crate::search_profile::{ExternalDependencies, SearchConfig};
 use crate::skill_render::{BINARY_MARKER, managed_binary_invocation};
 
 pub fn run(context: &crate::cli::CliContext) -> Result<()> {
@@ -140,7 +141,69 @@ pub fn run(context: &crate::cli::CliContext) -> Result<()> {
             println!("{finding}");
         }
     }
+    print_search_profile_diagnostics(&paths, context)?;
     print_project_search_diagnostics(&paths, context)?;
+    Ok(())
+}
+
+fn print_search_profile_diagnostics(paths: &Paths, context: &crate::cli::CliContext) -> Result<()> {
+    let search_config = paths.search_config();
+    let external_dependencies = paths.external_dependencies();
+    context.diagnostic(format!("search config: {}", search_config.display()));
+    context.diagnostic(format!(
+        "external dependencies: {}",
+        external_dependencies.display()
+    ));
+
+    println!();
+    println!("Search profile:");
+    match SearchConfig::read(&search_config)? {
+        Some(config) => {
+            context.diagnostic(format!(
+                "project default llm search: {}",
+                config.project_default.llm_search_enabled
+            ));
+            context.diagnostic(format!(
+                "global search llm search: {}",
+                config.global_search.llm_search_enabled
+            ));
+            if config.project_default.llm_search_enabled || config.global_search.llm_search_enabled
+            {
+                println!("LLM search profile configured: {}", search_config.display());
+            } else {
+                println!("LLM search disabled: {}", search_config.display());
+            }
+        }
+        None => {
+            context.diagnostic("search config state: missing");
+            println!(
+                "LLM search profile missing: {} (run `llm-wiki install --configure-search`)",
+                search_config.display()
+            );
+        }
+    }
+
+    match ExternalDependencies::read(&external_dependencies)? {
+        Some(dependencies) => {
+            context.diagnostic(format!(
+                "external dependency records: {}",
+                dependencies.dependencies.len()
+            ));
+            println!(
+                "External dependency records: {} at {}",
+                dependencies.dependencies.len(),
+                external_dependencies.display()
+            );
+        }
+        None => {
+            context.diagnostic("external dependencies state: missing");
+            println!(
+                "External dependency records missing: {}",
+                external_dependencies.display()
+            );
+        }
+    }
+
     Ok(())
 }
 
@@ -149,6 +212,14 @@ fn print_project_search_diagnostics(paths: &Paths, context: &crate::cli::CliCont
     context.diagnostic(format!("registry: {}", registry_path.display()));
     context.diagnostic(format!("index root: {}", paths.index_root().display()));
     context.diagnostic(format!("model cache: {}", paths.model_cache().display()));
+    context.diagnostic(format!(
+        "managed index root: {}",
+        paths.managed_index_root().display()
+    ));
+    context.diagnostic(format!(
+        "managed model root: {}",
+        paths.managed_model_root().display()
+    ));
     let registry = ProjectRegistry::read(&registry_path)?;
     context.diagnostic(format!("registered projects: {}", registry.projects.len()));
 
@@ -259,7 +330,8 @@ fn print_project_search_diagnostics(paths: &Paths, context: &crate::cli::CliCont
     println!();
     println!("Semantic models:");
     println!(
-        "Semantic search models are not checked until qmd-rs semantic mode is enabled; model cache: {}",
+        "Semantic search models are not checked until qmd-rs semantic mode is enabled; managed model root: {}; legacy model cache: {}",
+        paths.managed_model_root().display(),
         paths.model_cache().display()
     );
 
