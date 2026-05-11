@@ -25,7 +25,13 @@ implementation contract for the next coding pass.
 1. Add `Pack::Code` in `src/init/packs.rs`.
 2. Add `code` to `Pack::ALL`, `Pack::name`, `Pack::description`, and
    `FromStr`/display coverage through the existing enum accessors.
+   Append `Pack::Code` after `Pack::QmdRsScale` in `Pack::ALL` so existing
+   interactive pack ordering and snapshots remain as stable as possible.
+   `Pack::description()` text is fixed as:
+   `Application code, tests, scripts, and infrastructure folders`.
 3. Make `Pack::Code::folders()` return `["src", "tests", "scripts", "infra"]`.
+   Add a short source comment near `infra` noting that `infra/` remains part of
+   `code` until a dedicated infra pack is justified.
 4. Keep `Pack::Code::doc_types()` and `status_vocab()` empty.
 5. Add `templates/packs/code/agents.md` and
    `templates/packs/code/project_guidelines.md`.
@@ -39,7 +45,8 @@ implementation contract for the next coding pass.
 10. Add `Blueprint::CliTool` in `src/init/blueprints.rs`.
 11. Add `cli-tool` to `Blueprint::ALL`, `Blueprint::name`,
     `Blueprint::description`, and parse/display coverage through the existing
-    enum accessors.
+    enum accessors. `Blueprint::description()` text is fixed as:
+    `Command-line tool or developer utility with commands, flags, local state, and release/install behavior`.
 12. Update `Blueprint::default_packs()` so:
     - `web-product`, `library-sdk`, `cli-tool`, `ml-research`, `ops-infra`, and
       `security` include `Pack::Code`.
@@ -54,15 +61,19 @@ implementation contract for the next coding pass.
 Add or update tests so the behavior is locked at the product boundary:
 
 1. Unit tests still prove every blueprint and pack round-trips through its name.
-2. Unit tests allow `code` to have folders but no doc types or status vocab.
+2. Update `src/init/packs.rs` test `pack_catalog_accessors_are_populated` so
+   `code` is allowed to have folders but no doc types or status vocab.
 3. Non-interactive `--blueprint research` produces no `src/`, `tests/`,
    `scripts/`, or `infra/`.
 4. Non-interactive `--blueprint web-product` produces the four code folders.
 5. Non-interactive `--blueprint cli-tool` produces the four code folders.
 6. Non-interactive `--blueprint generic --pack code` produces the four code
    folders and records `code` in `.llm_wiki/init.toml`.
-7. Golden snapshots cover at least `research`, `web-product`, and `cli-tool`.
-8. Existing `ml-research` and `ops-infra` snapshots are updated intentionally
+7. Add an explicit `.llm_wiki/init.toml` assertion for every code-default case
+   that needs manifest proof, especially `cli-tool` and
+   `generic --pack code`.
+8. Golden snapshots cover at least `research`, `web-product`, and `cli-tool`.
+9. Existing `ml-research` and `ops-infra` snapshots are updated intentionally
    because their default pack sets now include `code`.
 
 ## Documentation Updates
@@ -71,10 +82,10 @@ Add or update tests so the behavior is locked at the product boundary:
    pack behavior.
 2. Update `wiki/specs/documentation-model.spec.md` if it still describes
    unconditional root code folders in generated projects.
-3. Add a completion note to
-   `wiki/decisions/composable-project-init.decision.md` only if the
-   implementation changes the accepted D10 composition model beyond this
-   dogfooding revision.
+3. Preserve and, if needed, update the dogfooding revision note in
+   `wiki/decisions/composable-project-init.decision.md`. This first catalog
+   revision is part of the D10 story even though it does not change the D10
+   composition model.
 4. Update `wiki/index.md` and append to `wiki/log.md`.
 
 ## Verification

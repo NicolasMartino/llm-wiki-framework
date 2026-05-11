@@ -1982,3 +1982,15 @@ wiki/plans/code-pack-cli-blueprint.plan.md,
 wiki/proposals/code-folders-opt-in.proposal.md,
 wiki/decisions/composable-project-init.decision.md, wiki/index.md,
 wiki/log.md
+
+## [2026-05-11] update | code pack implementation plan review fixes
+
+Tightened the planned implementation checklist after review. The plan now fixes
+the `Pack::Code` and `Blueprint::CliTool` description strings, specifies that
+`code` is appended after `qmd-rs-scale` in `Pack::ALL`, names the existing
+`pack_catalog_accessors_are_populated` test that needs a `code` exemption,
+adds explicit `.llm_wiki/init.toml` assertions, preserves the D10 dogfooding
+revision note unconditionally, and calls for a source comment explaining why
+`infra/` remains folded into `code`.
+
+Pages updated: wiki/plans/code-pack-cli-blueprint.plan.md, wiki/log.md
