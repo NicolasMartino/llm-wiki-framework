@@ -2020,3 +2020,29 @@ crates/llm-wiki-schema/tests/snapshots/, README.md,
 wiki/plans/code-pack-cli-blueprint.plan.md,
 wiki/specs/wiki-init-skill.spec.md, wiki/specs/documentation-model.spec.md,
 wiki/index.md, wiki/log.md
+
+## [2026-05-11] fix | remove dead init existing flag
+
+Removed the dead `--existing` / `is_existing` init plumbing after the code-pack
+implementation eliminated its last template consumer. The init command no
+longer asks for or accepts an existing-codebase mode flag; existing directories
+remain protected by framework-artifact collision checks and can still receive a
+wiki scaffold without a special mode.
+
+The cleanup removed the CLI flag, interactive prompt, answer/profile/render
+plumbing, redundant snapshot case, and stale wiki-init documentation. A
+negative integration test now asserts `--existing` is rejected. A follow-up
+dead-flag scan found no comparable no-op init flag; the hidden `--type` and
+`--scale` fields remain intentional compatibility guidance for old callers.
+
+Verification: `cargo fmt`; `cargo build`; `cargo run -- build --out .`;
+`cargo test --test init`; `cargo test --workspace`;
+`cargo clippy --workspace --all-targets`; `git diff --check`.
+
+Pages updated: src/cli.rs, src/init/answers.rs, src/init/scaffold.rs,
+src/init/profile.rs, src/init/compose.rs, tests/init.rs, tests/snapshots/,
+assets/skills/wiki-init/SKILL.md, .claude/skills/wiki-init/SKILL.md,
+.codex/skills/wiki-init/SKILL.md,
+crates/llm-wiki-schema/tests/snapshots/,
+wiki/plans/code-pack-cli-blueprint.plan.md,
+wiki/specs/wiki-init-skill.spec.md, wiki/log.md

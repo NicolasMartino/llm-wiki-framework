@@ -17,9 +17,8 @@ Collect project setup answers, then delegate deterministic scaffolding to the
 ## Behavior
 
 1. Determine the target path; default to the current working directory.
-2. Ask for six values: project name, one-sentence description, blueprint,
-   optional pack overrides, whether this is an existing codebase, and optional
-   initial source paths.
+2. Ask for five values: project name, one-sentence description, blueprint,
+   optional pack overrides, and optional initial source paths.
 3. Validate that required answers are present. Accepted blueprints are
    `generic`, `web-product`, `library-sdk`, `cli-tool`, `ml-research`,
    `ops-infra`, `security`, `research`, and `custom`. Accepted packs are
@@ -28,8 +27,8 @@ Collect project setup answers, then delegate deterministic scaffolding to the
 4. Run:
    `llm-wiki init <path> --non-interactive --name <name> --description <description> --blueprint <blueprint>`
    Add one `--pack <pack>` flag per explicit pack override; omit `--pack` to
-   use the blueprint defaults. Add `--existing` when appropriate. Add one
-   `--initial-sources <path>` flag per supplied source.
+   use the blueprint defaults. Add one `--initial-sources <path>` flag per
+   supplied source.
 5. Report the command result. If sources were copied, ask whether to run
    `wiki-ingest` now; only ingest when the user agrees.
 

@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use inquire::{Confirm, MultiSelect, Select, Text};
+use inquire::{MultiSelect, Select, Text};
 
 use crate::cli::InitArgs;
 
@@ -13,7 +13,6 @@ pub(super) struct Answers {
     // `None` means "use blueprint defaults"; `Some(vec![])` means
     // "explicitly select no packs".
     pub(super) packs: Option<Vec<Pack>>,
-    pub(super) existing: bool,
 }
 
 pub(super) fn from_args(args: &InitArgs) -> Result<Answers> {
@@ -25,7 +24,6 @@ pub(super) fn from_args(args: &InitArgs) -> Result<Answers> {
             description: required_flag("--description", &args.description)?,
             blueprint: required_flag("--blueprint", &args.blueprint)?.parse()?,
             packs: parse_cli_packs(&args.packs)?,
-            existing: args.existing,
         });
     }
 
@@ -46,20 +44,12 @@ pub(super) fn from_args(args: &InitArgs) -> Result<Answers> {
     } else {
         Some(parse_packs(&args.packs)?)
     };
-    let existing = if args.existing {
-        true
-    } else {
-        Confirm::new("Existing codebase?")
-            .with_default(false)
-            .prompt()?
-    };
 
     Ok(Answers {
         name,
         description,
         blueprint,
         packs,
-        existing,
     })
 }
 

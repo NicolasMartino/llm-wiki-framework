@@ -151,8 +151,6 @@ pub struct InitArgs {
     pub project_type: Option<String>,
     #[arg(long, hide = true)]
     pub scale: Option<String>,
-    #[arg(long)]
-    pub existing: bool,
     #[arg(long = "initial-sources")]
     pub initial_sources: Vec<PathBuf>,
 }

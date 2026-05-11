@@ -43,7 +43,6 @@ fn init_profiles_match_snapshots() {
         ("ml_ai", "custom", vec!["ml"], vec![]),
         ("qmd_rs", "custom", vec!["qmd-rs-scale"], vec![]),
         ("ml_ai_qmd_rs", "custom", vec!["ml", "qmd-rs-scale"], vec![]),
-        ("is_existing", "generic", vec![], vec!["--existing"]),
         ("research", "research", vec![], vec![]),
         ("web_product", "web-product", vec![], vec![]),
         ("cli_tool", "cli-tool", vec![], vec![]),
@@ -52,10 +51,6 @@ fn init_profiles_match_snapshots() {
     ];
     for (name, blueprint, packs, extra) in cases {
         let temp = TempDir::new().expect("tempdir");
-        if name == "is_existing" {
-            fs::create_dir_all(temp.path().join("app")).expect("mkdir");
-            fs::write(temp.path().join("package.json"), "{}").expect("write");
-        }
         init_project(temp.path(), blueprint, &packs, &extra);
         let snapshot = snapshot_project(temp.path());
         insta::with_settings!({filters => vec![(r"\d{4}-\d{2}-\d{2}", "[date]")]}, {
@@ -109,6 +104,29 @@ fn init_rejects_retired_type_and_scale_flags() {
         .assert()
         .failure()
         .stderr(predicate::str::contains("--blueprint"));
+}
+
+#[test]
+fn init_rejects_removed_existing_flag() {
+    let temp = TempDir::new().expect("tempdir");
+
+    Command::cargo_bin("llm-wiki")
+        .expect("binary")
+        .arg("init")
+        .arg(temp.path())
+        .args([
+            "--non-interactive",
+            "--name",
+            "Fixture Project",
+            "--description",
+            "A fixture project.",
+            "--blueprint",
+            "generic",
+            "--existing",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("--existing"));
 }
 
 #[test]

@@ -30,7 +30,6 @@ pub struct RenderPlan {
     pub description: String,
     pub blueprint: Blueprint,
     pub packs: Option<Vec<Pack>>,
-    pub is_existing: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -62,7 +61,6 @@ pub fn compose(plan: &RenderPlan) -> Result<InitOutput> {
     let profile = ProjectProfile {
         include_ml_ai: packs.contains(&Pack::Ml),
         include_qmd: packs.contains(&Pack::QmdRsScale),
-        is_existing: plan.is_existing,
     };
     let agents_fragments = collect_agents_fragments(&packs)?;
     let guidelines_fragments = collect_guidelines_fragments(&packs)?;
@@ -269,7 +267,6 @@ mod tests {
             description: "A fixture project.".to_string(),
             blueprint,
             packs: Some(packs),
-            is_existing: false,
         }
     }
 

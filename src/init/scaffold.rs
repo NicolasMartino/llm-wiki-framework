@@ -23,7 +23,6 @@ pub(super) fn create_project(
         description: answers.description.clone(),
         blueprint: answers.blueprint,
         packs: answers.packs.clone(),
-        is_existing: answers.existing,
     };
     let output = compose(&plan)?;
 

@@ -103,15 +103,24 @@ cover `research`, `web-product`, and `cli-tool`; existing `ml-research` and
 The `wiki-init` canonical skill and committed Claude/Codex runtime mirrors were
 updated so agents know about the `cli-tool` blueprint and `code` pack.
 
+Post-completion polish removed the old `--existing` / `is_existing` init flag
+and plumbing. The code-pack implementation removed its final template consumer,
+so keeping the flag would have exposed a user-facing option with no behavior.
+Existing directories are still protected by framework-artifact collision checks
+and can still receive a wiki scaffold; they no longer require or accept a
+dedicated mode flag.
+
 ## Verification
 
 Commands run:
 
 ```bash
 cargo fmt
+cargo build
 cargo test --test init
 cargo run -- build --out .
 cargo test --workspace
+cargo clippy --workspace --all-targets
 git diff --check
 ```
 

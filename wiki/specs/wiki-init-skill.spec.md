@@ -33,14 +33,12 @@ The wrapper gathers the binary's flag set:
    `ml-research`, `ops-infra`, `security`, `research`, or `custom`
 5. optional pack overrides: `api`, `frontend`, `library`, `ml`, `data`,
    `ops`, `ops-lite`, `security`, `research`, `qmd-rs-scale`, or `code`
-6. whether the target is an existing codebase
-7. optional initial source paths
+6. optional initial source paths
 
 When no `--pack` flags are supplied, the binary uses the selected blueprint's
 default pack selection. Supplying one or more `--pack` flags replaces the
 blueprint defaults with that explicit pack set.
 
-`--existing` is passed when adding the framework to existing code.
 Each explicit pack becomes one `--pack <pack>` flag.
 Each initial source becomes one `--initial-sources <path>` flag.
 
@@ -76,8 +74,8 @@ The `custom` blueprint starts with no pack defaults.
 ## Proven By
 
 - `llm-wiki init` has golden tests for baseline, ML, qmd-rs, combined ML+qmd-rs,
-  existing-code, `research`, `web-product`, `cli-tool`, `ml-research`, and
-  `ops-infra` profiles.
+  `research`, `web-product`, `cli-tool`, `ml-research`, and `ops-infra`
+  profiles.
 - Code-pack tests assert `research` has no root code folders by default, while
   `web-product`, `cli-tool`, and explicit `--pack code` do and record `code` in
   `.llm_wiki/init.toml`.
