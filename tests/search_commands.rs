@@ -436,6 +436,98 @@ fn enabled_profile_without_thresholds_fails_closed() {
 }
 
 #[test]
+fn semantic_mode_uses_vector_index_when_thresholds_are_configured() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project_with_decision(
+        workspace.path(),
+        "Fixture Project",
+        "Battery Decision",
+        "Battery chemistry roadmap retrieval belongs in semantic search.",
+    );
+    register_project(home.path(), &project);
+    write_enabled_search_profile_with_fake_artifacts(home.path());
+    write_search_thresholds(home.path());
+
+    llm_wiki(home.path())
+        .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let output = llm_wiki(home.path())
+        .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+        .args([
+            "search",
+            "battery roadmap",
+            "--project",
+            "fixture",
+            "--mode",
+            "semantic",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("search output");
+    assert!(output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("search json");
+    assert_eq!(json["selected_mode"], "semantic");
+    let result = json["results"]
+        .as_array()
+        .and_then(|results| results.first())
+        .expect("semantic result");
+    assert_eq!(result["mode"], "semantic");
+    assert_eq!(result["backend"], "qmd-rs-semantic");
+    assert_eq!(result["path"], "wiki/decisions/search.decision.md");
+}
+
+#[test]
+fn hybrid_mode_fuses_lexical_and_semantic_results() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project_with_decision(
+        workspace.path(),
+        "Fixture Project",
+        "Battery Decision",
+        "Battery chemistry roadmap",
+    );
+    register_project(home.path(), &project);
+    write_enabled_search_profile_with_fake_artifacts(home.path());
+    write_search_thresholds(home.path());
+
+    llm_wiki(home.path())
+        .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let output = llm_wiki(home.path())
+        .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+        .env("LLM_WIKI_TEST_QUERY_EXPANSION", "deterministic")
+        .args([
+            "search",
+            "battery roadmap",
+            "--project",
+            "fixture",
+            "--mode",
+            "hybrid",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("search output");
+    assert!(output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("search json");
+    assert_eq!(json["selected_mode"], "hybrid");
+    let result = json["results"]
+        .as_array()
+        .and_then(|results| results.first())
+        .expect("hybrid result");
+    assert_eq!(result["mode"], "hybrid");
+    assert_eq!(result["backend"], "qmd-rs-hybrid");
+}
+
+#[test]
 fn verbose_search_reports_zero_result_reason() {
     let home = TempDir::new().expect("home");
     let workspace = TempDir::new().expect("workspace");
@@ -1198,6 +1290,28 @@ verified_at = "2026-05-11T00:00:00Z"
         ),
     )
     .expect("artifacts");
+}
+
+fn write_search_thresholds(home: &Path) {
+    fs::write(
+        home.join(".llm_wiki/search-thresholds.toml"),
+        r#"
+schema_version = 1
+updated_at = "2026-05-11T00:00:00Z"
+profile = "balanced"
+semantic_similarity_floor = 0.1
+hybrid_pre_fusion_semantic_floor = 0.1
+reranker_probability_floor = 0.1
+lexical_exact_identifier_guard = "preserve_lexical_top_3"
+qmd_rs_version = "0.3.2"
+adapter_schema_version = 1
+chunking_strategy = "qmd-rs-character-v1:3200:480"
+embedding_model = "embeddinggemma-300m-q8_0"
+embedding_artifact_sha256 = "f470220f84b6235197541352d22f10bf00098a8242c18eaacea9c8a4add557bc"
+embedding_dimensions = 768
+"#,
+    )
+    .expect("thresholds");
 }
 
 fn fixture_project(root: &Path, name: &str) -> PathBuf {

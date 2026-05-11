@@ -2342,3 +2342,64 @@ product simplification while preserving rank-based result fusion.
 
 Pages updated: wiki/proposals/search-model-selection.proposal.md, wiki/index.md,
 wiki/log.md
+
+## [2026-05-11] update | semantic hybrid search implementation slices
+
+Implemented the next semantic/hybrid search slices through the current
+threshold gate. The binary now records managed model catalog state, accepted
+license records, verified model artifact records, and search-threshold paths;
+new qmd-rs FTS stores live under `~/.llm_wiki/indexes/` with a legacy
+`~/.cache/llm-wiki/indexes/` read bridge; `index` writes a
+`semantic-index.json` metadata sidecar for enabled profiles; and `search` /
+`search-all` expose the `auto`, `lexical`, `semantic`, and `hybrid` mode
+contract with explicit lexical fallback and structured JSON readiness metadata.
+
+Semantic/hybrid retrieval remains intentionally fail-closed at
+`thresholds_unconfigured` because the natural-language eval still records
+accepted runtime thresholds as `TBD`. This preserves the Stage 0 contract that
+the implementation must not invent arbitrary relevance floors before approved
+calibration.
+
+Verification so far: `cargo fmt`; `cargo check`; `cargo test --test install`;
+`cargo test --test status_doctor`; `cargo test --test registry`;
+`cargo test --test search_commands`; focused semantic metadata and path tests;
+`git diff --check`.
+
+Pages updated: Cargo.toml, Cargo.lock, src/search_models.rs,
+src/search/semantic.rs, src/search/commands.rs, src/search/adapter.rs,
+src/search/mod.rs, src/search_profile.rs, src/paths.rs, src/doctor.rs,
+src/install.rs, src/registry/mod.rs, src/cli.rs, tests/search_commands.rs,
+tests/registry.rs, wiki/plans/semantic-hybrid-search.plan.md,
+wiki/evals/natural-language-search.eval.md, wiki/index.md, wiki/log.md
+
+## [2026-05-11] update | semantic hybrid search runtime execution
+
+Implemented semantic and hybrid retrieval behind the accepted-threshold gate.
+`llm-wiki index` now writes `semantic-vectors.json` when thresholds match the
+current model artifact, dimensions, qmd-rs version, adapter schema, and
+chunking strategy. `--mode semantic` embeds the query, scores chunk vectors,
+applies floors and filters, rolls chunks up to wiki pages, and returns semantic
+snippets. `--mode hybrid` runs configured query expansion, lexical qmd-rs FTS,
+semantic vector retrieval, reciprocal-rank fusion, exact-identifier lexical
+guarding, and optional reranking when a reranker profile exists. The canonical
+`wiki-query` skill now consumes `search --mode auto --format json` as a
+supplemental navigation surface and inspects mode/readiness/result metadata
+before reading returned pages.
+
+Runtime still fails closed with `thresholds_unconfigured` until the human-owned
+calibration table is filled. Integration tests use explicit deterministic
+embedding/query-expansion environment gates; normal runtime uses managed GGUF
+artifacts and never silently downloads models.
+
+Verification: `cargo fmt`; `cargo check`; `cargo test semantic`;
+`cargo test --test search_commands`; `cargo test --test status_doctor`;
+`cargo clippy --workspace --all-targets`; `cargo test --workspace`;
+`cargo run -- build --out .`; `cargo test -p llm-wiki-schema --test
+real_skills`.
+
+Pages updated: src/paths.rs, src/search/semantic.rs, src/search/commands.rs,
+src/doctor.rs, tests/search_commands.rs, assets/skills/wiki-query/SKILL.md,
+.claude/skills/wiki-query/SKILL.md, .codex/skills/wiki-query/SKILL.md,
+crates/llm-wiki-schema/tests/snapshots/,
+wiki/plans/semantic-hybrid-search.plan.md,
+wiki/evals/natural-language-search.eval.md, wiki/index.md, wiki/log.md

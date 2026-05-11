@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
@@ -18,13 +18,17 @@ use crate::manifest::Manifest;
 use crate::paths::Paths;
 use crate::registry::{self, ProjectRegistry, RegisteredProject};
 use crate::search::adapter::{
-    BackendState, BackendStatus, Freshness, Score, SearchBackend, SearchFilters, SearchResult,
+    BackendState, BackendStatus, Freshness, Score, SearchBackend, SearchFilters, SearchMode,
+    SearchResult,
 };
 use crate::search::project::discover_from_cwd;
 use crate::search::qmd_rs::QmdRsBackend;
 use crate::search::sanitize::sanitize_fts_query;
-use crate::search::semantic::SemanticIndexMetadata;
-use crate::search_models::{ModelArtifacts, SearchThresholds, model_by_id};
+use crate::search::semantic::{
+    SemanticIndexMetadata, SemanticSearchContext, SemanticVectorIndex, embed_query,
+    thresholds_match_index_inputs,
+};
+use crate::search_models::{ModelArtifactRecord, ModelArtifacts, SearchThresholds, model_by_id};
 use crate::search_profile::{ProjectSearchConfig, SearchConfig, SearchProfile};
 
 pub fn index(args: &IndexArgs, context: &CliContext) -> Result<()> {
@@ -154,6 +158,7 @@ fn update_semantic_index_metadata(
     context: &CliContext,
 ) -> Result<()> {
     let metadata_path = paths.semantic_index_metadata(&project.id);
+    let vector_path = paths.semantic_vector_index(&project.id);
     let Some(profile) = project_search_profile(paths, project)? else {
         context.diagnostic("semantic index metadata: skipped, search profile missing");
         return Ok(());
@@ -165,6 +170,14 @@ fn update_semantic_index_metadata(
                 format!(
                     "remove disabled semantic index metadata {}",
                     metadata_path.display()
+                )
+            })?;
+        }
+        if vector_path.exists() {
+            fs::remove_file(&vector_path).with_context(|| {
+                format!(
+                    "remove disabled semantic vector index {}",
+                    vector_path.display()
                 )
             })?;
         }
@@ -183,6 +196,25 @@ fn update_semantic_index_metadata(
         metadata_path.display()
     ));
     metadata.write_atomic(&metadata_path)?;
+    let Some(thresholds) = SearchThresholds::read(&paths.search_thresholds())? else {
+        context.diagnostic("semantic vector index: skipped, thresholds unconfigured");
+        return Ok(());
+    };
+    let Some(embedding_artifact) = embedding_artifact_for_profile(&artifacts, &profile) else {
+        bail!("semantic vector indexing requires a verified embedding model artifact");
+    };
+    if !thresholds_match_index_inputs(&thresholds, &metadata, embedding_artifact) {
+        context.diagnostic("semantic vector index: skipped, thresholds do not match index inputs");
+        return Ok(());
+    }
+    let vector_index =
+        SemanticVectorIndex::build(&metadata, &project.wiki_root(), embedding_artifact)?;
+    context.diagnostic(format!(
+        "semantic vector index: vectors={}, path={}",
+        vector_index.vectors.len(),
+        vector_path.display()
+    ));
+    vector_index.write_atomic(&vector_path)?;
     Ok(())
 }
 
@@ -474,18 +506,22 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
     context.diagnostic(format!("wiki root: {}", wiki_root.display()));
     context.diagnostic(format!("index store: {}", store_path.display()));
     context.diagnostic(format!("index store location: {}", store_location.label()));
-    context.diagnostic("backend: qmd-rs fts");
-    ensure_lexical_execution(&resolution)?;
+    context.diagnostic(format!(
+        "backend mode: {}",
+        resolution.selected_mode.label()
+    ));
     let backend = QmdRsBackend::new();
-    let search = perform_project_search(
-        &backend,
-        &project,
-        &store_path,
-        &wiki_root,
-        &args.query,
-        &filters,
-        args.limit,
-    )?;
+    let search_input = ProjectSearchInput {
+        paths: &paths,
+        backend: &backend,
+        project: &project,
+        store_path: &store_path,
+        wiki_root: &wiki_root,
+        query: &args.query,
+        filters: &filters,
+        limit: args.limit,
+    };
+    let search = perform_resolved_project_search(&search_input, &resolution, args.rerank, context)?;
     context.diagnostic(format!(
         "index status: {}, freshness={}, indexed_files={}",
         backend_state_label(&search.status.state),
@@ -495,16 +531,19 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
     if let Some(message) = &search.status.message {
         context.diagnostic(format!("index message: {message}"));
     }
-    let no_result = explain_no_results(NoResultContext {
-        backend: &backend,
-        store_path: &store_path,
-        wiki_root: &wiki_root,
-        query: &args.query,
-        filters: &filters,
-        limit: args.limit,
-        status: &search.status,
-        results: &search.results,
-    });
+    let no_result = explain_no_results_for_mode(
+        &backend,
+        &resolution,
+        NoResultContext {
+            store_path: &store_path,
+            wiki_root: &wiki_root,
+            query: &args.query,
+            filters: &filters,
+            limit: args.limit,
+            status: &search.status,
+            results: &search.results,
+        },
+    );
     context.diagnostic(format!("results: {}", search.results.len()));
     if let Some(explanation) = &no_result {
         context.diagnostic(format!("no-result: {explanation}"));
@@ -580,7 +619,6 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
     if let Some(reason) = &resolution.fallback_reason {
         context.diagnostic(format!("fallback reason: {reason}"));
     }
-    ensure_lexical_execution(&resolution)?;
     context.diagnostic(format!(
         "project selection: {}",
         search_all_selection_label(&args.include, &args.exclude)
@@ -628,15 +666,18 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
         } else {
             args.limit.max(20)
         };
-        let search = perform_project_search(
-            &backend,
+        let search_input = ProjectSearchInput {
+            paths: &paths,
+            backend: &backend,
             project,
-            &store_path,
-            &wiki_root,
-            &args.query,
-            &filters,
-            per_project_limit,
-        )?;
+            store_path: &store_path,
+            wiki_root: &wiki_root,
+            query: &args.query,
+            filters: &filters,
+            limit: per_project_limit,
+        };
+        let search =
+            perform_resolved_project_search(&search_input, &resolution, args.rerank, context)?;
         context.diagnostic(format!(
             "index status {}: {}, freshness={}, indexed_files={}",
             project.id,
@@ -648,16 +689,19 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
             context.diagnostic(format!("index message {}: {message}", project.id));
         }
         let no_result = context.verbose.then(|| {
-            explain_no_results(NoResultContext {
-                backend: &backend,
-                store_path: &store_path,
-                wiki_root: &wiki_root,
-                query: &args.query,
-                filters: &filters,
-                limit: per_project_limit,
-                status: &search.status,
-                results: &search.results,
-            })
+            explain_no_results_for_mode(
+                &backend,
+                &resolution,
+                NoResultContext {
+                    store_path: &store_path,
+                    wiki_root: &wiki_root,
+                    query: &args.query,
+                    filters: &filters,
+                    limit: per_project_limit,
+                    status: &search.status,
+                    results: &search.results,
+                },
+            )
         });
         project_reports.push(ProjectSearchReport {
             project_id: project.id.clone(),
@@ -819,6 +863,7 @@ fn resolve_project_mode(
     let profile = project_search_profile(paths, project)?;
     resolve_mode(
         paths,
+        Some(project),
         requested_mode,
         allow_lexical_fallback,
         rerank,
@@ -836,6 +881,7 @@ fn resolve_global_mode(
     let profile = SearchConfig::read(&paths.search_config())?.map(|config| config.global_search);
     resolve_mode(
         paths,
+        None,
         requested_mode,
         allow_lexical_fallback,
         rerank,
@@ -865,6 +911,7 @@ fn project_search_profile(
 
 fn resolve_mode(
     paths: &Paths,
+    project: Option<&RegisteredProject>,
     requested_mode: SearchModeArg,
     allow_lexical_fallback: bool,
     rerank: bool,
@@ -904,7 +951,7 @@ fn resolve_mode(
             }));
         }
         if let Some(failure) =
-            readiness_failure(paths, &profile, RuntimeSearchMode::Hybrid, rerank)?
+            readiness_failure(paths, &profile, RuntimeSearchMode::Hybrid, rerank, project)?
         {
             return Ok(ModeResolutionOutcome::NotReady {
                 failure,
@@ -947,7 +994,7 @@ fn resolve_mode(
             readiness(&reason),
         );
     }
-    if let Some(failure) = readiness_failure(paths, &profile, selected_mode, rerank)? {
+    if let Some(failure) = readiness_failure(paths, &profile, selected_mode, rerank, project)? {
         return explicit_readiness_outcome(
             requested_mode,
             selected_mode,
@@ -990,6 +1037,7 @@ fn readiness_failure(
     profile: &SearchProfile,
     selected_mode: RuntimeSearchMode,
     rerank: bool,
+    project: Option<&RegisteredProject>,
 ) -> Result<Option<ReadinessFailure>> {
     let Some(model_ids) = required_model_ids(profile, selected_mode, rerank)? else {
         return Ok(Some(readiness("model_missing")));
@@ -1012,10 +1060,33 @@ fn readiness_failure(
             return Ok(Some(readiness("model_missing")));
         }
     }
-    if SearchThresholds::read(&paths.search_thresholds())?.is_none() {
+    let Some(thresholds) = SearchThresholds::read(&paths.search_thresholds())? else {
         return Ok(Some(readiness("thresholds_unconfigured")));
+    };
+    let Some(project) = project else {
+        return Ok(None);
+    };
+    let Some(embedding_artifact) = embedding_artifact_for_profile(&artifacts, profile) else {
+        return Ok(Some(readiness("model_missing")));
+    };
+    let metadata_path = paths.semantic_index_metadata(&project.id);
+    let Some(metadata) = SemanticIndexMetadata::read(&metadata_path)? else {
+        return Ok(Some(readiness("semantic_index_missing")));
+    };
+    if !thresholds_match_index_inputs(&thresholds, &metadata, embedding_artifact) {
+        return Ok(Some(readiness("thresholds_incompatible")));
     }
-    Ok(Some(readiness("semantic_index_missing")))
+    if !metadata.is_fresh(&project.wiki_root())? {
+        return Ok(Some(readiness("semantic_index_stale")));
+    }
+    let vector_path = paths.semantic_vector_index(&project.id);
+    let Some(vector_index) = SemanticVectorIndex::read(&vector_path)? else {
+        return Ok(Some(readiness("semantic_index_missing")));
+    };
+    if !vector_index.is_compatible(&metadata, &thresholds) {
+        return Ok(Some(readiness("semantic_index_stale")));
+    }
+    Ok(None)
 }
 
 fn required_model_ids(
@@ -1033,7 +1104,7 @@ fn required_model_ids(
         };
         model_ids.push(query_expansion_model);
     }
-    if rerank {
+    if rerank && selected_mode == RuntimeSearchMode::Hybrid {
         let Some(reranker_model) = profile.reranker_model.clone() else {
             return Ok(None);
         };
@@ -1057,6 +1128,9 @@ fn readiness(reason: &str) -> ReadinessFailure {
         "thresholds_unconfigured" => {
             "record calibrated semantic/hybrid thresholds before running LLM search".to_string()
         }
+        "thresholds_incompatible" => {
+            "record calibrated thresholds for the current semantic index inputs".to_string()
+        }
         "semantic_index_missing" => {
             "run `llm-wiki index` to build semantic search state".to_string()
         }
@@ -1069,16 +1143,6 @@ fn readiness(reason: &str) -> ReadinessFailure {
         reason: reason.to_string(),
         guidance,
     }
-}
-
-fn ensure_lexical_execution(resolution: &ModeResolution) -> Result<()> {
-    if resolution.selected_mode != RuntimeSearchMode::Lexical {
-        bail!(
-            "{} retrieval is not available until semantic index execution is configured",
-            resolution.selected_mode.label()
-        );
-    }
-    Ok(())
 }
 
 fn handle_readiness_failure(
@@ -1470,7 +1534,6 @@ fn search_all_selection_label(include: &[String], exclude: &[String]) -> &'stati
 }
 
 struct NoResultContext<'a> {
-    backend: &'a QmdRsBackend,
     store_path: &'a Path,
     wiki_root: &'a Path,
     query: &'a str,
@@ -1480,7 +1543,49 @@ struct NoResultContext<'a> {
     results: &'a [SearchResult],
 }
 
-fn explain_no_results(context: NoResultContext<'_>) -> Option<String> {
+fn explain_no_results_for_mode(
+    backend: &QmdRsBackend,
+    resolution: &ModeResolution,
+    context: NoResultContext<'_>,
+) -> Option<String> {
+    if resolution.selected_mode == RuntimeSearchMode::Lexical {
+        return explain_lexical_no_results(backend, context);
+    }
+    explain_llm_no_results(resolution.selected_mode, context)
+}
+
+fn explain_llm_no_results(
+    selected_mode: RuntimeSearchMode,
+    context: NoResultContext<'_>,
+) -> Option<String> {
+    if !context.results.is_empty() {
+        return None;
+    }
+    if context.limit == 0 {
+        return Some("limit was 0".to_string());
+    }
+    if filters_active(context.filters) {
+        return Some(format!(
+            "{} relevance thresholds or filters excluded all matched hits",
+            selected_mode.label()
+        ));
+    }
+    if matches!(context.status.state, BackendState::Stale) {
+        return Some(format!(
+            "stale-but-searchable {} index produced zero results",
+            selected_mode.label()
+        ));
+    }
+    Some(format!(
+        "{} retrieval returned zero hits after relevance thresholds",
+        selected_mode.label()
+    ))
+}
+
+fn explain_lexical_no_results(
+    backend: &QmdRsBackend,
+    context: NoResultContext<'_>,
+) -> Option<String> {
     if !context.results.is_empty() {
         return None;
     }
@@ -1505,8 +1610,7 @@ fn explain_no_results(context: NoResultContext<'_>) -> Option<String> {
     }
 
     if filters_active(context.filters) {
-        let unfiltered_count = context
-            .backend
+        let unfiltered_count = backend
             .search_project(
                 context.store_path,
                 context.wiki_root,
@@ -1530,6 +1634,477 @@ fn explain_no_results(context: NoResultContext<'_>) -> Option<String> {
 
 fn filters_active(filters: &SearchFilters) -> bool {
     filters.document_class.is_some() || filters.status.is_some()
+}
+
+struct ProjectSearchInput<'a> {
+    paths: &'a Paths,
+    backend: &'a QmdRsBackend,
+    project: &'a RegisteredProject,
+    store_path: &'a Path,
+    wiki_root: &'a Path,
+    query: &'a str,
+    filters: &'a SearchFilters,
+    limit: usize,
+}
+
+fn perform_resolved_project_search(
+    input: &ProjectSearchInput<'_>,
+    resolution: &ModeResolution,
+    rerank_requested: bool,
+    context: &CliContext,
+) -> Result<SearchExecution> {
+    match resolution.selected_mode {
+        RuntimeSearchMode::Lexical => perform_project_search(
+            input.backend,
+            input.project,
+            input.store_path,
+            input.wiki_root,
+            input.query,
+            input.filters,
+            input.limit,
+        ),
+        RuntimeSearchMode::Semantic => perform_semantic_project_search(input, resolution),
+        RuntimeSearchMode::Hybrid => {
+            perform_hybrid_project_search(input, resolution, rerank_requested, context)
+        }
+    }
+}
+
+struct SemanticRuntimeState {
+    metadata: SemanticIndexMetadata,
+    vectors: SemanticVectorIndex,
+    thresholds: SearchThresholds,
+    embedding_artifact: ModelArtifactRecord,
+    artifacts: ModelArtifacts,
+}
+
+fn perform_semantic_project_search(
+    input: &ProjectSearchInput<'_>,
+    resolution: &ModeResolution,
+) -> Result<SearchExecution> {
+    let profile = resolution
+        .profile
+        .as_ref()
+        .context("semantic search selected without an LLM search profile")?;
+    let status = semantic_base_status(
+        input.backend,
+        input.project,
+        input.store_path,
+        input.wiki_root,
+    )?;
+    let state = load_semantic_runtime_state(input.paths, input.project, input.wiki_root, profile)?;
+    let query_embedding = embed_query(
+        input.query,
+        &state.embedding_artifact,
+        state.metadata.embedding_dimensions,
+    )?;
+    let results = state.vectors.search(
+        &state.metadata,
+        SemanticSearchContext {
+            project_id: &input.project.id,
+            project_name: Some(&input.project.name),
+            wiki_root: input.wiki_root,
+            query_embedding: &query_embedding,
+            filters: input.filters,
+            limit: input.limit,
+            floor: state.thresholds.semantic_similarity_floor,
+            freshness: freshness_for_status(&status),
+            mode: SearchMode::Semantic,
+        },
+    )?;
+    Ok(SearchExecution {
+        results,
+        warnings: stale_warning(input.project, &status).into_iter().collect(),
+        status,
+    })
+}
+
+fn perform_hybrid_project_search(
+    input: &ProjectSearchInput<'_>,
+    resolution: &ModeResolution,
+    rerank_requested: bool,
+    context: &CliContext,
+) -> Result<SearchExecution> {
+    let profile = resolution
+        .profile
+        .as_ref()
+        .context("hybrid search selected without an LLM search profile")?;
+    let state = load_semantic_runtime_state(input.paths, input.project, input.wiki_root, profile)?;
+    let expanded = expand_hybrid_queries(input.query, profile, &state.artifacts)?;
+    context.diagnostic(format!(
+        "hybrid query expansion: lexical={}, semantic={}",
+        expanded.lexical.len(),
+        expanded.semantic.len()
+    ));
+
+    let per_branch_limit = if input.limit == 0 {
+        0
+    } else {
+        input.limit.max(20)
+    };
+    let mut warnings = Vec::new();
+    let mut status = None;
+    let mut lexical_results = Vec::new();
+    for lexical_query in &expanded.lexical {
+        let search = perform_project_search(
+            input.backend,
+            input.project,
+            input.store_path,
+            input.wiki_root,
+            lexical_query,
+            input.filters,
+            per_branch_limit,
+        )?;
+        if status.is_none() {
+            status = Some(search.status.clone());
+        }
+        warnings.extend(search.warnings);
+        lexical_results.extend(search.results);
+    }
+    dedupe_warnings(&mut warnings);
+    let status = match status {
+        Some(status) => status,
+        None => semantic_base_status(
+            input.backend,
+            input.project,
+            input.store_path,
+            input.wiki_root,
+        )?,
+    };
+    let lexical_results = dedupe_by_path_preserving_rank(lexical_results);
+
+    let mut semantic_results = Vec::new();
+    for semantic_query in &expanded.semantic {
+        let query_embedding = embed_query(
+            semantic_query,
+            &state.embedding_artifact,
+            state.metadata.embedding_dimensions,
+        )?;
+        semantic_results.extend(state.vectors.search(
+            &state.metadata,
+            SemanticSearchContext {
+                project_id: &input.project.id,
+                project_name: Some(&input.project.name),
+                wiki_root: input.wiki_root,
+                query_embedding: &query_embedding,
+                filters: input.filters,
+                limit: per_branch_limit,
+                floor: state.thresholds.hybrid_pre_fusion_semantic_floor,
+                freshness: freshness_for_status(&status),
+                mode: SearchMode::Semantic,
+            },
+        )?);
+    }
+    let semantic_results = dedupe_by_path_preserving_rank(semantic_results);
+    let mut results = fuse_hybrid_results(
+        input.query,
+        &state.thresholds.lexical_exact_identifier_guard,
+        lexical_results,
+        semantic_results,
+        input.limit,
+    );
+    results = maybe_rerank_results(
+        input.query,
+        results,
+        profile,
+        &state.artifacts,
+        &state.thresholds,
+        input.wiki_root,
+        rerank_requested,
+    )?;
+
+    Ok(SearchExecution {
+        results,
+        warnings,
+        status,
+    })
+}
+
+fn semantic_base_status(
+    backend: &QmdRsBackend,
+    project: &RegisteredProject,
+    store_path: &Path,
+    wiki_root: &Path,
+) -> Result<BackendStatus> {
+    let status = backend.status(store_path, wiki_root)?;
+    match status.state {
+        BackendState::Missing => bail!(
+            "search index missing for project {}; run `llm-wiki index --project {}`",
+            project.id,
+            project.id
+        ),
+        BackendState::Corrupt | BackendState::SchemaMismatch => bail!(
+            "search index unusable for project {}; run `llm-wiki index --project {} --force`",
+            project.id,
+            project.id
+        ),
+        BackendState::Ready | BackendState::Stale => Ok(status),
+    }
+}
+
+fn load_semantic_runtime_state(
+    paths: &Paths,
+    project: &RegisteredProject,
+    wiki_root: &Path,
+    profile: &SearchProfile,
+) -> Result<SemanticRuntimeState> {
+    let artifacts = ModelArtifacts::read(&paths.model_artifacts())?
+        .context("semantic search requires verified model artifact records")?;
+    let thresholds = SearchThresholds::read(&paths.search_thresholds())?
+        .context("semantic search requires calibrated thresholds")?;
+    let embedding_artifact = embedding_artifact_for_profile(&artifacts, profile)
+        .cloned()
+        .context("semantic search requires a verified embedding model artifact")?;
+    let metadata_path = paths.semantic_index_metadata(&project.id);
+    let metadata = SemanticIndexMetadata::read(&metadata_path)?
+        .with_context(|| format!("semantic index missing: {}", metadata_path.display()))?;
+    if !thresholds_match_index_inputs(&thresholds, &metadata, &embedding_artifact) {
+        bail!("semantic thresholds do not match the current index inputs");
+    }
+    if !metadata.is_fresh(wiki_root)? {
+        bail!(
+            "semantic index stale for project {}; run `llm-wiki index --project {} --force`",
+            project.id,
+            project.id
+        );
+    }
+    let vector_path = paths.semantic_vector_index(&project.id);
+    let vectors = SemanticVectorIndex::read(&vector_path)?
+        .with_context(|| format!("semantic vector index missing: {}", vector_path.display()))?;
+    if !vectors.is_compatible(&metadata, &thresholds) {
+        bail!(
+            "semantic vector index stale for project {}; run `llm-wiki index --project {} --force`",
+            project.id,
+            project.id
+        );
+    }
+
+    Ok(SemanticRuntimeState {
+        metadata,
+        vectors,
+        thresholds,
+        embedding_artifact,
+        artifacts,
+    })
+}
+
+fn embedding_artifact_for_profile<'a>(
+    artifacts: &'a ModelArtifacts,
+    profile: &SearchProfile,
+) -> Option<&'a ModelArtifactRecord> {
+    profile
+        .embedding_model
+        .as_deref()
+        .and_then(|model_id| artifact_for_model(artifacts, model_id))
+}
+
+fn artifact_for_model<'a>(
+    artifacts: &'a ModelArtifacts,
+    model_id: &str,
+) -> Option<&'a ModelArtifactRecord> {
+    artifacts
+        .artifacts
+        .iter()
+        .find(|artifact| artifact.model_id == model_id)
+}
+
+struct HybridQuerySet {
+    lexical: Vec<String>,
+    semantic: Vec<String>,
+}
+
+fn expand_hybrid_queries(
+    query: &str,
+    profile: &SearchProfile,
+    artifacts: &ModelArtifacts,
+) -> Result<HybridQuerySet> {
+    if env::var("LLM_WIKI_TEST_QUERY_EXPANSION")
+        .ok()
+        .is_some_and(|value| value == "deterministic")
+    {
+        return Ok(HybridQuerySet {
+            lexical: vec![query.to_string()],
+            semantic: vec![query.to_string()],
+        });
+    }
+
+    let Some(model_id) = profile.query_expansion_model.as_deref() else {
+        bail!("hybrid search requires a query expansion model");
+    };
+    let artifact = artifact_for_model(artifacts, model_id)
+        .context("hybrid search requires a verified query expansion model artifact")?;
+    let engine = qmd::GenerationEngine::new(&artifact.path)?;
+    let expanded = engine.expand_query(query, true)?;
+    let mut lexical = Vec::new();
+    let mut semantic = Vec::new();
+    for item in expanded {
+        match item.query_type {
+            qmd::QueryType::Lex => lexical.push(item.text),
+            qmd::QueryType::Vec | qmd::QueryType::Hyde => semantic.push(item.text),
+        }
+    }
+    if lexical.is_empty() {
+        lexical.push(query.to_string());
+    }
+    if semantic.is_empty() {
+        semantic.push(query.to_string());
+    }
+    Ok(HybridQuerySet { lexical, semantic })
+}
+
+fn dedupe_by_path_preserving_rank(results: Vec<SearchResult>) -> Vec<SearchResult> {
+    let mut seen = BTreeSet::new();
+    let mut deduped = Vec::new();
+    for result in results {
+        let key = result.path.to_string_lossy().to_string();
+        if seen.insert(key) {
+            deduped.push(result);
+        }
+    }
+    deduped
+}
+
+fn dedupe_warnings(warnings: &mut Vec<SearchWarning>) {
+    let mut seen = BTreeSet::new();
+    warnings.retain(|warning| seen.insert((warning.project_id.clone(), warning.message.clone())));
+}
+
+fn fuse_hybrid_results(
+    query: &str,
+    lexical_exact_identifier_guard: &str,
+    lexical_results: Vec<SearchResult>,
+    semantic_results: Vec<SearchResult>,
+    limit: usize,
+) -> Vec<SearchResult> {
+    let mut fused: BTreeMap<String, FusedResult> = BTreeMap::new();
+    add_ranked_results(&mut fused, lexical_results.clone());
+    add_ranked_results(&mut fused, semantic_results);
+    let mut results = fused.into_values().collect::<Vec<_>>();
+    results.sort_by(|left, right| {
+        right
+            .score
+            .total_cmp(&left.score)
+            .then_with(|| left.result.project_id.cmp(&right.result.project_id))
+            .then_with(|| left.result.path.cmp(&right.result.path))
+    });
+    let mut results = results
+        .into_iter()
+        .take(limit)
+        .map(|mut fused| {
+            fused.result.score = Score(fused.score);
+            fused.result.backend = "qmd-rs-hybrid".to_string();
+            fused.result.mode = SearchMode::Hybrid;
+            fused.result
+        })
+        .collect::<Vec<_>>();
+    if query_has_exact_identifier(query)
+        && lexical_exact_identifier_guard == "preserve_lexical_top_3"
+    {
+        pin_lexical_prefix(&mut results, &lexical_results, 3, limit);
+    }
+    results
+}
+
+fn add_ranked_results(fused: &mut BTreeMap<String, FusedResult>, results: Vec<SearchResult>) {
+    for (rank, result) in results.into_iter().enumerate() {
+        let rrf = 1.0 / (60.0 + rank as f64 + 1.0);
+        let key = result.path.to_string_lossy().to_string();
+        fused
+            .entry(key)
+            .and_modify(|entry| {
+                entry.score += rrf;
+                if result.score.0 > entry.result.score.0 {
+                    entry.result = result.clone();
+                }
+            })
+            .or_insert(FusedResult { result, score: rrf });
+    }
+}
+
+fn query_has_exact_identifier(query: &str) -> bool {
+    query.split_whitespace().any(|term| {
+        term.contains("--")
+            || term.contains('/')
+            || term.contains('.')
+            || term.contains('_')
+            || term.chars().any(|ch| ch.is_ascii_digit())
+    })
+}
+
+fn pin_lexical_prefix(
+    results: &mut Vec<SearchResult>,
+    lexical_results: &[SearchResult],
+    count: usize,
+    limit: usize,
+) {
+    if results.is_empty() {
+        return;
+    }
+    let mut pinned = Vec::new();
+    for lexical in lexical_results.iter().take(count) {
+        if let Some(index) = results.iter().position(|result| {
+            result.project_id == lexical.project_id && result.path == lexical.path
+        }) {
+            pinned.push(results.remove(index));
+        }
+    }
+    pinned.append(results);
+    pinned.truncate(limit);
+    *results = pinned;
+}
+
+fn maybe_rerank_results(
+    query: &str,
+    results: Vec<SearchResult>,
+    profile: &SearchProfile,
+    artifacts: &ModelArtifacts,
+    thresholds: &SearchThresholds,
+    wiki_root: &Path,
+    rerank_requested: bool,
+) -> Result<Vec<SearchResult>> {
+    if !rerank_requested {
+        return Ok(results);
+    }
+    if env::var("LLM_WIKI_TEST_RERANK")
+        .ok()
+        .is_some_and(|value| value == "deterministic")
+    {
+        return Ok(results);
+    }
+    let Some(model_id) = profile.reranker_model.as_deref() else {
+        bail!("rerank requested but selected profile has no reranker model");
+    };
+    let artifact = artifact_for_model(artifacts, model_id)
+        .context("rerank requested but reranker artifact is missing")?;
+    let project_root = wiki_root.parent().unwrap_or(wiki_root);
+    let documents = results
+        .iter()
+        .map(|result| {
+            let text = fs::read_to_string(project_root.join(&result.path))
+                .with_context(|| format!("read rerank input {}", result.path.display()))?;
+            Ok(qmd::RerankDocument {
+                file: result.path.to_string_lossy().to_string(),
+                text,
+                title: Some(result.title.clone()),
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let mut engine = qmd::RerankEngine::new(&artifact.path)?;
+    let reranked = engine.rerank(query, &documents)?;
+    let mut results_by_rank = Vec::new();
+    for item in reranked.results {
+        if f64::from(item.score) < thresholds.reranker_probability_floor {
+            continue;
+        }
+        let Some(original) = results.get(item.index) else {
+            continue;
+        };
+        let mut result = original.clone();
+        result.score = Score(f64::from(item.score));
+        result.backend = "qmd-rs-rerank".to_string();
+        results_by_rank.push(result);
+    }
+    Ok(results_by_rank)
 }
 
 fn perform_project_search(

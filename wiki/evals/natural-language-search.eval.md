@@ -33,7 +33,7 @@ before threshold tuning or implementation gating can use them.
 First calibration identity fields:
 
 - qmd-rs version: `0.3.2`.
-- Adapter schema version: pending Stage 2 implementation.
+- Adapter schema version: `1`.
 - Embedding model: `ggml-org/embeddinggemma-300M-GGUF` /
   `embeddinggemma-300M-Q8_0.gguf`.
 - Embedding artifact SHA-256:
@@ -48,9 +48,10 @@ First calibration identity fields:
   `qwen3-reranker-0.6b-q8_0.gguf`.
 - Reranker artifact SHA-256:
   `22c9979ce4fbcdc5acdc310c6641c32797eff1aa980b8f7a2db8a8ea23429a48`.
-- Chunking strategy: pending Stage 2 implementation; thresholds cannot be
-  accepted until chunk size, overlap, tokenizer behavior, metadata fields, and
-  source-span policy are recorded.
+- Chunking strategy: `qmd-rs-character-v1:3200:480`, with 3,200-character
+  chunks, 480-character overlap, byte source spans, inherited title / document
+  metadata, source page content hashes, and per-chunk text hashes recorded in
+  `semantic-index.json`.
 
 ## Threshold Methodology
 
@@ -72,7 +73,11 @@ Accepted runtime thresholds:
 | `lexical_exact_identifier_guard` | `TBD` |
 
 Until these values are filled by an approved calibration run, semantic and
-hybrid modes must fail closed with `thresholds_unconfigured`.
+hybrid modes must fail closed with `thresholds_unconfigured`. The runtime
+semantic and hybrid pipelines are implemented behind this gate; they execute
+only when `~/.llm_wiki/search-thresholds.toml` matches the current model
+artifact hash, dimensions, qmd-rs version, adapter schema, and chunking
+strategy.
 
 Candidate starting values for the first calibration run:
 
@@ -189,8 +194,7 @@ second diagnostics system.
 ## Next Actions
 
 1. Human maintainer approves or edits the draft target labels.
-2. Stage 1 records immutable model revisions and verifies hashes after
-   consented download.
-3. Stage 2 records adapter schema version and chunking constants.
-4. First calibration run fills the accepted threshold table.
-5. Hold-out results are recorded only after thresholds are fixed.
+2. First calibration run fills the accepted threshold table.
+3. Hold-out results are recorded only after thresholds are fixed.
+4. Record the model-enabled eval output, including semantic vector index
+   fingerprint and artifact hashes.

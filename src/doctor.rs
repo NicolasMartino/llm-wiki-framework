@@ -13,7 +13,7 @@ use crate::registry::{ProjectRegistry, RegisteredProject};
 use crate::search::adapter::{BackendState, SearchBackend, SearchMode};
 use crate::search::project::discover_from_cwd;
 use crate::search::qmd_rs::QmdRsBackend;
-use crate::search::semantic::SemanticIndexMetadata;
+use crate::search::semantic::{SemanticIndexMetadata, SemanticVectorIndex};
 use crate::search_models::{AcceptedLicenses, ModelArtifacts, SearchThresholds};
 use crate::search_profile::{ExternalDependencies, SearchConfig};
 use crate::skill_render::{BINARY_MARKER, managed_binary_invocation};
@@ -443,6 +443,24 @@ fn print_project_search_diagnostics(paths: &Paths, context: &crate::cli::CliCont
         None => println!(
             "Semantic index metadata missing: {}",
             semantic_metadata_path.display()
+        ),
+    }
+    let semantic_vector_path = registered
+        .map(|project| paths.semantic_vector_index(&project.id))
+        .unwrap_or_else(|| paths.semantic_vector_index(&discovered.project_key));
+    context.diagnostic(format!(
+        "semantic vector index: {}",
+        semantic_vector_path.display()
+    ));
+    match SemanticVectorIndex::read(&semantic_vector_path)? {
+        Some(index) => println!(
+            "Semantic vector index: {} vectors at {}",
+            index.vectors.len(),
+            semantic_vector_path.display()
+        ),
+        None => println!(
+            "Semantic vector index missing: {}",
+            semantic_vector_path.display()
         ),
     }
 

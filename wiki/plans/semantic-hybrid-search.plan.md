@@ -217,9 +217,20 @@ Progress 2026-05-11:
   global `~/.llm_wiki/search.toml` exists. The project profile copies
   `[project_default]`, records `source = "project_default"`, and carries the
   install hash/ID from `runtime.toml`.
-- Search enablement, license acknowledgement, artifact download, hash
-  verification, completed enabled profiles, recoverable partial model
-  downloads remain open.
+- Added an embedded runtime model catalog for the balanced profile. The
+  catalog records the accepted embedding and query-expansion model IDs,
+  repository/file names, licenses/terms, expected SHA-256 values, qmd-rs
+  version, adapter schema version, and embedding dimensions.
+- Added managed `~/.llm_wiki/accepted-licenses.toml`,
+  `~/.llm_wiki/models/artifacts.toml`, and
+  `~/.llm_wiki/search-thresholds.toml` paths. `doctor` reports all three.
+- Extended the enabled `install --configure-search` path: after explicit
+  license/terms acknowledgement it downloads selected model artifacts under
+  `~/.llm_wiki/models/`, verifies SHA-256 hashes, records accepted-license and
+  artifact records, and writes completed enabled `[project_default]` and
+  `[global_search]` profiles. Existing verified artifacts are reused; hash
+  mismatches require `--force`. Dedicated partial-download promotion records
+  remain open.
 - Verification: `cargo fmt`; `cargo test --test install`;
   `cargo test --test status_doctor`; `cargo test --workspace`;
   `git diff --check`.
@@ -246,6 +257,33 @@ Progress 2026-05-11:
 6. Extend `doctor` and verbose diagnostics with semantic index readiness,
    freshness, model state, and rebuild guidance.
 
+Progress 2026-05-11:
+
+- Moved new qmd-rs FTS stores from the legacy
+  `~/.cache/llm-wiki/indexes/<project>/` root into
+  `~/.llm_wiki/indexes/<project>/`. `search`, `search-all`, `projects`, and
+  `doctor` keep a compatibility read bridge for existing legacy stores until
+  the next `llm-wiki index` rebuild.
+- `forget --delete-cache` now removes both managed and legacy project index
+  directories while preserving the existing safety check against deleting
+  outside the relevant index root.
+- Added `semantic-index.json` metadata under each managed project index
+  directory. The metadata schema records adapter schema version `1`, qmd-rs
+  version `0.3.2`, chunking strategy
+  `qmd-rs-character-v1:3200:480`, model/profile artifact hashes, embedding
+  dimensions, source file hashes, chunk ordinals, byte source spans, title,
+  Document Class, Status, Category, Scope, Sources, and per-chunk text hashes.
+- `llm-wiki index` and `index-all` write the semantic metadata sidecar only
+  when an enabled LLM-search profile and model artifact records exist. Missing
+  or disabled profiles skip the sidecar without touching the lexical index.
+  Chunk embedding/vector execution writes `semantic-vectors.json` only when
+  calibrated thresholds exist and match the current model artifact, dimensions,
+  qmd-rs version, adapter schema, and chunking strategy. Without thresholds,
+  indexing leaves lexical search usable and reports that vector indexing was
+  skipped.
+- `doctor` reports semantic metadata and vector-index presence/counts for the
+  current project.
+
 ## Stage 3 - Mode Contract And Readiness
 
 1. Add the CLI mode enum: `auto`, `lexical`, `semantic`, `hybrid`.
@@ -263,6 +301,27 @@ Progress 2026-05-11:
 5. Return structured readiness and zero-result reasons in JSON output.
 6. Keep verbose diagnostics on stderr and JSON stdout parseable.
 
+Progress 2026-05-11:
+
+- Added `--mode auto|lexical|semantic|hybrid`,
+  `--allow-lexical-fallback`, and `--rerank` to `search` and `search-all`.
+  The default is `auto`.
+- Search now requires the base managed install manifest. Before base install,
+  `search` and `search-all` fail with `llm-wiki install` guidance.
+- After base install, missing search profiles resolve `auto` to lexical with
+  `install_profile_missing`; disabled profiles resolve lexical with
+  `llm_search_disabled`.
+- Explicit `semantic` / `hybrid` modes fail on missing readiness unless
+  `--allow-lexical-fallback` is present. Fallback keeps the lexical qmd-rs path
+  and records the fallback reason.
+- JSON output now includes requested mode, selected mode, mode-selection reason,
+  fallback reason, readiness reason, zero-result reason, profile/model metadata,
+  and rerank request status while verbose diagnostics remain on stderr.
+- Enabled profiles with model artifacts still fail closed with
+  `thresholds_unconfigured` until the eval records accepted runtime thresholds.
+  Once compatible thresholds and semantic vectors exist, explicit semantic and
+  hybrid modes pass readiness and execute.
+
 ## Stage 4 - Retrieval Pipeline
 
 1. Normalize the raw query for the lexical branch using the existing sanitizing
@@ -278,6 +337,28 @@ Progress 2026-05-11:
 7. Roll chunk matches up to canonical wiki pages with best snippets.
 8. Preserve class/status filters and result limits across all modes.
 
+Progress 2026-05-11:
+
+- The lexical branch remains unchanged. It continues to use the existing
+  sanitized qmd-rs FTS path, class/status filters, stale warnings, retry
+  behavior, text output, and JSON result contract.
+- Semantic and hybrid execution now have explicit readiness gates for missing
+  install profiles, disabled LLM search, missing model artifacts, and missing
+  accepted thresholds. Because `wiki/evals/natural-language-search.eval.md`
+  still records accepted threshold values as `TBD`, semantic/hybrid retrieval
+  intentionally stops at `thresholds_unconfigured` in normal runtime instead of
+  running with arbitrary floors.
+- Implemented semantic query embedding through qmd-rs, chunk-level vector
+  scoring against `semantic-vectors.json`, threshold filtering, class/status
+  filters, snippet extraction, and document rollup.
+- Implemented hybrid query expansion through the configured expansion model,
+  lexical qmd-rs FTS retrieval, semantic retrieval, rank fusion, exact-identifier
+  lexical guarding via `preserve_lexical_top_3`, and optional reranking when a
+  reranker model is configured.
+- Added deterministic environment-gated embedding/query-expansion fixtures for
+  tests; normal runtime still uses managed GGUF artifacts and does not silently
+  download models.
+
 ## Stage 5 - Cross-Project Search And Skills
 
 1. Make `search-all` run per-project retrieval with each project's selected
@@ -291,6 +372,17 @@ Progress 2026-05-11:
 5. Update `wiki-query` so it reads `wiki/index.md` first, uses `auto` search
    only when index navigation is insufficient, inspects retrieval metadata, then
    reads returned pages before answering.
+
+Progress 2026-05-11:
+
+- `search-all` accepts the same mode/fallback/rerank flags, runs the selected
+  retrieval branch for each selected project, merges result lists by reciprocal
+  rank, and carries per-result mode/backend/project metadata in JSON. Rich
+  per-project readiness reporting remains open.
+- Updated the canonical `wiki-query` skill source and regenerated Claude/Codex
+  projections so large or complex queries use `search --mode auto --format
+  json`, inspect mode/readiness/fallback/zero-result metadata, and read returned
+  wiki pages before answering.
 
 ## Stage 6 - Verification, Promotion, And Docs
 

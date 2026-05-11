@@ -128,6 +128,11 @@ impl Paths {
             .join("semantic-index.json")
     }
 
+    pub fn semantic_vector_index(&self, project_key: &str) -> PathBuf {
+        self.project_index_dir(project_key)
+            .join("semantic-vectors.json")
+    }
+
     pub fn legacy_qmd_rs_store_path(&self, project_key: &str) -> PathBuf {
         self.legacy_project_index_dir(project_key)
             .join("qmd-rs.sqlite")

@@ -24,8 +24,13 @@ knowledge from the filesystem.
 4. Start with the three to five most relevant pages. Read more only when the
    answer is incomplete or cross-references point to important context.
 5. If the index is large or the question is complex, use
-   `llm-wiki search "<question>"` to supplement index navigation when
-   the current project is registered.
+   `llm-wiki search --mode auto --format json "<question>"` to
+   supplement index navigation when the current project is registered. Inspect
+   `selected_mode`, `readiness_reason`, `fallback_reason`,
+   `zero_result_reason`, and each result's `mode` / `backend`; then read the
+   returned wiki pages before answering. If search is not ready or returns no
+   useful result, continue from index navigation instead of treating search as
+   authoritative.
 6. Synthesize a direct answer with citations to wiki page paths. Include raw
    source paths transitively when a cited wiki page depends on a key raw
    source.
