@@ -250,6 +250,64 @@ fn verbose_init_reports_cli_tool_code_pack() {
 }
 
 #[test]
+fn init_runtime_manifest_records_managed_install() {
+    let project = TempDir::new().expect("project");
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .args(["install", "--skip-path-guidance"])
+        .assert()
+        .success();
+    llm_wiki(home.path())
+        .arg("init")
+        .arg(project.path())
+        .args([
+            "--no-register",
+            "--non-interactive",
+            "--name",
+            "Runtime Fixture",
+            "--description",
+            "A runtime fixture project.",
+            "--blueprint",
+            "generic",
+        ])
+        .assert()
+        .success();
+
+    let runtime = read_runtime_manifest(project.path());
+    let managed_home = home.path().join(".llm_wiki").to_string_lossy().to_string();
+    let managed_binary = home
+        .path()
+        .join(".llm_wiki/bin/llm-wiki")
+        .to_string_lossy()
+        .to_string();
+    assert_eq!(
+        runtime["framework_version"].as_str(),
+        Some(env!("CARGO_PKG_VERSION"))
+    );
+    assert_eq!(runtime["install_state"].as_str(), Some("present"));
+    assert_eq!(
+        runtime["managed_home"].as_str(),
+        Some(managed_home.as_str())
+    );
+    assert_eq!(
+        runtime["managed_binary"].as_str(),
+        Some(managed_binary.as_str())
+    );
+    assert_eq!(
+        runtime["installed_version"].as_str(),
+        Some(env!("CARGO_PKG_VERSION"))
+    );
+    assert!(
+        runtime["install_id"]
+            .as_str()
+            .expect("install id")
+            .starts_with("sha256:")
+    );
+    assert!(runtime["install_hash"].as_str().is_some());
+}
+
+#[test]
 fn init_agents_lists_pack_document_types_for_pack_driven_projects() {
     let temp = TempDir::new().expect("tempdir");
 
@@ -512,6 +570,11 @@ fn read_registry(home: &Path) -> Value {
 
 fn read_init_manifest(project: &Path) -> toml::Value {
     let manifest = fs::read_to_string(project.join(".llm_wiki/init.toml")).expect("manifest");
+    toml::from_str(&manifest).expect("toml")
+}
+
+fn read_runtime_manifest(project: &Path) -> toml::Value {
+    let manifest = fs::read_to_string(project.join(".llm_wiki/runtime.toml")).expect("manifest");
     toml::from_str(&manifest).expect("toml")
 }
 

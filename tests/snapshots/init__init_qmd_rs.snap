@@ -4,6 +4,7 @@ expression: snapshot
 ---
 # files
 - .llm_wiki/init.toml
+- .llm_wiki/runtime.toml
 - AGENTS.md
 - CLAUDE.md
 - project_guidelines.md

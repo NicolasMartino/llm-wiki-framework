@@ -1,5 +1,23 @@
 # Wiki Log
 
+## [2026-05-11] update | project runtime manifest breadcrumb
+
+Continued Stage 1 by adding project-local runtime breadcrumbs during
+`llm-wiki init`. Generated projects now get `.llm_wiki/runtime.toml` beside
+`init.toml`, recording the framework version, managed runtime home, managed
+binary path, install manifest path, install state, and install SHA-256 ID/hash
+when a completed managed install exists. Updated init snapshots to include the
+new runtime manifest file and added an integration test that installs into a
+redirected `HOME`, initializes a project, and asserts the project records the
+managed install metadata.
+
+Verification: `cargo fmt`; `INSTA_UPDATE=always cargo insta test --test init`;
+`cargo test --test init`; `git diff --check`.
+
+Pages updated: src/init/mod.rs, src/init/runtime.rs, src/init/scaffold.rs,
+tests/init.rs, tests/snapshots/init__init_*.snap,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/log.md
+
 ## [2026-05-11] update | semantic hybrid Stage 1 install profile slice
 
 Implemented the first Stage 1 runtime-state slice for semantic/hybrid search.

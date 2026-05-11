@@ -7,7 +7,9 @@ use crate::init::answers::Answers;
 use crate::init::collision::refuse_framework_collision;
 use crate::init::compose::{RenderPlan, compose};
 use crate::init::manifest::InitManifest;
+use crate::init::runtime::RuntimeManifest;
 use crate::init::sources::{copy_initial_sources, validate_initial_sources};
+use crate::paths::Paths;
 
 pub(super) fn create_project(
     path: &Path,
@@ -57,6 +59,14 @@ fn write_manifest(
         format!(
             "failed to write {}",
             manifest_dir.join("init.toml").display()
+        )
+    })?;
+    let paths = Paths::from_env()?;
+    let runtime = RuntimeManifest::from_paths(&paths)?.to_toml()?;
+    fs::write(manifest_dir.join("runtime.toml"), runtime).with_context(|| {
+        format!(
+            "failed to write {}",
+            manifest_dir.join("runtime.toml").display()
         )
     })?;
     Ok(())

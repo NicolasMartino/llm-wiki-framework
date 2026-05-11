@@ -210,9 +210,12 @@ Progress 2026-05-11:
   `~/.llm_wiki/models/`, and `~/.llm_wiki/indexes/`.
 - Added `doctor` reporting for missing, disabled, or configured LLM search
   profile state and external-dependency inventory.
+- Added project-local `.llm_wiki/runtime.toml` during `init`, recording the
+  managed runtime home, managed binary path, install manifest path, framework
+  version, and install hash/ID when a completed install manifest exists.
 - Search enablement, license acknowledgement, artifact download, hash
   verification, completed enabled profiles, recoverable partial model
-  downloads, and generated-project `.llm_wiki` runtime metadata remain open.
+  downloads, and project-local search profile seeding remain open.
 - Verification: `cargo fmt`; `cargo test --test install`;
   `cargo test --test status_doctor`; `cargo test --workspace`;
   `git diff --check`.
