@@ -36,6 +36,25 @@ fn search_all_rejects_unknown_excluded_project() {
 }
 
 #[test]
+fn search_requires_base_install() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    llm_wiki(home.path())
+        .args(["register", "--id", "fixture", "--name", "fixture"])
+        .arg(project)
+        .assert()
+        .success();
+
+    llm_wiki(home.path())
+        .args(["search", "reciprocal rank", "--project", "fixture"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("llm-wiki install is required"))
+        .stderr(predicate::str::contains("llm-wiki install"));
+}
+
+#[test]
 fn search_refuses_missing_index() {
     let home = TempDir::new().expect("home");
     let workspace = TempDir::new().expect("workspace");
@@ -298,6 +317,96 @@ fn verbose_search_json_keeps_stdout_parseable() {
         !stdout.contains("\u{1b}["),
         "JSON stdout must not contain ANSI escapes"
     );
+}
+
+#[test]
+fn search_json_reports_auto_lexical_mode_reason() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+
+    llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let output = llm_wiki(home.path())
+        .args([
+            "search",
+            "reciprocal rank fusion",
+            "--project",
+            "fixture",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("search output");
+    assert!(output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("search json");
+    assert_eq!(json["requested_mode"], "auto");
+    assert_eq!(json["selected_mode"], "lexical");
+    assert_eq!(json["mode_selection_reason"], "install_profile_missing");
+}
+
+#[test]
+fn explicit_hybrid_without_fallback_reports_readiness_json() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+
+    let output = llm_wiki(home.path())
+        .args([
+            "search",
+            "reciprocal rank fusion",
+            "--project",
+            "fixture",
+            "--mode",
+            "hybrid",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("search output");
+    assert!(!output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("readiness json");
+    assert_eq!(json["requested_mode"], "hybrid");
+    assert!(json["selected_mode"].is_null());
+    assert_eq!(json["readiness_reason"], "install_profile_missing");
+}
+
+#[test]
+fn explicit_hybrid_with_fallback_uses_lexical() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+
+    llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let output = llm_wiki(home.path())
+        .args([
+            "search",
+            "reciprocal rank fusion",
+            "--project",
+            "fixture",
+            "--mode",
+            "hybrid",
+            "--allow-lexical-fallback",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("search output");
+    assert!(output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("search json");
+    assert_eq!(json["requested_mode"], "hybrid");
+    assert_eq!(json["selected_mode"], "lexical");
+    assert_eq!(json["fallback_reason"], "install_profile_missing");
 }
 
 #[test]
@@ -716,6 +825,8 @@ fn search_json_envelope_has_all_contract_fields() {
     assert_eq!(json["query"], "reciprocal rank fusion");
     assert_eq!(json["project_id"], "fixture");
     assert_eq!(json["project_name"], "fixture");
+    assert_eq!(json["requested_mode"], "auto");
+    assert_eq!(json["selected_mode"], "lexical");
     assert!(json.get("warning").is_some());
     assert!(json.get("warnings").is_some());
     let result = json["results"]
@@ -961,9 +1072,20 @@ fn register_project(home: &Path, project: &Path) {
 }
 
 fn register_project_with_id(home: &Path, project: &Path, id: &str) {
+    ensure_installed(home);
     llm_wiki(home)
         .args(["register", "--id", id, "--name", id])
         .arg(project)
+        .assert()
+        .success();
+}
+
+fn ensure_installed(home: &Path) {
+    if home.join(".llm_wiki/manifest.json").exists() {
+        return;
+    }
+    llm_wiki(home)
+        .args(["install", "--skip-path-guidance"])
         .assert()
         .success();
 }

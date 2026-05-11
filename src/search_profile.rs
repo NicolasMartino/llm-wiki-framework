@@ -165,6 +165,25 @@ impl ProjectSearchConfig {
     pub fn write_atomic(&self, path: &Path) -> Result<()> {
         write_toml_atomic(path, self, "project search config")
     }
+
+    pub fn read(path: &Path) -> Result<Option<Self>> {
+        if !path.exists() {
+            return Ok(None);
+        }
+        let input = fs::read_to_string(path)
+            .with_context(|| format!("failed to read project search config {}", path.display()))?;
+        let config: Self = toml::from_str(&input)
+            .with_context(|| format!("failed to parse project search config {}", path.display()))?;
+        if config.schema_version != SEARCH_CONFIG_SCHEMA_VERSION {
+            bail!(
+                "unsupported project search config schema_version {} in {}; expected {}",
+                config.schema_version,
+                path.display(),
+                SEARCH_CONFIG_SCHEMA_VERSION
+            );
+        }
+        Ok(Some(config))
+    }
 }
 
 impl ExternalDependencies {

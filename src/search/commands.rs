@@ -11,7 +11,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use anyhow::{Context, Result, bail};
 use serde::Serialize;
 
-use crate::cli::{CliContext, IndexAllArgs, IndexArgs, OutputFormat, SearchAllArgs, SearchArgs};
+use crate::cli::{
+    CliContext, IndexAllArgs, IndexArgs, OutputFormat, SearchAllArgs, SearchArgs, SearchModeArg,
+};
+use crate::manifest::Manifest;
 use crate::paths::Paths;
 use crate::registry::{self, ProjectRegistry, RegisteredProject};
 use crate::search::adapter::{
@@ -20,6 +23,8 @@ use crate::search::adapter::{
 use crate::search::project::discover_from_cwd;
 use crate::search::qmd_rs::QmdRsBackend;
 use crate::search::sanitize::sanitize_fts_query;
+use crate::search_models::{ModelArtifacts, model_by_id};
+use crate::search_profile::{ProjectSearchConfig, SearchConfig, SearchProfile};
 
 pub fn index(args: &IndexArgs, context: &CliContext) -> Result<()> {
     context.diagnostic("command: index");
@@ -365,6 +370,12 @@ fn backup_path(path: &Path, suffix: &str) -> PathBuf {
 pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
     context.diagnostic("command: search");
     context.diagnostic(format!("query: {}", args.query));
+    context.diagnostic(format!("requested mode: {}", args.mode.label()));
+    context.diagnostic(format!(
+        "allow lexical fallback: {}",
+        args.allow_lexical_fallback
+    ));
+    context.diagnostic(format!("rerank: {}", args.rerank));
     context.diagnostic(format!("fts query: {}", sanitize_fts_query(&args.query)));
     context.diagnostic(format!(
         "filters: class={}, status={}, limit={}",
@@ -379,6 +390,34 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
     let (project, selection_source) =
         select_project_with_source(&registry, args.project.as_deref())?;
     ensure_project_root_exists(&project)?;
+    let resolution = match resolve_project_mode(
+        &paths,
+        &project,
+        args.mode,
+        args.allow_lexical_fallback,
+        args.rerank,
+    )? {
+        ModeResolutionOutcome::Ready(resolution) => resolution,
+        ModeResolutionOutcome::NotReady { failure, profile } => {
+            return handle_readiness_failure(
+                &args.query,
+                Some((&project.id, &project.name)),
+                args.format,
+                args.mode,
+                args.rerank,
+                failure,
+                profile.as_ref(),
+            );
+        }
+    };
+    context.diagnostic(format!(
+        "selected mode: {}",
+        resolution.selected_mode.label()
+    ));
+    context.diagnostic(format!("mode reason: {}", resolution.reason));
+    if let Some(reason) = &resolution.fallback_reason {
+        context.diagnostic(format!("fallback reason: {reason}"));
+    }
     let filters = SearchFilters {
         document_class: args.document_class.clone(),
         status: args.status.clone(),
@@ -396,6 +435,7 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
     context.diagnostic(format!("index store: {}", store_path.display()));
     context.diagnostic(format!("index store location: {}", store_location.label()));
     context.diagnostic("backend: qmd-rs fts");
+    ensure_lexical_execution(&resolution)?;
     let backend = QmdRsBackend::new();
     let search = perform_project_search(
         &backend,
@@ -415,20 +455,18 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
     if let Some(message) = &search.status.message {
         context.diagnostic(format!("index message: {message}"));
     }
-    let no_result = context.verbose.then(|| {
-        explain_no_results(NoResultContext {
-            backend: &backend,
-            store_path: &store_path,
-            wiki_root: &wiki_root,
-            query: &args.query,
-            filters: &filters,
-            limit: args.limit,
-            status: &search.status,
-            results: &search.results,
-        })
+    let no_result = explain_no_results(NoResultContext {
+        backend: &backend,
+        store_path: &store_path,
+        wiki_root: &wiki_root,
+        query: &args.query,
+        filters: &filters,
+        limit: args.limit,
+        status: &search.status,
+        results: &search.results,
     });
     context.diagnostic(format!("results: {}", search.results.len()));
-    if let Some(Some(explanation)) = no_result {
+    if let Some(explanation) = &no_result {
         context.diagnostic(format!("no-result: {explanation}"));
     }
 
@@ -441,6 +479,8 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
         .warnings
         .first()
         .map(|warning| warning.message.as_str());
+    let mut mode_metadata = SearchModeJson::from_resolution(&resolution, args.rerank);
+    mode_metadata.zero_result_reason = no_result;
 
     match args.format {
         OutputFormat::Text => print_search_text(&search.warnings, &results),
@@ -450,6 +490,7 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
             warning,
             &[],
             &results,
+            mode_metadata,
         ),
     }
     Ok(())
@@ -458,6 +499,12 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
 pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
     context.diagnostic("command: search-all");
     context.diagnostic(format!("query: {}", args.query));
+    context.diagnostic(format!("requested mode: {}", args.mode.label()));
+    context.diagnostic(format!(
+        "allow lexical fallback: {}",
+        args.allow_lexical_fallback
+    ));
+    context.diagnostic(format!("rerank: {}", args.rerank));
     context.diagnostic(format!("fts query: {}", sanitize_fts_query(&args.query)));
     context.diagnostic(format!(
         "filters: class={}, status={}, limit={}",
@@ -470,6 +517,30 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
     context.diagnostic(format!("registry: {}", registry_path.display()));
     let registry = ProjectRegistry::read(&paths.project_registry())?;
     let projects = select_projects(&registry, &args.include, &args.exclude)?;
+    let resolution =
+        match resolve_global_mode(&paths, args.mode, args.allow_lexical_fallback, args.rerank)? {
+            ModeResolutionOutcome::Ready(resolution) => resolution,
+            ModeResolutionOutcome::NotReady { failure, profile } => {
+                return handle_readiness_failure(
+                    &args.query,
+                    None,
+                    args.format,
+                    args.mode,
+                    args.rerank,
+                    failure,
+                    profile.as_ref(),
+                );
+            }
+        };
+    context.diagnostic(format!(
+        "selected mode: {}",
+        resolution.selected_mode.label()
+    ));
+    context.diagnostic(format!("mode reason: {}", resolution.reason));
+    if let Some(reason) = &resolution.fallback_reason {
+        context.diagnostic(format!("fallback reason: {reason}"));
+    }
+    ensure_lexical_execution(&resolution)?;
     context.diagnostic(format!(
         "project selection: {}",
         search_all_selection_label(&args.include, &args.exclude)
@@ -605,7 +676,14 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
 
     match args.format {
         OutputFormat::Text => print_search_text(&warnings, &results),
-        OutputFormat::Json => print_search_json(&args.query, None, None, &warnings, &results),
+        OutputFormat::Json => {
+            let mut mode_metadata = SearchModeJson::from_resolution(&resolution, args.rerank);
+            if results.is_empty() {
+                mode_metadata.zero_result_reason =
+                    Some("no selected project returned results".to_string());
+            }
+            print_search_json(&args.query, None, None, &warnings, &results, mode_metadata)
+        }
     }
     Ok(())
 }
@@ -680,6 +758,315 @@ fn qmd_store_path_for_search(paths: &Paths, project_id: &str) -> (PathBuf, Store
         return (legacy, StoreLocation::LegacyCache);
     }
     (managed, StoreLocation::MissingManaged)
+}
+
+enum ModeResolutionOutcome {
+    Ready(ModeResolution),
+    NotReady {
+        failure: ReadinessFailure,
+        profile: Option<SearchProfile>,
+    },
+}
+
+fn resolve_project_mode(
+    paths: &Paths,
+    project: &RegisteredProject,
+    requested_mode: SearchModeArg,
+    allow_lexical_fallback: bool,
+    rerank: bool,
+) -> Result<ModeResolutionOutcome> {
+    ensure_base_install(paths)?;
+    let profile = project_search_profile(paths, project)?;
+    resolve_mode(
+        paths,
+        requested_mode,
+        allow_lexical_fallback,
+        rerank,
+        profile,
+    )
+}
+
+fn resolve_global_mode(
+    paths: &Paths,
+    requested_mode: SearchModeArg,
+    allow_lexical_fallback: bool,
+    rerank: bool,
+) -> Result<ModeResolutionOutcome> {
+    ensure_base_install(paths)?;
+    let profile = SearchConfig::read(&paths.search_config())?.map(|config| config.global_search);
+    resolve_mode(
+        paths,
+        requested_mode,
+        allow_lexical_fallback,
+        rerank,
+        profile,
+    )
+}
+
+fn ensure_base_install(paths: &Paths) -> Result<()> {
+    if Manifest::read(&paths.manifest())?.is_none() {
+        bail!(
+            "llm-wiki install is required before search; run `llm-wiki install` or `llm-wiki install --configure-search`"
+        );
+    }
+    Ok(())
+}
+
+fn project_search_profile(
+    paths: &Paths,
+    project: &RegisteredProject,
+) -> Result<Option<SearchProfile>> {
+    let project_search_config = project.root.join(".llm_wiki/search.toml");
+    if let Some(config) = ProjectSearchConfig::read(&project_search_config)? {
+        return Ok(Some(config.project));
+    }
+    Ok(SearchConfig::read(&paths.search_config())?.map(|config| config.project_default))
+}
+
+fn resolve_mode(
+    paths: &Paths,
+    requested_mode: SearchModeArg,
+    allow_lexical_fallback: bool,
+    rerank: bool,
+    profile: Option<SearchProfile>,
+) -> Result<ModeResolutionOutcome> {
+    if requested_mode == SearchModeArg::Lexical {
+        return Ok(ModeResolutionOutcome::Ready(ModeResolution {
+            requested_mode,
+            selected_mode: RuntimeSearchMode::Lexical,
+            reason: "explicit_lexical".to_string(),
+            fallback_reason: None,
+            profile,
+        }));
+    }
+
+    if requested_mode == SearchModeArg::Auto {
+        let Some(profile) = profile else {
+            return Ok(ModeResolutionOutcome::Ready(ModeResolution {
+                requested_mode,
+                selected_mode: RuntimeSearchMode::Lexical,
+                reason: "install_profile_missing".to_string(),
+                fallback_reason: None,
+                profile: None,
+            }));
+        };
+        if !profile.llm_search_enabled {
+            let reason = profile
+                .reason
+                .clone()
+                .unwrap_or_else(|| "llm_search_disabled".to_string());
+            return Ok(ModeResolutionOutcome::Ready(ModeResolution {
+                requested_mode,
+                selected_mode: RuntimeSearchMode::Lexical,
+                reason,
+                fallback_reason: None,
+                profile: Some(profile),
+            }));
+        }
+        if let Some(failure) =
+            readiness_failure(paths, &profile, RuntimeSearchMode::Hybrid, rerank)?
+        {
+            return Ok(ModeResolutionOutcome::NotReady {
+                failure,
+                profile: Some(profile),
+            });
+        }
+        return Ok(ModeResolutionOutcome::Ready(ModeResolution {
+            requested_mode,
+            selected_mode: RuntimeSearchMode::Hybrid,
+            reason: "enabled_profile".to_string(),
+            fallback_reason: None,
+            profile: Some(profile),
+        }));
+    }
+
+    let selected_mode = match requested_mode {
+        SearchModeArg::Semantic => RuntimeSearchMode::Semantic,
+        SearchModeArg::Hybrid => RuntimeSearchMode::Hybrid,
+        SearchModeArg::Auto | SearchModeArg::Lexical => unreachable!("handled above"),
+    };
+    let Some(profile) = profile else {
+        return explicit_readiness_outcome(
+            requested_mode,
+            selected_mode,
+            allow_lexical_fallback,
+            None,
+            readiness("install_profile_missing"),
+        );
+    };
+    if !profile.llm_search_enabled {
+        let reason = profile
+            .reason
+            .clone()
+            .unwrap_or_else(|| "llm_search_disabled".to_string());
+        return explicit_readiness_outcome(
+            requested_mode,
+            selected_mode,
+            allow_lexical_fallback,
+            Some(profile),
+            readiness(&reason),
+        );
+    }
+    if let Some(failure) = readiness_failure(paths, &profile, selected_mode, rerank)? {
+        return explicit_readiness_outcome(
+            requested_mode,
+            selected_mode,
+            allow_lexical_fallback,
+            Some(profile),
+            failure,
+        );
+    }
+    Ok(ModeResolutionOutcome::Ready(ModeResolution {
+        requested_mode,
+        selected_mode,
+        reason: "explicit_mode".to_string(),
+        fallback_reason: None,
+        profile: Some(profile),
+    }))
+}
+
+fn explicit_readiness_outcome(
+    requested_mode: SearchModeArg,
+    selected_mode: RuntimeSearchMode,
+    allow_lexical_fallback: bool,
+    profile: Option<SearchProfile>,
+    failure: ReadinessFailure,
+) -> Result<ModeResolutionOutcome> {
+    if allow_lexical_fallback {
+        return Ok(ModeResolutionOutcome::Ready(ModeResolution {
+            requested_mode,
+            selected_mode: RuntimeSearchMode::Lexical,
+            reason: "lexical_fallback".to_string(),
+            fallback_reason: Some(failure.reason),
+            profile,
+        }));
+    }
+    let _ = selected_mode;
+    Ok(ModeResolutionOutcome::NotReady { failure, profile })
+}
+
+fn readiness_failure(
+    paths: &Paths,
+    profile: &SearchProfile,
+    selected_mode: RuntimeSearchMode,
+    rerank: bool,
+) -> Result<Option<ReadinessFailure>> {
+    let Some(model_ids) = required_model_ids(profile, selected_mode, rerank)? else {
+        return Ok(Some(readiness("model_missing")));
+    };
+    let Some(artifacts) = ModelArtifacts::read(&paths.model_artifacts())? else {
+        return Ok(Some(readiness("model_missing")));
+    };
+    for model_id in model_ids {
+        let Some(model) = model_by_id(&model_id) else {
+            return Ok(Some(readiness("model_missing")));
+        };
+        let Some(record) = artifacts.artifacts.iter().find(|artifact| {
+            artifact.model_id == model_id
+                && artifact.expected_sha256 == model.expected_sha256
+                && artifact.observed_sha256 == model.expected_sha256
+        }) else {
+            return Ok(Some(readiness("model_missing")));
+        };
+        if !record.path.exists() {
+            return Ok(Some(readiness("model_missing")));
+        }
+    }
+    Ok(Some(readiness("thresholds_unconfigured")))
+}
+
+fn required_model_ids(
+    profile: &SearchProfile,
+    selected_mode: RuntimeSearchMode,
+    rerank: bool,
+) -> Result<Option<Vec<String>>> {
+    let Some(embedding_model) = profile.embedding_model.clone() else {
+        return Ok(None);
+    };
+    let mut model_ids = vec![embedding_model];
+    if selected_mode == RuntimeSearchMode::Hybrid {
+        let Some(query_expansion_model) = profile.query_expansion_model.clone() else {
+            return Ok(None);
+        };
+        model_ids.push(query_expansion_model);
+    }
+    if rerank {
+        let Some(reranker_model) = profile.reranker_model.clone() else {
+            return Ok(None);
+        };
+        model_ids.push(reranker_model);
+    }
+    Ok(Some(model_ids))
+}
+
+fn readiness(reason: &str) -> ReadinessFailure {
+    let guidance = match reason {
+        "install_profile_missing" => {
+            "run `llm-wiki install --configure-search` to configure LLM search".to_string()
+        }
+        "llm_search_disabled" => {
+            "run `llm-wiki install --configure-search` to enable LLM search".to_string()
+        }
+        "model_missing" => {
+            "run `llm-wiki install --configure-search` to materialize and verify search models"
+                .to_string()
+        }
+        "thresholds_unconfigured" => {
+            "record calibrated semantic/hybrid thresholds before running LLM search".to_string()
+        }
+        "semantic_index_missing" => {
+            "run `llm-wiki index` to build semantic search state".to_string()
+        }
+        "semantic_index_stale" => {
+            "run `llm-wiki index --force` to rebuild semantic search state".to_string()
+        }
+        other => format!("resolve search readiness issue `{other}`"),
+    };
+    ReadinessFailure {
+        reason: reason.to_string(),
+        guidance,
+    }
+}
+
+fn ensure_lexical_execution(resolution: &ModeResolution) -> Result<()> {
+    if resolution.selected_mode != RuntimeSearchMode::Lexical {
+        bail!(
+            "{} retrieval is not available until semantic index execution is configured",
+            resolution.selected_mode.label()
+        );
+    }
+    Ok(())
+}
+
+fn handle_readiness_failure(
+    query: &str,
+    project: Option<(&str, &str)>,
+    format: OutputFormat,
+    requested_mode: SearchModeArg,
+    rerank_requested: bool,
+    failure: ReadinessFailure,
+    profile: Option<&SearchProfile>,
+) -> Result<()> {
+    if format == OutputFormat::Json {
+        print_search_json(
+            query,
+            project,
+            None,
+            &[],
+            &[],
+            SearchModeJson::readiness_failure(
+                requested_mode,
+                &failure.reason,
+                profile,
+                rerank_requested,
+            ),
+        );
+    }
+    bail!(
+        "search readiness failure: {} ({})",
+        failure.reason,
+        failure.guidance
+    )
 }
 
 impl ProjectSelectionSource {
@@ -767,6 +1154,105 @@ enum SearchAttempt {
     RetryableUnavailable,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ModeResolution {
+    requested_mode: SearchModeArg,
+    selected_mode: RuntimeSearchMode,
+    reason: String,
+    fallback_reason: Option<String>,
+    profile: Option<SearchProfile>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum RuntimeSearchMode {
+    Lexical,
+    Semantic,
+    Hybrid,
+}
+
+impl RuntimeSearchMode {
+    const fn label(self) -> &'static str {
+        match self {
+            Self::Lexical => "lexical",
+            Self::Semantic => "semantic",
+            Self::Hybrid => "hybrid",
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ReadinessFailure {
+    reason: String,
+    guidance: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct SearchModeJson {
+    requested_mode: String,
+    selected_mode: Option<String>,
+    mode_selection_reason: Option<String>,
+    fallback_reason: Option<String>,
+    readiness_reason: Option<String>,
+    zero_result_reason: Option<String>,
+    profile: Option<String>,
+    embedding_model: Option<String>,
+    query_expansion_model: Option<String>,
+    reranker_model: Option<String>,
+    rerank_requested: bool,
+}
+
+impl SearchModeJson {
+    fn from_resolution(resolution: &ModeResolution, rerank_requested: bool) -> Self {
+        Self {
+            requested_mode: resolution.requested_mode.label().to_string(),
+            selected_mode: Some(resolution.selected_mode.label().to_string()),
+            mode_selection_reason: Some(resolution.reason.clone()),
+            fallback_reason: resolution.fallback_reason.clone(),
+            readiness_reason: None,
+            zero_result_reason: None,
+            profile: resolution
+                .profile
+                .as_ref()
+                .and_then(|profile| profile.profile.clone()),
+            embedding_model: resolution
+                .profile
+                .as_ref()
+                .and_then(|profile| profile.embedding_model.clone()),
+            query_expansion_model: resolution
+                .profile
+                .as_ref()
+                .and_then(|profile| profile.query_expansion_model.clone()),
+            reranker_model: resolution
+                .profile
+                .as_ref()
+                .and_then(|profile| profile.reranker_model.clone()),
+            rerank_requested,
+        }
+    }
+
+    fn readiness_failure(
+        requested_mode: SearchModeArg,
+        reason: &str,
+        profile: Option<&SearchProfile>,
+        rerank_requested: bool,
+    ) -> Self {
+        Self {
+            requested_mode: requested_mode.label().to_string(),
+            selected_mode: None,
+            mode_selection_reason: None,
+            fallback_reason: None,
+            readiness_reason: Some(reason.to_string()),
+            zero_result_reason: None,
+            profile: profile.and_then(|profile| profile.profile.clone()),
+            embedding_model: profile.and_then(|profile| profile.embedding_model.clone()),
+            query_expansion_model: profile
+                .and_then(|profile| profile.query_expansion_model.clone()),
+            reranker_model: profile.and_then(|profile| profile.reranker_model.clone()),
+            rerank_requested,
+        }
+    }
+}
+
 fn print_search_text(warnings: &[SearchWarning], results: &[SearchResult]) {
     match warnings {
         [] => {}
@@ -826,6 +1312,17 @@ struct SearchEnvelopeJson {
     query: String,
     project_id: Option<String>,
     project_name: Option<String>,
+    requested_mode: String,
+    selected_mode: Option<String>,
+    mode_selection_reason: Option<String>,
+    fallback_reason: Option<String>,
+    readiness_reason: Option<String>,
+    zero_result_reason: Option<String>,
+    profile: Option<String>,
+    embedding_model: Option<String>,
+    query_expansion_model: Option<String>,
+    reranker_model: Option<String>,
+    rerank_requested: bool,
     warning: Option<String>,
     warnings: Vec<SearchWarningJson>,
     results: Vec<SearchResultJson>,
@@ -838,6 +1335,7 @@ fn print_search_json(
     warning: Option<&str>,
     warnings: &[SearchWarning],
     results: &[SearchResult],
+    mode: SearchModeJson,
 ) {
     let results = results
         .iter()
@@ -868,6 +1366,17 @@ fn print_search_json(
             query: query.to_string(),
             project_id: project.map(|(id, _)| id.to_string()),
             project_name: project.map(|(_, name)| name.to_string()),
+            requested_mode: mode.requested_mode,
+            selected_mode: mode.selected_mode,
+            mode_selection_reason: mode.mode_selection_reason,
+            fallback_reason: mode.fallback_reason,
+            readiness_reason: mode.readiness_reason,
+            zero_result_reason: mode.zero_result_reason,
+            profile: mode.profile,
+            embedding_model: mode.embedding_model,
+            query_expansion_model: mode.query_expansion_model,
+            reranker_model: mode.reranker_model,
+            rerank_requested: mode.rerank_requested,
             warning: warning.map(ToString::to_string),
             warnings,
             results,

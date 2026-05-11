@@ -17,7 +17,7 @@ pub enum SearchMode {
 impl fmt::Display for SearchMode {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Fts => formatter.write_str("fts"),
+            Self::Fts => formatter.write_str("lexical"),
             Self::Semantic => formatter.write_str("semantic"),
             Self::Hybrid => formatter.write_str("hybrid"),
         }

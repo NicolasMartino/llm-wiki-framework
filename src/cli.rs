@@ -122,6 +122,8 @@ pub struct IndexAllArgs {
 #[derive(Debug, clap::Args)]
 pub struct SearchArgs {
     pub query: String,
+    #[arg(long, value_enum, default_value_t = SearchModeArg::Auto)]
+    pub mode: SearchModeArg,
     #[arg(long)]
     pub project: Option<String>,
     #[arg(long = "class")]
@@ -132,11 +134,17 @@ pub struct SearchArgs {
     pub limit: usize,
     #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
     pub format: OutputFormat,
+    #[arg(long)]
+    pub allow_lexical_fallback: bool,
+    #[arg(long)]
+    pub rerank: bool,
 }
 
 #[derive(Debug, clap::Args)]
 pub struct SearchAllArgs {
     pub query: String,
+    #[arg(long, value_enum, default_value_t = SearchModeArg::Auto)]
+    pub mode: SearchModeArg,
     #[arg(long)]
     pub include: Vec<String>,
     #[arg(long)]
@@ -149,6 +157,29 @@ pub struct SearchAllArgs {
     pub limit: usize,
     #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
     pub format: OutputFormat,
+    #[arg(long)]
+    pub allow_lexical_fallback: bool,
+    #[arg(long)]
+    pub rerank: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub enum SearchModeArg {
+    Auto,
+    Lexical,
+    Semantic,
+    Hybrid,
+}
+
+impl SearchModeArg {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::Lexical => "lexical",
+            Self::Semantic => "semantic",
+            Self::Hybrid => "hybrid",
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
