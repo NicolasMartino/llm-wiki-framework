@@ -9,6 +9,7 @@ mod path_guidance;
 mod paths;
 mod registry;
 mod search;
+mod search_models;
 mod search_profile;
 mod skill_render;
 mod status;

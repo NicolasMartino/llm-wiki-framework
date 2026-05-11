@@ -18,7 +18,11 @@ use crate::manifest::{
 };
 use crate::path_guidance;
 use crate::paths::Paths;
-use crate::search_profile::{ExternalDependencies, SearchConfig};
+use crate::search_models::{
+    AcceptedLicenses, DEFAULT_PROFILE_ID, ModelArtifacts, materialize_model, models_for_profile,
+    profile_by_id,
+};
+use crate::search_profile::{ExternalDependencies, SearchConfig, SearchProfile};
 use crate::skill_render::{apply_binary_context, managed_binary_invocation};
 
 pub fn run(args: &InstallArgs, context: &CliContext) -> Result<()> {
@@ -50,6 +54,14 @@ pub fn run(args: &InstallArgs, context: &CliContext) -> Result<()> {
     context.diagnostic(format!(
         "external dependencies: {}",
         paths.external_dependencies().display()
+    ));
+    context.diagnostic(format!(
+        "accepted licenses: {}",
+        paths.accepted_licenses().display()
+    ));
+    context.diagnostic(format!(
+        "model artifacts: {}",
+        paths.model_artifacts().display()
     ));
     let current_exe = env::current_exe().context("failed to resolve current executable")?;
     context.diagnostic(format!("current executable: {}", current_exe.display()));
@@ -147,9 +159,7 @@ fn configure_search(args: &InstallArgs, paths: &Paths, context: &CliContext) -> 
             .with_default(false)
             .prompt()?;
         if enabled {
-            bail!(
-                "LLM search enablement is not implemented yet; rerun with --disable-llm-search to save a lexical profile"
-            );
+            return configure_enabled_search(args, paths, context);
         }
     }
 
@@ -165,6 +175,70 @@ fn configure_search(args: &InstallArgs, paths: &Paths, context: &CliContext) -> 
         "external dependencies: {}",
         paths.external_dependencies().display()
     ));
+    Ok(())
+}
+
+fn configure_enabled_search(args: &InstallArgs, paths: &Paths, context: &CliContext) -> Result<()> {
+    let profile =
+        profile_by_id(DEFAULT_PROFILE_ID).context("default LLM search profile missing")?;
+    let models = models_for_profile(profile, false)?;
+    context.diagnostic(format!("search profile selected: {}", profile.id));
+    context.diagnostic(format!("search profile models: {}", models.len()));
+
+    println!("LLM search profile: {}", profile.display_name);
+    println!("Models to download and verify:");
+    for model in &models {
+        println!(
+            "- {}: {} / {} ({}, sha256 {})",
+            model.role.label(),
+            model.repository,
+            model.file,
+            model.license,
+            model.expected_sha256
+        );
+    }
+    println!(
+        "Model bytes are stored under {} and are not bundled with llm-wiki.",
+        paths.managed_model_root().display()
+    );
+    let accepted = inquire::Confirm::new(
+        "I acknowledge the listed model licenses/terms and want to download them now",
+    )
+    .with_default(false)
+    .prompt()?;
+    if !accepted {
+        bail!("LLM search enablement cancelled; search profile was not changed");
+    }
+
+    AcceptedLicenses::from_models(&models).write_atomic(&paths.accepted_licenses())?;
+    context.diagnostic("search configuration action: recorded accepted licenses");
+
+    let mut artifact_records = Vec::new();
+    for model in models {
+        context.diagnostic(format!(
+            "search model materialization: {} -> {}",
+            model.id,
+            model.managed_path(&paths.managed_model_root()).display()
+        ));
+        artifact_records.push(materialize_model(
+            model,
+            profile,
+            &paths.managed_model_root(),
+            args.force,
+        )?);
+    }
+    ModelArtifacts::from_records(artifact_records).write_atomic(&paths.model_artifacts())?;
+    context.diagnostic("search configuration action: recorded model artifacts");
+
+    let config = SearchConfig::enabled(SearchProfile::enabled(
+        profile.id,
+        profile.embedding_model,
+        Some(profile.query_expansion_model.to_string()),
+        profile.reranker_model.map(ToString::to_string),
+    ));
+    config.write_atomic(&paths.search_config())?;
+    ExternalDependencies::empty().write_atomic(&paths.external_dependencies())?;
+    context.diagnostic("search configuration action: wrote enabled LLM search profile");
     Ok(())
 }
 

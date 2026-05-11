@@ -13,6 +13,7 @@ use crate::registry::{ProjectRegistry, RegisteredProject};
 use crate::search::adapter::{BackendState, SearchBackend, SearchMode};
 use crate::search::project::discover_from_cwd;
 use crate::search::qmd_rs::QmdRsBackend;
+use crate::search_models::{AcceptedLicenses, ModelArtifacts};
 use crate::search_profile::{ExternalDependencies, SearchConfig};
 use crate::skill_render::{BINARY_MARKER, managed_binary_invocation};
 
@@ -149,11 +150,18 @@ pub fn run(context: &crate::cli::CliContext) -> Result<()> {
 fn print_search_profile_diagnostics(paths: &Paths, context: &crate::cli::CliContext) -> Result<()> {
     let search_config = paths.search_config();
     let external_dependencies = paths.external_dependencies();
+    let accepted_licenses = paths.accepted_licenses();
+    let model_artifacts = paths.model_artifacts();
     context.diagnostic(format!("search config: {}", search_config.display()));
     context.diagnostic(format!(
         "external dependencies: {}",
         external_dependencies.display()
     ));
+    context.diagnostic(format!(
+        "accepted licenses: {}",
+        accepted_licenses.display()
+    ));
+    context.diagnostic(format!("model artifacts: {}", model_artifacts.display()));
 
     println!();
     println!("Search profile:");
@@ -200,6 +208,48 @@ fn print_search_profile_diagnostics(paths: &Paths, context: &crate::cli::CliCont
             println!(
                 "External dependency records missing: {}",
                 external_dependencies.display()
+            );
+        }
+    }
+
+    match AcceptedLicenses::read(&accepted_licenses)? {
+        Some(licenses) => {
+            context.diagnostic(format!(
+                "accepted license records: {}",
+                licenses.licenses.len()
+            ));
+            println!(
+                "Accepted license records: {} at {}",
+                licenses.licenses.len(),
+                accepted_licenses.display()
+            );
+        }
+        None => {
+            context.diagnostic("accepted licenses state: missing");
+            println!(
+                "Accepted license records missing: {}",
+                accepted_licenses.display()
+            );
+        }
+    }
+
+    match ModelArtifacts::read(&model_artifacts)? {
+        Some(artifacts) => {
+            context.diagnostic(format!(
+                "model artifact records: {}",
+                artifacts.artifacts.len()
+            ));
+            println!(
+                "Model artifact records: {} at {}",
+                artifacts.artifacts.len(),
+                model_artifacts.display()
+            );
+        }
+        None => {
+            context.diagnostic("model artifacts state: missing");
+            println!(
+                "Model artifact records missing: {}",
+                model_artifacts.display()
             );
         }
     }

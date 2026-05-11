@@ -1,0 +1,420 @@
+use std::fs;
+use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
+use std::time::Duration;
+
+use anyhow::{Context, Result, bail};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+
+use crate::search_profile::{timestamp, write_toml_atomic};
+
+const ACCEPTED_LICENSES_SCHEMA_VERSION: u32 = 1;
+const MODEL_ARTIFACTS_SCHEMA_VERSION: u32 = 1;
+pub const DEFAULT_PROFILE_ID: &str = "balanced";
+pub const QMD_RS_VERSION: &str = "0.3.2";
+pub const ADAPTER_SCHEMA_VERSION: u32 = 1;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SearchModel {
+    pub id: &'static str,
+    pub role: ModelRole,
+    pub repository: &'static str,
+    pub revision: &'static str,
+    pub file: &'static str,
+    pub license: &'static str,
+    pub terms_url: Option<&'static str>,
+    pub expected_sha256: &'static str,
+    pub expected_size_bytes: u64,
+    pub dimensions: Option<usize>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ModelRole {
+    Embedding,
+    QueryExpansion,
+    Reranker,
+}
+
+impl ModelRole {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Embedding => "embedding",
+            Self::QueryExpansion => "query-expansion",
+            Self::Reranker => "reranker",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ProfileBundle {
+    pub id: &'static str,
+    pub display_name: &'static str,
+    pub embedding_model: &'static str,
+    pub query_expansion_model: &'static str,
+    pub reranker_model: Option<&'static str>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct AcceptedLicenses {
+    pub schema_version: u32,
+    pub updated_at: String,
+    pub licenses: Vec<AcceptedLicenseRecord>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct AcceptedLicenseRecord {
+    pub model_id: String,
+    pub license: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub terms_url: Option<String>,
+    pub accepted_at: String,
+    pub accepted_by_version: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ModelArtifacts {
+    pub schema_version: u32,
+    pub updated_at: String,
+    pub artifacts: Vec<ModelArtifactRecord>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ModelArtifactRecord {
+    pub model_id: String,
+    pub role: String,
+    pub profile: String,
+    pub repository: String,
+    pub revision: String,
+    pub file: String,
+    pub download_url: String,
+    pub path: PathBuf,
+    pub expected_sha256: String,
+    pub observed_sha256: String,
+    pub size_bytes: u64,
+    pub license: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub terms_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dimensions: Option<usize>,
+    pub qmd_rs_version: String,
+    pub adapter_schema_version: u32,
+    pub verified_at: String,
+}
+
+pub const EMBEDDING_GEMMA_300M: SearchModel = SearchModel {
+    id: "embeddinggemma-300m-q8_0",
+    role: ModelRole::Embedding,
+    repository: "ggml-org/embeddinggemma-300M-GGUF",
+    revision: "main",
+    file: "embeddinggemma-300M-Q8_0.gguf",
+    license: "gemma",
+    terms_url: Some("https://ai.google.dev/gemma/terms"),
+    expected_sha256: "f470220f84b6235197541352d22f10bf00098a8242c18eaacea9c8a4add557bc",
+    expected_size_bytes: 334_000_000,
+    dimensions: Some(768),
+};
+
+pub const QMD_QUERY_EXPANSION_17B: SearchModel = SearchModel {
+    id: "qmd-query-expansion-1.7b-q4_k_m",
+    role: ModelRole::QueryExpansion,
+    repository: "tobil/qmd-query-expansion-1.7B-gguf",
+    revision: "main",
+    file: "qmd-query-expansion-1.7B-q4_k_m.gguf",
+    license: "mit",
+    terms_url: None,
+    expected_sha256: "000dfb1c06efa6a049e9f64ba921c3740e2454f62abab6fa10e77bd30bb2bcc0",
+    expected_size_bytes: 1_280_000_000,
+    dimensions: None,
+};
+
+pub const QWEN3_RERANKER_06B: SearchModel = SearchModel {
+    id: "qwen3-reranker-0.6b-q8_0",
+    role: ModelRole::Reranker,
+    repository: "ggml-org/Qwen3-Reranker-0.6B-Q8_0-GGUF",
+    revision: "a02f48bb4f057028298c21fa033da2b30d7742d5",
+    file: "qwen3-reranker-0.6b-q8_0.gguf",
+    license: "apache-2.0",
+    terms_url: None,
+    expected_sha256: "22c9979ce4fbcdc5acdc310c6641c32797eff1aa980b8f7a2db8a8ea23429a48",
+    expected_size_bytes: 639_000_000,
+    dimensions: None,
+};
+
+pub const BALANCED_PROFILE: ProfileBundle = ProfileBundle {
+    id: DEFAULT_PROFILE_ID,
+    display_name: "Balanced local hybrid search",
+    embedding_model: EMBEDDING_GEMMA_300M.id,
+    query_expansion_model: QMD_QUERY_EXPANSION_17B.id,
+    reranker_model: None,
+};
+
+pub const MODEL_CATALOG: &[SearchModel] = &[
+    EMBEDDING_GEMMA_300M,
+    QMD_QUERY_EXPANSION_17B,
+    QWEN3_RERANKER_06B,
+];
+
+pub const PROFILE_CATALOG: &[ProfileBundle] = &[BALANCED_PROFILE];
+
+impl SearchModel {
+    pub fn download_url(&self) -> String {
+        format!(
+            "https://huggingface.co/{}/resolve/{}/{}",
+            self.repository, self.revision, self.file
+        )
+    }
+
+    pub fn managed_path(&self, model_root: &Path) -> PathBuf {
+        model_root.join(self.id).join(self.file)
+    }
+}
+
+impl AcceptedLicenses {
+    pub fn from_models(models: &[SearchModel]) -> Self {
+        let accepted_at = timestamp();
+        Self {
+            schema_version: ACCEPTED_LICENSES_SCHEMA_VERSION,
+            updated_at: accepted_at.clone(),
+            licenses: models
+                .iter()
+                .map(|model| AcceptedLicenseRecord {
+                    model_id: model.id.to_string(),
+                    license: model.license.to_string(),
+                    terms_url: model.terms_url.map(ToString::to_string),
+                    accepted_at: accepted_at.clone(),
+                    accepted_by_version: env!("CARGO_PKG_VERSION").to_string(),
+                })
+                .collect(),
+        }
+    }
+
+    pub fn read(path: &Path) -> Result<Option<Self>> {
+        if !path.exists() {
+            return Ok(None);
+        }
+        let input = fs::read_to_string(path)
+            .with_context(|| format!("failed to read accepted licenses {}", path.display()))?;
+        let accepted: Self = toml::from_str(&input)
+            .with_context(|| format!("failed to parse accepted licenses {}", path.display()))?;
+        if accepted.schema_version != ACCEPTED_LICENSES_SCHEMA_VERSION {
+            bail!(
+                "unsupported accepted licenses schema_version {} in {}; expected {}",
+                accepted.schema_version,
+                path.display(),
+                ACCEPTED_LICENSES_SCHEMA_VERSION
+            );
+        }
+        Ok(Some(accepted))
+    }
+
+    pub fn write_atomic(&self, path: &Path) -> Result<()> {
+        write_toml_atomic(path, self, "accepted licenses")
+    }
+}
+
+impl ModelArtifacts {
+    pub fn from_records(artifacts: Vec<ModelArtifactRecord>) -> Self {
+        Self {
+            schema_version: MODEL_ARTIFACTS_SCHEMA_VERSION,
+            updated_at: timestamp(),
+            artifacts,
+        }
+    }
+
+    pub fn read(path: &Path) -> Result<Option<Self>> {
+        if !path.exists() {
+            return Ok(None);
+        }
+        let input = fs::read_to_string(path)
+            .with_context(|| format!("failed to read model artifacts {}", path.display()))?;
+        let artifacts: Self = toml::from_str(&input)
+            .with_context(|| format!("failed to parse model artifacts {}", path.display()))?;
+        if artifacts.schema_version != MODEL_ARTIFACTS_SCHEMA_VERSION {
+            bail!(
+                "unsupported model artifacts schema_version {} in {}; expected {}",
+                artifacts.schema_version,
+                path.display(),
+                MODEL_ARTIFACTS_SCHEMA_VERSION
+            );
+        }
+        Ok(Some(artifacts))
+    }
+
+    pub fn write_atomic(&self, path: &Path) -> Result<()> {
+        write_toml_atomic(path, self, "model artifacts")
+    }
+}
+
+pub fn profile_by_id(id: &str) -> Option<ProfileBundle> {
+    PROFILE_CATALOG
+        .iter()
+        .copied()
+        .find(|profile| profile.id == id)
+}
+
+pub fn model_by_id(id: &str) -> Option<SearchModel> {
+    MODEL_CATALOG.iter().copied().find(|model| model.id == id)
+}
+
+pub fn models_for_profile(
+    profile: ProfileBundle,
+    include_reranker: bool,
+) -> Result<Vec<SearchModel>> {
+    let mut models = vec![
+        required_model(profile.embedding_model)?,
+        required_model(profile.query_expansion_model)?,
+    ];
+    if include_reranker && let Some(reranker_model) = profile.reranker_model {
+        models.push(required_model(reranker_model)?);
+    }
+    Ok(models)
+}
+
+pub fn materialize_model(
+    model: SearchModel,
+    profile: ProfileBundle,
+    model_root: &Path,
+    force: bool,
+) -> Result<ModelArtifactRecord> {
+    let path = model.managed_path(model_root);
+    if path.exists() {
+        let observed = sha256_file(&path)?;
+        if observed == model.expected_sha256 {
+            return artifact_record(model, profile, path, observed);
+        }
+        if !force {
+            bail!(
+                "model artifact hash mismatch for {}; rerun `llm-wiki install --configure-search --force` to replace {}",
+                model.id,
+                path.display()
+            );
+        }
+    }
+
+    download_model(model, &path)?;
+    let observed = sha256_file(&path)?;
+    if observed != model.expected_sha256 {
+        bail!(
+            "downloaded model artifact hash mismatch for {}; expected {}, observed {}",
+            model.id,
+            model.expected_sha256,
+            observed
+        );
+    }
+    artifact_record(model, profile, path, observed)
+}
+
+fn required_model(id: &str) -> Result<SearchModel> {
+    model_by_id(id).with_context(|| format!("unknown search model id {id}"))
+}
+
+fn artifact_record(
+    model: SearchModel,
+    profile: ProfileBundle,
+    path: PathBuf,
+    observed_sha256: String,
+) -> Result<ModelArtifactRecord> {
+    let size_bytes = fs::metadata(&path)
+        .with_context(|| format!("stat model artifact {}", path.display()))?
+        .len();
+    Ok(ModelArtifactRecord {
+        model_id: model.id.to_string(),
+        role: model.role.label().to_string(),
+        profile: profile.id.to_string(),
+        repository: model.repository.to_string(),
+        revision: model.revision.to_string(),
+        file: model.file.to_string(),
+        download_url: model.download_url(),
+        path,
+        expected_sha256: model.expected_sha256.to_string(),
+        observed_sha256,
+        size_bytes,
+        license: model.license.to_string(),
+        terms_url: model.terms_url.map(ToString::to_string),
+        dimensions: model.dimensions,
+        qmd_rs_version: QMD_RS_VERSION.to_string(),
+        adapter_schema_version: ADAPTER_SCHEMA_VERSION,
+        verified_at: timestamp(),
+    })
+}
+
+fn download_model(model: SearchModel, destination: &Path) -> Result<()> {
+    let parent = destination.parent().with_context(|| {
+        format!(
+            "model artifact path has no parent: {}",
+            destination.display()
+        )
+    })?;
+    fs::create_dir_all(parent)
+        .with_context(|| format!("failed to create model artifact dir {}", parent.display()))?;
+
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(3600))
+        .build()
+        .context("build model download client")?;
+    let mut response = client
+        .get(model.download_url())
+        .send()
+        .with_context(|| format!("download {}", model.download_url()))?;
+    if !response.status().is_success() {
+        bail!(
+            "failed to download {}: HTTP {}",
+            model.download_url(),
+            response.status()
+        );
+    }
+
+    let mut temp = tempfile::NamedTempFile::new_in(parent)
+        .with_context(|| format!("create temp model artifact in {}", parent.display()))?;
+    let mut buffer = [0u8; 64 * 1024];
+    loop {
+        let bytes = response
+            .read(&mut buffer)
+            .with_context(|| format!("read model response for {}", model.id))?;
+        if bytes == 0 {
+            break;
+        }
+        temp.write_all(&buffer[..bytes])
+            .with_context(|| format!("write temp model artifact for {}", model.id))?;
+    }
+    temp.persist(destination)
+        .map_err(|err| err.error)
+        .with_context(|| format!("persist model artifact {}", destination.display()))?;
+    Ok(())
+}
+
+pub fn sha256_file(path: &Path) -> Result<String> {
+    let mut file =
+        fs::File::open(path).with_context(|| format!("open model artifact {}", path.display()))?;
+    let mut hasher = Sha256::new();
+    let mut buffer = [0u8; 64 * 1024];
+    loop {
+        let bytes = file
+            .read(&mut buffer)
+            .with_context(|| format!("read model artifact {}", path.display()))?;
+        if bytes == 0 {
+            break;
+        }
+        hasher.update(&buffer[..bytes]);
+    }
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        DEFAULT_PROFILE_ID, EMBEDDING_GEMMA_300M, ModelRole, QMD_QUERY_EXPANSION_17B, profile_by_id,
+    };
+
+    #[test]
+    fn default_profile_has_required_hybrid_models() {
+        let profile = profile_by_id(DEFAULT_PROFILE_ID).expect("balanced profile");
+
+        assert_eq!(profile.embedding_model, EMBEDDING_GEMMA_300M.id);
+        assert_eq!(profile.query_expansion_model, QMD_QUERY_EXPANSION_17B.id);
+        assert!(profile.reranker_model.is_none());
+        assert_eq!(EMBEDDING_GEMMA_300M.role, ModelRole::Embedding);
+        assert_eq!(EMBEDDING_GEMMA_300M.dimensions, Some(768));
+    }
+}

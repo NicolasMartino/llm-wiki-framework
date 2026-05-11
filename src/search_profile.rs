@@ -75,6 +75,16 @@ impl SearchConfig {
         }
     }
 
+    pub fn enabled(profile: SearchProfile) -> Self {
+        let updated_at = timestamp();
+        Self {
+            schema_version: SEARCH_CONFIG_SCHEMA_VERSION,
+            updated_at,
+            project_default: profile.clone(),
+            global_search: profile,
+        }
+    }
+
     pub fn read(path: &Path) -> Result<Option<Self>> {
         if !path.exists() {
             return Ok(None);
@@ -110,6 +120,27 @@ impl SearchProfile {
             embedding_model: None,
             query_expansion_model: None,
             reranker_model: None,
+            source: None,
+            source_install_id: None,
+        }
+    }
+
+    pub fn enabled(
+        profile: impl Into<String>,
+        embedding_model: impl Into<String>,
+        query_expansion_model: Option<String>,
+        reranker_model: Option<String>,
+    ) -> Self {
+        let configured_at = timestamp();
+        Self {
+            llm_search_enabled: true,
+            configured_at,
+            configured_by_version: env!("CARGO_PKG_VERSION").to_string(),
+            reason: None,
+            profile: Some(profile.into()),
+            embedding_model: Some(embedding_model.into()),
+            query_expansion_model,
+            reranker_model,
             source: None,
             source_install_id: None,
         }
@@ -169,11 +200,11 @@ impl ExternalDependencies {
     }
 }
 
-fn timestamp() -> String {
+pub(crate) fn timestamp() -> String {
     Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true)
 }
 
-fn write_toml_atomic<T: Serialize>(path: &Path, value: &T, label: &str) -> Result<()> {
+pub(crate) fn write_toml_atomic<T: Serialize>(path: &Path, value: &T, label: &str) -> Result<()> {
     let parent = path
         .parent()
         .with_context(|| format!("{label} path has no parent: {}", path.display()))?;

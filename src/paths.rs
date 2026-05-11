@@ -75,8 +75,16 @@ impl Paths {
         self.managed_home().join("external-dependencies.toml")
     }
 
+    pub fn accepted_licenses(&self) -> PathBuf {
+        self.managed_home().join("accepted-licenses.toml")
+    }
+
     pub fn managed_model_root(&self) -> PathBuf {
         self.managed_home().join("models")
+    }
+
+    pub fn model_artifacts(&self) -> PathBuf {
+        self.managed_model_root().join("artifacts.toml")
     }
 
     pub fn managed_index_root(&self) -> PathBuf {
@@ -200,8 +208,16 @@ mod tests {
             temp.path().join(".llm_wiki/external-dependencies.toml")
         );
         assert_eq!(
+            paths.accepted_licenses(),
+            temp.path().join(".llm_wiki/accepted-licenses.toml")
+        );
+        assert_eq!(
             paths.managed_model_root(),
             temp.path().join(".llm_wiki/models")
+        );
+        assert_eq!(
+            paths.model_artifacts(),
+            temp.path().join(".llm_wiki/models/artifacts.toml")
         );
         assert_eq!(
             paths.managed_index_root(),
