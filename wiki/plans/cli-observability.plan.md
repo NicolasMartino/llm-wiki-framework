@@ -1,0 +1,231 @@
+# Plan: CLI Verbose Diagnostics
+
+- Document Class: Plan
+- Status: Active
+- Date: 2026-05-11
+- Category: CLI UX, operational diagnostics
+- Scope: Implement staged `llm-wiki -v/--verbose` diagnostics, proving the shared surface first with `search` and `search-all`, then extending concise command-specific diagnostics across the binary.
+- Sources: wiki/proposals/cli-observability.proposal.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/specs/documentation-model.spec.md, src/cli.rs, src/main.rs, src/search/commands.rs, src/search/qmd_rs.rs, src/search/sanitize.rs, tests/search_commands.rs
+- Related: wiki/proposals/cli-observability.proposal.md, wiki/plans/project-registry-search-artifacts.plan.md, README.md
+
+## Deliverable
+
+`llm-wiki` gains a global `-v/--verbose` diagnostic surface. Normal command
+results remain stable on stdout, while verbose diagnostics explain the paths,
+project selection, state checks, query normalization, and command decisions on
+stderr.
+
+Stage 1 is the implementation starting point: add the shared CLI output/context
+boundary and prove it through `search` and `search-all`. Stage 2 extends one
+concise command-specific diagnostic to every other binary command.
+
+The first externally observable result is:
+
+```text
+llm-wiki -v search "query" --project <id>
+llm-wiki -v search-all "query"
+```
+
+Both commands print the same result output as before while stderr explains the
+selected project(s), registry/index paths, backend/index state, raw and FTS
+queries, filters, limits, result counts, and no-result cases.
+
+## In Scope
+
+- Add a global root CLI flag: `-v` / `--verbose`.
+- Add a shared `CliOutput` or `CliContext` boundary passed into command handlers.
+- Route verbose diagnostics to stderr or a CLI-owned tracing subscriber.
+- Add Stage 1 diagnostics for `search` and `search-all`.
+- Preserve existing non-verbose stdout output and failure semantics.
+- Keep JSON result output valid JSON with no verbose text or ANSI sequences.
+- Use the existing qmd-rs search path; verbose output explains retrieval, not a
+  new retrieval algorithm.
+- Add integration tests using redirected `HOME` and temp project fixtures.
+- Extend Stage 2 diagnostics across `build`, `install`, `init`, `register`,
+  `forget`, `projects`, `index`, `index-all`, `path`, `status`, `doctor`, and
+  `uninstall`.
+- Update README and active specs only after verified user-visible behavior
+  exists.
+
+## Out Of Scope
+
+- Remote telemetry.
+- Persistent log files.
+- `--quiet`.
+- `--dry-run`.
+- A new structured output format.
+- Richer default summaries.
+- Semantic, hybrid, stopword, or reranking changes to search.
+- Making agent-owned `wiki-ingest`, `wiki-query`, or `wiki-lint` operations part
+  of the binary.
+- A separate retrospective `--explain` mode.
+- A rich numeric exit-code taxonomy.
+
+## Existing Implementation Touchpoints
+
+Inspect and change these first:
+
+- `src/cli.rs` - root parser and command args. It currently has only a
+  subcommand field on `Cli`, so the global verbose flag starts here.
+- `src/main.rs` - command dispatch. It currently calls handlers directly; this
+  is where the shared output/context object should be created and passed.
+- `src/search/commands.rs` - Stage 1 command behavior. It selects projects,
+  reads registry state, resolves qmd-rs store paths, checks backend status,
+  runs `search` / `search-all`, prints text/JSON results, and has the best
+  place to compute command-owned diagnostic facts.
+- `src/search/sanitize.rs` and `src/search/qmd_rs.rs` - current FTS query
+  sanitization. Do not duplicate normalization logic in the formatter; expose or
+  reuse the same sanitized query used by the backend.
+- `tests/search_commands.rs` - Stage 1 fixture and assertion home. It already
+  uses redirected `HOME`, temp projects, registration, indexing, JSON parsing,
+  and two-project `search-all` fixtures.
+- `Cargo.toml` - add `tracing` / `tracing-subscriber` if the implementation uses
+  the tracing boundary from the proposal.
+
+## Implementation Constraints
+
+1. Verbose diagnostics go to stderr. Result output stays on stdout.
+2. Non-verbose output stays compact and unchanged except for bugs discovered
+   while implementing the plan.
+3. JSON stdout must remain parseable by `serde_json` and must not contain ANSI
+   escape sequences.
+4. `--verbose` must not alter exit success or failure.
+5. `--verbose` must not enable dependency logs by default. `RUST_LOG` remains
+   the explicit escape hatch for lower-level crate diagnostics.
+6. Tests should assert essential diagnostic facts, not full diagnostic wording.
+7. Command handlers should compute report data from real decisions and state.
+   Formatters must not re-resolve paths or duplicate command logic.
+
+## Stage 1 - Shared Surface And Search Proof
+
+1. Add root CLI fields:
+
+   ```text
+   llm-wiki -v <command>
+   llm-wiki --verbose <command>
+   ```
+
+2. Introduce `CliOutput` or `CliContext` with at least:
+
+   ```text
+   verbose: bool
+   ```
+
+   Prefer a small method such as `diagnostic(...)` or `verbose(...)` so command
+   modules do not scatter direct stderr writes.
+
+3. Update command handler signatures so `main.rs` can pass the context into
+   Stage 1 handlers. Avoid a large all-command signature churn until Stage 2
+   unless the implementation is cleaner with the full change up front.
+
+4. For `search`, compute and emit diagnostics for:
+
+   - registry path
+   - project selection source (`--project` or CWD discovery)
+   - selected project ID, name, and root
+   - wiki root
+   - qmd-rs store path
+   - backend mode (`qmd-rs fts`)
+   - index status, freshness, indexed file count, and stale/unusable reason when
+     available
+   - raw query and sanitized FTS query
+   - class/status filters and limit
+   - result count and no-result explanation
+
+5. For `search-all`, compute and emit diagnostics for:
+
+   - registry path
+   - selected project IDs, names, and roots
+   - whether selection came from all registered projects or include/exclude
+     filters
+   - wiki root and qmd-rs store path per project
+   - backend/index state per project
+   - raw query and sanitized FTS query
+   - class/status filters and limit
+   - per-project result counts before fusion
+   - final fused result count and no-result explanation
+
+6. Keep existing text and JSON result printers as the stdout contract. If search
+   execution needs more report data, add internal structs beside
+   `SearchExecution` rather than smuggling diagnostics through result output.
+
+7. Add tests in `tests/search_commands.rs`:
+
+   - `llm-wiki -v search ...` emits diagnostics on stderr and normal results on
+     stdout.
+   - `llm-wiki -v search ... --format json` leaves stdout parseable as JSON and
+     keeps verbose text on stderr.
+   - `llm-wiki -v search-all ...` emits selected project and per-project
+     diagnostic facts.
+   - zero-result `search` or `search-all` emits a diagnostic result count and
+     no-hit explanation while preserving the existing stdout result shape.
+   - non-verbose search tests remain green.
+
+## Stage 2 - Full Command Coverage
+
+After Stage 1 is green, extend the same context boundary to every command.
+
+Minimum command-specific diagnostics:
+
+- `build`: selected build target, output directory, rendered runtime skill counts.
+- `install`: current executable path, managed binary path/hash comparison,
+  partial marker recovery decision, collision classification, render target per
+  skill/runtime.
+- `uninstall`: manifest path, each file considered, drift checks, managed-binary
+  inclusion decision.
+- `init`: project path, blueprint, resolved packs, registration path, copied
+  initial source paths.
+- `register` / `forget` / `projects`: registry path, requested project ID/path,
+  canonical root, validation result, cache deletion decision.
+- `index` / `index-all`: project ID, wiki root, store path, lock path, temp store
+  path, indexed file count, promotion steps, metadata path, per-project outcome.
+- `path` / `status` / `doctor`: managed home, managed binary path, manifest path,
+  registry path where relevant, cache/index/model paths where relevant.
+
+Stage 2 tests should prove every command accepts `--verbose` and emits at least
+one useful command-specific diagnostic without over-specifying incidental
+wording.
+
+## Verification Gates
+
+Stage 1 gates:
+
+1. `cargo fmt`
+2. `cargo test --test search_commands`
+3. `cargo test --workspace`
+4. `git diff --check`
+
+Stage 2 gates:
+
+1. `cargo fmt`
+2. `cargo test --workspace`
+3. `just verify`
+4. targeted assertions for every verbose command
+5. `git diff --check`
+
+## Pages To Update On Completion
+
+After Stage 1 lands:
+
+- `wiki/plans/cli-observability.plan.md` - record Stage 1 proof and keep status
+  Active if Stage 2 remains.
+- `wiki/log.md` - implementation update.
+
+After Stage 2 lands:
+
+- `wiki/plans/cli-observability.plan.md` - Status -> Completed.
+- `wiki/proposals/cli-observability.proposal.md` - remains Accepted; verify the
+  accepted outcome still matches implementation.
+- `wiki/specs/documentation-model.spec.md` - record validated CLI diagnostics
+  only after tests prove behavior.
+- `README.md` - document the user-visible `-v/--verbose` surface.
+- `wiki/index.md` - update plan status and summaries.
+- `wiki/log.md` - completion entry.
+
+## What Closes The Plan
+
+The whole plan closes when every `llm-wiki` binary command accepts global
+`-v/--verbose`, each command emits at least one command-specific diagnostic that
+explains its resolution path or inspected state, search/search-all diagnostics
+cover the motivating retrieval confusion, JSON stdout remains clean, and README
+plus active specs document the verified behavior.

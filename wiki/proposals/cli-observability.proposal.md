@@ -1,12 +1,15 @@
 # CLI Verbose Diagnostics
 
 - Document Class: Proposal
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-05-10
 - Category: CLI UX, operational diagnostics
 - Scope: Add universal `-v/--verbose` diagnostics so every binary command can explain what it resolved or inspected without changing normal command output.
-- Sources: user discussion 2026-05-10, src/cli.rs, src/install.rs, src/uninstall.rs, src/init/command.rs, src/search/commands.rs, src/registry/mod.rs, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/specs/documentation-model.spec.md
+- Sources: conversational input 2026-05-10 and proposal review 2026-05-11; no raw source file captured yet
+- Implementation References: src/cli.rs, src/main.rs, src/install.rs, src/uninstall.rs, src/init/command.rs, src/search/commands.rs, src/registry/mod.rs
 - Related: wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/plans/llm-wiki-binary.plan.md, wiki/specs/documentation-model.spec.md
+- Promoted To: wiki/plans/cli-observability.plan.md
+- Promotion Target: wiki/specs/documentation-model.spec.md, README.md
 
 ## Question
 
@@ -34,6 +37,19 @@ returned. The same model should then extend across the full command set:
 
 This proposal is not about adding telemetry or remote logging. All output stays
 local to the command invocation.
+
+Accepted outcome: implement this through
+`wiki/plans/cli-observability.plan.md` as a staged plan rather than a single
+all-command patch:
+
+1. **Stage 1 - shared verbose surface plus search proof.** Add the global flag,
+   shared CLI output/context boundary, and verbose diagnostics for `search` and
+   `search-all`. Prove default stdout and JSON output remain stable.
+2. **Stage 2 - full command coverage.** Extend one concise command-specific
+   diagnostic to the remaining commands after the shared surface is proven.
+
+This keeps the product promise universal while making the first deliverable
+small enough to verify in one implementation slice.
 
 Deferred surfaces:
 
@@ -182,18 +198,20 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 ```
 
-Implementation steps:
+Staged implementation shape:
 
-1. Add a root `CliOutput` context with `verbose`.
+1. Add a root `CliOutput` or `CliContext` with `verbose`.
 2. Add the global flag to `src/cli.rs` and initialize the output/tracing layer in
    `src/main.rs`.
-3. Implement command-specific verbose events for every command before adding
-   richer deferred follow-up surfaces.
+3. Implement focused verbose events for `search` and `search-all`.
 4. Keep stdout result output unchanged in non-verbose mode.
-5. Add integration tests proving every command accepts `--verbose` and emits at
-   least one useful command-specific diagnostic.
-6. Add focused tests for `search` / `search-all` verbose diagnostics because
+5. Add focused tests for `search` / `search-all` verbose diagnostics because
    they are the motivating failure case.
+6. Add integration tests proving JSON result output stays free of verbose text
+   and ANSI color.
+7. Extend command-specific verbose events across the remaining commands.
+8. Add integration tests proving every command accepts `--verbose` and emits at
+   least one useful command-specific diagnostic.
 
 The core rule: command handlers should compute a report from real decisions,
 then a presentation layer prints it. Avoid duplicating decision logic in the
@@ -307,22 +325,33 @@ first implementation can keep each target concise.
    assert the presence of essential diagnostics without over-specifying
    incidental wording.
 
-## What Closes This Proposal
+## What Closed This Proposal
 
-Promotion to a plan with acceptance criteria:
+Promotion to `wiki/plans/cli-observability.plan.md`, which owns the staged
+acceptance criteria:
 
-1. every `llm-wiki` command accepts global `-v/--verbose`
-2. every command emits at least one command-specific verbose diagnostic that
-   explains its resolution path or inspected state
+Stage 1:
+
+1. root CLI accepts global `-v/--verbose`
+2. command handlers receive verbose/output state through a shared
+   `CliOutput`/`CliContext` boundary rather than ad-hoc flag plumbing
 3. `search` and `search-all` verbose output explain project selection, registry
    and index paths, backend/index state, query normalization, filters, result
    counts, and zero-result cases
 4. verbose diagnostics follow the stdout/stderr,
    TTY/color, tracing, RUST_LOG, progress, and exit-code policies in this
    proposal
-5. integration tests cover verbose diagnostics for the full command set and
-   JSON output staying free of ANSI color
-6. README and affected specs document the resulting user-visible behavior
+5. integration tests cover `search` / `search-all` verbose diagnostics,
+   unchanged non-verbose result output, and JSON output staying free of verbose
+   text and ANSI color
+
+Stage 2:
+
+1. every `llm-wiki` command accepts global `-v/--verbose`
+2. every command emits at least one command-specific verbose diagnostic that
+   explains its resolution path or inspected state
+3. integration tests cover verbose diagnostics for the full command set
+4. README and affected specs document the resulting user-visible behavior
 
 ## Open Questions
 

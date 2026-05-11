@@ -1,5 +1,30 @@
 # Wiki Log
 
+## [2026-05-11] promote | CLI observability implementation plan
+
+Promoted `wiki/proposals/cli-observability.proposal.md` to Accepted and created
+`wiki/plans/cli-observability.plan.md`. The plan is Active and pins the
+implementation start point: Stage 1 adds the shared verbose CLI context and
+proves diagnostics with `search` / `search-all`; Stage 2 extends concise
+diagnostics across the remaining binary commands. Updated the index proposal
+status and added the new active plan entry.
+
+Pages created: wiki/plans/cli-observability.plan.md
+Pages updated: wiki/proposals/cli-observability.proposal.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-11] update | CLI observability staged before implementation
+
+Tightened `wiki/proposals/cli-observability.proposal.md` for implementation
+readiness. Added explicit promotion targets, separated conversational
+provenance from code implementation references, and reframed closure as a
+staged plan: Stage 1 proves the shared verbose surface with `search` and
+`search-all`, while Stage 2 extends diagnostics across the remaining command
+set. Updated the index summary to reflect the staged scope.
+
+Pages updated: wiki/proposals/cli-observability.proposal.md, wiki/index.md,
+wiki/log.md
+
 ## [2026-05-11] update | semantic search proposal promotion review fixes
 
 Applied promotion-review fixes to
