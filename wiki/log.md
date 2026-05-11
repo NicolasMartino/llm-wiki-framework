@@ -1,5 +1,21 @@
 # Wiki Log
 
+## [2026-05-11] proposal | search model selection (per-project override and global default)
+
+Drafted `wiki/proposals/search-model-selection.proposal.md` (Status: Proposed)
+extending the accepted semantic/hybrid search proposal with a two-scope model
+selection contract. `search --choose-model` administers a per-project override
+in `.llm_wiki/search.toml`; `search-all --choose-model` administers the global
+default in `~/.llm_wiki/search.toml`. Splits the existing schema into
+`[project_default]` (template seeded by `init`), `[global_search]` (used by
+`search-all`), and `[project]` (per-project, read by single-project `search`).
+Adds a non-interactive `--model <id>` sibling that fails fast when the model
+is not installed, preserving the "no silent downloads" gate. Install-on-demand
+inside `--choose-model` delegates to the existing install flow.
+
+Pages created: wiki/proposals/search-model-selection.proposal.md
+Pages updated: wiki/index.md, wiki/log.md
+
 ## [2026-05-11] ingest | semantic hybrid Stage 0 artifacts
 
 Created the Stage 0 research bundle and promoted it into two wiki artifacts:
@@ -2255,3 +2271,22 @@ retired by the code-pack cleanup.
 
 Pages updated: wiki/roadmaps/framework-v1.roadmap.md,
 wiki/plans/llm-wiki-binary.plan.md, wiki/log.md
+
+## [2026-05-11] update | search model selection proposal review fixes
+
+Revised the search model selection proposal after review. The proposal now
+treats uninstalled interactive selections as inactive pending state, launches
+the install-owned materialization flow instead of making search commands
+download directly, promotes pending choices only after license acceptance,
+download, hash verification, and managed records succeed, and preserves the
+previous active project profile on failed or cancelled install.
+
+The proposal now models profile bundles rather than a single embedding-model
+string, records declined LLM-search state, defines legacy missing-profile
+behavior, removes `project_default` as a search-time model source, adds
+readiness requirements for non-interactive `--model`, clarifies runtime catalog
+ownership, and makes `search-all`'s single `[global_search]` profile an explicit
+product simplification while preserving rank-based result fusion.
+
+Pages updated: wiki/proposals/search-model-selection.proposal.md, wiki/index.md,
+wiki/log.md

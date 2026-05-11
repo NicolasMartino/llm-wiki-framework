@@ -52,6 +52,7 @@ Updated: 2026-05-11
 - [Code Scaffolding As An Opt-In Pack](proposals/code-folders-opt-in.proposal.md) — Accepted — Promoted to code-pack/CLI blueprint decision and implementation plan
 - [Semantic and Hybrid Search for Natural-Language Queries](proposals/search-query-interpretation.proposal.md) — Accepted — Promoted to an active plan for interactive-only LLM search setup, managed `~/.llm_wiki` model/index state, default `auto`, lexical/semantic/hybrid modes, relevance floors, optional reranking, and rank-merged `search-all`
 - [Always-On Crash Reports](proposals/crash-reports.proposal.md) — Proposed — Capture a crash report under `~/.llm_wiki/crashes/` for every panic (full origin backtrace) and every post-parse error-exit (anyhow error chain) of the binary, with no opt-in flag
+- [Search Model Selection: Per-Project and Cross-Project Profiles](proposals/search-model-selection.proposal.md) — Proposed — Adds project and cross-project profile-bundle selection, pending state for uninstalled choices, install-owned materialization, `[project_default]` / `[global_search]` / `[project]` scope split, and a non-interactive `--model <id-or-profile>` sibling
 
 ## Plans
 
