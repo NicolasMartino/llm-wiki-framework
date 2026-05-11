@@ -1,5 +1,17 @@
 # Wiki Log
 
+## [2026-05-11] update | Observability as core engineering contract
+
+Promoted CLI observability from a completed implementation plan into a standing
+framework contract. `wiki/specs/documentation-model.spec.md` now requires future
+`llm-wiki` command work to preserve the `CliContext` / `tracing` diagnostic
+boundary, keep stdout and JSON clean, preserve exit semantics, and add nearby
+verbose tests. Added `wiki/checklists/observability-contract.checklist.md` as
+the review gate for future CLI plans and code reviews.
+
+Pages updated: wiki/specs/documentation-model.spec.md,
+wiki/checklists/observability-contract.checklist.md, wiki/index.md, wiki/log.md
+
 ## [2026-05-11] fix | CLI observability review follow-up
 
 Addressed follow-up review findings for the CLI observability branch. Verbose

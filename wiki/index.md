@@ -77,6 +77,7 @@ Updated: 2026-05-11
 
 ## Checklists
 
+- [Observability Contract](checklists/observability-contract.checklist.md) — Active — Review gate for future `llm-wiki` command changes; preserves `CliContext` / tracing diagnostics, clean stdout/JSON, stable exits, and nearby verbose tests
 - [V1 Fixture Smoke](checklists/v1-fixture-smoke.checklist.md) — Active — Repeatable fixture smoke; 2026-05-09 run ingested a raw source, answered from fixture spec/decision, and linted bookkeeping with no unresolved issues
 
 ## Archive

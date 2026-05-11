@@ -2,11 +2,11 @@
 
 - Document Class: Spec
 - Status: Active
-- Date: 2026-05-09
+- Date: 2026-05-11
 - Category: Framework core
 - Scope: The validated documentation and execution model for projects using this framework.
 - Sources: raw/legacy/legacy-project-guidelines.md, raw/research/llm-wiki-pattern-research.md, raw/research/niharshrotri-llm-wiki-implementation.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/plans/cli-observability.plan.md, wiki/decisions/composable-project-init.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/evals/v1-proof-run.eval.md
-- Related: wiki/decisions/three-layer-architecture.decision.md, wiki/decisions/agent-owns-wiki.decision.md, wiki/decisions/typed-documents.decision.md, wiki/references/qmd-rs-search-crate.reference.md, wiki/decisions/search-backend-selection.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/specs/wiki-init-skill.spec.md
+- Related: wiki/decisions/three-layer-architecture.decision.md, wiki/decisions/agent-owns-wiki.decision.md, wiki/decisions/typed-documents.decision.md, wiki/references/qmd-rs-search-crate.reference.md, wiki/decisions/search-backend-selection.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/specs/wiki-init-skill.spec.md, wiki/checklists/observability-contract.checklist.md
 
 ## Current State
 
@@ -78,6 +78,33 @@ Nine typed document roles, each with distinct truth relationship:
 ## Promotion Flow
 
 research -> raw/ -> ingest -> proposal/reference -> roadmap -> plan -> evidence -> spec/decision -> archive
+
+## CLI Observability Contract
+
+Observability is part of the framework's core user experience. Any future work
+that adds or changes `llm-wiki` binary commands, command decisions, registry
+state transitions, install/runtime state, indexing, search, or other
+user-visible operational paths must preserve and extend the CLI observability
+surface.
+
+Required behavior:
+
+- `CliContext` remains the command-owned diagnostic boundary.
+- Verbose diagnostics flow through the CLI's `tracing` subscriber to stderr;
+  command modules do not add ad-hoc verbose `eprintln!` paths.
+- Normal stdout remains stable, and JSON stdout remains parseable and free of
+  diagnostic text or ANSI sequences.
+- `-v` / `--verbose` explains real command decisions and state, such as inputs,
+  selected paths, registry/project selection, backend state, filters, counts,
+  skipped work, safety refusals, and recovery guidance.
+- Diagnostic facts come from the same state and decisions used by the command;
+  formatters must not re-resolve paths or duplicate command logic.
+- `--verbose` does not alter success, failure, or exit-code semantics.
+- Tests for new CLI behavior include a nearby verbose assertion and protect
+  stderr expectations from inherited `RUST_LOG`.
+
+Use `wiki/checklists/observability-contract.checklist.md` as the review gate for
+future CLI implementation plans and code reviews.
 
 ## Proven By
 
