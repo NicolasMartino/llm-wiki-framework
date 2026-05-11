@@ -1,7 +1,7 @@
 # Wiki Index
 
 Project: Software Project Management Framework
-Stage: D1-D11 Completed; CLI observability, code-folder pack, and semantic/hybrid search proposals open
+Stage: D1-D11 Completed; CLI observability, code-folder/CLI blueprint, and semantic/hybrid search proposals open
 Updated: 2026-05-11
 
 ## Specs
@@ -47,7 +47,7 @@ Updated: 2026-05-11
 - [Composable Project Init: Blueprints and Packs](proposals/blueprint-pack-init.proposal.md) — Accepted — Promoted to D10 decision and plan; replace the static project guidelines template with a blueprint + pack composition model and add a per-project `.llm_wiki/` folder with an `init.toml` manifest
 - [Skill Projection on the Composable-Init Template Engine](proposals/skills-template-engine.proposal.md) — Accepted — Promoted to decision and completed plan; skill projection now uses the shared Askama template engine
 - [CLI Verbose Diagnostics](proposals/cli-observability.proposal.md) — Proposed — Add universal `-v/--verbose` diagnostics for every binary command, starting with search target/query explanation; defer quiet, dry-run, richer summaries, and new structured output
-- [Code Scaffolding As An Opt-In Pack](proposals/code-folders-opt-in.proposal.md) — Proposed — Move `src/ tests/ scripts/ infra/` behind a `Pack::Code` so research/docs-only blueprints stop shipping empty code folders; update software-shaped blueprints' default packs to include it
+- [Code Scaffolding As An Opt-In Pack](proposals/code-folders-opt-in.proposal.md) — Proposed — Move `src/ tests/ scripts/ infra/` behind a `Pack::Code`, add `cli-tool` as a command-line product blueprint, and update software-shaped blueprints' default packs to include `Code`
 - [Semantic and Hybrid Search for Natural-Language Queries](proposals/search-query-interpretation.proposal.md) — Proposed — Add interactive-only LLM search setup, managed `~/.llm_wiki` model/index state with external dependency inventory and macOS backup policy, default `auto` search, lexical/semantic/hybrid modes, relevance floors, optional reranking, and rank-merged `search-all`
 
 ## Plans

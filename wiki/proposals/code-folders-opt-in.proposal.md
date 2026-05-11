@@ -4,8 +4,8 @@
 - Status: Proposed
 - Date: 2026-05-10
 - Category: Init UX, project scaffolding, blueprint/pack catalog
-- Scope: Stop creating `src/`, `tests/`, `scripts/`, `infra/` unconditionally during `llm-wiki init`. Move them behind an opt-in `code` pack so research-only and documentation-only projects do not start with empty code folders.
-- Sources: src/init/compose.rs (CODE_FOLDERS, lines 25, 73-75), templates/base/project_guidelines.md (lines 264-268), src/init/blueprints.rs, src/init/packs.rs, dogfooding session 2026-05-10 against `/Users/nicolasmartino/Documents/car/electric` (research blueprint)
+- Scope: Stop creating `src/`, `tests/`, `scripts/`, `infra/` unconditionally during `llm-wiki init`. Move them behind an opt-in `code` pack so research-only and documentation-only projects do not start with empty code folders, and add `cli-tool` as a first-class blueprint for command-line products.
+- Sources: src/init/compose.rs (CODE_FOLDERS, lines 25, 73-75), templates/base/project_guidelines.md (lines 264-268), src/init/blueprints.rs, src/init/packs.rs, dogfooding session 2026-05-10 against `/Users/nicolasmartino/Documents/car/electric` (research blueprint), user discussion 2026-05-11
 - Related: wiki/proposals/blueprint-pack-init.proposal.md, wiki/decisions/composable-project-init.decision.md, wiki/specs/documentation-model.spec.md
 
 ## Question
@@ -20,10 +20,11 @@ Concretely:
 
 1. Introduce a new `Pack::Code` variant whose `folders()` returns `["src", "tests", "scripts", "infra"]` and whose `agents_fragment()` / `guidelines_fragment()` contribute the existing "Application code / Automated tests / Utilities / Infrastructure" prose currently inlined in `templates/base/project_guidelines.md:264-268`.
 2. Remove the `CODE_FOLDERS` constant and the unconditional `if !plan.is_existing` block from `compose.rs`. Remove the `{% if !is_existing %}` block from `templates/base/project_guidelines.md`.
-3. Update blueprint default-pack selections in `blueprints.rs:62-72`:
-   - `web-product`, `library-sdk`, `ml-research`, `ops-infra`, `security` → add `Code` to defaults.
+3. Add a new `cli-tool` blueprint for command-line tools and developer utilities with commands, flags, local state, install/release behavior, and stdout/stderr contracts. Its default packs should include `Code`.
+4. Update blueprint default-pack selections in `blueprints.rs:62-72`:
+   - `web-product`, `library-sdk`, `cli-tool`, `ml-research`, `ops-infra`, `security` → add `Code` to defaults.
    - `research`, `generic`, `custom` → no `Code` by default.
-4. The non-interactive flag path (`--pack code`) and the interactive `MultiSelect` give the user the final say either direction.
+5. The non-interactive flag path (`--pack code`) and the interactive `MultiSelect` give the user the final say either direction.
 
 ### Why a pack and not a blueprint flag
 
@@ -39,6 +40,27 @@ A pack also gives us free benefits we would otherwise have to invent:
 
 The `code` pack contributes only folders and a small `project_guidelines.md` fragment describing what each folder is for. It contributes no doc types, no status vocabulary, no `wiki/` subdirectories — the wiki spine is unaffected. This keeps it cleanly orthogonal to the existing nine packs, which contribute primarily *wiki* additions.
 
+### CLI blueprint
+
+Add `cli-tool` as a blueprint, not as a pack. A command-line product is a
+project shape, while `code` is only a folder bundle.
+
+Proposed catalog entry:
+
+| Blueprint | One-line description | Default packs |
+| --- | --- | --- |
+| `cli-tool` | Command-line tool or developer utility with commands, flags, local state, install/release behavior, and stdout/stderr contracts. | `code` |
+
+This project is the dogfood case: it is primarily a Rust CLI binary with
+install, init, registry, indexing, search, and projection commands. It does not
+fit cleanly as `web-product`, `library-sdk`, or `ops-infra`.
+
+A separate `cli` pack is intentionally deferred. It may become useful if CLI
+projects repeatedly need additional wiki conventions such as command-contract
+docs, shell completion tracking, environment-variable inventories, exit-code
+tables, install-path records, or stdout/stderr fixture rules. Those conventions
+are broader than folder scaffolding and should not be smuggled into `Pack::Code`.
+
 ### Migration
 
 This change affects new inits only. Existing projects keep their code folders (they exist on disk; nothing reads `init.toml` to delete folders). For projects initialized before this change, `init.toml` will not list `code` as a resolved pack; if a future `upgrade` command exists, it should treat absence-of-`code` in legacy manifests as "do not touch existing code folders."
@@ -48,7 +70,8 @@ This change affects new inits only. Existing projects keep their code folders (t
 1. **Dogfooding pain.** A `research` blueprint at `/Users/nicolasmartino/Documents/car/electric` was just initialized to track an electric-cars research project. It has no code, will never have code, and now ships with four empty top-level folders that have to be either explained away or manually deleted. This is the exact "first two real bootstrapped projects" cohort the D10 proposal flagged as the moment to revisit the catalog.
 2. **The current behavior is invisible to the user.** The `inquire` `MultiSelect` shows nine packs the user can tick or untick. The `CODE_FOLDERS` block is a tenth, hidden pack the user cannot see and cannot decline. That is exactly what the D10 decision said we would stop doing.
 3. **No one-size template fits research and software both.** A docs-only or research project does not want `src/`; a software project does want it. A blueprint is a *recommendation* of pack defaults, not a forced bundle. Today, the `is_existing` flag is being asked to do work the pack system should be doing.
-4. **Cheap change.** One enum variant, one fragment file under `templates/packs/code/`, three default-pack tweaks in `blueprints.rs`, and the deletion of `CODE_FOLDERS`. Golden-file tests for `research` (no code) and `web-product` (with code) lock the behavior in.
+4. **CLI dogfood shape.** This framework is itself a CLI product, but the current blueprint list has no command-line archetype. Adding `cli-tool` makes the catalog more honest without turning CLI-specific conventions into hidden behavior.
+5. **Cheap change.** One pack enum variant, one blueprint enum variant, one fragment file under `templates/packs/code/`, default-pack tweaks in `blueprints.rs`, and the deletion of `CODE_FOLDERS`. Golden-file tests for `research` (no code), `web-product` (with code), and `cli-tool` (with code) lock the behavior in.
 
 ## Alternatives Considered
 
@@ -60,7 +83,8 @@ This change affects new inits only. Existing projects keep their code folders (t
 ## Consequences and Tradeoffs
 
 - The pack catalog grows by one entry (10 → 11 packs in the `MultiSelect`), all of them now genuinely opt-in.
-- Five blueprints (`web-product`, `library-sdk`, `ml-research`, `ops-infra`, `security`) need their `default_packs()` updated to include `Code`. Forgetting one means a software project that used to have `src/` no longer does — golden-file tests catch this.
+- The blueprint catalog grows by one entry: `cli-tool`. Adding a blueprint is user-facing but not a pack-composition change.
+- Six blueprints (`web-product`, `library-sdk`, `cli-tool`, `ml-research`, `ops-infra`, `security`) need their `default_packs()` updated to include `Code`. Forgetting one means a software project that used to have `src/` no longer does — golden-file tests catch this.
 - `templates/base/project_guidelines.md` loses its `{% if !is_existing %}` branch. The same prose moves to `templates/packs/code/project_guidelines.md` and is composed in like any other pack fragment.
 - The `is_existing` profile flag still has a job (suppressing first-run language elsewhere in the template), but it stops gating folder creation. One responsibility, not two.
 - Existing projects are unaffected on disk; their `init.toml` simply will not record `code` as a resolved pack. A future `upgrade` command needs to handle this absence gracefully.
@@ -70,12 +94,14 @@ This change affects new inits only. Existing projects keep their code folders (t
 Acceptance, promotion to a decision and a small implementation plan, then:
 
 1. New `Pack::Code` variant with folders, agents fragment, guidelines fragment.
-2. `templates/packs/code/{agents.md,project_guidelines.md}` fragment files.
-3. Removal of `CODE_FOLDERS` from `compose.rs` and the corresponding template branch.
-4. Updated `Blueprint::default_packs()` for the five software-shaped blueprints.
-5. Golden-file tests asserting that `research` produces no `src/` and `web-product` does.
-6. A note in the D10 decision's "first dogfooding revisions" follow-up.
+2. New `Blueprint::CliTool` variant whose default packs include `Code`.
+3. `templates/packs/code/{agents.md,project_guidelines.md}` fragment files.
+4. Removal of `CODE_FOLDERS` from `compose.rs` and the corresponding template branch.
+5. Updated `Blueprint::default_packs()` for the six software-shaped blueprints.
+6. Golden-file tests asserting that `research` produces no `src/`, while `web-product` and `cli-tool` do.
+7. A note in the D10 decision's "first dogfooding revisions" follow-up.
 
 ## Remaining Question
 
-Whether to split `code` further (e.g. a separate `infra` pack for projects that ship deploy manifests but no application source). Defer until a project actually asks for that shape; same rule the D10 catalog used.
+1. Whether to split `code` further (e.g. a separate `infra` pack for projects that ship deploy manifests but no application source). Defer until a project actually asks for that shape; same rule the D10 catalog used.
+2. Whether CLI-specific conventions eventually justify a separate `cli` pack. Defer until more than one CLI project needs repeatable documentation beyond the ordinary `code` folders.

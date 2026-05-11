@@ -1953,3 +1953,14 @@ Verification: `git diff --check`; `cargo test -p llm-wiki-schema`.
 
 Pages updated: wiki/plans/project-registry-search-artifacts.plan.md,
 wiki/log.md
+
+## [2026-05-11] update | code pack proposal CLI blueprint
+
+Expanded the open code-scaffolding proposal to include a `cli-tool` blueprint
+for command-line tools and developer utilities. The proposal now treats CLI as
+a project archetype that defaults to the new `code` pack, while deferring any
+separate `cli` pack until repeated CLI-specific documentation conventions
+justify it.
+
+Pages updated: wiki/proposals/code-folders-opt-in.proposal.md, wiki/index.md,
+wiki/log.md
