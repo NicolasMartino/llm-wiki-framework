@@ -550,3 +550,46 @@ Promotion Target:
 Unlocks:
 - Clean post-rename baseline for future public-facing documentation and any
   post-D10 template-retirement follow-on.
+
+---
+
+## Post-V1 Backlog
+
+### P1 - Semantic and Hybrid Search
+
+Status: Active
+Promise: Natural-language project questions retrieve useful wiki pages through
+semantic/hybrid search without weakening exact lexical search.
+Depends On: D9; CLI verbose diagnostics completed in a separate worktree
+Execution Plan: wiki/plans/semantic-hybrid-search.plan.md
+
+Included:
+- interactive LLM search profile setup
+- managed `~/.llm_wiki` model/index state
+- `auto`, `lexical`, `semantic`, and `hybrid` search modes
+- semantic index freshness and model readiness checks
+- relevance floors, rank fusion, and optional reranking
+- rank-merged `search-all`
+- `wiki-query` metadata consumption
+
+Excluded:
+- hosted LLM retrieval
+- answer synthesis inside the binary
+- silent model downloads
+- mandatory reranking
+
+Proof:
+- natural-language eval records hybrid improvement without exact lexical
+  regressions
+- JSON and verbose diagnostics distinguish readiness failures from honest
+  zero-result outcomes
+- existing lexical evals and command contracts remain green
+
+Promotion Target:
+- wiki/specs/documentation-model.spec.md
+- wiki/specs/wiki-query-skill.spec.md
+- a durable search-mode decision after validation
+
+Unlocks:
+- direct CLI search for realistic project questions
+- more reliable `wiki-query` fallback when index navigation is insufficient

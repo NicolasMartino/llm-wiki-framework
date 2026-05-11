@@ -1,7 +1,7 @@
 # Wiki Index
 
 Project: Software Project Management Framework
-Stage: D1-D11 Completed; code-pack/CLI blueprint and CLI observability completed; semantic/hybrid search and crash-report proposals open
+Stage: D1-D11 Completed; code-pack/CLI blueprint and CLI observability completed; semantic/hybrid search plan active; crash-report proposal open
 Updated: 2026-05-11
 
 ## Specs
@@ -28,7 +28,7 @@ Updated: 2026-05-11
 
 ## Roadmaps
 
-- [Framework V1](roadmaps/framework-v1.roadmap.md) — Active — Framework deliverables through D11 plus D4-D7 proof gates are completed; future work is post-V1 backlog
+- [Framework V1](roadmaps/framework-v1.roadmap.md) — Active — Framework deliverables through D11 plus D4-D7 proof gates are completed; post-V1 P1 semantic/hybrid search is active
 
 ## References
 
@@ -49,7 +49,7 @@ Updated: 2026-05-11
 - [Skill Projection on the Composable-Init Template Engine](proposals/skills-template-engine.proposal.md) — Accepted — Promoted to decision and completed plan; skill projection now uses the shared Askama template engine
 - [CLI Verbose Diagnostics](proposals/cli-observability.proposal.md) — Accepted — Implemented through the completed CLI observability plan; every binary command now accepts global `-v/--verbose` diagnostics while normal stdout remains stable
 - [Code Scaffolding As An Opt-In Pack](proposals/code-folders-opt-in.proposal.md) — Accepted — Promoted to code-pack/CLI blueprint decision and implementation plan
-- [Semantic and Hybrid Search for Natural-Language Queries](proposals/search-query-interpretation.proposal.md) — Proposed — Add interactive-only LLM search setup, managed `~/.llm_wiki` model/index state with external dependency inventory and macOS backup policy, default `auto` search, lexical/semantic/hybrid modes, relevance floors, optional reranking, and rank-merged `search-all`
+- [Semantic and Hybrid Search for Natural-Language Queries](proposals/search-query-interpretation.proposal.md) — Accepted — Promoted to an active plan for interactive-only LLM search setup, managed `~/.llm_wiki` model/index state, default `auto`, lexical/semantic/hybrid modes, relevance floors, optional reranking, and rank-merged `search-all`
 - [Always-On Crash Reports](proposals/crash-reports.proposal.md) — Proposed — Capture a crash report under `~/.llm_wiki/crashes/` for every panic (full origin backtrace) and every post-parse error-exit (anyhow error chain) of the binary, with no opt-in flag
 
 ## Plans
@@ -65,6 +65,7 @@ Updated: 2026-05-11
 - [Skill Projection Template Engine](plans/skill-projection-template-engine.plan.md) — Completed — Migrated Claude/Codex skill markdown and Codex runtime config rendering onto `templates/skills/` Askama templates with byte-stable real-skill snapshots
 - [Code Pack And CLI Tool Blueprint](plans/code-pack-cli-blueprint.plan.md) — Completed — Implemented `Pack::Code`, added `cli-tool`, removed unconditional root code folders from init, and added golden tests for research/no-code and software/CLI code defaults
 - [CLI Verbose Diagnostics](plans/cli-observability.plan.md) — Completed — Implemented global `-v/--verbose`, `CliContext`, tracing stderr diagnostics, search/search-all retrieval proof, and concise command-specific diagnostics across every remaining binary command
+- [Semantic and Hybrid Search](plans/semantic-hybrid-search.plan.md) — Active — Implements the accepted natural-language search direction: install-time LLM search profiles, semantic indexes, auto/lexical/semantic/hybrid modes, hybrid fusion, optional reranking, search-all rank merge, and wiki-query metadata consumption
 
 ## Experiments
 

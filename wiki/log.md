@@ -1,5 +1,33 @@
 # Wiki Log
 
+## [2026-05-11] update | semantic hybrid plan review fixes
+
+Hardened `wiki/plans/semantic-hybrid-search.plan.md` after plan review. The
+plan now freezes `--allow-lexical-fallback`, adds Stage 0 output artifacts and
+a hard gate before Stage 1, distinguishes missing base install from declined or
+interrupted LLM-search profile state, chooses migration of search stores into
+`~/.llm_wiki/indexes/` with legacy cache cleanup guidance, makes query
+expansion required for baseline hybrid, defines eval labeling and threshold
+requirements, adds mixed-readiness `search-all` result tagging, and ties plan
+closure to the verification gates.
+
+Pages updated: wiki/plans/semantic-hybrid-search.plan.md, wiki/log.md
+
+## [2026-05-11] promote | semantic hybrid search plan
+
+Promoted `wiki/proposals/search-query-interpretation.proposal.md` to Accepted
+and created `wiki/plans/semantic-hybrid-search.plan.md` as the active
+implementation plan. The plan treats CLI verbose diagnostics as completed in a
+separate worktree for sequencing purposes, while keeping semantic/hybrid gates
+explicit: model licensing, natural-language eval shape, threshold methodology,
+interactive install profile state, semantic indexes under `~/.llm_wiki`,
+mode/readiness contracts, hybrid fusion, optional reranking, rank-merged
+`search-all`, and `wiki-query` metadata consumption.
+
+Pages created: wiki/plans/semantic-hybrid-search.plan.md
+Pages updated: wiki/proposals/search-query-interpretation.proposal.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
+
 ## [2026-05-11] test | Observability coverage for CLI blueprint
 
 After rebasing the CLI observability branch onto the completed code-pack/CLI

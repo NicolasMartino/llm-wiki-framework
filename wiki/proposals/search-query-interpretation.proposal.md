@@ -1,12 +1,12 @@
 # Semantic and Hybrid Search for Natural-Language Queries
 
 - Document Class: Proposal
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-05-11
 - Category: Search UX, semantic retrieval, qmd-rs adapter
 - Scope: Move `llm-wiki search` beyond the current FTS-only path by adding semantic search, hybrid fusion, query expansion, and optional reranking for natural-language project questions. The immediate trigger is that `llm-wiki search 'what are the most cutting edge battery technologies'` returned zero results while a manually optimized keyword query worked.
 - Sources: wiki/decisions/search-backend-selection.decision.md, wiki/references/qmd-rs-search-crate.reference.md, wiki/evals/search-backend-selection.eval.md, assets/skills/wiki-query/SKILL.md (lines 32-34), src/search/qmd_rs.rs (current `store.search_fts` path), dogfooding session 2026-05-11 on `/Users/nicolasmartino/Documents/car/electric`
-- Related: wiki/specs/wiki-query-skill.spec.md, wiki/decisions/search-backend-selection.decision.md, wiki/references/qmd-rs-search-crate.reference.md, wiki/evals/search-backend-selection.eval.md, wiki/proposals/cli-observability.proposal.md
+- Related: wiki/plans/semantic-hybrid-search.plan.md, wiki/specs/wiki-query-skill.spec.md, wiki/decisions/search-backend-selection.decision.md, wiki/references/qmd-rs-search-crate.reference.md, wiki/evals/search-backend-selection.eval.md, wiki/proposals/cli-observability.proposal.md
 
 ## Question
 
@@ -18,6 +18,11 @@ queries?
 
 Implement qmd-rs semantic/hybrid retrieval as the real fix for natural-language
 project search, and make the default search mode `auto`.
+
+Promotion note: accepted on 2026-05-11 for implementation planning in
+`wiki/plans/semantic-hybrid-search.plan.md`. CLI observability is treated as a
+completed prerequisite in a separate worktree for planning purposes; this branch
+does not change the status of the observability proposal.
 
 The current `llm-wiki search` path is lexical FTS. It sanitizes the user's
 string, sends the result to qmd-rs `search_fts`, and inherits FTS semantics.
@@ -446,10 +451,10 @@ metadata. The host agent reads the pages and synthesizes cited answers.
 - Lexical search remains the compatibility and offline path. Existing lexical
   evals and command contracts should keep passing.
 
-## What Would Close This Proposal
+## Promoted Implementation Plan
 
-After the decision preconditions are satisfied, acceptance and promotion should
-create a dedicated implementation plan that closes these work items:
+This proposal is promoted into
+`wiki/plans/semantic-hybrid-search.plan.md`. The plan owns these work items:
 
 1. Implement the adapter and CLI mode contract with `auto`, `lexical`,
    `semantic`, and `hybrid`, preserving current lexical behavior.
@@ -489,5 +494,4 @@ create a dedicated implementation plan that closes these work items:
 
 ## Remaining Questions
 
-1. What command reruns machine diagnostics and changes the saved LLM search
-   profile after install?
+(none for planning)
