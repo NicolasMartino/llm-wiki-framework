@@ -96,6 +96,10 @@ impl Paths {
     }
 
     pub fn index_root(&self) -> PathBuf {
+        self.managed_index_root()
+    }
+
+    pub fn legacy_index_root(&self) -> PathBuf {
         self.cache_home().join("indexes")
     }
 
@@ -107,8 +111,17 @@ impl Paths {
         self.index_root().join(project_key)
     }
 
+    pub fn legacy_project_index_dir(&self, project_key: &str) -> PathBuf {
+        self.legacy_index_root().join(project_key)
+    }
+
     pub fn qmd_rs_store_path(&self, project_key: &str) -> PathBuf {
         self.project_index_dir(project_key).join("qmd-rs.sqlite")
+    }
+
+    pub fn legacy_qmd_rs_store_path(&self, project_key: &str) -> PathBuf {
+        self.legacy_project_index_dir(project_key)
+            .join("qmd-rs.sqlite")
     }
 
     pub fn data_home(&self) -> PathBuf {
@@ -192,6 +205,10 @@ mod tests {
         assert_eq!(paths.cache_home(), temp.path().join(".cache/llm-wiki"));
         assert_eq!(
             paths.qmd_rs_store_path("fixture"),
+            temp.path().join(".llm_wiki/indexes/fixture/qmd-rs.sqlite")
+        );
+        assert_eq!(
+            paths.legacy_qmd_rs_store_path("fixture"),
             temp.path()
                 .join(".cache/llm-wiki/indexes/fixture/qmd-rs.sqlite")
         );
@@ -244,6 +261,10 @@ mod tests {
         assert_eq!(paths.cache_home(), cache.path().join("llm-wiki"));
         assert_eq!(
             paths.project_index_dir("fixture"),
+            home.path().join(".llm_wiki/indexes/fixture")
+        );
+        assert_eq!(
+            paths.legacy_project_index_dir("fixture"),
             cache.path().join("llm-wiki/indexes/fixture")
         );
         assert_eq!(

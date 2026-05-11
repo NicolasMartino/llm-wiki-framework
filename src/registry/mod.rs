@@ -140,33 +140,50 @@ pub fn forget(args: &ForgetArgs, context: &CliContext) -> Result<()> {
     registry.write_atomic(&registry_path)?;
 
     if args.delete_cache {
-        let cache_dir = paths.project_index_dir(&removed.id);
-        context.diagnostic(format!("cache dir: {}", cache_dir.display()));
-        if cache_dir.exists() {
-            let canonical_cache_home = fs::canonicalize(paths.cache_home()).with_context(|| {
-                format!("canonicalize cache home {}", paths.cache_home().display())
-            })?;
-            let canonical_cache_dir = fs::canonicalize(&cache_dir)
-                .with_context(|| format!("canonicalize search cache {}", cache_dir.display()))?;
-            if !canonical_cache_dir.starts_with(&canonical_cache_home) {
-                context.diagnostic("cache deletion: refused outside cache home");
-                bail!(
-                    "refusing to delete cache outside {}: {}",
-                    canonical_cache_home.display(),
-                    canonical_cache_dir.display()
-                );
-            }
-            context.diagnostic("cache deletion: remove cache dir");
-            fs::remove_dir_all(&cache_dir)
-                .with_context(|| format!("remove search cache {}", cache_dir.display()))?;
-        } else {
-            context.diagnostic("cache deletion: cache dir missing");
-        }
+        delete_project_index_dir(
+            &paths.project_index_dir(&removed.id),
+            &paths.index_root(),
+            context,
+        )?;
+        delete_project_index_dir(
+            &paths.legacy_project_index_dir(&removed.id),
+            &paths.legacy_index_root(),
+            context,
+        )?;
     } else {
         context.diagnostic("cache deletion: skipped");
     }
 
     println!("Forgot project: {}", removed.id);
+    Ok(())
+}
+
+fn delete_project_index_dir(
+    cache_dir: &Path,
+    safety_root: &Path,
+    context: &CliContext,
+) -> Result<()> {
+    context.diagnostic(format!("cache dir: {}", cache_dir.display()));
+    if !cache_dir.exists() {
+        context.diagnostic("cache deletion: cache dir missing");
+        return Ok(());
+    }
+
+    let canonical_cache_home = fs::canonicalize(safety_root)
+        .with_context(|| format!("canonicalize cache home {}", safety_root.display()))?;
+    let canonical_cache_dir = fs::canonicalize(cache_dir)
+        .with_context(|| format!("canonicalize search cache {}", cache_dir.display()))?;
+    if !canonical_cache_dir.starts_with(&canonical_cache_home) {
+        context.diagnostic("cache deletion: refused outside cache home");
+        bail!(
+            "refusing to delete cache outside {}: {}",
+            canonical_cache_home.display(),
+            canonical_cache_dir.display()
+        );
+    }
+    context.diagnostic("cache deletion: remove cache dir");
+    fs::remove_dir_all(cache_dir)
+        .with_context(|| format!("remove search cache {}", cache_dir.display()))?;
     Ok(())
 }
 
@@ -263,7 +280,7 @@ struct ProjectStatusView {
 
 impl ProjectStatusView {
     fn from_project(project: &RegisteredProject, paths: &Paths) -> Result<Self> {
-        let store_path = paths.qmd_rs_store_path(&project.id);
+        let store_path = search_store_path(paths, &project.id);
         let root_exists = project.root.exists();
         let (index_status, freshness, status_message) = if !store_path.exists() {
             (
@@ -295,13 +312,26 @@ impl ProjectStatusView {
             freshness,
             backend: project.backend.clone(),
             index_schema_version: project.index_schema_version,
-            cache_size_bytes: dir_size(&paths.project_index_dir(&project.id))?,
+            cache_size_bytes: dir_size(&paths.project_index_dir(&project.id))?
+                + dir_size(&paths.legacy_project_index_dir(&project.id))?,
             indexed_file_count: project.indexed_file_count,
             last_indexed_at: project.last_indexed_at.clone(),
             last_indexed_wiki_max_mtime: project.last_indexed_wiki_max_mtime.clone(),
             status_message,
         })
     }
+}
+
+fn search_store_path(paths: &Paths, project_id: &str) -> PathBuf {
+    let managed = paths.qmd_rs_store_path(project_id);
+    if managed.exists() {
+        return managed;
+    }
+    let legacy = paths.legacy_qmd_rs_store_path(project_id);
+    if legacy.exists() {
+        return legacy;
+    }
+    managed
 }
 
 fn backend_status_labels(

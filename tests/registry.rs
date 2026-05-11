@@ -182,7 +182,8 @@ fn forget_removes_registry_entry_and_cache_when_requested() {
     let home = TempDir::new().expect("home");
     let workspace = TempDir::new().expect("workspace");
     let project = fixture_project(workspace.path(), "Fixture Project", true);
-    let cache_dir = home.path().join(".cache/llm-wiki/indexes/fixture");
+    let cache_dir = home.path().join(".llm_wiki/indexes/fixture");
+    let legacy_cache_dir = home.path().join(".cache/llm-wiki/indexes/fixture");
 
     llm_wiki(home.path())
         .args(["register", "--id", "fixture"])
@@ -191,6 +192,8 @@ fn forget_removes_registry_entry_and_cache_when_requested() {
         .success();
     fs::create_dir_all(&cache_dir).expect("cache dir");
     fs::write(cache_dir.join("qmd-rs.sqlite"), "sqlite").expect("cache file");
+    fs::create_dir_all(&legacy_cache_dir).expect("legacy cache dir");
+    fs::write(legacy_cache_dir.join("qmd-rs.sqlite"), "sqlite").expect("legacy cache file");
 
     llm_wiki(home.path())
         .args(["forget", "fixture", "--delete-cache"])
@@ -201,6 +204,7 @@ fn forget_removes_registry_entry_and_cache_when_requested() {
     let registry = read_registry(home.path());
     assert_eq!(registry["projects"].as_array().expect("projects").len(), 0);
     assert!(!cache_dir.exists());
+    assert!(!legacy_cache_dir.exists());
 }
 
 #[cfg(unix)]
@@ -212,7 +216,7 @@ fn forget_delete_cache_refuses_to_escape_cache_home() {
     let workspace = TempDir::new().expect("workspace");
     let escape = TempDir::new().expect("escape");
     let project = fixture_project(workspace.path(), "Fixture Project", true);
-    let cache_dir = home.path().join(".cache/llm-wiki/indexes/fixture");
+    let cache_dir = home.path().join(".llm_wiki/indexes/fixture");
 
     llm_wiki(home.path())
         .args(["register", "--id", "fixture"])

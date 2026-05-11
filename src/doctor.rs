@@ -261,6 +261,10 @@ fn print_project_search_diagnostics(paths: &Paths, context: &crate::cli::CliCont
     let registry_path = paths.project_registry();
     context.diagnostic(format!("registry: {}", registry_path.display()));
     context.diagnostic(format!("index root: {}", paths.index_root().display()));
+    context.diagnostic(format!(
+        "legacy index root: {}",
+        paths.legacy_index_root().display()
+    ));
     context.diagnostic(format!("model cache: {}", paths.model_cache().display()));
     context.diagnostic(format!(
         "managed index root: {}",
@@ -325,14 +329,27 @@ fn print_project_search_diagnostics(paths: &Paths, context: &crate::cli::CliCont
         );
     }
 
-    let store_path = registered
+    let managed_store_path = registered
         .map(|project| paths.qmd_rs_store_path(&project.id))
         .unwrap_or_else(|| paths.qmd_rs_store_path(&discovered.project_key));
+    let legacy_store_path = registered
+        .map(|project| paths.legacy_qmd_rs_store_path(&project.id))
+        .unwrap_or_else(|| paths.legacy_qmd_rs_store_path(&discovered.project_key));
+    let using_legacy = !managed_store_path.exists() && legacy_store_path.exists();
+    let store_path = if using_legacy {
+        legacy_store_path.clone()
+    } else {
+        managed_store_path.clone()
+    };
     let wiki_root = registered
         .map(RegisteredProject::wiki_root)
         .unwrap_or(discovered.wiki_root);
     context.diagnostic(format!("wiki root: {}", wiki_root.display()));
     context.diagnostic(format!("index store: {}", store_path.display()));
+    context.diagnostic(format!(
+        "legacy index store: {}",
+        legacy_store_path.display()
+    ));
     let backend = QmdRsBackend::new();
     let status = backend.doctor(&store_path, &wiki_root, SearchMode::Fts)?;
     context.diagnostic(format!(
@@ -375,6 +392,13 @@ fn print_project_search_diagnostics(paths: &Paths, context: &crate::cli::CliCont
                 status.store_path.display()
             );
         }
+    }
+    if legacy_store_path.exists() {
+        println!(
+            "Legacy qmd-rs cache present: {} (run `llm-wiki index` to migrate into {})",
+            legacy_store_path.display(),
+            paths.managed_index_root().display()
+        );
     }
 
     println!();

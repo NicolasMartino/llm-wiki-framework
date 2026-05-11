@@ -383,7 +383,7 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
         document_class: args.document_class.clone(),
         status: args.status.clone(),
     };
-    let store_path = paths.qmd_rs_store_path(&project.id);
+    let (store_path, store_location) = qmd_store_path_for_search(&paths, &project.id);
     let wiki_root = project.wiki_root();
     context.diagnostic(format!("project selection: {}", selection_source.label()));
     context.diagnostic(format!(
@@ -394,6 +394,7 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
     context.diagnostic(format!("project name: {}", project.name));
     context.diagnostic(format!("wiki root: {}", wiki_root.display()));
     context.diagnostic(format!("index store: {}", store_path.display()));
+    context.diagnostic(format!("index store location: {}", store_location.label()));
     context.diagnostic("backend: qmd-rs fts");
     let backend = QmdRsBackend::new();
     let search = perform_project_search(
@@ -492,7 +493,7 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
 
     for project in &projects {
         ensure_project_root_exists(project)?;
-        let store_path = paths.qmd_rs_store_path(&project.id);
+        let (store_path, store_location) = qmd_store_path_for_search(&paths, &project.id);
         let wiki_root = project.wiki_root();
         context.diagnostic(format!(
             "project {}: name={} root={}",
@@ -505,6 +506,11 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
             "index store {}: {}",
             project.id,
             store_path.display()
+        ));
+        context.diagnostic(format!(
+            "index store location {}: {}",
+            project.id,
+            store_location.label()
         ));
         let per_project_limit = if args.limit == 0 {
             0
@@ -645,6 +651,35 @@ fn select_project_with_source(
 enum ProjectSelectionSource {
     ExplicitProject,
     CurrentDirectory,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum StoreLocation {
+    Managed,
+    LegacyCache,
+    MissingManaged,
+}
+
+impl StoreLocation {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Managed => "managed",
+            Self::LegacyCache => "legacy-cache",
+            Self::MissingManaged => "managed-missing",
+        }
+    }
+}
+
+fn qmd_store_path_for_search(paths: &Paths, project_id: &str) -> (PathBuf, StoreLocation) {
+    let managed = paths.qmd_rs_store_path(project_id);
+    if managed.exists() {
+        return (managed, StoreLocation::Managed);
+    }
+    let legacy = paths.legacy_qmd_rs_store_path(project_id);
+    if legacy.exists() {
+        return (legacy, StoreLocation::LegacyCache);
+    }
+    (managed, StoreLocation::MissingManaged)
 }
 
 impl ProjectSelectionSource {
