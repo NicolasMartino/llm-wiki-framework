@@ -8,12 +8,17 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use tempfile::TempDir;
 
+fn llm_wiki() -> Command {
+    let mut command = Command::cargo_bin("llm-wiki").expect("binary");
+    command.env_remove("RUST_LOG");
+    command
+}
+
 #[test]
 fn redirected_home_install_manifest_matches_filesystem() {
     let home = TempDir::new().expect("home");
 
-    Command::cargo_bin("llm-wiki")
-        .expect("binary")
+    llm_wiki()
         .env("HOME", home.path())
         .arg("install")
         .assert()
@@ -51,8 +56,7 @@ fn redirected_home_install_manifest_matches_filesystem() {
         );
     }
 
-    Command::cargo_bin("llm-wiki")
-        .expect("binary")
+    llm_wiki()
         .env("HOME", home.path())
         .arg("status")
         .assert()
@@ -64,8 +68,7 @@ fn managed_binary_runs_without_path_after_install() {
     let home = TempDir::new().expect("home");
     let sanitized_path = "";
 
-    Command::cargo_bin("llm-wiki")
-        .expect("binary")
+    llm_wiki()
         .env("HOME", home.path())
         .env("PATH", sanitized_path)
         .args(["install", "--skip-path-guidance"])
@@ -79,6 +82,7 @@ fn managed_binary_runs_without_path_after_install() {
 
     Command::new(home.path().join(".llm_wiki/bin/llm-wiki"))
         .env("HOME", home.path())
+        .env_remove("RUST_LOG")
         .env("PATH", sanitized_path)
         .arg("status")
         .assert()
@@ -90,8 +94,7 @@ fn managed_binary_runs_without_path_after_install() {
 fn managed_binary_can_self_install() {
     let home = TempDir::new().expect("home");
 
-    Command::cargo_bin("llm-wiki")
-        .expect("binary")
+    llm_wiki()
         .env("HOME", home.path())
         .args(["install", "--skip-path-guidance"])
         .assert()
@@ -99,6 +102,7 @@ fn managed_binary_can_self_install() {
 
     Command::new(home.path().join(".llm_wiki/bin/llm-wiki"))
         .env("HOME", home.path())
+        .env_remove("RUST_LOG")
         .args(["install", "--skip-path-guidance"])
         .assert()
         .success();

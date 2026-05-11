@@ -13,6 +13,7 @@ fn llm_wiki(home: &Path) -> Command {
     let mut command = Command::cargo_bin("llm-wiki").expect("binary");
     command
         .env("HOME", home)
+        .env_remove("RUST_LOG")
         .env_remove("XDG_CACHE_HOME")
         .env_remove("XDG_DATA_HOME");
     command
@@ -246,6 +247,7 @@ fn concurrent_registry_writers_do_not_lose_updates() {
     let mut register = StdCommand::new(&binary);
     register
         .env("HOME", home.path())
+        .env_remove("RUST_LOG")
         .env_remove("XDG_CACHE_HOME")
         .env_remove("XDG_DATA_HOME")
         .env("LLM_WIKI_TEST_REGISTRY_WRITE_DELAY_MS", "200")
@@ -258,6 +260,7 @@ fn concurrent_registry_writers_do_not_lose_updates() {
     let mut forget = StdCommand::new(&binary);
     let forget_output = forget
         .env("HOME", home.path())
+        .env_remove("RUST_LOG")
         .env_remove("XDG_CACHE_HOME")
         .env_remove("XDG_DATA_HOME")
         .args(["forget", "alpha"])

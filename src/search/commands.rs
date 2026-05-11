@@ -898,6 +898,10 @@ fn explain_no_results(context: NoResultContext<'_>) -> Option<String> {
         return None;
     }
 
+    if context.limit == 0 {
+        return Some("limit was 0".to_string());
+    }
+
     if sanitize_fts_query(context.query).is_empty() {
         return Some("zero terms after FTS sanitization".to_string());
     }

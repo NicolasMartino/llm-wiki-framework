@@ -12,14 +12,14 @@ pub fn run(args: &InitArgs, context: &crate::cli::CliContext) -> Result<()> {
     context.diagnostic(format!("project path: {}", args.path.display()));
     context.diagnostic(format!("no register: {}", args.no_register));
     let answers = from_args(args)?;
-    context.diagnostic(format!("blueprint: {}", answers.blueprint.name()));
-    let resolved_packs = RenderPlan {
+    let plan = RenderPlan {
         name: answers.name.clone(),
         description: answers.description.clone(),
         blueprint: answers.blueprint,
         packs: answers.packs.clone(),
-    }
-    .resolved_packs();
+    };
+    context.diagnostic(format!("blueprint: {}", plan.blueprint.name()));
+    let resolved_packs = plan.resolved_packs();
     context.diagnostic(format!(
         "resolved packs: {}",
         resolved_packs
@@ -35,7 +35,7 @@ pub fn run(args: &InitArgs, context: &crate::cli::CliContext) -> Result<()> {
             context.diagnostic(format!("initial source: {}", source.display()));
         }
     }
-    create_project(&args.path, &answers, &args.initial_sources)?;
+    create_project(&args.path, &answers, &plan, &args.initial_sources)?;
 
     let mut registry_summary = None;
     if !args.no_register {

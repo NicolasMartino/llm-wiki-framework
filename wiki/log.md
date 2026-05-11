@@ -1,5 +1,18 @@
 # Wiki Log
 
+## [2026-05-11] fix | CLI observability review follow-up
+
+Addressed follow-up review findings for the CLI observability branch. Verbose
+no-result diagnostics now distinguish explicit `--limit 0` requests from
+backend/filter misses, `init` builds one `RenderPlan` and passes it through to
+scaffold creation, and integration test helpers clear inherited `RUST_LOG` so
+CLI stderr assertions stay environment-independent.
+
+Pages updated: src/search/commands.rs, src/init/command.rs,
+src/init/scaffold.rs, tests/build.rs, tests/init.rs, tests/install.rs,
+tests/post_install.rs, tests/properties.rs, tests/registry.rs,
+tests/search_commands.rs, tests/status_doctor.rs, wiki/log.md
+
 ## [2026-05-11] propose | Always-on crash reports
 
 Added `wiki/proposals/crash-reports.proposal.md` proposing that every panic

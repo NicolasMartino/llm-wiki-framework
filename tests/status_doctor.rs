@@ -9,6 +9,7 @@ fn llm_wiki(home: &Path) -> Command {
     let mut command = Command::cargo_bin("llm-wiki").expect("binary");
     command
         .env("HOME", home)
+        .env_remove("RUST_LOG")
         .env_remove("XDG_CACHE_HOME")
         .env_remove("XDG_DATA_HOME");
     command

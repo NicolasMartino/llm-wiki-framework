@@ -14,6 +14,7 @@ proptest! {
             Command::cargo_bin("llm-wiki")
                 .expect("binary")
                 .env("HOME", home.path())
+                .env_remove("RUST_LOG")
                 .arg("install")
                 .assert()
                 .success();

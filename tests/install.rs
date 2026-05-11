@@ -8,7 +8,7 @@ use tempfile::TempDir;
 
 fn llm_wiki(home: &Path) -> Command {
     let mut command = Command::cargo_bin("llm-wiki").expect("binary");
-    command.env("HOME", home);
+    command.env("HOME", home).env_remove("RUST_LOG");
     command
 }
 

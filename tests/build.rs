@@ -3,12 +3,17 @@ use predicates::prelude::*;
 use std::fs;
 use tempfile::TempDir;
 
+fn llm_wiki() -> Command {
+    let mut command = Command::cargo_bin("llm-wiki").expect("binary");
+    command.env_remove("RUST_LOG");
+    command
+}
+
 #[test]
 fn build_out_writes_both_runtime_trees() {
     let temp = TempDir::new().expect("tempdir");
 
-    Command::cargo_bin("llm-wiki")
-        .expect("binary")
+    llm_wiki()
         .args(["build", "--out"])
         .arg(temp.path())
         .assert()
@@ -41,8 +46,7 @@ fn build_out_writes_both_runtime_trees() {
 fn build_target_claude_skips_codex_output() {
     let temp = TempDir::new().expect("tempdir");
 
-    Command::cargo_bin("llm-wiki")
-        .expect("binary")
+    llm_wiki()
         .args(["build", "--target", "claude", "--out"])
         .arg(temp.path())
         .assert()
@@ -60,8 +64,7 @@ fn build_target_claude_skips_codex_output() {
 fn verbose_build_emits_command_diagnostics() {
     let temp = TempDir::new().expect("tempdir");
 
-    Command::cargo_bin("llm-wiki")
-        .expect("binary")
+    llm_wiki()
         .args(["--verbose", "build", "--target", "codex", "--out"])
         .arg(temp.path())
         .assert()
@@ -75,8 +78,7 @@ fn verbose_build_emits_command_diagnostics() {
 
 #[test]
 fn invalid_target_is_rejected() {
-    Command::cargo_bin("llm-wiki")
-        .expect("binary")
+    llm_wiki()
         .args(["build", "--target", "invalid"])
         .assert()
         .failure()

@@ -31,6 +31,7 @@ fn llm_wiki(home: &Path) -> Command {
     let mut command = Command::cargo_bin("llm-wiki").expect("binary");
     command
         .env("HOME", home)
+        .env_remove("RUST_LOG")
         .env_remove("XDG_CACHE_HOME")
         .env_remove("XDG_DATA_HOME");
     command
@@ -88,6 +89,7 @@ fn init_rejects_retired_type_and_scale_flags() {
 
     Command::cargo_bin("llm-wiki")
         .expect("binary")
+        .env_remove("RUST_LOG")
         .arg("init")
         .arg(temp.path())
         .args([
@@ -112,6 +114,7 @@ fn init_rejects_removed_existing_flag() {
 
     Command::cargo_bin("llm-wiki")
         .expect("binary")
+        .env_remove("RUST_LOG")
         .arg("init")
         .arg(temp.path())
         .args([
@@ -282,6 +285,7 @@ fn init_with_invalid_initial_sources_leaves_no_partial_scaffold() {
 
     Command::cargo_bin("llm-wiki")
         .expect("binary")
+        .env_remove("RUST_LOG")
         .arg("init")
         .arg(temp.path())
         .args([

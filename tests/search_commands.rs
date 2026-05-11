@@ -13,6 +13,7 @@ fn llm_wiki(home: &Path) -> Command {
     let mut command = Command::cargo_bin("llm-wiki").expect("binary");
     command
         .env("HOME", home)
+        .env_remove("RUST_LOG")
         .env_remove("XDG_CACHE_HOME")
         .env_remove("XDG_DATA_HOME");
     command
@@ -377,6 +378,38 @@ fn verbose_search_reports_filter_exclusion_reason() {
     assert!(stdout.contains("No results."));
     assert!(stderr.contains("results: 0"));
     assert!(stderr.contains("no-result: filters excluded all matched hits"));
+}
+
+#[test]
+fn verbose_search_reports_limit_zero_reason() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+
+    llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let output = llm_wiki(home.path())
+        .args([
+            "-v",
+            "search",
+            "reciprocal rank fusion",
+            "--project",
+            "fixture",
+            "--limit",
+            "0",
+        ])
+        .output()
+        .expect("search output");
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stdout.contains("No results."));
+    assert!(stderr.contains("results: 0"));
+    assert!(stderr.contains("no-result: limit was 0"));
 }
 
 #[test]
@@ -819,6 +852,7 @@ fn search_retries_once_during_concurrent_promotion() {
     let mut index = StdCommand::new(&binary);
     let index = index
         .env("HOME", home.path())
+        .env_remove("RUST_LOG")
         .env_remove("XDG_CACHE_HOME")
         .env_remove("XDG_DATA_HOME")
         .env("LLM_WIKI_TEST_PROMOTE_MARKER", &marker)
@@ -838,6 +872,7 @@ fn search_retries_once_during_concurrent_promotion() {
 
     search
         .env("HOME", home.path())
+        .env_remove("RUST_LOG")
         .env_remove("XDG_CACHE_HOME")
         .env_remove("XDG_DATA_HOME")
         .args(["search", "reciprocal rank fusion", "--project", "fixture"]);
@@ -860,6 +895,7 @@ fn cross_process_index_lock_is_exclusive() {
     let mut first = StdCommand::new(&binary);
     first
         .env("HOME", home.path())
+        .env_remove("RUST_LOG")
         .env_remove("XDG_CACHE_HOME")
         .env_remove("XDG_DATA_HOME")
         .env("LLM_WIKI_TEST_INDEX_SLEEP_MS", "300")
@@ -871,6 +907,7 @@ fn cross_process_index_lock_is_exclusive() {
     let mut second = StdCommand::new(&binary);
     let second_output = second
         .env("HOME", home.path())
+        .env_remove("RUST_LOG")
         .env_remove("XDG_CACHE_HOME")
         .env_remove("XDG_DATA_HOME")
         .args(["index", "--project", "fixture", "--force"])
@@ -901,6 +938,7 @@ fn crashed_indexer_does_not_block_next_acquire() {
     let binary = assert_cmd::cargo::cargo_bin("llm-wiki");
     let mut child = StdCommand::new(&binary)
         .env("HOME", home.path())
+        .env_remove("RUST_LOG")
         .env_remove("XDG_CACHE_HOME")
         .env_remove("XDG_DATA_HOME")
         .env("LLM_WIKI_TEST_INDEX_SLEEP_MS", "5000")

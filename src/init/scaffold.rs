@@ -12,19 +12,14 @@ use crate::init::sources::{copy_initial_sources, validate_initial_sources};
 pub(super) fn create_project(
     path: &Path,
     answers: &Answers,
+    plan: &RenderPlan,
     initial_sources: &[PathBuf],
 ) -> Result<()> {
     refuse_framework_collision(path)?;
     validate_initial_sources(initial_sources)?;
     fs::create_dir_all(path).with_context(|| format!("failed to create {}", path.display()))?;
 
-    let plan = RenderPlan {
-        name: answers.name.clone(),
-        description: answers.description.clone(),
-        blueprint: answers.blueprint,
-        packs: answers.packs.clone(),
-    };
-    let output = compose(&plan)?;
+    let output = compose(plan)?;
 
     for folder in &output.folders {
         fs::create_dir_all(path.join(folder))
