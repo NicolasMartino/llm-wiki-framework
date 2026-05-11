@@ -6,7 +6,7 @@ use crate::manifest::Manifest;
 use crate::manifest::hash::sha256_hex;
 use crate::paths::Paths;
 
-pub fn run(include_binary: bool) -> Result<()> {
+pub fn run(include_binary: bool, _context: &crate::cli::CliContext) -> Result<()> {
     let paths = Paths::from_env()?;
     let manifest_path = paths.manifest();
     let Some(manifest) = Manifest::read(&manifest_path)? else {

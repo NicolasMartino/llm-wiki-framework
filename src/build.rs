@@ -10,7 +10,7 @@ use crate::cli::{BuildArgs, BuildTarget};
 use crate::embed;
 use crate::skill_render::apply_binary_context;
 
-pub fn run(args: &BuildArgs) -> Result<()> {
+pub fn run(args: &BuildArgs, _context: &crate::cli::CliContext) -> Result<()> {
     for asset in embed::SKILLS {
         let doc = parse(asset.skill_md)
             .with_context(|| format!("failed to parse embedded skill {}", asset.name))?;

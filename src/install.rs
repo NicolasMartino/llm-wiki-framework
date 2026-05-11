@@ -19,7 +19,7 @@ use crate::path_guidance;
 use crate::paths::Paths;
 use crate::skill_render::{apply_binary_context, managed_binary_invocation};
 
-pub fn run(force: bool, show_path_guidance: bool) -> Result<()> {
+pub fn run(force: bool, show_path_guidance: bool, _context: &crate::cli::CliContext) -> Result<()> {
     let paths = Paths::from_env()?;
     let current_exe = env::current_exe().context("failed to resolve current executable")?;
     let current_exe_bytes = fs::read(&current_exe).with_context(|| {

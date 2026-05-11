@@ -15,7 +15,7 @@ use crate::search::project::discover_from_cwd;
 use crate::search::qmd_rs::QmdRsBackend;
 use crate::skill_render::{BINARY_MARKER, managed_binary_invocation};
 
-pub fn run() -> Result<()> {
+pub fn run(_context: &crate::cli::CliContext) -> Result<()> {
     let paths = Paths::from_env()?;
     let manifest = Manifest::read(&paths.manifest())?;
     let manifest_paths: HashSet<PathBuf> = manifest

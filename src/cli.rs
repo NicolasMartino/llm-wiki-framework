@@ -2,11 +2,32 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand, ValueEnum};
 
+pub const DIAGNOSTIC_TARGET: &str = "llm_wiki_cli";
+
 #[derive(Debug, Parser)]
 #[command(name = "llm-wiki", version, about = "LLM Wiki framework tooling")]
 pub struct Cli {
+    #[arg(short = 'v', long = "verbose", global = true)]
+    pub verbose: bool,
     #[command(subcommand)]
     pub command: Command,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CliContext {
+    pub verbose: bool,
+}
+
+impl CliContext {
+    pub fn new(verbose: bool) -> Self {
+        Self { verbose }
+    }
+
+    pub fn diagnostic(&self, message: impl AsRef<str>) {
+        if self.verbose {
+            tracing::info!(target: DIAGNOSTIC_TARGET, "{}", message.as_ref());
+        }
+    }
 }
 
 #[derive(Debug, Subcommand)]

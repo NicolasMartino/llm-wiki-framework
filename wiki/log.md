@@ -1,5 +1,35 @@
 # Wiki Log
 
+## [2026-05-11] update | CLI observability stage 1 review fixes
+
+Addressed Stage 1 review feedback for `wiki/plans/cli-observability.plan.md`.
+No-result explanations now run only when verbose diagnostics are enabled, so
+non-verbose filtered-zero searches do not perform the extra explanatory backend
+query. Added search command tests for empty sanitized queries and filters that
+exclude otherwise matching hits. Tidied the plan verification section so the
+Stage 1 gates remain the contract and the proof block records observed evidence.
+
+Verification: `cargo fmt`; `cargo test --test search_commands`;
+`cargo test --workspace`; `just verify`; `git diff --check`.
+
+Pages updated: wiki/plans/cli-observability.plan.md, wiki/log.md
+
+## [2026-05-11] update | CLI observability stage 1 implemented
+
+Implemented Stage 1 of `wiki/plans/cli-observability.plan.md`. The binary now
+has a global Clap `-v/--verbose` flag that works before and after subcommands,
+threads `CliContext` through every command handler, installs a CLI-owned
+`tracing` / `tracing-subscriber` stderr subscriber, and emits verbose
+diagnostics for `search` and `search-all` covering registry paths, project
+selection, qmd-rs store paths, backend/index state, query normalization,
+filters, per-project counts, fused counts, and no-result explanations.
+
+Verification: `cargo fmt`; `cargo test --test search_commands`;
+`cargo test --workspace`; `just verify`; `git diff --check`.
+
+Pages updated: wiki/plans/cli-observability.plan.md, wiki/index.md,
+wiki/log.md
+
 ## [2026-05-11] update | CLI observability plan hardened for implementation
 
 Hardened `wiki/plans/cli-observability.plan.md` after review. The plan now

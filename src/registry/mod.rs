@@ -53,7 +53,7 @@ pub enum RegisterOutcome {
     Unchanged(String),
 }
 
-pub fn register(args: &RegisterArgs) -> Result<()> {
+pub fn register(args: &RegisterArgs, _context: &crate::cli::CliContext) -> Result<()> {
     let outcome = register_project(
         args.path.as_deref(),
         args.name.clone(),
@@ -99,7 +99,7 @@ pub fn outcome_id(outcome: &RegisterOutcome) -> &str {
     }
 }
 
-pub fn forget(args: &ForgetArgs) -> Result<()> {
+pub fn forget(args: &ForgetArgs, _context: &crate::cli::CliContext) -> Result<()> {
     let paths = Paths::from_env()?;
     let registry_path = paths.project_registry();
     let _lock = RegistryMutationLock::acquire(&registry_path)?;
@@ -132,7 +132,7 @@ pub fn forget(args: &ForgetArgs) -> Result<()> {
     Ok(())
 }
 
-pub fn projects(args: &ProjectsArgs) -> Result<()> {
+pub fn projects(args: &ProjectsArgs, _context: &crate::cli::CliContext) -> Result<()> {
     let paths = Paths::from_env()?;
     let registry = ProjectRegistry::read(&paths.project_registry())?;
     let view = ProjectsView::from_registry(&registry, &paths)?;

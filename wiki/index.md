@@ -63,7 +63,7 @@ Updated: 2026-05-11
 - [Composable Project Init](plans/composable-project-init.plan.md) — Completed — D10 execution adopted Askama, migrated init templates, shipped blueprints + packs, two-step interactive flow, AGENTS/CLAUDE schema handling, and `.llm_wiki/init.toml`
 - [Skill Projection Template Engine](plans/skill-projection-template-engine.plan.md) — Completed — Migrated Claude/Codex skill markdown and Codex runtime config rendering onto `templates/skills/` Askama templates with byte-stable real-skill snapshots
 - [Code Pack And CLI Tool Blueprint](plans/code-pack-cli-blueprint.plan.md) — Completed — Implemented `Pack::Code`, added `cli-tool`, removed unconditional root code folders from init, and added golden tests for research/no-code and software/CLI code defaults
-- [CLI Verbose Diagnostics](plans/cli-observability.plan.md) — Active — Implement global `-v/--verbose` diagnostics in two stages: shared CLI context plus `search`/`search-all` proof, then concise diagnostics for every binary command
+- [CLI Verbose Diagnostics](plans/cli-observability.plan.md) — Active — Stage 1 implemented global `-v/--verbose`, `CliContext`, tracing diagnostics, and `search`/`search-all` proof; Stage 2 still needs concise diagnostics for every remaining binary command
 
 ## Experiments
 

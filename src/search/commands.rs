@@ -11,7 +11,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use anyhow::{Context, Result, bail};
 use serde::Serialize;
 
-use crate::cli::{IndexAllArgs, IndexArgs, OutputFormat, SearchAllArgs, SearchArgs};
+use crate::cli::{CliContext, IndexAllArgs, IndexArgs, OutputFormat, SearchAllArgs, SearchArgs};
 use crate::paths::Paths;
 use crate::registry::{self, ProjectRegistry, RegisteredProject};
 use crate::search::adapter::{
@@ -19,15 +19,16 @@ use crate::search::adapter::{
 };
 use crate::search::project::discover_from_cwd;
 use crate::search::qmd_rs::QmdRsBackend;
+use crate::search::sanitize::sanitize_fts_query;
 
-pub fn index(args: &IndexArgs) -> Result<()> {
+pub fn index(args: &IndexArgs, _context: &CliContext) -> Result<()> {
     let paths = Paths::from_env()?;
     let registry = ProjectRegistry::read(&paths.project_registry())?;
     let project = select_project(&registry, args.project.as_deref())?;
     index_registered_project(&paths, &project, args.force)
 }
 
-pub fn index_all(args: &IndexAllArgs) -> Result<()> {
+pub fn index_all(args: &IndexAllArgs, _context: &CliContext) -> Result<()> {
     let paths = Paths::from_env()?;
     let registry = ProjectRegistry::read(&paths.project_registry())?;
     if registry.projects.is_empty() {
@@ -316,10 +317,22 @@ fn backup_path(path: &Path, suffix: &str) -> PathBuf {
     path.with_file_name(format!("{file_name}.backup-{suffix}"))
 }
 
-pub fn search(args: &SearchArgs) -> Result<()> {
+pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
+    context.diagnostic("command: search");
+    context.diagnostic(format!("query: {}", args.query));
+    context.diagnostic(format!("fts query: {}", sanitize_fts_query(&args.query)));
+    context.diagnostic(format!(
+        "filters: class={}, status={}, limit={}",
+        filter_label(args.document_class.as_deref()),
+        filter_label(args.status.as_deref()),
+        args.limit
+    ));
     let paths = Paths::from_env()?;
+    let registry_path = paths.project_registry();
+    context.diagnostic(format!("registry: {}", registry_path.display()));
     let registry = ProjectRegistry::read(&paths.project_registry())?;
-    let project = select_project(&registry, args.project.as_deref())?;
+    let (project, selection_source) =
+        select_project_with_source(&registry, args.project.as_deref())?;
     ensure_project_root_exists(&project)?;
     let filters = SearchFilters {
         document_class: args.document_class.clone(),
@@ -327,8 +340,19 @@ pub fn search(args: &SearchArgs) -> Result<()> {
     };
     let store_path = paths.qmd_rs_store_path(&project.id);
     let wiki_root = project.wiki_root();
+    context.diagnostic(format!("project selection: {}", selection_source.label()));
+    context.diagnostic(format!(
+        "selected project: {} ({})",
+        project.id,
+        project.root.display()
+    ));
+    context.diagnostic(format!("project name: {}", project.name));
+    context.diagnostic(format!("wiki root: {}", wiki_root.display()));
+    context.diagnostic(format!("index store: {}", store_path.display()));
+    context.diagnostic("backend: qmd-rs fts");
+    let backend = QmdRsBackend::new();
     let search = perform_project_search(
-        &QmdRsBackend::new(),
+        &backend,
         &project,
         &store_path,
         &wiki_root,
@@ -336,6 +360,32 @@ pub fn search(args: &SearchArgs) -> Result<()> {
         &filters,
         args.limit,
     )?;
+    context.diagnostic(format!(
+        "index status: {}, freshness={}, indexed_files={}",
+        backend_state_label(&search.status.state),
+        freshness_label(freshness_for_status(&search.status)),
+        search.status.indexed_files
+    ));
+    if let Some(message) = &search.status.message {
+        context.diagnostic(format!("index message: {message}"));
+    }
+    let no_result = context.verbose.then(|| {
+        explain_no_results(NoResultContext {
+            backend: &backend,
+            store_path: &store_path,
+            wiki_root: &wiki_root,
+            query: &args.query,
+            filters: &filters,
+            limit: args.limit,
+            status: &search.status,
+            results: &search.results,
+        })
+    });
+    context.diagnostic(format!("results: {}", search.results.len()));
+    if let Some(Some(explanation)) = no_result {
+        context.diagnostic(format!("no-result: {explanation}"));
+    }
+
     let mut results = search.results;
     for result in &mut results {
         result.project_id = project.id.clone();
@@ -359,10 +409,33 @@ pub fn search(args: &SearchArgs) -> Result<()> {
     Ok(())
 }
 
-pub fn search_all(args: &SearchAllArgs) -> Result<()> {
+pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
+    context.diagnostic("command: search-all");
+    context.diagnostic(format!("query: {}", args.query));
+    context.diagnostic(format!("fts query: {}", sanitize_fts_query(&args.query)));
+    context.diagnostic(format!(
+        "filters: class={}, status={}, limit={}",
+        filter_label(args.document_class.as_deref()),
+        filter_label(args.status.as_deref()),
+        args.limit
+    ));
     let paths = Paths::from_env()?;
+    let registry_path = paths.project_registry();
+    context.diagnostic(format!("registry: {}", registry_path.display()));
     let registry = ProjectRegistry::read(&paths.project_registry())?;
     let projects = select_projects(&registry, &args.include, &args.exclude)?;
+    context.diagnostic(format!(
+        "project selection: {}",
+        search_all_selection_label(&args.include, &args.exclude)
+    ));
+    context.diagnostic(format!(
+        "selected projects: {}",
+        projects
+            .iter()
+            .map(|project| project.id.as_str())
+            .collect::<Vec<_>>()
+            .join(", ")
+    ));
     let backend = QmdRsBackend::new();
     let filters = SearchFilters {
         document_class: args.document_class.clone(),
@@ -370,11 +443,24 @@ pub fn search_all(args: &SearchAllArgs) -> Result<()> {
     };
     let mut warnings = Vec::new();
     let mut fused: BTreeMap<(String, String), FusedResult> = BTreeMap::new();
+    let mut project_reports = Vec::new();
 
     for project in &projects {
         ensure_project_root_exists(project)?;
         let store_path = paths.qmd_rs_store_path(&project.id);
         let wiki_root = project.wiki_root();
+        context.diagnostic(format!(
+            "project {}: name={} root={}",
+            project.id,
+            project.name,
+            project.root.display()
+        ));
+        context.diagnostic(format!("wiki root {}: {}", project.id, wiki_root.display()));
+        context.diagnostic(format!(
+            "index store {}: {}",
+            project.id,
+            store_path.display()
+        ));
         let per_project_limit = if args.limit == 0 {
             0
         } else {
@@ -389,6 +475,33 @@ pub fn search_all(args: &SearchAllArgs) -> Result<()> {
             &filters,
             per_project_limit,
         )?;
+        context.diagnostic(format!(
+            "index status {}: {}, freshness={}, indexed_files={}",
+            project.id,
+            backend_state_label(&search.status.state),
+            freshness_label(freshness_for_status(&search.status)),
+            search.status.indexed_files
+        ));
+        if let Some(message) = &search.status.message {
+            context.diagnostic(format!("index message {}: {message}", project.id));
+        }
+        let no_result = context.verbose.then(|| {
+            explain_no_results(NoResultContext {
+                backend: &backend,
+                store_path: &store_path,
+                wiki_root: &wiki_root,
+                query: &args.query,
+                filters: &filters,
+                limit: per_project_limit,
+                status: &search.status,
+                results: &search.results,
+            })
+        });
+        project_reports.push(ProjectSearchReport {
+            project_id: project.id.clone(),
+            result_count: search.results.len(),
+            no_result: no_result.flatten(),
+        });
         warnings.extend(search.warnings);
         let mut results = search.results;
         for (rank, result) in results.iter_mut().enumerate() {
@@ -425,6 +538,19 @@ pub fn search_all(args: &SearchAllArgs) -> Result<()> {
             fused.result
         })
         .collect::<Vec<_>>();
+    for report in &project_reports {
+        context.diagnostic(format!(
+            "per-project results {}: {}",
+            report.project_id, report.result_count
+        ));
+        if let Some(explanation) = &report.no_result {
+            context.diagnostic(format!("no-result {}: {explanation}", report.project_id));
+        }
+    }
+    context.diagnostic(format!("fused results: {}", results.len()));
+    if results.is_empty() {
+        context.diagnostic("no-result: no selected project returned results");
+    }
 
     match args.format {
         OutputFormat::Text => print_search_text(&warnings, &results),
@@ -437,11 +563,21 @@ fn select_project(
     registry: &ProjectRegistry,
     requested_id: Option<&str>,
 ) -> Result<RegisteredProject> {
+    select_project_with_source(registry, requested_id).map(|(project, _)| project)
+}
+
+fn select_project_with_source(
+    registry: &ProjectRegistry,
+    requested_id: Option<&str>,
+) -> Result<(RegisteredProject, ProjectSelectionSource)> {
     if let Some(project_id) = requested_id {
-        return registry
-            .project_by_id(project_id)
-            .cloned()
-            .with_context(|| format!("project id {project_id} is not registered"));
+        return Ok((
+            registry
+                .project_by_id(project_id)
+                .cloned()
+                .with_context(|| format!("project id {project_id} is not registered"))?,
+            ProjectSelectionSource::ExplicitProject,
+        ));
     }
 
     let Some(discovered) = discover_from_cwd()? else {
@@ -457,6 +593,22 @@ fn select_project(
                 discovered.project_root.display()
             )
         })
+        .map(|project| (project, ProjectSelectionSource::CurrentDirectory))
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ProjectSelectionSource {
+    ExplicitProject,
+    CurrentDirectory,
+}
+
+impl ProjectSelectionSource {
+    fn label(self) -> &'static str {
+        match self {
+            Self::ExplicitProject => "--project",
+            Self::CurrentDirectory => "current directory",
+        }
+    }
 }
 
 fn ensure_project_root_exists(project: &RegisteredProject) -> Result<()> {
@@ -508,6 +660,13 @@ struct FusedResult {
     score: f64,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ProjectSearchReport {
+    project_id: String,
+    result_count: usize,
+    no_result: Option<String>,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 struct SearchWarning {
     project_id: String,
@@ -518,6 +677,7 @@ struct SearchWarning {
 struct SearchExecution {
     results: Vec<SearchResult>,
     warnings: Vec<SearchWarning>,
+    status: BackendStatus,
 }
 
 enum SearchAttempt {
@@ -644,6 +804,98 @@ fn freshness_label(freshness: Freshness) -> &'static str {
     }
 }
 
+fn freshness_for_status(status: &BackendStatus) -> Freshness {
+    match status.state {
+        BackendState::Ready => Freshness::Fresh,
+        BackendState::Stale => Freshness::Stale,
+        BackendState::Missing | BackendState::Corrupt | BackendState::SchemaMismatch => {
+            Freshness::Unknown
+        }
+    }
+}
+
+fn backend_state_label(state: &BackendState) -> &'static str {
+    match state {
+        BackendState::Ready => "ready",
+        BackendState::Missing => "missing",
+        BackendState::Stale => "stale",
+        BackendState::Corrupt => "corrupt",
+        BackendState::SchemaMismatch => "schema-mismatch",
+    }
+}
+
+fn filter_label(value: Option<&str>) -> &str {
+    value.unwrap_or("<none>")
+}
+
+fn search_all_selection_label(include: &[String], exclude: &[String]) -> &'static str {
+    match (include.is_empty(), exclude.is_empty()) {
+        (true, true) => "all registered projects",
+        (false, true) => "include filters",
+        (true, false) => "exclude filters",
+        (false, false) => "include/exclude filters",
+    }
+}
+
+struct NoResultContext<'a> {
+    backend: &'a QmdRsBackend,
+    store_path: &'a Path,
+    wiki_root: &'a Path,
+    query: &'a str,
+    filters: &'a SearchFilters,
+    limit: usize,
+    status: &'a BackendStatus,
+    results: &'a [SearchResult],
+}
+
+fn explain_no_results(context: NoResultContext<'_>) -> Option<String> {
+    if !context.results.is_empty() {
+        return None;
+    }
+
+    if sanitize_fts_query(context.query).is_empty() {
+        return Some("zero terms after FTS sanitization".to_string());
+    }
+
+    if context.status.indexed_files == 0 {
+        let state = match context.status.state {
+            BackendState::Ready => "ready",
+            BackendState::Stale => "stale",
+            BackendState::Missing | BackendState::Corrupt | BackendState::SchemaMismatch => {
+                "unusable"
+            }
+        };
+        return Some(format!("{state} index has zero indexed files"));
+    }
+
+    if filters_active(context.filters) {
+        let unfiltered_count = context
+            .backend
+            .search_project(
+                context.store_path,
+                context.wiki_root,
+                context.query,
+                &SearchFilters::default(),
+                context.limit.max(1),
+            )
+            .map(|results| results.len())
+            .unwrap_or(0);
+        if unfiltered_count > 0 {
+            return Some("filters excluded all matched hits".to_string());
+        }
+    }
+
+    if matches!(context.status.state, BackendState::Stale) {
+        return Some("stale-but-searchable index produced zero results".to_string());
+    }
+
+    Some("backend returned zero hits before filters".to_string())
+}
+
+fn filters_active(filters: &SearchFilters) -> bool {
+    filters.document_class.is_some() || filters.status.is_some()
+}
+
 fn perform_project_search(
     backend: &QmdRsBackend,
     project: &RegisteredProject,
@@ -714,6 +966,7 @@ fn search_attempt(
     Ok(SearchAttempt::Success(SearchExecution {
         results,
         warnings: stale_warning(project, &status).into_iter().collect(),
+        status,
     }))
 }
 

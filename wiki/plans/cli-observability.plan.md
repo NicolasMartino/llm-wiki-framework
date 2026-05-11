@@ -248,6 +248,28 @@ wording. Put those assertions beside each command's existing fixture coverage:
 
 ## Verification Gates
 
+Stage 1 proof, recorded 2026-05-11:
+
+- Global `-v/--verbose` works before and after subcommands through Clap
+  global-argument semantics.
+- `CliContext` is threaded through every command handler.
+- Verbose diagnostics use `tracing` / `tracing-subscriber` with a CLI stderr
+  subscriber.
+- `search` verbose diagnostics report command, registry, selection, project,
+  wiki root, index store, backend, index status, query normalization, filters,
+  result count, and no-result explanation.
+- `search-all` verbose diagnostics report deterministic selected-project and
+  per-project index/result facts before fused result count.
+- Non-verbose search stdout remains clean, and verbose JSON search keeps stdout
+  parseable without ANSI escapes.
+- Post-review fix: no-result explanations are computed only when verbose
+  diagnostics are enabled, avoiding an extra filtered-zero backend search for
+  non-verbose users.
+- Post-review tests cover empty sanitized queries and filter-excluded result
+  explanations in addition to the backend-zero branch.
+
+Proof run: completed the Stage 1 gates listed below.
+
 Stage 1 gates:
 
 1. `cargo fmt`
@@ -269,10 +291,10 @@ Stage 2 gates:
 After Stage 1 lands:
 
 - `wiki/plans/cli-observability.plan.md` - record Stage 1 proof and keep status
-  Active if Stage 2 remains.
+  Active if Stage 2 remains. Done 2026-05-11.
 - `wiki/index.md` - update the active plan summary if Stage 1 materially changes
-  status, proof, or remaining scope.
-- `wiki/log.md` - implementation update.
+  status, proof, or remaining scope. Done 2026-05-11.
+- `wiki/log.md` - implementation update. Done 2026-05-11.
 
 After Stage 2 lands:
 

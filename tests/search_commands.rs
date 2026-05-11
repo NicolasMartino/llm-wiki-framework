@@ -133,6 +133,223 @@ fn index_and_search_registered_project_with_filters() {
 }
 
 #[test]
+fn non_verbose_search_stdout_contract_stays_clean() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+
+    llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let search = llm_wiki(home.path())
+        .args(["search", "reciprocal rank fusion", "--project", "fixture"])
+        .output()
+        .expect("search output");
+    assert!(search.status.success());
+    let stdout = String::from_utf8_lossy(&search.stdout);
+    let stderr = String::from_utf8_lossy(&search.stderr);
+    assert!(stdout.contains("1. [fixture] Search Decision"));
+    assert!(!stdout.contains("registry:"));
+    assert!(stderr.is_empty(), "unexpected stderr: {stderr}");
+
+    let search_all = llm_wiki(home.path())
+        .args(["search-all", "reciprocal rank fusion"])
+        .output()
+        .expect("search-all output");
+    assert!(search_all.status.success());
+    let stdout = String::from_utf8_lossy(&search_all.stdout);
+    let stderr = String::from_utf8_lossy(&search_all.stderr);
+    assert!(stdout.contains("1. [fixture] Search Decision"));
+    assert!(!stdout.contains("registry:"));
+    assert!(stderr.is_empty(), "unexpected stderr: {stderr}");
+}
+
+#[test]
+fn verbose_search_emits_diagnostics_on_stderr() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+
+    llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let output = llm_wiki(home.path())
+        .args([
+            "-v",
+            "search",
+            "reciprocal rank fusion",
+            "--project",
+            "fixture",
+        ])
+        .output()
+        .expect("search output");
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stdout.contains("1. [fixture] Search Decision"));
+    assert!(stderr.contains("command: search"));
+    assert!(stderr.contains("registry:"));
+    assert!(stderr.contains("project selection: --project"));
+    assert!(stderr.contains("selected project: fixture"));
+    assert!(stderr.contains("index store:"));
+    assert!(stderr.contains("index status: ready"));
+    assert!(stderr.contains("fts query: reciprocal rank fusion"));
+    assert!(stderr.contains("results: 1"));
+}
+
+#[test]
+fn verbose_global_flag_is_accepted_after_subcommand() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+
+    llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let output = llm_wiki(home.path())
+        .args([
+            "search",
+            "reciprocal rank fusion",
+            "--project",
+            "fixture",
+            "-v",
+        ])
+        .output()
+        .expect("search output");
+    assert!(output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("command: search"));
+    assert!(stderr.contains("selected project: fixture"));
+}
+
+#[test]
+fn verbose_search_json_keeps_stdout_parseable() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+
+    llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let output = llm_wiki(home.path())
+        .args([
+            "-v",
+            "search",
+            "reciprocal rank fusion",
+            "--project",
+            "fixture",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("search output");
+    assert!(output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("search json");
+    assert_eq!(json["project_id"], "fixture");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(!stdout.contains("registry:"));
+    assert!(stderr.contains("registry:"));
+    assert!(stderr.contains("results: 1"));
+    assert!(
+        !stdout.contains("\u{1b}["),
+        "JSON stdout must not contain ANSI escapes"
+    );
+}
+
+#[test]
+fn verbose_search_reports_zero_result_reason() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+
+    llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let output = llm_wiki(home.path())
+        .args(["-v", "search", "missingtoken", "--project", "fixture"])
+        .output()
+        .expect("search output");
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stdout.contains("No results."));
+    assert!(stderr.contains("results: 0"));
+    assert!(stderr.contains("no-result: backend returned zero hits before filters"));
+}
+
+#[test]
+fn verbose_search_reports_empty_sanitized_query_reason() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+
+    llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let output = llm_wiki(home.path())
+        .args(["-v", "search", "!!!", "--project", "fixture"])
+        .output()
+        .expect("search output");
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stdout.contains("No results."));
+    assert!(stderr.contains("results: 0"));
+    assert!(stderr.contains("no-result: zero terms after FTS sanitization"));
+}
+
+#[test]
+fn verbose_search_reports_filter_exclusion_reason() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+
+    llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let output = llm_wiki(home.path())
+        .args([
+            "-v",
+            "search",
+            "reciprocal rank fusion",
+            "--project",
+            "fixture",
+            "--class",
+            "NoSuchClass",
+        ])
+        .output()
+        .expect("search output");
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stdout.contains("No results."));
+    assert!(stderr.contains("results: 0"));
+    assert!(stderr.contains("no-result: filters excluded all matched hits"));
+}
+
+#[test]
 fn projects_reports_fresh_and_stale_index_status() {
     let home = TempDir::new().expect("home");
     let workspace = TempDir::new().expect("workspace");
@@ -323,6 +540,50 @@ fn index_all_and_search_all_fuse_registered_projects() {
         .success()
         .stdout(predicate::str::contains("\"project_id\": \"alpha\""))
         .stdout(predicate::str::contains("\"project_id\": \"beta\"").not());
+}
+
+#[test]
+fn verbose_search_all_reports_project_diagnostics() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let alpha = fixture_project_with_decision(
+        workspace.path(),
+        "Alpha Project",
+        "Alpha Decision",
+        "Shared retrieval token appears in alpha project.",
+    );
+    let beta = fixture_project_with_decision(
+        workspace.path(),
+        "Beta Project",
+        "Beta Decision",
+        "Shared retrieval token appears in beta project.",
+    );
+    register_project_with_id(home.path(), &alpha, "alpha");
+    register_project_with_id(home.path(), &beta, "beta");
+
+    llm_wiki(home.path())
+        .args(["index-all", "--force"])
+        .assert()
+        .success();
+
+    let output = llm_wiki(home.path())
+        .args(["-v", "search-all", "shared retrieval token"])
+        .output()
+        .expect("search-all output");
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stdout.contains("[alpha] Alpha Decision"));
+    assert!(stdout.contains("[beta] Beta Decision"));
+    assert!(stderr.contains("command: search-all"));
+    assert!(stderr.contains("selected projects: alpha, beta"));
+    assert!(stderr.contains("project alpha:"));
+    assert!(stderr.contains("project beta:"));
+    assert!(stderr.contains("index status alpha: ready"));
+    assert!(stderr.contains("index status beta: ready"));
+    assert!(stderr.contains("per-project results alpha: 1"));
+    assert!(stderr.contains("per-project results beta: 1"));
+    assert!(stderr.contains("fused results: 2"));
 }
 
 #[test]

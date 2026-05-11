@@ -5,7 +5,7 @@ use anyhow::Result;
 
 use crate::paths::Paths;
 
-pub fn run() -> Result<()> {
+pub fn run(_context: &crate::cli::CliContext) -> Result<()> {
     let paths = Paths::from_env()?;
     print_guidance(&paths);
     Ok(())

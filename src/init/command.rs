@@ -5,7 +5,7 @@ use crate::init::answers::from_args;
 use crate::init::scaffold::create_project;
 use crate::registry;
 
-pub fn run(args: &InitArgs) -> Result<()> {
+pub fn run(args: &InitArgs, _context: &crate::cli::CliContext) -> Result<()> {
     let answers = from_args(args)?;
     create_project(&args.path, &answers, &args.initial_sources)?;
 
