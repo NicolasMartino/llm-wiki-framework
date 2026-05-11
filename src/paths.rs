@@ -119,6 +119,11 @@ impl Paths {
         self.project_index_dir(project_key).join("qmd-rs.sqlite")
     }
 
+    pub fn semantic_index_metadata(&self, project_key: &str) -> PathBuf {
+        self.project_index_dir(project_key)
+            .join("semantic-index.json")
+    }
+
     pub fn legacy_qmd_rs_store_path(&self, project_key: &str) -> PathBuf {
         self.legacy_project_index_dir(project_key)
             .join("qmd-rs.sqlite")
@@ -211,6 +216,11 @@ mod tests {
             paths.legacy_qmd_rs_store_path("fixture"),
             temp.path()
                 .join(".cache/llm-wiki/indexes/fixture/qmd-rs.sqlite")
+        );
+        assert_eq!(
+            paths.semantic_index_metadata("fixture"),
+            temp.path()
+                .join(".llm_wiki/indexes/fixture/semantic-index.json")
         );
         assert_eq!(
             paths.model_cache(),

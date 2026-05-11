@@ -13,6 +13,7 @@ use crate::registry::{ProjectRegistry, RegisteredProject};
 use crate::search::adapter::{BackendState, SearchBackend, SearchMode};
 use crate::search::project::discover_from_cwd;
 use crate::search::qmd_rs::QmdRsBackend;
+use crate::search::semantic::SemanticIndexMetadata;
 use crate::search_models::{AcceptedLicenses, ModelArtifacts};
 use crate::search_profile::{ExternalDependencies, SearchConfig};
 use crate::skill_render::{BINARY_MARKER, managed_binary_invocation};
@@ -343,7 +344,7 @@ fn print_project_search_diagnostics(paths: &Paths, context: &crate::cli::CliCont
     };
     let wiki_root = registered
         .map(RegisteredProject::wiki_root)
-        .unwrap_or(discovered.wiki_root);
+        .unwrap_or_else(|| discovered.wiki_root.clone());
     context.diagnostic(format!("wiki root: {}", wiki_root.display()));
     context.diagnostic(format!("index store: {}", store_path.display()));
     context.diagnostic(format!(
@@ -399,6 +400,25 @@ fn print_project_search_diagnostics(paths: &Paths, context: &crate::cli::CliCont
             legacy_store_path.display(),
             paths.managed_index_root().display()
         );
+    }
+
+    let semantic_metadata_path = registered
+        .map(|project| paths.semantic_index_metadata(&project.id))
+        .unwrap_or_else(|| paths.semantic_index_metadata(&discovered.project_key));
+    context.diagnostic(format!(
+        "semantic index metadata: {}",
+        semantic_metadata_path.display()
+    ));
+    match SemanticIndexMetadata::read(&semantic_metadata_path)? {
+        Some(metadata) => println!(
+            "Semantic index metadata: {} chunks at {}",
+            metadata.chunks.len(),
+            semantic_metadata_path.display()
+        ),
+        None => println!(
+            "Semantic index metadata missing: {}",
+            semantic_metadata_path.display()
+        ),
     }
 
     println!();

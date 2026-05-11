@@ -23,6 +23,7 @@ use crate::search::adapter::{
 use crate::search::project::discover_from_cwd;
 use crate::search::qmd_rs::QmdRsBackend;
 use crate::search::sanitize::sanitize_fts_query;
+use crate::search::semantic::SemanticIndexMetadata;
 use crate::search_models::{ModelArtifacts, model_by_id};
 use crate::search_profile::{ProjectSearchConfig, SearchConfig, SearchProfile};
 
@@ -137,12 +138,51 @@ fn index_registered_project(
     context.diagnostic("promotion: complete");
     temp_build.cleanup()?;
     context.diagnostic("temp store cleanup: complete");
+    update_semantic_index_metadata(paths, project, context)?;
     registry::record_index_success(&project.id, status.indexed_files, &project.wiki_root())?;
     context.diagnostic("registry metadata: recorded index success");
     println!(
         "Indexed project: {} ({} files)",
         project.id, status.indexed_files
     );
+    Ok(())
+}
+
+fn update_semantic_index_metadata(
+    paths: &Paths,
+    project: &RegisteredProject,
+    context: &CliContext,
+) -> Result<()> {
+    let metadata_path = paths.semantic_index_metadata(&project.id);
+    let Some(profile) = project_search_profile(paths, project)? else {
+        context.diagnostic("semantic index metadata: skipped, search profile missing");
+        return Ok(());
+    };
+    if !profile.llm_search_enabled {
+        context.diagnostic("semantic index metadata: skipped, LLM search disabled");
+        if metadata_path.exists() {
+            fs::remove_file(&metadata_path).with_context(|| {
+                format!(
+                    "remove disabled semantic index metadata {}",
+                    metadata_path.display()
+                )
+            })?;
+        }
+        return Ok(());
+    }
+    let Some(artifacts) = ModelArtifacts::read(&paths.model_artifacts())? else {
+        bail!(
+            "semantic indexing requires model artifact records; run `llm-wiki install --configure-search`"
+        );
+    };
+    let metadata =
+        SemanticIndexMetadata::build(&project.id, &project.wiki_root(), &profile, &artifacts)?;
+    context.diagnostic(format!(
+        "semantic index metadata: chunks={}, path={}",
+        metadata.chunks.len(),
+        metadata_path.display()
+    ));
+    metadata.write_atomic(&metadata_path)?;
     Ok(())
 }
 
