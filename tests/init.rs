@@ -308,6 +308,52 @@ fn init_runtime_manifest_records_managed_install() {
 }
 
 #[test]
+fn init_seeds_project_search_profile_from_global_default() {
+    let project = TempDir::new().expect("project");
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .args(["install", "--skip-path-guidance", "--disable-llm-search"])
+        .assert()
+        .success();
+    llm_wiki(home.path())
+        .arg("init")
+        .arg(project.path())
+        .args([
+            "--no-register",
+            "--non-interactive",
+            "--name",
+            "Search Profile Fixture",
+            "--description",
+            "A search profile fixture project.",
+            "--blueprint",
+            "generic",
+        ])
+        .assert()
+        .success();
+
+    let runtime = read_runtime_manifest(project.path());
+    let project_search = read_project_search_manifest(project.path());
+    assert_eq!(project_search["schema_version"].as_integer(), Some(1));
+    assert_eq!(
+        project_search["project"]["llm_search_enabled"].as_bool(),
+        Some(false)
+    );
+    assert_eq!(
+        project_search["project"]["reason"].as_str(),
+        Some("llm_search_disabled")
+    );
+    assert_eq!(
+        project_search["project"]["source"].as_str(),
+        Some("project_default")
+    );
+    assert_eq!(
+        project_search["project"]["source_install_id"].as_str(),
+        runtime["install_id"].as_str()
+    );
+}
+
+#[test]
 fn init_agents_lists_pack_document_types_for_pack_driven_projects() {
     let temp = TempDir::new().expect("tempdir");
 
@@ -575,6 +621,11 @@ fn read_init_manifest(project: &Path) -> toml::Value {
 
 fn read_runtime_manifest(project: &Path) -> toml::Value {
     let manifest = fs::read_to_string(project.join(".llm_wiki/runtime.toml")).expect("manifest");
+    toml::from_str(&manifest).expect("toml")
+}
+
+fn read_project_search_manifest(project: &Path) -> toml::Value {
+    let manifest = fs::read_to_string(project.join(".llm_wiki/search.toml")).expect("manifest");
     toml::from_str(&manifest).expect("toml")
 }
 

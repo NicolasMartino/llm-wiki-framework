@@ -213,9 +213,13 @@ Progress 2026-05-11:
 - Added project-local `.llm_wiki/runtime.toml` during `init`, recording the
   managed runtime home, managed binary path, install manifest path, framework
   version, and install hash/ID when a completed install manifest exists.
+- Added project-local `.llm_wiki/search.toml` seeding during `init` when a
+  global `~/.llm_wiki/search.toml` exists. The project profile copies
+  `[project_default]`, records `source = "project_default"`, and carries the
+  install hash/ID from `runtime.toml`.
 - Search enablement, license acknowledgement, artifact download, hash
   verification, completed enabled profiles, recoverable partial model
-  downloads, and project-local search profile seeding remain open.
+  downloads remain open.
 - Verification: `cargo fmt`; `cargo test --test install`;
   `cargo test --test status_doctor`; `cargo test --workspace`;
   `git diff --check`.

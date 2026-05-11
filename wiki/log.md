@@ -1,5 +1,20 @@
 # Wiki Log
 
+## [2026-05-11] update | project search profile seeding
+
+Continued Stage 1 by seeding project-local search state during `llm-wiki init`
+when a global `~/.llm_wiki/search.toml` exists. The new project
+`.llm_wiki/search.toml` copies the global `[project_default]` profile into a
+project `[project]` profile, records `source = "project_default"`, and carries
+the install hash/ID from `.llm_wiki/runtime.toml`. Legacy projects or installs
+without a global search profile still get no project search profile, preserving
+the profile-missing lexical path for later mode resolution.
+
+Verification: `cargo fmt`; `cargo test --test init`; `git diff --check`.
+
+Pages updated: src/search_profile.rs, src/init/scaffold.rs, tests/init.rs,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/log.md
+
 ## [2026-05-11] update | project runtime manifest breadcrumb
 
 Continued Stage 1 by adding project-local runtime breadcrumbs during

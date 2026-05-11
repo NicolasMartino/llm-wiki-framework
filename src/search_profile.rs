@@ -31,6 +31,17 @@ pub struct SearchProfile {
     pub query_expansion_model: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reranker_model: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_install_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ProjectSearchConfig {
+    pub schema_version: u32,
+    pub updated_at: String,
+    pub project: SearchProfile,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -99,7 +110,29 @@ impl SearchProfile {
             embedding_model: None,
             query_expansion_model: None,
             reranker_model: None,
+            source: None,
+            source_install_id: None,
         }
+    }
+}
+
+impl ProjectSearchConfig {
+    pub fn from_project_default(
+        global_config: &SearchConfig,
+        source_install_id: Option<String>,
+    ) -> Self {
+        let mut project = global_config.project_default.clone();
+        project.source = Some("project_default".to_string());
+        project.source_install_id = source_install_id;
+        Self {
+            schema_version: SEARCH_CONFIG_SCHEMA_VERSION,
+            updated_at: timestamp(),
+            project,
+        }
+    }
+
+    pub fn write_atomic(&self, path: &Path) -> Result<()> {
+        write_toml_atomic(path, self, "project search config")
     }
 }
 
