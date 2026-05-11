@@ -2046,3 +2046,13 @@ assets/skills/wiki-init/SKILL.md, .claude/skills/wiki-init/SKILL.md,
 crates/llm-wiki-schema/tests/snapshots/,
 wiki/plans/code-pack-cli-blueprint.plan.md,
 wiki/specs/wiki-init-skill.spec.md, wiki/log.md
+
+## [2026-05-11] lint | retire stale IS_EXISTING references
+
+Updated completed roadmap and plan text that still described the old
+IS_EXISTING init profile as current behavior. The historical D8 notes now
+record that the profile existed during the binary implementation and was later
+retired by the code-pack cleanup.
+
+Pages updated: wiki/roadmaps/framework-v1.roadmap.md,
+wiki/plans/llm-wiki-binary.plan.md, wiki/log.md

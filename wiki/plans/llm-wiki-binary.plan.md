@@ -14,6 +14,12 @@ current Cargo package is `llm-wiki-rs`, canonical skill assets live under
 Historical phase text below may still describe the pre-rename implementation
 surface.
 
+Post-code-pack cleanup note: this plan originally included `--existing` /
+IS_EXISTING as an init profile. That profile was retired during the code-pack
+cleanup after folder scaffolding moved behind explicit packs and the final
+template consumer disappeared. Existing directories are still supported through
+framework-artifact collision checks, without a dedicated flag.
+
 ## 1. Deliverable
 
 D8: `llm-wiki` Rust binary. Single-command install of framework skills globally for Claude Code and Codex; deterministic project scaffolding; canonical-markdown skill projection with golden-file tests; `cargo-dist` multi-arch distribution.
@@ -114,7 +120,7 @@ tools/
                                     # crate's build.rs at the crate root)
       init/
         mod.rs                      # init subcommand
-        profile.rs                  # ML_AI, SEARCH, IS_EXISTING resolution
+        profile.rs                  # ML_AI and SEARCH resolution; IS_EXISTING was retired later
         template.rs                 # conditional-section resolution
         collision.rs                # framework-artifact detection
         sources.rs                  # initial-source copying (binary owns the copy; ingest
