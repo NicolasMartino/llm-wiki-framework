@@ -1,5 +1,15 @@
 # Wiki Log
 
+## [2026-05-11] test | Observability coverage for CLI blueprint
+
+After rebasing the CLI observability branch onto the completed code-pack/CLI
+blueprint work, added explicit `-v init --blueprint cli-tool` coverage. The
+test asserts that init diagnostics report the `cli-tool` blueprint and its
+resolved `code` pack, keeping the new blueprint behavior under the standing
+observability contract.
+
+Pages updated: tests/init.rs, wiki/log.md
+
 ## [2026-05-11] update | Observability as core engineering contract
 
 Promoted CLI observability from a completed implementation plan into a standing

@@ -224,6 +224,32 @@ fn verbose_init_emits_command_diagnostics() {
 }
 
 #[test]
+fn verbose_init_reports_cli_tool_code_pack() {
+    let temp = TempDir::new().expect("tempdir");
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .args(["--verbose", "init"])
+        .arg(temp.path())
+        .args([
+            "--no-register",
+            "--non-interactive",
+            "--name",
+            "CLI Fixture",
+            "--description",
+            "A CLI fixture project.",
+            "--blueprint",
+            "cli-tool",
+        ])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("command: init"))
+        .stderr(predicate::str::contains("no register: true"))
+        .stderr(predicate::str::contains("blueprint: cli-tool"))
+        .stderr(predicate::str::contains("resolved packs: code"));
+}
+
+#[test]
 fn init_agents_lists_pack_document_types_for_pack_driven_projects() {
     let temp = TempDir::new().expect("tempdir");
 
