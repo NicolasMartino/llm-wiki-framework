@@ -215,7 +215,9 @@ fn verbose_init_emits_command_diagnostics() {
             "resolved packs: ml, data, research, code",
         ))
         .stderr(predicate::str::contains("initial source:"))
-        .stderr(predicate::str::contains("registry:"));
+        .stderr(predicate::str::contains("registry:"))
+        .stderr(predicate::str::contains("canonical root:"))
+        .stderr(predicate::str::contains("validation: ok"));
 }
 
 #[test]

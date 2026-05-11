@@ -87,15 +87,6 @@ pub fn register(args: &RegisterArgs, context: &CliContext) -> Result<()> {
     Ok(())
 }
 
-pub fn register_project(
-    path: Option<&Path>,
-    name: Option<String>,
-    id: Option<String>,
-    update: Option<String>,
-) -> Result<RegisterOutcome> {
-    register_project_with_context(path, name, id, update, None)
-}
-
 pub fn register_project_with_context(
     path: Option<&Path>,
     name: Option<String>,

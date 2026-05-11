@@ -45,7 +45,13 @@ pub fn run(args: &InitArgs, context: &crate::cli::CliContext) -> Result<()> {
             }
             Err(error) => context.diagnostic(format!("registry: unavailable: {error}")),
         }
-        match registry::register_project(Some(&args.path), Some(answers.name.clone()), None, None) {
+        match registry::register_project_with_context(
+            Some(&args.path),
+            Some(answers.name.clone()),
+            None,
+            None,
+            Some(context),
+        ) {
             Ok(outcome) => {
                 context.diagnostic(format!(
                     "registration outcome: {}",
