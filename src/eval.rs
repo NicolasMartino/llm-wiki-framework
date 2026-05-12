@@ -18,7 +18,7 @@ use crate::registry::{ProjectRegistry, RegisteredProject};
 use crate::search::adapter::{Freshness, Score, SearchBackend, SearchFilters, SearchMode};
 use crate::search::commands::{
     dedupe_by_path_preserving_rank, expand_hybrid_queries, freshness_for_status,
-    fuse_hybrid_results, query_anchor_terms,
+    fuse_hybrid_results, maybe_rerank_results, query_anchor_terms,
 };
 use crate::search::project::discover_from_cwd;
 use crate::search::qmd_rs::QmdRsBackend;
@@ -27,8 +27,8 @@ use crate::search::semantic::{
     embed_query,
 };
 use crate::search_models::{
-    AcceptedLicenses, ModelArtifactRecord, ModelArtifacts, SearchThresholds, model_by_id,
-    profile_by_id,
+    AcceptedLicenses, ModelArtifactRecord, ModelArtifacts, SearchThresholdStore, SearchThresholds,
+    model_by_id, profile_by_id,
 };
 use crate::search_profile::{ProjectSearchConfig, SearchConfig, SearchProfile, timestamp};
 
@@ -238,7 +238,11 @@ fn calibrate(args: &EvalCalibrateArgs, context: &CliContext) -> Result<EvalCalib
         .iter()
         .map(calibrate_candidate)
         .collect::<Vec<_>>();
-    let selected = proposals.first().cloned();
+    let selected = select_calibration_proposal(
+        &proposals,
+        args.select_candidate.as_deref(),
+        args.apply || args.record,
+    )?;
     let report_path = calibration_report_path(args, &run_report);
     let selected_candidate = selected
         .as_ref()
@@ -274,7 +278,9 @@ fn calibrate(args: &EvalCalibrateArgs, context: &CliContext) -> Result<EvalCalib
     };
 
     if args.apply {
-        let proposal = selected.context("no calibration proposal available to apply")?;
+        let proposal = selected
+            .as_ref()
+            .context("no calibration proposal available to apply")?;
         if !proposal.promotable {
             bail!(
                 "calibration proposal for {} is not promotable: {}",
@@ -288,13 +294,16 @@ fn calibrate(args: &EvalCalibrateArgs, context: &CliContext) -> Result<EvalCalib
                 proposal.candidate_name
             );
         }
-        apply_thresholds(args, &run_report, &proposal)?;
+        apply_thresholds(args, &run_report, proposal)?;
     }
 
     let mut report = report;
     report.applied = args.apply;
     if args.record {
-        record_calibration(args, &run_report, &report)?;
+        let proposal = selected
+            .as_ref()
+            .context("no calibration proposal selected to record")?;
+        record_calibration(args, &run_report, &report, proposal)?;
         report.recorded = true;
     }
     write_json(&report.report_path, &report)?;
@@ -302,6 +311,32 @@ fn calibrate(args: &EvalCalibrateArgs, context: &CliContext) -> Result<EvalCalib
         export_raw_eval_data(args, &run_report, &report, context)?;
     }
     Ok(report)
+}
+
+fn select_calibration_proposal(
+    proposals: &[CandidateCalibrationProposal],
+    requested: Option<&str>,
+    require_selection: bool,
+) -> Result<Option<CandidateCalibrationProposal>> {
+    if let Some(requested) = requested {
+        let proposal = proposals
+            .iter()
+            .find(|proposal| proposal.candidate_name == requested)
+            .cloned()
+            .with_context(|| {
+                format!("calibration candidate {requested} was not found in run report")
+            })?;
+        return Ok(Some(proposal));
+    }
+
+    match proposals {
+        [proposal] => Ok(Some(proposal.clone())),
+        [] => Ok(None),
+        _ if require_selection => {
+            bail!("multiple calibration candidates are available; pass `--select-candidate <name>`")
+        }
+        _ => Ok(None),
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -410,6 +445,10 @@ struct EvalModeOutcome {
     vector_search_ms: u64,
     #[serde(default)]
     lexical_search_ms: u64,
+    #[serde(default)]
+    rerank_ms: u64,
+    #[serde(default)]
+    rerank_applied: bool,
     result_count: usize,
     hit_rank: Option<usize>,
     top_paths: Vec<String>,
@@ -422,6 +461,8 @@ struct EvalModeOutcome {
     top_lexical_scores: Vec<Option<f64>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     top_semantic_scores: Vec<Option<f64>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    top_anchor_matches: Vec<usize>,
     error: Option<String>,
 }
 
@@ -480,11 +521,17 @@ struct CandidateCalibrationProposal {
     hybrid_max_no_match_score: Option<f64>,
     hybrid_missing_expected_targets: Vec<String>,
     hybrid_promotable: bool,
+    hybrid_final_semantic_floor: f64,
+    hybrid_semantic_only_floor: f64,
+    hybrid_strong_lexical_score_floor: f64,
+    hybrid_max_no_match_lexical_score: f64,
     calibration_expected_queries: usize,
     calibration_no_match_queries: usize,
     missing_expected_targets: Vec<String>,
     status: String,
     promotable: bool,
+    #[serde(default)]
+    post_apply_validation_required: bool,
     requires_apply_profile: bool,
     current_summary: BTreeMap<String, EvalModeSummary>,
     proposed_summary: BTreeMap<String, EvalModeSummary>,
@@ -542,6 +589,7 @@ struct RawEvalDataCandidate {
     proposed_calibration_pass: bool,
     holdout_pass: bool,
     verdict_changes: usize,
+    post_apply_validation_required: bool,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -580,6 +628,7 @@ struct PreparedCandidate {
     artifacts: Option<ModelArtifacts>,
     embedding_artifact: Option<ModelArtifactRecord>,
     query_expansion_artifact: Option<ModelArtifactRecord>,
+    reranker_artifact: Option<ModelArtifactRecord>,
     metadata: Option<SemanticIndexMetadata>,
     vectors: Option<SemanticVectorIndex>,
     thresholds: Option<SearchThresholds>,
@@ -626,7 +675,7 @@ impl PreparedCandidate {
             accepted_licenses,
             &mut models,
         );
-        let _reranker_artifact = candidate_model_report(
+        let reranker_artifact = candidate_model_report(
             "reranker",
             spec.profile.reranker_model.as_deref(),
             artifacts,
@@ -732,6 +781,7 @@ impl PreparedCandidate {
             artifacts: artifacts.cloned(),
             embedding_artifact,
             query_expansion_artifact,
+            reranker_artifact,
             metadata,
             vectors,
             thresholds,
@@ -747,6 +797,21 @@ impl PreparedCandidate {
 
     fn hybrid_ready(&self) -> bool {
         self.semantic_ready() && self.query_expansion_artifact.is_some()
+    }
+
+    fn rerank_readiness_reason(&self) -> Option<String> {
+        self.spec.profile.reranker_model.as_ref()?;
+        if self.reranker_artifact.is_some() {
+            return None;
+        }
+        Some(
+            self.report
+                .models
+                .iter()
+                .find(|model| model.role == "reranker")
+                .and_then(|model| model.readiness_reason.clone())
+                .unwrap_or_else(|| "reranker_artifact_missing".to_string()),
+        )
     }
 }
 
@@ -848,6 +913,8 @@ fn run_case_mode(
             embed_query_ms: 0,
             vector_search_ms: 0,
             lexical_search_ms: 0,
+            rerank_ms: 0,
+            rerank_applied: false,
             result_count: 0,
             hit_rank: None,
             top_paths: Vec::new(),
@@ -856,6 +923,7 @@ fn run_case_mode(
             top_semantic_ranks: Vec::new(),
             top_lexical_scores: Vec::new(),
             top_semantic_scores: Vec::new(),
+            top_anchor_matches: Vec::new(),
             error: Some(error.to_string()),
         },
     }
@@ -1031,6 +1099,25 @@ fn run_hybrid(
     if context.rerank && candidate.spec.profile.reranker_model.is_none() {
         return Ok(readiness_outcome("hybrid", "reranker_model_missing"));
     }
+    let mut rerank_ms = 0;
+    let mut rerank_applied = false;
+    if context.rerank {
+        if let Some(reason) = candidate.rerank_readiness_reason() {
+            return Ok(readiness_outcome("hybrid", &reason));
+        }
+        let rerank_started = Instant::now();
+        results = maybe_rerank_results(
+            &case.query,
+            results,
+            &candidate.spec.profile,
+            artifacts,
+            thresholds,
+            context.wiki_root,
+            true,
+        )?;
+        rerank_ms = elapsed_ms(rerank_started);
+        rerank_applied = true;
+    }
     for result in &mut results {
         result.mode = SearchMode::Hybrid;
         if matches!(result.freshness, Freshness::Unknown) {
@@ -1042,6 +1129,8 @@ fn run_hybrid(
     outcome.embed_query_ms = embed_query_ms;
     outcome.vector_search_ms = vector_search_ms;
     outcome.lexical_search_ms = lexical_search_ms;
+    outcome.rerank_ms = rerank_ms;
+    outcome.rerank_applied = rerank_applied;
     Ok(outcome)
 }
 
@@ -1056,6 +1145,8 @@ fn readiness_outcome(mode: &str, reason: &str) -> EvalModeOutcome {
         embed_query_ms: 0,
         vector_search_ms: 0,
         lexical_search_ms: 0,
+        rerank_ms: 0,
+        rerank_applied: false,
         result_count: 0,
         hit_rank: None,
         top_paths: Vec::new(),
@@ -1064,6 +1155,7 @@ fn readiness_outcome(mode: &str, reason: &str) -> EvalModeOutcome {
         top_semantic_ranks: Vec::new(),
         top_lexical_scores: Vec::new(),
         top_semantic_scores: Vec::new(),
+        top_anchor_matches: Vec::new(),
         error: None,
     }
 }
@@ -1079,6 +1171,8 @@ fn not_applicable_outcome(mode: &str, reason: &str) -> EvalModeOutcome {
         embed_query_ms: 0,
         vector_search_ms: 0,
         lexical_search_ms: 0,
+        rerank_ms: 0,
+        rerank_applied: false,
         result_count: 0,
         hit_rank: None,
         top_paths: Vec::new(),
@@ -1087,6 +1181,7 @@ fn not_applicable_outcome(mode: &str, reason: &str) -> EvalModeOutcome {
         top_semantic_ranks: Vec::new(),
         top_lexical_scores: Vec::new(),
         top_semantic_scores: Vec::new(),
+        top_anchor_matches: Vec::new(),
         error: None,
     }
 }
@@ -1128,6 +1223,11 @@ fn outcome_from_results(
         .take(10)
         .map(|result| result.semantic_score.map(round_score))
         .collect::<Vec<_>>();
+    let top_anchor_matches = results
+        .iter()
+        .take(10)
+        .map(|result| result_anchor_match_count(&case.query, result))
+        .collect::<Vec<_>>();
     let (status, reason, hit_rank) = judge_case(case, selected_mode, &top_paths, judgment_applies);
     EvalModeOutcome {
         status,
@@ -1139,6 +1239,8 @@ fn outcome_from_results(
         embed_query_ms: 0,
         vector_search_ms: 0,
         lexical_search_ms: 0,
+        rerank_ms: 0,
+        rerank_applied: false,
         result_count: results.len(),
         hit_rank,
         top_paths,
@@ -1147,6 +1249,7 @@ fn outcome_from_results(
         top_semantic_ranks,
         top_lexical_scores,
         top_semantic_scores,
+        top_anchor_matches,
         error: None,
     }
 }
@@ -1462,7 +1565,15 @@ fn calibrate_candidate(candidate: &EvalCandidateRun) -> CandidateCalibrationProp
         "hybrid",
         CalibrationScoreMetric::SemanticBranchScore,
     );
-    let proposed_thresholds = proposal_thresholds(candidate, semantic.floor, hybrid.floor);
+    let hybrid_final = derive_hybrid_final_floors(candidate);
+    let proposed_thresholds = proposal_thresholds(
+        candidate,
+        semantic.floor,
+        hybrid.floor,
+        hybrid_final.final_semantic_floor,
+        hybrid_final.semantic_only_floor,
+        hybrid_final.strong_lexical_score_floor,
+    );
     let diagnostics = proposal_diagnostics(candidate, proposed_thresholds.as_ref());
     let calibration_no_match_queries = calibration_no_match_count(candidate);
     let missing_expected_targets = semantic
@@ -1473,16 +1584,14 @@ fn calibrate_candidate(candidate: &EvalCandidateRun) -> CandidateCalibrationProp
         .collect::<BTreeSet<_>>()
         .into_iter()
         .collect::<Vec<_>>();
-    let calibration_promotable =
-        semantic.promotable && hybrid.promotable && calibration_no_match_queries > 0;
-    let promotable =
-        calibration_promotable && diagnostics.proposed_calibration_pass && diagnostics.holdout_pass;
+    let promotable = calibration_no_match_queries > 0
+        && missing_expected_targets.is_empty()
+        && diagnostics.proposed_calibration_pass
+        && diagnostics.holdout_pass;
     let status = if calibration_no_match_queries == 0 {
         "blocked_no_calibration_no_match".to_string()
     } else if !missing_expected_targets.is_empty() {
         "blocked_missing_expected_targets".to_string()
-    } else if !semantic.promotable || !hybrid.promotable {
-        "blocked_no_feasible_threshold".to_string()
     } else if !diagnostics.proposed_calibration_pass {
         "blocked_proposed_regression".to_string()
     } else if !diagnostics.holdout_pass {
@@ -1523,11 +1632,16 @@ fn calibrate_candidate(candidate: &EvalCandidateRun) -> CandidateCalibrationProp
         hybrid_max_no_match_score: hybrid.max_no_match_score,
         hybrid_missing_expected_targets: hybrid.missing_expected_targets.clone(),
         hybrid_promotable: hybrid.promotable,
+        hybrid_final_semantic_floor: hybrid_final.final_semantic_floor,
+        hybrid_semantic_only_floor: hybrid_final.semantic_only_floor,
+        hybrid_strong_lexical_score_floor: hybrid_final.strong_lexical_score_floor,
+        hybrid_max_no_match_lexical_score: hybrid_final.max_no_match_lexical_score,
         calibration_expected_queries: semantic.expected_queries.max(hybrid.expected_queries),
         calibration_no_match_queries,
         missing_expected_targets,
         status,
         promotable,
+        post_apply_validation_required: promotable,
         requires_apply_profile: candidate.source != "active_project_profile",
         current_summary: candidate.summary.clone(),
         proposed_summary: diagnostics.proposed_summary,
@@ -1561,6 +1675,9 @@ fn proposal_thresholds(
     candidate: &EvalCandidateRun,
     semantic_floor: Option<f64>,
     hybrid_floor: Option<f64>,
+    hybrid_final_semantic_floor: f64,
+    hybrid_semantic_only_floor: f64,
+    hybrid_strong_lexical_score_floor: f64,
 ) -> Option<SearchThresholds> {
     let embedding_model = candidate.embedding_model.clone()?;
     let embedding_artifact = candidate
@@ -1574,7 +1691,7 @@ fn proposal_thresholds(
         .iter()
         .find(|model| model.role == "embedding")?
         .dimensions?;
-    Some(SearchThresholds::calibrated(
+    let mut thresholds = SearchThresholds::calibrated(
         candidate
             .profile
             .clone()
@@ -1585,8 +1702,97 @@ fn proposal_thresholds(
         "qmd-rs-character-v1:3200:480",
         semantic_floor?,
         hybrid_floor?,
-    ))
+    );
+    thresholds.hybrid_final_semantic_floor = hybrid_final_semantic_floor;
+    thresholds.hybrid_semantic_only_floor = hybrid_semantic_only_floor;
+    thresholds.hybrid_strong_lexical_score_floor = hybrid_strong_lexical_score_floor;
+    Some(thresholds)
 }
+
+struct HybridFinalFloors {
+    final_semantic_floor: f64,
+    semantic_only_floor: f64,
+    strong_lexical_score_floor: f64,
+    max_no_match_lexical_score: f64,
+}
+
+fn derive_hybrid_final_floors(candidate: &EvalCandidateRun) -> HybridFinalFloors {
+    let mut max_no_match_sem: f64 = 0.0;
+    let mut max_no_match_lex: f64 = 0.0;
+    let mut max_anchor_leak_sem: f64 = 0.0;
+    for case in &candidate.results {
+        if !case.expected_pages.is_empty() {
+            continue;
+        }
+        let Some(outcome) = case.modes.get("hybrid") else {
+            continue;
+        };
+        if outcome.status == "not_applicable" {
+            continue;
+        }
+        for index in 0..outcome.top_paths.len() {
+            if let Some(score) = optional_value_at(&outcome.top_semantic_scores, index) {
+                if score > max_no_match_sem {
+                    max_no_match_sem = score;
+                }
+            }
+            if let Some(score) = optional_value_at(&outcome.top_lexical_scores, index) {
+                if score > max_no_match_lex {
+                    max_no_match_lex = score;
+                }
+            }
+        }
+    }
+    let semantic_only_floor = (max_no_match_sem + 0.005).max(DEFAULT_HYBRID_SEMANTIC_ONLY_FLOOR);
+    let strong_lexical_score_floor = (max_no_match_lex + 0.5).max(0.5);
+
+    for case in &candidate.results {
+        if !case.expected_pages.is_empty() {
+            continue;
+        }
+        let Some(outcome) = case.modes.get("hybrid") else {
+            continue;
+        };
+        if outcome.status == "not_applicable" {
+            continue;
+        }
+        for index in 0..outcome.top_paths.len() {
+            let Some(semantic_score) = optional_value_at(&outcome.top_semantic_scores, index)
+            else {
+                continue;
+            };
+            if semantic_score < DEFAULT_HYBRID_FINAL_SEMANTIC_FLOOR
+                || semantic_score >= semantic_only_floor
+            {
+                continue;
+            }
+            let lexical_score = optional_value_at(&outcome.top_lexical_scores, index);
+            if lexical_score.is_some_and(|score| score >= strong_lexical_score_floor) {
+                continue;
+            }
+            if optional_value_at(&outcome.top_lexical_ranks, index).is_none()
+                && anchor_match_count(case, outcome, index) > 0
+                && semantic_score > max_anchor_leak_sem
+            {
+                max_anchor_leak_sem = semantic_score;
+            }
+        }
+    }
+    let final_semantic_floor = if max_anchor_leak_sem > 0.0 {
+        (max_anchor_leak_sem + 0.005).max(DEFAULT_HYBRID_FINAL_SEMANTIC_FLOOR)
+    } else {
+        DEFAULT_HYBRID_FINAL_SEMANTIC_FLOOR
+    };
+    HybridFinalFloors {
+        final_semantic_floor,
+        semantic_only_floor,
+        strong_lexical_score_floor,
+        max_no_match_lexical_score: max_no_match_lex,
+    }
+}
+
+const DEFAULT_HYBRID_FINAL_SEMANTIC_FLOOR: f64 = 0.39;
+const DEFAULT_HYBRID_SEMANTIC_ONLY_FLOOR: f64 = 0.50;
 
 fn proposal_diagnostics(
     candidate: &EvalCandidateRun,
@@ -1610,7 +1816,7 @@ fn proposal_diagnostics(
             if case.split == "Hold-out" {
                 record_summary_status(&mut holdout_summary, mode, &proposed.status);
             }
-            if threshold_validated_mode(mode) && proposed.status != "not_applicable" {
+            if promotion_gate_mode(mode) && proposed.status != "not_applicable" {
                 if case.split == "Calibration" && proposed.status != "pass" {
                     proposed_calibration_pass = false;
                 }
@@ -1751,11 +1957,36 @@ fn hybrid_result_survives_proposed(
     if semantic_score < thresholds.hybrid_final_semantic_floor {
         return false;
     }
-    lexical_rank.is_some() || path_anchor_match_count(&case.query, &outcome.top_paths[index]) > 0
+    lexical_rank.is_some() || anchor_match_count(case, outcome, index) > 0
 }
 
 fn optional_value_at<T: Copy>(values: &[Option<T>], index: usize) -> Option<T> {
     values.get(index).and_then(|value| *value)
+}
+
+fn anchor_match_count(case: &EvalCaseRun, outcome: &EvalModeOutcome, index: usize) -> usize {
+    outcome
+        .top_anchor_matches
+        .get(index)
+        .copied()
+        .unwrap_or_else(|| path_anchor_match_count(&case.query, &outcome.top_paths[index]))
+}
+
+fn result_anchor_match_count(query: &str, result: &crate::search::adapter::SearchResult) -> usize {
+    let haystack = format!(
+        "{} {} {}",
+        result.path.to_string_lossy().to_ascii_lowercase(),
+        result.title.to_ascii_lowercase(),
+        result
+            .snippet
+            .as_deref()
+            .unwrap_or_default()
+            .to_ascii_lowercase()
+    );
+    query_anchor_terms(query)
+        .iter()
+        .filter(|anchor| haystack.contains(anchor.as_str()))
+        .count()
 }
 
 fn path_anchor_match_count(query: &str, path: &str) -> usize {
@@ -1780,8 +2011,8 @@ fn record_summary_status(
     }
 }
 
-fn threshold_validated_mode(mode: &str) -> bool {
-    matches!(mode, "semantic" | "hybrid" | "auto")
+fn promotion_gate_mode(mode: &str) -> bool {
+    matches!(mode, "hybrid" | "auto")
 }
 
 fn record_no_match_precision(
@@ -1994,7 +2225,7 @@ fn apply_thresholds(
         .iter()
         .find(|candidate| candidate.name == proposal.candidate_name)
         .context("selected calibration candidate missing from run report")?;
-    let thresholds = SearchThresholds::calibrated(
+    let mut thresholds = SearchThresholds::calibrated(
         candidate
             .profile
             .clone()
@@ -2018,21 +2249,27 @@ fn apply_thresholds(
             .hybrid_pre_fusion_semantic_floor
             .context("hybrid floor missing from proposal")?,
     );
+    thresholds.hybrid_final_semantic_floor = proposal.hybrid_final_semantic_floor;
+    thresholds.hybrid_semantic_only_floor = proposal.hybrid_semantic_only_floor;
+    thresholds.hybrid_strong_lexical_score_floor = proposal.hybrid_strong_lexical_score_floor;
+    thresholds = thresholds.for_project(run_report.project_id.clone());
     let path = paths.search_thresholds();
+    let mut store = SearchThresholdStore::read(&path)?.unwrap_or_else(SearchThresholdStore::empty);
+    store.upsert(thresholds);
     if path.exists() {
         let backup = path.with_file_name(format!(
             "search-thresholds.toml.backup-{}",
             slugify(&timestamp())
         ));
-        fs::rename(&path, &backup).with_context(|| {
+        fs::copy(&path, &backup).with_context(|| {
             format!(
-                "rotate previous search thresholds {} to {}",
+                "backup previous search thresholds {} to {}",
                 path.display(),
                 backup.display()
             )
         })?;
     }
-    thresholds.write_atomic(&path)?;
+    store.write_atomic(&path)?;
     if let Some(scope) = &args.apply_profile {
         let marker = paths
             .managed_home()
@@ -2055,6 +2292,7 @@ fn record_calibration(
     args: &EvalCalibrateArgs,
     run_report: &EvalRunReport,
     report: &EvalCalibrationReport,
+    proposal: &CandidateCalibrationProposal,
 ) -> Result<()> {
     let eval_page = &run_report.eval_page;
     let before = fs::read(eval_page).with_context(|| format!("read {}", eval_page.display()))?;
@@ -2073,24 +2311,23 @@ fn record_calibration(
         before_hash
     )
     .with_context(|| format!("append calibration run to {}", eval_page.display()))?;
-    if let Some(proposal) = report.proposals.first() {
-        writeln!(
-            file,
-            "- Candidate: `{}`\n- Status: `{}`\n- Promotable: `{}`\n- Proposed `semantic_similarity_floor`: `{}`\n- Proposed `hybrid_pre_fusion_semantic_floor`: `{}`\n- Current summary: {}\n- Proposed summary: {}\n- Hold-out summary: {}\n- Verdict changes: `{}`\n- Model artifact bytes: `{}`\n- Candidate index bytes: `{}`\n",
-            proposal.candidate_name,
-            proposal.status,
-            proposal.promotable,
-            optional_floor(proposal.semantic_similarity_floor),
-            optional_floor(proposal.hybrid_pre_fusion_semantic_floor),
-            summary_inline(&proposal.current_summary),
-            summary_inline(&proposal.proposed_summary),
-            summary_inline(&proposal.holdout_summary),
-            proposal.verdict_changes.len(),
-            proposal.model_artifact_size_bytes,
-            proposal.candidate_index_size_bytes,
-        )
-        .with_context(|| format!("append calibration proposal to {}", eval_page.display()))?;
-    }
+    writeln!(
+        file,
+        "- Candidate: `{}`\n- Status: `{}`\n- Promotable: `{}`\n- Post-apply validation required: `{}`\n- Proposed `semantic_similarity_floor`: `{}`\n- Proposed `hybrid_pre_fusion_semantic_floor`: `{}`\n- Current summary: {}\n- Proposed summary: {}\n- Hold-out summary: {}\n- Verdict changes: `{}`\n- Model artifact bytes: `{}`\n- Candidate index bytes: `{}`\n",
+        proposal.candidate_name,
+        proposal.status,
+        proposal.promotable,
+        proposal.post_apply_validation_required,
+        optional_floor(proposal.semantic_similarity_floor),
+        optional_floor(proposal.hybrid_pre_fusion_semantic_floor),
+        summary_inline(&proposal.current_summary),
+        summary_inline(&proposal.proposed_summary),
+        summary_inline(&proposal.holdout_summary),
+        proposal.verdict_changes.len(),
+        proposal.model_artifact_size_bytes,
+        proposal.candidate_index_size_bytes,
+    )
+    .with_context(|| format!("append calibration proposal to {}", eval_page.display()))?;
     if args.apply {
         writeln!(file, "- Applied: yes\n").with_context(|| {
             format!("append calibration apply status to {}", eval_page.display())
@@ -2237,6 +2474,7 @@ fn raw_manifest_candidate(proposal: &CandidateCalibrationProposal) -> RawEvalDat
         proposed_calibration_pass: proposal.proposed_calibration_pass,
         holdout_pass: proposal.holdout_pass,
         verdict_changes: proposal.verdict_changes.len(),
+        post_apply_validation_required: proposal.post_apply_validation_required,
     }
 }
 
@@ -2309,6 +2547,10 @@ fn print_calibration_report(report: &EvalCalibrationReport, format: OutputFormat
                 println!(
                     "Candidate: {} status={} promotable={}",
                     proposal.candidate_name, proposal.status, proposal.promotable
+                );
+                println!(
+                    "  post_apply_validation_required={}",
+                    proposal.post_apply_validation_required
                 );
                 if let Some(floor) = proposal.semantic_similarity_floor {
                     println!("  semantic_similarity_floor={floor:.6}");
@@ -2828,6 +3070,8 @@ mod tests {
                 embed_query_ms: 0,
                 vector_search_ms: 0,
                 lexical_search_ms: 0,
+                rerank_ms: 0,
+                rerank_applied: false,
                 result_count: 1,
                 hit_rank: Some(1),
                 top_paths: vec!["wiki/a.md".to_string()],
@@ -2836,6 +3080,7 @@ mod tests {
                 top_semantic_ranks: vec![Some(0)],
                 top_lexical_scores: vec![None],
                 top_semantic_scores: vec![Some(0.82)],
+                top_anchor_matches: Vec::new(),
                 error: None,
             },
         );
@@ -2851,6 +3096,8 @@ mod tests {
                 embed_query_ms: 0,
                 vector_search_ms: 0,
                 lexical_search_ms: 0,
+                rerank_ms: 0,
+                rerank_applied: false,
                 result_count: 1,
                 hit_rank: Some(1),
                 top_paths: vec!["wiki/a.md".to_string()],
@@ -2859,6 +3106,7 @@ mod tests {
                 top_semantic_ranks: vec![Some(0)],
                 top_lexical_scores: vec![Some(2.0)],
                 top_semantic_scores: vec![Some(0.62)],
+                top_anchor_matches: Vec::new(),
                 error: None,
             },
         );
@@ -2914,6 +3162,8 @@ mod tests {
                 embed_query_ms: 0,
                 vector_search_ms: 0,
                 lexical_search_ms: 0,
+                rerank_ms: 0,
+                rerank_applied: false,
                 result_count: 6,
                 hit_rank: None,
                 top_paths: vec![
@@ -2936,6 +3186,7 @@ mod tests {
                     Some(0.57),
                     Some(0.56),
                 ],
+                top_anchor_matches: Vec::new(),
                 error: None,
             },
         );
@@ -2952,6 +3203,8 @@ mod tests {
                 embed_query_ms: 0,
                 vector_search_ms: 0,
                 lexical_search_ms: 0,
+                rerank_ms: 0,
+                rerank_applied: false,
                 result_count: 1,
                 hit_rank: None,
                 top_paths: vec!["wiki/noise.md".to_string()],
@@ -2960,6 +3213,7 @@ mod tests {
                 top_semantic_ranks: vec![Some(0)],
                 top_lexical_scores: vec![None],
                 top_semantic_scores: vec![Some(0.55)],
+                top_anchor_matches: Vec::new(),
                 error: None,
             },
         );
@@ -3028,6 +3282,8 @@ mod tests {
                 embed_query_ms: 0,
                 vector_search_ms: 0,
                 lexical_search_ms: 0,
+                rerank_ms: 0,
+                rerank_applied: false,
                 result_count: 3,
                 hit_rank: Some(3),
                 top_paths: vec![
@@ -3040,6 +3296,7 @@ mod tests {
                 top_semantic_ranks: vec![Some(0), Some(1), Some(2)],
                 top_lexical_scores: vec![None, None, None],
                 top_semantic_scores: vec![Some(0.032491), Some(0.028161), Some(0.0208919)],
+                top_anchor_matches: Vec::new(),
                 error: None,
             },
         );
@@ -3056,6 +3313,8 @@ mod tests {
                 embed_query_ms: 0,
                 vector_search_ms: 0,
                 lexical_search_ms: 0,
+                rerank_ms: 0,
+                rerank_applied: false,
                 result_count: 1,
                 hit_rank: None,
                 top_paths: vec!["wiki/search/noise.md".to_string()],
@@ -3064,6 +3323,7 @@ mod tests {
                 top_semantic_ranks: vec![Some(0)],
                 top_lexical_scores: vec![None],
                 top_semantic_scores: vec![Some(0.020492)],
+                top_anchor_matches: Vec::new(),
                 error: None,
             },
         );
@@ -3120,6 +3380,74 @@ mod tests {
     }
 
     #[test]
+    fn hybrid_final_floor_raises_above_anchor_leaking_no_match() {
+        let mut no_match_modes = BTreeMap::new();
+        no_match_modes.insert(
+            "hybrid".to_string(),
+            EvalModeOutcome {
+                status: "fail".to_string(),
+                reason: "no_expected_match_returned_results".to_string(),
+                selected_mode: Some("hybrid".to_string()),
+                readiness_reason: None,
+                elapsed_seconds: 0.0,
+                query_expansion_ms: 0,
+                embed_query_ms: 0,
+                vector_search_ms: 0,
+                lexical_search_ms: 0,
+                rerank_ms: 0,
+                rerank_applied: false,
+                result_count: 2,
+                hit_rank: None,
+                top_paths: vec!["wiki/log.md".to_string(), "wiki/other.md".to_string()],
+                top_scores: vec![0.024161, 0.020492],
+                top_lexical_ranks: vec![None, None],
+                top_semantic_ranks: vec![Some(1), Some(0)],
+                top_lexical_scores: vec![None, None],
+                top_semantic_scores: vec![Some(0.394904), Some(0.405622)],
+                top_anchor_matches: vec![1, 0],
+                error: None,
+            },
+        );
+        let candidate = EvalCandidateRun {
+            name: "balanced".to_string(),
+            source: "active_project_profile".to_string(),
+            profile: Some("balanced".to_string()),
+            embedding_model: Some("embeddinggemma-300m-q8_0".to_string()),
+            query_expansion_model: Some("qmd-query-expansion-1.7b-q4_k_m".to_string()),
+            reranker_model: None,
+            models: Vec::new(),
+            readiness_reason: None,
+            index_fingerprint: Some("fingerprint".to_string()),
+            vector_count: 1,
+            candidate_index_dir: PathBuf::from("target/evals/run/indexes/balanced"),
+            candidate_index_size_bytes: 0,
+            index_build_ms: 0,
+            lexical_index_ms: 0,
+            semantic_metadata_ms: 0,
+            semantic_vector_build_ms: 0,
+            elapsed_seconds: 0.0,
+            summary: BTreeMap::new(),
+            results: vec![EvalCaseRun {
+                id: "H11".to_string(),
+                split: "Hold-out".to_string(),
+                query: "browser automation plugin release checklist".to_string(),
+                purpose: "purpose".to_string(),
+                expected_pages: Vec::new(),
+                modes: no_match_modes,
+            }],
+        };
+
+        let floors = derive_hybrid_final_floors(&candidate);
+
+        assert!((floors.final_semantic_floor - 0.399904).abs() < 0.000001);
+        assert_eq!(
+            floors.semantic_only_floor,
+            DEFAULT_HYBRID_SEMANTIC_ONLY_FLOOR
+        );
+        assert_eq!(floors.strong_lexical_score_floor, 0.5);
+    }
+
+    #[test]
     fn proposed_hybrid_replay_keeps_path_anchor_matches() {
         let thresholds = SearchThresholds::calibrated(
             "balanced",
@@ -3148,6 +3476,8 @@ mod tests {
             embed_query_ms: 0,
             vector_search_ms: 0,
             lexical_search_ms: 0,
+            rerank_ms: 0,
+            rerank_applied: false,
             result_count: 1,
             hit_rank: Some(1),
             top_paths: vec!["wiki/plans/search-profile.plan.md".to_string()],
@@ -3156,6 +3486,7 @@ mod tests {
             top_semantic_ranks: vec![Some(0)],
             top_lexical_scores: vec![None],
             top_semantic_scores: vec![Some(0.42)],
+            top_anchor_matches: Vec::new(),
             error: None,
         };
 
@@ -3172,6 +3503,65 @@ mod tests {
         };
         assert!(!hybrid_result_survives_proposed(
             &unrelated_case,
+            &outcome,
+            0,
+            &thresholds
+        ));
+    }
+
+    #[test]
+    fn proposed_hybrid_replay_uses_recorded_anchor_matches() {
+        let thresholds = SearchThresholds::calibrated(
+            "balanced",
+            "embeddinggemma-300m-q8_0",
+            "sha256",
+            768,
+            "qmd-rs-character-v1:3200:480",
+            0.10,
+            0.10,
+        );
+        let case = EvalCaseRun {
+            id: "H11".to_string(),
+            split: "Hold-out".to_string(),
+            query: "browser automation plugin release checklist".to_string(),
+            purpose: "purpose".to_string(),
+            expected_pages: Vec::new(),
+            modes: BTreeMap::new(),
+        };
+        let mut outcome = EvalModeOutcome {
+            status: "fail".to_string(),
+            reason: "unexpected_results".to_string(),
+            selected_mode: Some("hybrid".to_string()),
+            readiness_reason: None,
+            elapsed_seconds: 0.0,
+            query_expansion_ms: 0,
+            embed_query_ms: 0,
+            vector_search_ms: 0,
+            lexical_search_ms: 0,
+            rerank_ms: 0,
+            rerank_applied: false,
+            result_count: 1,
+            hit_rank: None,
+            top_paths: vec!["wiki/log.md".to_string()],
+            top_scores: vec![0.04],
+            top_lexical_ranks: vec![None],
+            top_semantic_ranks: vec![Some(0)],
+            top_lexical_scores: vec![None],
+            top_semantic_scores: vec![Some(0.42)],
+            top_anchor_matches: vec![1],
+            error: None,
+        };
+
+        assert!(hybrid_result_survives_proposed(
+            &case,
+            &outcome,
+            0,
+            &thresholds
+        ));
+
+        outcome.top_anchor_matches = vec![0];
+        assert!(!hybrid_result_survives_proposed(
+            &case,
             &outcome,
             0,
             &thresholds

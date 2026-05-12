@@ -482,6 +482,84 @@ fn semantic_mode_uses_vector_index_when_thresholds_are_configured() {
 }
 
 #[test]
+fn semantic_mode_selects_project_scoped_thresholds() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let alpha = fixture_project_with_decision(
+        workspace.path(),
+        "Alpha Project",
+        "Battery Decision",
+        "Battery chemistry roadmap retrieval belongs in semantic search.",
+    );
+    let beta = fixture_project_with_decision(
+        workspace.path(),
+        "Beta Project",
+        "Battery Decision",
+        "Battery chemistry roadmap retrieval belongs in semantic search.",
+    );
+    register_project_with_id(home.path(), &alpha, "alpha");
+    register_project_with_id(home.path(), &beta, "beta");
+    write_enabled_search_profile_with_fake_artifacts(home.path());
+    write_scoped_search_thresholds(home.path());
+
+    for project_id in ["alpha", "beta"] {
+        llm_wiki(home.path())
+            .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+            .args(["index", "--project", project_id, "--force"])
+            .assert()
+            .success();
+    }
+
+    let alpha_output = llm_wiki(home.path())
+        .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+        .args([
+            "search",
+            "battery roadmap",
+            "--project",
+            "alpha",
+            "--mode",
+            "semantic",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("alpha search output");
+    assert!(alpha_output.status.success());
+    let alpha_json: Value = serde_json::from_slice(&alpha_output.stdout).expect("alpha json");
+    assert_eq!(alpha_json["selected_mode"], "semantic");
+    assert_eq!(
+        alpha_json["results"]
+            .as_array()
+            .expect("alpha results")
+            .len(),
+        0
+    );
+
+    let beta_output = llm_wiki(home.path())
+        .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+        .args([
+            "search",
+            "battery roadmap",
+            "--project",
+            "beta",
+            "--mode",
+            "semantic",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("beta search output");
+    assert!(beta_output.status.success());
+    let beta_json: Value = serde_json::from_slice(&beta_output.stdout).expect("beta json");
+    assert_eq!(beta_json["selected_mode"], "semantic");
+    let result = beta_json["results"]
+        .as_array()
+        .and_then(|results| results.first())
+        .expect("beta semantic result");
+    assert_eq!(result["path"], "wiki/decisions/search.decision.md");
+}
+
+#[test]
 fn hybrid_mode_fuses_lexical_and_semantic_results() {
     let home = TempDir::new().expect("home");
     let workspace = TempDir::new().expect("workspace");
@@ -1327,6 +1405,55 @@ embedding_dimensions = 768
 "#,
     )
     .expect("thresholds");
+}
+
+fn write_scoped_search_thresholds(home: &Path) {
+    fs::write(
+        home.join(".llm_wiki/search-thresholds.toml"),
+        r#"
+schema_version = 2
+updated_at = "2026-05-12T00:00:00Z"
+
+[[thresholds]]
+schema_version = 1
+updated_at = "2026-05-12T00:00:00Z"
+project_id = "alpha"
+profile = "balanced"
+semantic_similarity_floor = 2.0
+hybrid_pre_fusion_semantic_floor = 2.0
+hybrid_final_semantic_floor = 2.0
+hybrid_semantic_only_floor = 2.0
+hybrid_strong_lexical_score_floor = 1.0
+reranker_probability_floor = 0.1
+lexical_exact_identifier_guard = "preserve_lexical_top_3"
+qmd_rs_version = "0.3.2"
+adapter_schema_version = 1
+chunking_strategy = "qmd-rs-character-v1:3200:480"
+embedding_model = "embeddinggemma-300m-q8_0"
+embedding_artifact_sha256 = "b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63"
+embedding_dimensions = 768
+
+[[thresholds]]
+schema_version = 1
+updated_at = "2026-05-12T00:00:00Z"
+project_id = "beta"
+profile = "balanced"
+semantic_similarity_floor = 0.1
+hybrid_pre_fusion_semantic_floor = 0.1
+hybrid_final_semantic_floor = 0.1
+hybrid_semantic_only_floor = 0.1
+hybrid_strong_lexical_score_floor = 1.0
+reranker_probability_floor = 0.1
+lexical_exact_identifier_guard = "preserve_lexical_top_3"
+qmd_rs_version = "0.3.2"
+adapter_schema_version = 1
+chunking_strategy = "qmd-rs-character-v1:3200:480"
+embedding_model = "embeddinggemma-300m-q8_0"
+embedding_artifact_sha256 = "b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63"
+embedding_dimensions = 768
+"#,
+    )
+    .expect("scoped thresholds");
 }
 
 fn fixture_project(root: &Path, name: &str) -> PathBuf {

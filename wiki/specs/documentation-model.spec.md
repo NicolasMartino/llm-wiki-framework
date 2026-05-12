@@ -66,6 +66,11 @@ Nine typed document roles, each with distinct truth relationship:
 
 ## Navigation
 
+How a project answers questions once the index is too large: when the wiki
+exceeds the small-project threshold, the agent stops relying on `index.md`
+alone and answers questions through `llm-wiki search` against the
+project-local index instead.
+
 - `wiki/index.md` is the sole agent entry point for small wikis (<100 pages)
 - `wiki/log.md` tracks all mutations chronologically
 - No distributed READMEs; the index is the catalog
@@ -75,7 +80,7 @@ Nine typed document roles, each with distinct truth relationship:
   backend owns rebuildable search stores under host-local cache state; markdown
   files under `wiki/` remain canonical citations.
 
-## Promotion Flow
+## Promotion Flow: How Accepted Proposals Become Plans
 
 research -> raw/ -> ingest -> proposal/reference -> roadmap -> plan -> evidence -> spec/decision -> archive
 

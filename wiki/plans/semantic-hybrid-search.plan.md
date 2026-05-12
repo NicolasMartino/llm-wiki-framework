@@ -745,12 +745,12 @@ Progress 2026-05-11:
   absolute `/Users/...` paths. They were removed before commit and replaced by
   the redacted corpus/run/candidate bundle. `rg -n "/Users/|/home/"
   raw/data/eval/` now returns no matches.
-- Current blocker: no threshold should be applied until proposed-threshold
-  simulation preserves C5/C8 calibration expected-match rows, H6/H17 hold-out
-  behavior remains acceptable, exact-identifier preservation returns to 4 / 4
-  for hybrid/auto, and no-match behavior remains fixed. H12 also remains a
-  hold-out retrieval or target-label issue for
-  accepted-proposal-to-plan documentation flow.
+- Historical blocker at this point: no threshold should be applied until
+  proposed-threshold simulation preserves C5/C8 calibration expected-match rows,
+  H6/H17 hold-out behavior remains acceptable, exact-identifier preservation
+  returns to 4 / 4 for hybrid/auto, and no-match behavior remains fixed. Later
+  2026-05-12 work resolved these proposal regressions and moved the active
+  blocker to post-apply validation.
 - Implementation verification before the real-run documentation update:
   `cargo fmt --check`; `cargo check`; `cargo test --test eval_commands`;
   `cargo test --bin llm-wiki eval::`; `cargo test --test
@@ -769,6 +769,77 @@ Progress 2026-05-11:
   `cargo run -- eval calibrate`; `cargo test --workspace`; `cargo clippy
   --workspace --all-targets --all-features -- -D warnings -D dead_code`;
   `git diff --check`.
+
+Progress 2026-05-12 review hardening:
+
+- Added explicit calibration candidate selection for apply/record actions so
+  multi-model eval runs cannot silently apply the first proposal.
+- Tightened promotion semantics: hybrid and auto hold-out rows must pass under
+  proposed thresholds. Semantic-only rows remain visible diagnostics, but they
+  do not gate baseline promotion on this corpus because the eval records a real
+  embedding-space inversion.
+- Reconciled the applied balanced threshold proposal as "applied pending
+  post-apply validation" rather than durable promotion. Subsequent validation
+  first exposed the H11 blocker; the later anchor-leak final-floor run resolves
+  it and unblocks the electric-car domain corpus confirmation.
+- Closed the reranker eval gap from review. `eval run --rerank` now executes
+  the configured reranker against hybrid results through the shared production
+  qmd-rs rerank path, records `rerank_applied` and `rerank_ms`, and preserves
+  readiness failures when the profile, artifact, or license is not available.
+  A deterministic command regression proves that reranking changes hybrid top
+  paths rather than acting as a readiness-only check.
+- Reranker verification: `cargo fmt`; `cargo test --test eval_commands`;
+  `cargo test --bin llm-wiki eval::`; `cargo test --bin llm-wiki
+  search::commands::`.
+- Post-apply production validation ran `cargo run -- index --project
+  llm-wiki-framework-semantic-search --force` and the ignored natural-language
+  search harness. The broad harness passed, but the stricter promotion gate
+  failed because H11 returns `wiki/log.md` in hybrid and auto.
+- Fixed the calibration replay mismatch by recording top-result anchor matches
+  over the production-equivalent path/title/snippet haystack. The anchor-aware
+  run `20260512T145231Z-68005` reports
+  `status=blocked_holdout_regression`, proposed hybrid/auto 29 / 1, hold-out
+  hybrid/auto 19 / 1, no-match precision 3 / 4, and exact-ID preservation
+  4 / 4.
+- Resolved the H11 anchor-leak blocker by deriving
+  `hybrid_final_semantic_floor` above anchor-backed no-match rows that would
+  survive production hybrid gating. The follow-up run
+  `20260512T154322Z-77945` reports `status=promotable`, proposed hybrid/auto
+  30 / 0, hold-out hybrid/auto 20 / 0, no-match precision 4 / 4, exact-ID
+  preservation 4 / 4, and applied floors
+  `semantic_similarity_floor=0.328807`,
+  `hybrid_pre_fusion_semantic_floor=0.103599`,
+  `hybrid_final_semantic_floor=0.399904`,
+  `hybrid_semantic_only_floor=0.50`, and
+  `hybrid_strong_lexical_score_floor=0.5`.
+- Post-apply validation reindexed the project and reran the ignored
+  natural-language production harness. Hybrid and auto pass every row,
+  including zero-result handling for the anchor-leaking hold-out no-match,
+  after catalog summaries avoid naming the sentinel in unignored text. The
+  electric-car domain confirmation is now unblocked. A real reranker comparison
+  is still blocked locally because the Qwen3 reranker artifact and
+  accepted-license record are not present.
+- Ran the electric-car domain corpus as the independent confirmation check.
+  Run `20260512T162918Z-86751` reports `status=promotable` for the balanced
+  candidate, proposed hybrid/auto 20 / 0, hold-out hybrid/auto 12 / 0,
+  no-match precision 3 / 3, and exact-ID preservation 5 / 5. The candidate was
+  exported to `raw/data/eval/electric-cars/20260512T162918Z-86751/balanced/`
+  and initially held back from apply because its proposed semantic and hybrid
+  pre-fusion floors are higher than the framework-wiki floors.
+- Implemented threshold scoping. `search-thresholds.toml` now reads and writes a
+  scoped threshold store with project/corpus, profile, embedding artifact,
+  qmd-rs adapter, dimensions, and chunking identity. Legacy single-record files
+  remain readable only as fallback input. Runtime search, indexing, doctor, and
+  `eval calibrate --apply` now select/upsert by scope, and a command regression
+  proves two projects can keep different balanced thresholds at the same time.
+  The framework and electric-car proposals have both been applied under their
+  own scopes.
+- Human label acceptance landed on 2026-05-12. The maintainer accepted all
+  current framework and electric-car target labels, so the applied balanced
+  framework thresholds and the scoped electric-car thresholds now rest on a
+  durable accepted baseline. Future label, corpus, retrieval, model, qmd-rs, or
+  chunking changes must rerun `eval run` and `eval calibrate` before another
+  threshold promotion.
 
 ## Verification Gates
 

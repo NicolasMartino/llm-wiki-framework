@@ -1,0 +1,289 @@
+{
+  "schema_version": 2,
+  "generated_at": "2026-05-12T16:33:07Z",
+  "source_run_id": "20260512T162918Z-86751",
+  "source_report_path": "target/evals/electric-cars-balanced/eval-run.json",
+  "eval_page": "tests/fixtures/eval-corpora/electric-cars/wiki/evals/electric-cars.eval.md",
+  "project_id": "electric-cars",
+  "project_name": "electric-cars",
+  "proposals": [
+    {
+      "candidate_name": "balanced",
+      "profile": "balanced",
+      "embedding_model": "embeddinggemma-300m-q8_0",
+      "embedding_artifact_sha256": "b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63",
+      "embedding_dimensions": 768,
+      "index_fingerprint": "7e05acf806dd749dc589978314a188d347d5314b651ad7767ec0df2667650ae6",
+      "model_artifact_size_bytes": 1616029856,
+      "candidate_index_size_bytes": 234747,
+      "semantic_similarity_floor": 0.57168,
+      "semantic_min_expected_score": 0.57168,
+      "semantic_max_no_match_score": 0.130064,
+      "semantic_missing_expected_targets": [],
+      "semantic_promotable": true,
+      "hybrid_pre_fusion_semantic_floor": 0.57168,
+      "hybrid_min_expected_score": 0.57168,
+      "hybrid_max_no_match_score": 0.130064,
+      "hybrid_missing_expected_targets": [],
+      "hybrid_promotable": true,
+      "hybrid_final_semantic_floor": 0.39,
+      "hybrid_semantic_only_floor": 0.5,
+      "hybrid_strong_lexical_score_floor": 0.5,
+      "hybrid_max_no_match_lexical_score": 0.0,
+      "calibration_expected_queries": 7,
+      "calibration_no_match_queries": 1,
+      "missing_expected_targets": [],
+      "status": "promotable",
+      "promotable": true,
+      "post_apply_validation_required": true,
+      "requires_apply_profile": true,
+      "current_summary": {
+        "auto": {
+          "pass": 17,
+          "fail": 3,
+          "not_applicable": 0,
+          "error": 0
+        },
+        "hybrid": {
+          "pass": 17,
+          "fail": 3,
+          "not_applicable": 0,
+          "error": 0
+        },
+        "lexical": {
+          "pass": 10,
+          "fail": 7,
+          "not_applicable": 3,
+          "error": 0
+        },
+        "semantic": {
+          "pass": 17,
+          "fail": 3,
+          "not_applicable": 0,
+          "error": 0
+        }
+      },
+      "proposed_summary": {
+        "auto": {
+          "pass": 20,
+          "fail": 0,
+          "not_applicable": 0,
+          "error": 0
+        },
+        "hybrid": {
+          "pass": 20,
+          "fail": 0,
+          "not_applicable": 0,
+          "error": 0
+        },
+        "lexical": {
+          "pass": 10,
+          "fail": 7,
+          "not_applicable": 3,
+          "error": 0
+        },
+        "semantic": {
+          "pass": 19,
+          "fail": 1,
+          "not_applicable": 0,
+          "error": 0
+        }
+      },
+      "holdout_summary": {
+        "auto": {
+          "pass": 12,
+          "fail": 0,
+          "not_applicable": 0,
+          "error": 0
+        },
+        "hybrid": {
+          "pass": 12,
+          "fail": 0,
+          "not_applicable": 0,
+          "error": 0
+        },
+        "lexical": {
+          "pass": 8,
+          "fail": 2,
+          "not_applicable": 2,
+          "error": 0
+        },
+        "semantic": {
+          "pass": 11,
+          "fail": 1,
+          "not_applicable": 0,
+          "error": 0
+        }
+      },
+      "proposed_calibration_pass": true,
+      "holdout_pass": true,
+      "verdict_changes": [
+        {
+          "id": "C8",
+          "split": "Calibration",
+          "mode": "semantic",
+          "current_status": "fail",
+          "current_reason": "no_expected_match_returned_results",
+          "current_hit_rank": null,
+          "proposed_status": "pass",
+          "proposed_reason": "no_expected_match_zero_results",
+          "proposed_hit_rank": null
+        },
+        {
+          "id": "C8",
+          "split": "Calibration",
+          "mode": "hybrid",
+          "current_status": "fail",
+          "current_reason": "no_expected_match_returned_results",
+          "current_hit_rank": null,
+          "proposed_status": "pass",
+          "proposed_reason": "no_expected_match_zero_results",
+          "proposed_hit_rank": null
+        },
+        {
+          "id": "C8",
+          "split": "Calibration",
+          "mode": "auto",
+          "current_status": "fail",
+          "current_reason": "no_expected_match_returned_results",
+          "current_hit_rank": null,
+          "proposed_status": "pass",
+          "proposed_reason": "no_expected_match_zero_results",
+          "proposed_hit_rank": null
+        },
+        {
+          "id": "H8",
+          "split": "Hold-out",
+          "mode": "semantic",
+          "current_status": "pass",
+          "current_reason": "expected_target_in_top_10",
+          "current_hit_rank": 1,
+          "proposed_status": "fail",
+          "proposed_reason": "expected_target_missing_top_10",
+          "proposed_hit_rank": null
+        },
+        {
+          "id": "H10",
+          "split": "Hold-out",
+          "mode": "semantic",
+          "current_status": "fail",
+          "current_reason": "no_expected_match_returned_results",
+          "current_hit_rank": null,
+          "proposed_status": "pass",
+          "proposed_reason": "no_expected_match_zero_results",
+          "proposed_hit_rank": null
+        },
+        {
+          "id": "H10",
+          "split": "Hold-out",
+          "mode": "hybrid",
+          "current_status": "fail",
+          "current_reason": "no_expected_match_returned_results",
+          "current_hit_rank": null,
+          "proposed_status": "pass",
+          "proposed_reason": "no_expected_match_zero_results",
+          "proposed_hit_rank": null
+        },
+        {
+          "id": "H10",
+          "split": "Hold-out",
+          "mode": "auto",
+          "current_status": "fail",
+          "current_reason": "no_expected_match_returned_results",
+          "current_hit_rank": null,
+          "proposed_status": "pass",
+          "proposed_reason": "no_expected_match_zero_results",
+          "proposed_hit_rank": null
+        },
+        {
+          "id": "H11",
+          "split": "Hold-out",
+          "mode": "semantic",
+          "current_status": "fail",
+          "current_reason": "no_expected_match_returned_results",
+          "current_hit_rank": null,
+          "proposed_status": "pass",
+          "proposed_reason": "no_expected_match_zero_results",
+          "proposed_hit_rank": null
+        },
+        {
+          "id": "H11",
+          "split": "Hold-out",
+          "mode": "hybrid",
+          "current_status": "fail",
+          "current_reason": "no_expected_match_returned_results",
+          "current_hit_rank": null,
+          "proposed_status": "pass",
+          "proposed_reason": "no_expected_match_zero_results",
+          "proposed_hit_rank": null
+        },
+        {
+          "id": "H11",
+          "split": "Hold-out",
+          "mode": "auto",
+          "current_status": "fail",
+          "current_reason": "no_expected_match_returned_results",
+          "current_hit_rank": null,
+          "proposed_status": "pass",
+          "proposed_reason": "no_expected_match_zero_results",
+          "proposed_hit_rank": null
+        }
+      ],
+      "no_match_precision": {
+        "auto": {
+          "current_pass": 0,
+          "current_total": 3,
+          "proposed_pass": 3,
+          "proposed_total": 3
+        },
+        "hybrid": {
+          "current_pass": 0,
+          "current_total": 3,
+          "proposed_pass": 3,
+          "proposed_total": 3
+        },
+        "lexical": {
+          "current_pass": 0,
+          "current_total": 0,
+          "proposed_pass": 0,
+          "proposed_total": 0
+        },
+        "semantic": {
+          "current_pass": 0,
+          "current_total": 3,
+          "proposed_pass": 3,
+          "proposed_total": 3
+        }
+      },
+      "exact_identifier_preservation": {
+        "auto": {
+          "current_pass": 5,
+          "current_total": 5,
+          "proposed_pass": 5,
+          "proposed_total": 5
+        },
+        "hybrid": {
+          "current_pass": 5,
+          "current_total": 5,
+          "proposed_pass": 5,
+          "proposed_total": 5
+        },
+        "lexical": {
+          "current_pass": 5,
+          "current_total": 5,
+          "proposed_pass": 5,
+          "proposed_total": 5
+        }
+      }
+    }
+  ],
+  "selected_candidate": "balanced",
+  "applied": false,
+  "recorded": false,
+  "report_path": "target/evals/electric-cars-balanced/eval-calibration.json",
+  "raw_data_bundle": "./raw/data/eval/electric-cars/20260512T162918Z-86751/balanced",
+  "raw_data_manifest": "./raw/data/eval/electric-cars/20260512T162918Z-86751/balanced/manifest.toml",
+  "raw_data_bundles": {
+    "balanced": "./raw/data/eval/electric-cars/20260512T162918Z-86751/balanced"
+  }
+}

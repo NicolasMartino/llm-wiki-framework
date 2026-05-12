@@ -1,0 +1,30 @@
+schema_version = 1
+exported_at = "2026-05-12T15:49:55Z"
+source_run_id = "20260512T154322Z-77945"
+project_id = "llm-wiki-framework-semantic-search"
+project_name = "llm_wiki_framework_semantic_search"
+eval_page = "wiki/evals/natural-language-search.eval.md"
+source_run_report = "target/evals/20260512-anchor-leak-floor-balanced/eval-run.json"
+source_calibration_report = "target/evals/20260512-anchor-leak-floor-balanced/eval-calibration.json"
+selected_candidate = "balanced"
+
+[[candidates]]
+name = "balanced"
+status = "promotable"
+promotable = true
+semantic_similarity_floor = 0.328807
+hybrid_pre_fusion_semantic_floor = 0.103599
+proposed_calibration_pass = true
+holdout_pass = true
+verdict_changes = 12
+post_apply_validation_required = true
+
+[[files]]
+name = "eval-run.json"
+sha256 = "3e59d8adef263e6f6497b57031ceff5b5aad936a797739165d876de257e0ce17"
+size_bytes = 321009
+
+[[files]]
+name = "eval-calibration.json"
+sha256 = "f7d782188bdc84d737f394730de31352fcf993d2f1612785e71d7c0b3afb4851"
+size_bytes = 9578

@@ -98,6 +98,8 @@ pub struct EvalCalibrateArgs {
     #[command(flatten)]
     pub run: EvalRunArgs,
     #[arg(long)]
+    pub select_candidate: Option<String>,
+    #[arg(long)]
     pub apply: bool,
     #[arg(long)]
     pub apply_profile: Option<String>,

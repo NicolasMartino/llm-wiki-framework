@@ -12,6 +12,7 @@ use crate::search_profile::{timestamp, write_toml_atomic};
 const ACCEPTED_LICENSES_SCHEMA_VERSION: u32 = 1;
 const MODEL_ARTIFACTS_SCHEMA_VERSION: u32 = 1;
 const SEARCH_THRESHOLDS_SCHEMA_VERSION: u32 = 1;
+const SEARCH_THRESHOLDS_STORE_SCHEMA_VERSION: u32 = 2;
 pub const DEFAULT_PROFILE_ID: &str = "balanced";
 pub const QMD_RS_VERSION: &str = "0.3.2";
 pub const ADAPTER_SCHEMA_VERSION: u32 = 1;
@@ -107,6 +108,8 @@ pub struct ModelArtifactRecord {
 pub struct SearchThresholds {
     pub schema_version: u32,
     pub updated_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project_id: Option<String>,
     pub profile: String,
     pub semantic_similarity_floor: f64,
     pub hybrid_pre_fusion_semantic_floor: f64,
@@ -124,6 +127,13 @@ pub struct SearchThresholds {
     pub embedding_model: String,
     pub embedding_artifact_sha256: String,
     pub embedding_dimensions: usize,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct SearchThresholdStore {
+    pub schema_version: u32,
+    pub updated_at: String,
+    pub thresholds: Vec<SearchThresholds>,
 }
 
 fn default_hybrid_final_semantic_floor() -> f64 {
@@ -295,6 +305,7 @@ impl SearchThresholds {
         Self {
             schema_version: SEARCH_THRESHOLDS_SCHEMA_VERSION,
             updated_at: timestamp(),
+            project_id: None,
             profile: profile.into(),
             semantic_similarity_floor,
             hybrid_pre_fusion_semantic_floor,
@@ -322,6 +333,7 @@ impl SearchThresholds {
         Self {
             schema_version: SEARCH_THRESHOLDS_SCHEMA_VERSION,
             updated_at: timestamp(),
+            project_id: None,
             profile: profile.into(),
             semantic_similarity_floor: 0.0,
             hybrid_pre_fusion_semantic_floor: 0.0,
@@ -339,26 +351,112 @@ impl SearchThresholds {
         }
     }
 
+    fn validate_schema(&self, path: &Path) -> Result<()> {
+        if self.schema_version != SEARCH_THRESHOLDS_SCHEMA_VERSION {
+            bail!(
+                "unsupported search thresholds schema_version {} in {}; expected {}",
+                self.schema_version,
+                path.display(),
+                SEARCH_THRESHOLDS_SCHEMA_VERSION
+            );
+        }
+        Ok(())
+    }
+
+    pub fn for_project(mut self, project_id: impl Into<String>) -> Self {
+        self.project_id = Some(project_id.into());
+        self
+    }
+
+    #[allow(dead_code)]
+    pub fn write_atomic(&self, path: &Path) -> Result<()> {
+        write_toml_atomic(path, self, "search thresholds")
+    }
+}
+
+impl SearchThresholdStore {
+    pub fn empty() -> Self {
+        Self {
+            schema_version: SEARCH_THRESHOLDS_STORE_SCHEMA_VERSION,
+            updated_at: timestamp(),
+            thresholds: Vec::new(),
+        }
+    }
+
+    pub fn from_thresholds(thresholds: Vec<SearchThresholds>) -> Self {
+        Self {
+            schema_version: SEARCH_THRESHOLDS_STORE_SCHEMA_VERSION,
+            updated_at: timestamp(),
+            thresholds,
+        }
+    }
+
     pub fn read(path: &Path) -> Result<Option<Self>> {
         if !path.exists() {
             return Ok(None);
         }
         let input = fs::read_to_string(path)
             .with_context(|| format!("failed to read search thresholds {}", path.display()))?;
-        let thresholds: Self = toml::from_str(&input)
+        let value: toml::Value = toml::from_str(&input)
             .with_context(|| format!("failed to parse search thresholds {}", path.display()))?;
-        if thresholds.schema_version != SEARCH_THRESHOLDS_SCHEMA_VERSION {
-            bail!(
-                "unsupported search thresholds schema_version {} in {}; expected {}",
-                thresholds.schema_version,
-                path.display(),
-                SEARCH_THRESHOLDS_SCHEMA_VERSION
-            );
+        if value.get("thresholds").is_some() {
+            let store: Self = toml::from_str(&input).with_context(|| {
+                format!(
+                    "failed to parse scoped search thresholds {}",
+                    path.display()
+                )
+            })?;
+            store.validate_schema(path)?;
+            for thresholds in &store.thresholds {
+                thresholds.validate_schema(path)?;
+            }
+            return Ok(Some(store));
         }
-        Ok(Some(thresholds))
+
+        let thresholds: SearchThresholds = toml::from_str(&input).with_context(|| {
+            format!(
+                "failed to parse legacy search thresholds {}",
+                path.display()
+            )
+        })?;
+        thresholds.validate_schema(path)?;
+        Ok(Some(Self::from_thresholds(vec![thresholds])))
     }
 
-    #[allow(dead_code)]
+    fn validate_schema(&self, path: &Path) -> Result<()> {
+        if self.schema_version != SEARCH_THRESHOLDS_STORE_SCHEMA_VERSION {
+            bail!(
+                "unsupported search thresholds store schema_version {} in {}; expected {}",
+                self.schema_version,
+                path.display(),
+                SEARCH_THRESHOLDS_STORE_SCHEMA_VERSION
+            );
+        }
+        Ok(())
+    }
+
+    pub fn thresholds(&self) -> &[SearchThresholds] {
+        &self.thresholds
+    }
+
+    pub fn upsert(&mut self, thresholds: SearchThresholds) {
+        self.updated_at = timestamp();
+        if let Some(existing) = self.thresholds.iter_mut().find(|existing| {
+            existing.project_id == thresholds.project_id
+                && existing.profile == thresholds.profile
+                && existing.qmd_rs_version == thresholds.qmd_rs_version
+                && existing.adapter_schema_version == thresholds.adapter_schema_version
+                && existing.chunking_strategy == thresholds.chunking_strategy
+                && existing.embedding_model == thresholds.embedding_model
+                && existing.embedding_artifact_sha256 == thresholds.embedding_artifact_sha256
+                && existing.embedding_dimensions == thresholds.embedding_dimensions
+        }) {
+            *existing = thresholds;
+        } else {
+            self.thresholds.push(thresholds);
+        }
+    }
+
     pub fn write_atomic(&self, path: &Path) -> Result<()> {
         write_toml_atomic(path, self, "search thresholds")
     }
@@ -523,7 +621,7 @@ pub fn sha256_file(path: &Path) -> Result<String> {
 mod tests {
     use super::{
         DEFAULT_PROFILE_ID, EMBEDDING_GEMMA_300M, ModelRole, QMD_QUERY_EXPANSION_17B,
-        SearchThresholds, profile_by_id,
+        SearchThresholdStore, SearchThresholds, profile_by_id,
     };
 
     #[test]
@@ -555,5 +653,58 @@ mod tests {
         assert_eq!(thresholds.hybrid_semantic_only_floor, 0.50);
         assert_eq!(thresholds.hybrid_strong_lexical_score_floor, 10.0);
         assert_eq!(thresholds.reranker_probability_floor, 0.50);
+    }
+
+    #[test]
+    fn threshold_store_upserts_without_clobbering_other_project_scopes() {
+        let framework = SearchThresholds::calibrated(
+            "balanced",
+            EMBEDDING_GEMMA_300M.id,
+            "artifact-sha",
+            768,
+            "qmd-rs-character-v1:3200:480",
+            0.328,
+            0.027,
+        )
+        .for_project("framework");
+        let electric = SearchThresholds::calibrated(
+            "balanced",
+            EMBEDDING_GEMMA_300M.id,
+            "artifact-sha",
+            768,
+            "qmd-rs-character-v1:3200:480",
+            0.571,
+            0.571,
+        )
+        .for_project("electric-cars");
+        let framework_update = SearchThresholds::calibrated(
+            "balanced",
+            EMBEDDING_GEMMA_300M.id,
+            "artifact-sha",
+            768,
+            "qmd-rs-character-v1:3200:480",
+            0.400,
+            0.100,
+        )
+        .for_project("framework");
+
+        let mut store = SearchThresholdStore::empty();
+        store.upsert(framework);
+        store.upsert(electric);
+        store.upsert(framework_update);
+
+        assert_eq!(store.thresholds().len(), 2);
+        let framework = store
+            .thresholds()
+            .iter()
+            .find(|thresholds| thresholds.project_id.as_deref() == Some("framework"))
+            .expect("framework thresholds");
+        let electric = store
+            .thresholds()
+            .iter()
+            .find(|thresholds| thresholds.project_id.as_deref() == Some("electric-cars"))
+            .expect("electric thresholds");
+        assert_eq!(framework.semantic_similarity_floor, 0.400);
+        assert_eq!(electric.semantic_similarity_floor, 0.571);
     }
 }

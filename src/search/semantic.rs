@@ -14,8 +14,8 @@ use crate::search::adapter::{
 use crate::search::index_text::mask_search_ignored_spans;
 use crate::search::metadata::parse_wiki_metadata;
 use crate::search_models::{
-    ADAPTER_SCHEMA_VERSION, ModelArtifactRecord, ModelArtifacts, QMD_RS_VERSION, SearchThresholds,
-    model_by_id,
+    ADAPTER_SCHEMA_VERSION, ModelArtifactRecord, ModelArtifacts, QMD_RS_VERSION,
+    SearchThresholdStore, SearchThresholds, model_by_id,
 };
 use crate::search_profile::{SearchProfile, timestamp};
 
@@ -521,12 +521,45 @@ pub fn thresholds_match_index_inputs(
     metadata: &SemanticIndexMetadata,
     embedding_artifact: &ModelArtifactRecord,
 ) -> bool {
+    let profile_matches = metadata
+        .profile
+        .as_deref()
+        .is_none_or(|profile| thresholds.profile == profile);
     thresholds.qmd_rs_version == QMD_RS_VERSION
         && thresholds.adapter_schema_version == ADAPTER_SCHEMA_VERSION
+        && profile_matches
         && thresholds.chunking_strategy == metadata.chunking_strategy
         && thresholds.embedding_model == metadata.embedding_model
         && thresholds.embedding_artifact_sha256 == embedding_artifact.observed_sha256
         && thresholds.embedding_dimensions == metadata.embedding_dimensions
+}
+
+pub fn select_thresholds_for_index<'a>(
+    store: &'a SearchThresholdStore,
+    project_id: &str,
+    metadata: &SemanticIndexMetadata,
+    embedding_artifact: &ModelArtifactRecord,
+) -> Option<&'a SearchThresholds> {
+    let allow_legacy_unscoped_fallback = !store
+        .thresholds()
+        .iter()
+        .any(|thresholds| thresholds.project_id.is_some());
+    let mut unscoped_match = None;
+    for thresholds in store.thresholds() {
+        if !thresholds_match_index_inputs(thresholds, metadata, embedding_artifact) {
+            continue;
+        }
+        if thresholds.project_id.as_deref() == Some(project_id) {
+            return Some(thresholds);
+        }
+        if allow_legacy_unscoped_fallback
+            && thresholds.project_id.is_none()
+            && unscoped_match.is_none()
+        {
+            unscoped_match = Some(thresholds);
+        }
+    }
+    unscoped_match
 }
 
 enum SemanticEmbedder {

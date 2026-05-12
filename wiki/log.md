@@ -2768,3 +2768,147 @@ not contaminate the searchable corpus.
 Pages updated: README.md,
 tests/fixtures/eval-corpora/electric-cars/,
 wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-12] update | eval promotion hardening
+
+Tightened the semantic/hybrid eval base after critical review. Calibration now
+requires explicit candidate selection for apply/record actions in multi-candidate
+runs, promotion gating requires hybrid and auto hold-out rows to pass under
+proposed thresholds, and promotable proposals record that post-apply validation
+is still required before durable promotion.
+
+Reconciled wiki status so the balanced threshold proposal is described as
+applied locally but pending post-apply production validation and electric-car
+domain-corpus confirmation.
+
+Pages updated: README.md, src/cli.rs, src/eval.rs, tests/eval_commands.rs,
+wiki/evals/natural-language-search.eval.md,
+wiki/evals/natural-language-search-impact.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-12] update | eval reranker execution
+
+Fixed the semantic/hybrid eval reranker path so `eval run --rerank` performs
+actual hybrid result reranking instead of only checking model readiness. Eval
+mode JSON now records `rerank_applied` and `rerank_ms`; readiness failures stay
+explicit when reranker configuration, artifact materialization, or license
+acceptance is missing. Added deterministic command coverage proving that
+reranking changes hybrid top paths.
+
+Pages updated: README.md, src/eval.rs, src/search/commands.rs,
+tests/eval_commands.rs, wiki/plans/semantic-hybrid-search.plan.md,
+wiki/index.md, wiki/log.md
+
+<!-- llm-wiki-search-ignore-start -->
+
+## [2026-05-12] update | anchor-aware production validation
+
+Ran post-apply production validation for the balanced threshold proposal. The
+project index rebuilt successfully and the ignored natural-language search
+harness passed its broad regression budgets, but the strict promotion gate still
+fails H11 because hybrid and auto return `wiki/log.md` for the H11 no-match
+query.
+
+Fixed the calibrator mismatch that made the prior replay over-optimistic:
+eval reports now store top-result anchor-match counts computed over the same
+path/title/snippet evidence used by production search. The new raw bundle
+`raw/data/eval/natural-language-search/20260512T145231Z-68005/balanced/`
+reports `status=blocked_holdout_regression`, proposed hybrid/auto 29 / 1,
+hold-out hybrid/auto 19 / 1, no-match precision 3 / 4, and exact-ID
+preservation 4 / 4. The earlier
+`raw/data/eval/natural-language-search/20260512T091123Z-10597/balanced/`
+bundle is retained as superseded evidence, not durable promotion evidence.
+
+Verification: `cargo fmt`; `cargo test --bin llm-wiki eval::`;
+`cargo test --test eval_commands`; raw bundle PII grep returned no matches.
+
+Pages updated: README.md, src/eval.rs,
+raw/data/eval/natural-language-search/20260512T145231Z-68005/balanced/,
+wiki/evals/natural-language-search.eval.md,
+wiki/evals/natural-language-search-impact.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+<!-- llm-wiki-search-ignore-end -->
+
+## [2026-05-12] update | electric-car domain confirmation
+
+Ran the vendored electric-car domain corpus as the independent semantic/hybrid
+search confirmation check. Run `20260512T162918Z-86751` reports
+`status=promotable` for the balanced candidate, proposed hybrid/auto 20 / 0,
+hold-out hybrid/auto 12 / 0, no-match precision 3 / 3, and exact-identifier
+preservation 5 / 5.
+
+Exported the raw bundle to
+`raw/data/eval/electric-cars/20260512T162918Z-86751/balanced/`. The proposal
+was not applied because it requires higher semantic and hybrid pre-fusion floors
+than the framework-wiki thresholds, and the current apply path writes one active
+threshold file.
+
+Pages updated: raw/data/eval/electric-cars/20260512T162918Z-86751/balanced/,
+wiki/evals/natural-language-search.eval.md,
+wiki/evals/natural-language-search-impact.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-12] update | scoped search thresholds
+
+Implemented scoped semantic/hybrid threshold storage. The managed
+`search-thresholds.toml` file now supports multiple records keyed by
+project/corpus, profile, embedding artifact, dimensions, qmd-rs adapter, and
+chunking identity. Legacy single-record files remain readable as fallback input,
+but once scoped records exist, search and indexing require a matching project
+scope.
+
+Updated runtime search readiness, semantic vector indexing, `doctor`, and
+`eval calibrate --apply` to use the scoped store. Applied the framework and
+electric-car balanced calibration reports under separate scopes, so the
+electric-car floors no longer overwrite the framework-wiki floors.
+
+Pages updated: README.md, src/doctor.rs, src/eval.rs, src/search/commands.rs,
+src/search/semantic.rs, src/search_models.rs, tests/search_commands.rs,
+wiki/evals/natural-language-search.eval.md,
+wiki/evals/natural-language-search-impact.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+<!-- llm-wiki-search-ignore-start -->
+
+## [2026-05-12] update | anchor-leak final floor calibration
+
+Resolved the H11 anchor-leak blocker in the semantic/hybrid eval calibrator.
+No-match rows that would survive production hybrid gating only because of
+path/title/snippet anchor evidence now raise the derived
+`hybrid_final_semantic_floor`. The new balanced run
+`20260512T154322Z-77945` reports `status=promotable`, proposed hybrid/auto
+30 / 0, hold-out hybrid/auto 20 / 0, no-match precision 4 / 4, exact-ID
+preservation 4 / 4, and applied
+`hybrid_final_semantic_floor=0.399904`.
+
+Exported the raw bundle to
+`raw/data/eval/natural-language-search/20260512T154322Z-77945/balanced/`,
+applied the candidate thresholds locally, rebuilt the project index, removed
+unignored catalog wording that described the no-match sentinel, and reran the
+ignored natural-language production harness. Hybrid and auto now pass every
+row, including zero-result handling for H11.
+
+Pages updated: README.md, src/eval.rs,
+raw/data/eval/natural-language-search/20260512T154322Z-77945/balanced/,
+wiki/evals/natural-language-search.eval.md,
+wiki/evals/natural-language-search-impact.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+<!-- llm-wiki-search-ignore-end -->
+
+## [2026-05-12] update | natural-language eval label acceptance
+
+Recorded human acceptance for all current framework and electric-car
+natural-language search eval labels. The applied balanced framework thresholds
+and scoped electric-car thresholds now rest on a durable accepted label
+baseline rather than pending operational evidence.
+
+No label text or expected-target table entries changed, so no recalibration was
+required for this acceptance step. Future label, corpus, retrieval, model,
+qmd-rs, or chunking changes must rerun `eval run` and `eval calibrate` before
+another threshold promotion.
+
+Pages updated: wiki/evals/natural-language-search.eval.md,
+wiki/evals/natural-language-search-impact.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md

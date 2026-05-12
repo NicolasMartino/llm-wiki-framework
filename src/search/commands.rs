@@ -26,9 +26,11 @@ use crate::search::qmd_rs::QmdRsBackend;
 use crate::search::sanitize::sanitize_fts_query;
 use crate::search::semantic::{
     SemanticIndexMetadata, SemanticSearchContext, SemanticVectorIndex, embed_query,
-    thresholds_match_index_inputs,
+    select_thresholds_for_index,
 };
-use crate::search_models::{ModelArtifactRecord, ModelArtifacts, SearchThresholds, model_by_id};
+use crate::search_models::{
+    ModelArtifactRecord, ModelArtifacts, SearchThresholdStore, SearchThresholds, model_by_id,
+};
 use crate::search_profile::{ProjectSearchConfig, SearchConfig, SearchProfile};
 
 const HIGH_CONFIDENCE_SEMANTIC_PREFIX_BOOST: f64 = 0.05;
@@ -198,17 +200,20 @@ fn update_semantic_index_metadata(
         metadata_path.display()
     ));
     metadata.write_atomic(&metadata_path)?;
-    let Some(thresholds) = SearchThresholds::read(&paths.search_thresholds())? else {
+    let Some(threshold_store) = SearchThresholdStore::read(&paths.search_thresholds())? else {
         context.diagnostic("semantic vector index: skipped, thresholds unconfigured");
         return Ok(());
     };
     let Some(embedding_artifact) = embedding_artifact_for_profile(&artifacts, &profile) else {
         bail!("semantic vector indexing requires a verified embedding model artifact");
     };
-    if !thresholds_match_index_inputs(&thresholds, &metadata, embedding_artifact) {
-        context.diagnostic("semantic vector index: skipped, thresholds do not match index inputs");
+    let Some(_thresholds) =
+        select_thresholds_for_index(&threshold_store, &project.id, &metadata, embedding_artifact)
+    else {
+        context
+            .diagnostic("semantic vector index: skipped, no scoped thresholds match index inputs");
         return Ok(());
-    }
+    };
     let vector_index =
         SemanticVectorIndex::build(&metadata, &project.wiki_root(), embedding_artifact)?;
     context.diagnostic(format!(
@@ -1080,7 +1085,7 @@ fn readiness_failure(
             return Ok(Some(readiness("model_missing")));
         }
     }
-    let Some(thresholds) = SearchThresholds::read(&paths.search_thresholds())? else {
+    let Some(threshold_store) = SearchThresholdStore::read(&paths.search_thresholds())? else {
         return Ok(Some(readiness("thresholds_unconfigured")));
     };
     let Some(project) = project else {
@@ -1093,9 +1098,11 @@ fn readiness_failure(
     let Some(metadata) = SemanticIndexMetadata::read(&metadata_path)? else {
         return Ok(Some(readiness("semantic_index_missing")));
     };
-    if !thresholds_match_index_inputs(&thresholds, &metadata, embedding_artifact) {
+    let Some(thresholds) =
+        select_thresholds_for_index(&threshold_store, &project.id, &metadata, embedding_artifact)
+    else {
         return Ok(Some(readiness("thresholds_incompatible")));
-    }
+    };
     if !metadata.is_fresh(&project.wiki_root())? {
         return Ok(Some(readiness("semantic_index_stale")));
     }
@@ -1926,7 +1933,7 @@ fn load_semantic_runtime_state(
 ) -> Result<SemanticRuntimeState> {
     let artifacts = ModelArtifacts::read(&paths.model_artifacts())?
         .context("semantic search requires verified model artifact records")?;
-    let thresholds = SearchThresholds::read(&paths.search_thresholds())?
+    let threshold_store = SearchThresholdStore::read(&paths.search_thresholds())?
         .context("semantic search requires calibrated thresholds")?;
     let embedding_artifact = embedding_artifact_for_profile(&artifacts, profile)
         .cloned()
@@ -1934,9 +1941,14 @@ fn load_semantic_runtime_state(
     let metadata_path = paths.semantic_index_metadata(&project.id);
     let metadata = SemanticIndexMetadata::read(&metadata_path)?
         .with_context(|| format!("semantic index missing: {}", metadata_path.display()))?;
-    if !thresholds_match_index_inputs(&thresholds, &metadata, &embedding_artifact) {
-        bail!("semantic thresholds do not match the current index inputs");
-    }
+    let thresholds = select_thresholds_for_index(
+        &threshold_store,
+        &project.id,
+        &metadata,
+        &embedding_artifact,
+    )
+    .cloned()
+    .context("semantic thresholds do not match the current index inputs or project scope")?;
     if !metadata.is_fresh(wiki_root)? {
         bail!(
             "semantic index stale for project {}; run `llm-wiki index --project {} --force`",
@@ -2279,7 +2291,7 @@ fn pin_lexical_prefix(
     *results = pinned;
 }
 
-fn maybe_rerank_results(
+pub(crate) fn maybe_rerank_results(
     query: &str,
     results: Vec<SearchResult>,
     profile: &SearchProfile,
@@ -2291,17 +2303,17 @@ fn maybe_rerank_results(
     if !rerank_requested {
         return Ok(results);
     }
-    if env::var("LLM_WIKI_TEST_RERANK")
-        .ok()
-        .is_some_and(|value| value == "deterministic")
-    {
-        return Ok(results);
-    }
     let Some(model_id) = profile.reranker_model.as_deref() else {
         bail!("rerank requested but selected profile has no reranker model");
     };
     let artifact = artifact_for_model(artifacts, model_id)
         .context("rerank requested but reranker artifact is missing")?;
+    if env::var("LLM_WIKI_TEST_RERANK")
+        .ok()
+        .is_some_and(|value| value == "deterministic")
+    {
+        return Ok(deterministic_rerank_results(results));
+    }
     let project_root = wiki_root.parent().unwrap_or(wiki_root);
     let documents = results
         .iter()
@@ -2331,6 +2343,21 @@ fn maybe_rerank_results(
         results_by_rank.push(result);
     }
     Ok(results_by_rank)
+}
+
+fn deterministic_rerank_results(results: Vec<SearchResult>) -> Vec<SearchResult> {
+    let total = results.len().max(1);
+    results
+        .into_iter()
+        .rev()
+        .enumerate()
+        .map(|(index, mut result)| {
+            let score = 1.0 - (index as f64 / (total as f64 + 1.0));
+            result.score = Score(score);
+            result.backend = "qmd-rs-rerank-deterministic".to_string();
+            result
+        })
+        .collect()
 }
 
 fn perform_project_search(
@@ -2642,6 +2669,7 @@ mod tests {
         SearchThresholds {
             schema_version: 1,
             updated_at: "2026-05-11T00:00:00Z".to_string(),
+            project_id: None,
             profile: "balanced".to_string(),
             semantic_similarity_floor: 0.35,
             hybrid_pre_fusion_semantic_floor: 0.35,

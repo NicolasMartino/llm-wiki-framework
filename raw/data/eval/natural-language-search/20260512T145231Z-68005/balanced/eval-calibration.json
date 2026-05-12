@@ -1,0 +1,267 @@
+{
+  "schema_version": 2,
+  "generated_at": "2026-05-12T14:58:57Z",
+  "source_run_id": "20260512T145231Z-68005",
+  "source_report_path": "target/evals/20260512-anchor-aware-balanced/eval-run.json",
+  "eval_page": "wiki/evals/natural-language-search.eval.md",
+  "project_id": "llm-wiki-framework-semantic-search",
+  "project_name": "llm_wiki_framework_semantic_search",
+  "proposals": [
+    {
+      "candidate_name": "balanced",
+      "profile": "balanced",
+      "embedding_model": "embeddinggemma-300m-q8_0",
+      "embedding_artifact_sha256": "b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63",
+      "embedding_dimensions": 768,
+      "index_fingerprint": "f649bb3b90fe8b92b5b50530fc941036d8f92b296ac7a781ebd51af2d05cd8e1",
+      "model_artifact_size_bytes": 1616029856,
+      "candidate_index_size_bytes": 2858659,
+      "semantic_similarity_floor": 0.328807,
+      "semantic_min_expected_score": 0.328807,
+      "semantic_max_no_match_score": 0.20334,
+      "semantic_missing_expected_targets": [],
+      "semantic_promotable": true,
+      "hybrid_pre_fusion_semantic_floor": 0.103599,
+      "hybrid_min_expected_score": 0.103599,
+      "hybrid_max_no_match_score": 0.20334,
+      "hybrid_missing_expected_targets": [],
+      "hybrid_promotable": false,
+      "hybrid_final_semantic_floor": 0.39,
+      "hybrid_semantic_only_floor": 0.5,
+      "hybrid_strong_lexical_score_floor": 0.5,
+      "hybrid_max_no_match_lexical_score": 0.0,
+      "calibration_expected_queries": 9,
+      "calibration_no_match_queries": 1,
+      "missing_expected_targets": [],
+      "status": "blocked_holdout_regression",
+      "promotable": false,
+      "post_apply_validation_required": false,
+      "requires_apply_profile": true,
+      "current_summary": {
+        "auto": {
+          "pass": 26,
+          "fail": 4,
+          "not_applicable": 0,
+          "error": 0
+        },
+        "hybrid": {
+          "pass": 26,
+          "fail": 4,
+          "not_applicable": 0,
+          "error": 0
+        },
+        "lexical": {
+          "pass": 17,
+          "fail": 9,
+          "not_applicable": 4,
+          "error": 0
+        },
+        "semantic": {
+          "pass": 24,
+          "fail": 5,
+          "not_applicable": 1,
+          "error": 0
+        }
+      },
+      "proposed_summary": {
+        "auto": {
+          "pass": 29,
+          "fail": 1,
+          "not_applicable": 0,
+          "error": 0
+        },
+        "hybrid": {
+          "pass": 29,
+          "fail": 1,
+          "not_applicable": 0,
+          "error": 0
+        },
+        "lexical": {
+          "pass": 17,
+          "fail": 9,
+          "not_applicable": 4,
+          "error": 0
+        },
+        "semantic": {
+          "pass": 26,
+          "fail": 3,
+          "not_applicable": 1,
+          "error": 0
+        }
+      },
+      "holdout_summary": {
+        "auto": {
+          "pass": 19,
+          "fail": 1,
+          "not_applicable": 0,
+          "error": 0
+        },
+        "hybrid": {
+          "pass": 19,
+          "fail": 1,
+          "not_applicable": 0,
+          "error": 0
+        },
+        "lexical": {
+          "pass": 13,
+          "fail": 4,
+          "not_applicable": 3,
+          "error": 0
+        },
+        "semantic": {
+          "pass": 17,
+          "fail": 3,
+          "not_applicable": 0,
+          "error": 0
+        }
+      },
+      "proposed_calibration_pass": true,
+      "holdout_pass": false,
+      "verdict_changes": [
+        {
+          "id": "C10",
+          "split": "Calibration",
+          "mode": "semantic",
+          "current_status": "fail",
+          "current_reason": "no_expected_match_returned_results",
+          "current_hit_rank": null,
+          "proposed_status": "pass",
+          "proposed_reason": "no_expected_match_zero_results",
+          "proposed_hit_rank": null
+        },
+        {
+          "id": "C10",
+          "split": "Calibration",
+          "mode": "hybrid",
+          "current_status": "fail",
+          "current_reason": "no_expected_match_returned_results",
+          "current_hit_rank": null,
+          "proposed_status": "pass",
+          "proposed_reason": "no_expected_match_zero_results",
+          "proposed_hit_rank": null
+        },
+        {
+          "id": "C10",
+          "split": "Calibration",
+          "mode": "auto",
+          "current_status": "fail",
+          "current_reason": "no_expected_match_returned_results",
+          "current_hit_rank": null,
+          "proposed_status": "pass",
+          "proposed_reason": "no_expected_match_zero_results",
+          "proposed_hit_rank": null
+        },
+        {
+          "id": "H9",
+          "split": "Hold-out",
+          "mode": "hybrid",
+          "current_status": "fail",
+          "current_reason": "no_expected_match_returned_results",
+          "current_hit_rank": null,
+          "proposed_status": "pass",
+          "proposed_reason": "no_expected_match_zero_results",
+          "proposed_hit_rank": null
+        },
+        {
+          "id": "H9",
+          "split": "Hold-out",
+          "mode": "auto",
+          "current_status": "fail",
+          "current_reason": "no_expected_match_returned_results",
+          "current_hit_rank": null,
+          "proposed_status": "pass",
+          "proposed_reason": "no_expected_match_zero_results",
+          "proposed_hit_rank": null
+        },
+        {
+          "id": "H20",
+          "split": "Hold-out",
+          "mode": "semantic",
+          "current_status": "fail",
+          "current_reason": "no_expected_match_returned_results",
+          "current_hit_rank": null,
+          "proposed_status": "pass",
+          "proposed_reason": "no_expected_match_zero_results",
+          "proposed_hit_rank": null
+        },
+        {
+          "id": "H20",
+          "split": "Hold-out",
+          "mode": "hybrid",
+          "current_status": "fail",
+          "current_reason": "no_expected_match_returned_results",
+          "current_hit_rank": null,
+          "proposed_status": "pass",
+          "proposed_reason": "no_expected_match_zero_results",
+          "proposed_hit_rank": null
+        },
+        {
+          "id": "H20",
+          "split": "Hold-out",
+          "mode": "auto",
+          "current_status": "fail",
+          "current_reason": "no_expected_match_returned_results",
+          "current_hit_rank": null,
+          "proposed_status": "pass",
+          "proposed_reason": "no_expected_match_zero_results",
+          "proposed_hit_rank": null
+        }
+      ],
+      "no_match_precision": {
+        "auto": {
+          "current_pass": 0,
+          "current_total": 4,
+          "proposed_pass": 3,
+          "proposed_total": 4
+        },
+        "hybrid": {
+          "current_pass": 0,
+          "current_total": 4,
+          "proposed_pass": 3,
+          "proposed_total": 4
+        },
+        "lexical": {
+          "current_pass": 0,
+          "current_total": 0,
+          "proposed_pass": 0,
+          "proposed_total": 0
+        },
+        "semantic": {
+          "current_pass": 0,
+          "current_total": 4,
+          "proposed_pass": 2,
+          "proposed_total": 4
+        }
+      },
+      "exact_identifier_preservation": {
+        "auto": {
+          "current_pass": 4,
+          "current_total": 4,
+          "proposed_pass": 4,
+          "proposed_total": 4
+        },
+        "hybrid": {
+          "current_pass": 4,
+          "current_total": 4,
+          "proposed_pass": 4,
+          "proposed_total": 4
+        },
+        "lexical": {
+          "current_pass": 4,
+          "current_total": 4,
+          "proposed_pass": 4,
+          "proposed_total": 4
+        }
+      }
+    }
+  ],
+  "selected_candidate": "balanced",
+  "applied": false,
+  "recorded": false,
+  "report_path": "target/evals/20260512-anchor-aware-balanced/eval-calibration.json",
+  "raw_data_bundle": "./raw/data/eval/natural-language-search/20260512T145231Z-68005/balanced",
+  "raw_data_manifest": "./raw/data/eval/natural-language-search/20260512T145231Z-68005/balanced/manifest.toml",
+  "raw_data_bundles": {
+    "balanced": "./raw/data/eval/natural-language-search/20260512T145231Z-68005/balanced"
+  }
+}

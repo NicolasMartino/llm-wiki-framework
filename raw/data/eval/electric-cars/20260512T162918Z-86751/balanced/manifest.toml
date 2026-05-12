@@ -1,0 +1,30 @@
+schema_version = 1
+exported_at = "2026-05-12T16:33:08Z"
+source_run_id = "20260512T162918Z-86751"
+project_id = "electric-cars"
+project_name = "electric-cars"
+eval_page = "tests/fixtures/eval-corpora/electric-cars/wiki/evals/electric-cars.eval.md"
+source_run_report = "target/evals/electric-cars-balanced/eval-run.json"
+source_calibration_report = "target/evals/electric-cars-balanced/eval-calibration.json"
+selected_candidate = "balanced"
+
+[[candidates]]
+name = "balanced"
+status = "promotable"
+promotable = true
+semantic_similarity_floor = 0.57168
+hybrid_pre_fusion_semantic_floor = 0.57168
+proposed_calibration_pass = true
+holdout_pass = true
+verdict_changes = 10
+post_apply_validation_required = true
+
+[[files]]
+name = "eval-run.json"
+sha256 = "63cc79597159e88601fe564c1824e527c9a4e73e7df1ed01a857b7569741e877"
+size_bytes = 212682
+
+[[files]]
+name = "eval-calibration.json"
+sha256 = "b35e67bc693c627fc3c08fff6bf2df08e2a706ce75037ac64b9246b6c8582c08"
+size_bytes = 8781

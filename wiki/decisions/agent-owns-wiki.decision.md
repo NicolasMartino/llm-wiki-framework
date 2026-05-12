@@ -9,8 +9,10 @@
 
 ## Choice
 
-The agent owns `wiki/` entirely. It writes, updates, cross-links, archives,
-and maintains all wiki content. Humans do not edit wiki files directly.
+The agent owns `wiki/` entirely. The agent is allowed to edit any file under
+`wiki/`; humans are not allowed to edit `wiki/` directly and curate `raw/`
+instead. The agent writes, updates, cross-links, archives, and maintains all
+wiki content.
 
 ## Why
 

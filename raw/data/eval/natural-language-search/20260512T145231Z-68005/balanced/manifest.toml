@@ -1,0 +1,30 @@
+schema_version = 1
+exported_at = "2026-05-12T14:58:57Z"
+source_run_id = "20260512T145231Z-68005"
+project_id = "llm-wiki-framework-semantic-search"
+project_name = "llm_wiki_framework_semantic_search"
+eval_page = "wiki/evals/natural-language-search.eval.md"
+source_run_report = "target/evals/20260512-anchor-aware-balanced/eval-run.json"
+source_calibration_report = "target/evals/20260512-anchor-aware-balanced/eval-calibration.json"
+selected_candidate = "balanced"
+
+[[candidates]]
+name = "balanced"
+status = "blocked_holdout_regression"
+promotable = false
+semantic_similarity_floor = 0.328807
+hybrid_pre_fusion_semantic_floor = 0.103599
+proposed_calibration_pass = true
+holdout_pass = false
+verdict_changes = 8
+post_apply_validation_required = false
+
+[[files]]
+name = "eval-run.json"
+sha256 = "eb3151f639a3e2bf6b67a770ecf57268a7c14e7eccc5a8e57f674f0a2e78c863"
+size_bytes = 321003
+
+[[files]]
+name = "eval-calibration.json"
+sha256 = "013783dd642dce0d3a1a8dd24bbf17b0d2fd71aa33451afdac3260943d6391f5"
+size_bytes = 8117

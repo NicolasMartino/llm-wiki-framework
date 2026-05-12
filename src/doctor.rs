@@ -14,7 +14,7 @@ use crate::search::adapter::{BackendState, SearchBackend, SearchMode};
 use crate::search::project::discover_from_cwd;
 use crate::search::qmd_rs::QmdRsBackend;
 use crate::search::semantic::{SemanticIndexMetadata, SemanticVectorIndex};
-use crate::search_models::{AcceptedLicenses, ModelArtifacts, SearchThresholds};
+use crate::search_models::{AcceptedLicenses, ModelArtifacts, SearchThresholdStore};
 use crate::search_profile::{ExternalDependencies, SearchConfig};
 use crate::skill_render::{BINARY_MARKER, managed_binary_invocation};
 
@@ -260,14 +260,19 @@ fn print_search_profile_diagnostics(paths: &Paths, context: &crate::cli::CliCont
         }
     }
 
-    match SearchThresholds::read(&search_thresholds)? {
-        Some(thresholds) => {
+    match SearchThresholdStore::read(&search_thresholds)? {
+        Some(store) => {
             context.diagnostic("search thresholds state: configured");
+            let first = store.thresholds().first();
             println!(
-                "Search thresholds configured: profile={} semantic_floor={} hybrid_floor={} at {}",
-                thresholds.profile,
-                thresholds.semantic_similarity_floor,
-                thresholds.hybrid_pre_fusion_semantic_floor,
+                "Search thresholds configured: records={} first_profile={} first_project={} at {}",
+                store.thresholds().len(),
+                first
+                    .map(|thresholds| thresholds.profile.as_str())
+                    .unwrap_or("<none>"),
+                first
+                    .and_then(|thresholds| thresholds.project_id.as_deref())
+                    .unwrap_or("<unscoped>"),
                 search_thresholds.display()
             );
         }
