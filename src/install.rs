@@ -8,6 +8,7 @@ use chrono::{Timelike, Utc};
 use llm_wiki_schema::{ClaudeProjector, CodexProjector, Projector, Runtime, parse};
 use serde::Serialize;
 
+use crate::backup_policy::exclude_rebuildable_from_time_machine;
 use crate::cli::{CliContext, InstallArgs};
 use crate::embed;
 use crate::manifest::collision::{Collision, classify};
@@ -212,6 +213,21 @@ fn configure_enabled_search(args: &InstallArgs, paths: &Paths, context: &CliCont
 
     AcceptedLicenses::from_models(&models).write_atomic(&paths.accepted_licenses())?;
     context.diagnostic("search configuration action: recorded accepted licenses");
+
+    fs::create_dir_all(paths.managed_model_root()).with_context(|| {
+        format!(
+            "failed to create model root {}",
+            paths.managed_model_root().display()
+        )
+    })?;
+    exclude_rebuildable_from_time_machine(&paths.managed_model_root(), context);
+    fs::create_dir_all(paths.managed_index_root()).with_context(|| {
+        format!(
+            "failed to create index root {}",
+            paths.managed_index_root().display()
+        )
+    })?;
+    exclude_rebuildable_from_time_machine(&paths.managed_index_root(), context);
 
     let mut artifact_records = Vec::new();
     for model in models {

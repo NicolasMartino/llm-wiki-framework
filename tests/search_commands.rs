@@ -436,6 +436,70 @@ fn enabled_profile_without_thresholds_fails_closed() {
 }
 
 #[test]
+fn enabled_profile_without_accepted_licenses_fails_closed() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+    write_enabled_search_profile_with_fake_artifacts_without_licenses(home.path());
+    write_search_thresholds(home.path());
+
+    let output = llm_wiki(home.path())
+        .args([
+            "search",
+            "reciprocal rank fusion",
+            "--project",
+            "fixture",
+            "--mode",
+            "hybrid",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("search output");
+    assert!(!output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("readiness json");
+    assert_eq!(json["readiness_reason"], "license_not_accepted");
+}
+
+#[test]
+fn index_semantic_metadata_requires_only_embedding_artifact() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project_with_decision(
+        workspace.path(),
+        "Fixture Project",
+        "Battery Decision",
+        "Battery chemistry roadmap retrieval belongs in semantic search.",
+    );
+    register_project(home.path(), &project);
+    write_enabled_search_profile_with_embedding_artifact_only(home.path());
+
+    llm_wiki(home.path())
+        .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let metadata: Value = serde_json::from_str(
+        &fs::read_to_string(
+            home.path()
+                .join(".llm_wiki/indexes/fixture/semantic-index.json"),
+        )
+        .expect("semantic metadata"),
+    )
+    .expect("semantic metadata json");
+    let model_artifacts = metadata["model_artifacts"]
+        .as_array()
+        .expect("model artifacts");
+    assert_eq!(model_artifacts.len(), 1);
+    assert_eq!(
+        model_artifacts[0]["model_id"],
+        Value::String("embeddinggemma-300m-q8_0".to_string())
+    );
+}
+
+#[test]
 fn semantic_mode_uses_vector_index_when_thresholds_are_configured() {
     let home = TempDir::new().expect("home");
     let workspace = TempDir::new().expect("workspace");
@@ -917,6 +981,69 @@ fn index_all_and_search_all_fuse_registered_projects() {
 }
 
 #[test]
+fn search_all_reports_per_project_readiness_and_skips_unready_projects() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let alpha = fixture_project_with_decision(
+        workspace.path(),
+        "Alpha Project",
+        "Alpha Decision",
+        "Battery roadmap shared token appears in alpha project.",
+    );
+    let beta = fixture_project_with_decision(
+        workspace.path(),
+        "Beta Project",
+        "Beta Decision",
+        "Battery roadmap shared token appears in beta project.",
+    );
+    register_project_with_id(home.path(), &alpha, "alpha");
+    register_project_with_id(home.path(), &beta, "beta");
+    write_enabled_search_profile_with_fake_artifacts(home.path());
+    write_search_thresholds(home.path());
+
+    llm_wiki(home.path())
+        .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+        .args(["index", "--project", "alpha", "--force"])
+        .assert()
+        .success();
+
+    let output = llm_wiki(home.path())
+        .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+        .env("LLM_WIKI_TEST_QUERY_EXPANSION", "deterministic")
+        .args([
+            "search-all",
+            "battery roadmap",
+            "--mode",
+            "hybrid",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("search-all output");
+    assert!(output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("search-all json");
+    assert_eq!(json["selected_mode"], "hybrid");
+    assert_eq!(
+        json["results"][0]["project_id"],
+        Value::String("alpha".to_string())
+    );
+    let projects = json["projects"].as_array().expect("project reports");
+    let alpha_report = projects
+        .iter()
+        .find(|report| report["project_id"] == "alpha")
+        .expect("alpha report");
+    assert_eq!(alpha_report["selected_mode"], "hybrid");
+    assert!(alpha_report["readiness_reason"].is_null());
+    let beta_report = projects
+        .iter()
+        .find(|report| report["project_id"] == "beta")
+        .expect("beta report");
+    assert!(beta_report["selected_mode"].is_null());
+    assert_eq!(beta_report["readiness_reason"], "semantic_index_missing");
+    assert_eq!(beta_report["result_count"], 0);
+}
+
+#[test]
 fn verbose_search_all_reports_project_diagnostics() {
     let home = TempDir::new().expect("home");
     let workspace = TempDir::new().expect("workspace");
@@ -1299,6 +1426,65 @@ fn ensure_installed(home: &Path) {
 }
 
 fn write_enabled_search_profile_with_fake_artifacts(home: &Path) {
+    write_enabled_search_profile_with_fake_artifacts_inner(home, true);
+}
+
+fn write_enabled_search_profile_with_fake_artifacts_without_licenses(home: &Path) {
+    write_enabled_search_profile_with_fake_artifacts_inner(home, false);
+}
+
+fn write_enabled_search_profile_with_embedding_artifact_only(home: &Path) {
+    write_enabled_search_profile_with_fake_artifacts(home);
+    let managed = home.join(".llm_wiki");
+    let embedding_path =
+        managed.join("models/embeddinggemma-300m-q8_0/embeddinggemma-300M-Q8_0.gguf");
+    fs::write(
+        managed.join("models/artifacts.toml"),
+        format!(
+            r#"
+schema_version = 1
+updated_at = "2026-05-11T00:00:00Z"
+
+[[artifacts]]
+model_id = "embeddinggemma-300m-q8_0"
+role = "embedding"
+profile = "balanced"
+repository = "ggml-org/embeddinggemma-300M-GGUF"
+revision = "0f741b5a6585bd53aeb15cd1372c56f2a0f65e12"
+file = "embeddinggemma-300M-Q8_0.gguf"
+download_url = "https://example.invalid/embedding.gguf"
+path = "{}"
+expected_sha256 = "b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63"
+observed_sha256 = "b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63"
+size_bytes = 1
+license = "gemma"
+dimensions = 768
+qmd_rs_version = "0.3.2"
+adapter_schema_version = 1
+verified_at = "2026-05-11T00:00:00Z"
+"#,
+            embedding_path.display()
+        ),
+    )
+    .expect("embedding-only artifacts");
+    fs::write(
+        home.join(".llm_wiki/accepted-licenses.toml"),
+        r#"
+schema_version = 1
+updated_at = "2026-05-11T00:00:00Z"
+
+[[licenses]]
+model_id = "embeddinggemma-300m-q8_0"
+license = "gemma"
+terms_url = "https://ai.google.dev/gemma/terms"
+accepted_at = "2026-05-11T00:00:00Z"
+accepted_by_version = "0.1.1"
+"#,
+    )
+    .expect("embedding-only licenses");
+}
+
+fn write_enabled_search_profile_with_fake_artifacts_inner(home: &Path, write_licenses: bool) {
     let managed = home.join(".llm_wiki");
     let embedding_path =
         managed.join("models/embeddinggemma-300m-q8_0/embeddinggemma-300M-Q8_0.gguf");
@@ -1380,6 +1566,33 @@ verified_at = "2026-05-11T00:00:00Z"
         ),
     )
     .expect("artifacts");
+    if write_licenses {
+        write_search_licenses(home);
+    }
+}
+
+fn write_search_licenses(home: &Path) {
+    fs::write(
+        home.join(".llm_wiki/accepted-licenses.toml"),
+        r#"
+schema_version = 1
+updated_at = "2026-05-11T00:00:00Z"
+
+[[licenses]]
+model_id = "embeddinggemma-300m-q8_0"
+license = "gemma"
+terms_url = "https://ai.google.dev/gemma/terms"
+accepted_at = "2026-05-11T00:00:00Z"
+accepted_by_version = "0.1.1"
+
+[[licenses]]
+model_id = "qmd-query-expansion-1.7b-q4_k_m"
+license = "mit"
+accepted_at = "2026-05-11T00:00:00Z"
+accepted_by_version = "0.1.1"
+"#,
+    )
+    .expect("licenses");
 }
 
 fn write_search_thresholds(home: &Path) {

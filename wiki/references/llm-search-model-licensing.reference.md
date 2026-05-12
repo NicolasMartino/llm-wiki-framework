@@ -96,8 +96,10 @@ Implementation rule:
 2. Search, search-all, index, index-all, doctor, and wiki-query must inspect
    existing managed state and fail with readiness guidance rather than pulling
    models.
-3. The preferred byte root is `~/.llm_wiki/models/`.
-4. If a qmd-rs helper hardcodes a second cache or model location, record it in
+3. Runtime readiness must treat accepted-license records as model-specific
+   state: model id, license, and terms URL must match the current catalog entry.
+4. The preferred byte root is `~/.llm_wiki/models/`.
+5. If a qmd-rs helper hardcodes a second cache or model location, record it in
    `~/.llm_wiki/external-dependencies.toml` with cleanup guidance instead of
    leaving it invisible.
 

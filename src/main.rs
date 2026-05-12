@@ -1,3 +1,4 @@
+mod backup_policy;
 mod build;
 mod cli;
 mod doctor;

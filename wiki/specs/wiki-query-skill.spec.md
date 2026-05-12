@@ -29,6 +29,11 @@ If semantic/hybrid readiness is missing or search returns no useful result, the
 skill continues from index-based navigation instead of treating the search
 failure or zero-result outcome as an answer.
 
+If a future skill projection uses `search-all` as an explicit cross-project
+navigation supplement, it must inspect the JSON `projects` array as well as the
+top-level mode fields so skipped projects, lexical fallback, and mixed
+readiness do not get mistaken for corpus-wide absence.
+
 ## Runtime Projection
 
 Canonical source: `assets/skills/wiki-query/SKILL.md`.

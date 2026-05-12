@@ -17,7 +17,7 @@ use crate::paths::Paths;
 use crate::registry::{ProjectRegistry, RegisteredProject};
 use crate::search::adapter::{Freshness, Score, SearchBackend, SearchFilters, SearchMode};
 use crate::search::commands::{
-    dedupe_by_path_preserving_rank, expand_hybrid_queries, freshness_for_status,
+    RerankInputs, dedupe_by_path_preserving_rank, expand_hybrid_queries, freshness_for_status,
     fuse_hybrid_results, maybe_rerank_results, query_anchor_terms,
 };
 use crate::search::project::discover_from_cwd;
@@ -626,6 +626,7 @@ struct PreparedCandidate {
     spec: CandidateSpec,
     report: EvalCandidateRun,
     artifacts: Option<ModelArtifacts>,
+    accepted_licenses: Option<AcceptedLicenses>,
     embedding_artifact: Option<ModelArtifactRecord>,
     query_expansion_artifact: Option<ModelArtifactRecord>,
     reranker_artifact: Option<ModelArtifactRecord>,
@@ -779,6 +780,7 @@ impl PreparedCandidate {
             spec,
             report,
             artifacts: artifacts.cloned(),
+            accepted_licenses: accepted_licenses.cloned(),
             embedding_artifact,
             query_expansion_artifact,
             reranker_artifact,
@@ -824,12 +826,9 @@ fn candidate_model_report(
 ) -> Option<ModelArtifactRecord> {
     let model_id = model_id?;
     let catalog = model_by_id(model_id);
-    let accepted_license = accepted_licenses.is_some_and(|accepted| {
-        accepted
-            .licenses
-            .iter()
-            .any(|license| license.model_id == model_id)
-    });
+    let accepted_license = accepted_licenses
+        .zip(catalog)
+        .is_some_and(|(accepted, model)| accepted.accepts_model(model));
     let artifact = artifacts.and_then(|artifacts| {
         artifacts.artifacts.iter().find(|artifact| {
             artifact.model_id == model_id
@@ -889,11 +888,14 @@ fn run_case_mode(
                     outcome
                 })
             } else {
-                run_lexical(case, context).map(|mut outcome| {
-                    outcome.selected_mode = Some("lexical".to_string());
-                    outcome.readiness_reason = candidate.report.readiness_reason.clone();
-                    outcome
-                })
+                Ok(readiness_outcome(
+                    "auto",
+                    candidate
+                        .report
+                        .readiness_reason
+                        .as_deref()
+                        .unwrap_or("candidate_hybrid_not_ready"),
+                ))
             }
         }
         other => Err(anyhow::anyhow!("unsupported eval mode {other}")),
@@ -1109,11 +1111,17 @@ fn run_hybrid(
         results = maybe_rerank_results(
             &case.query,
             results,
-            &candidate.spec.profile,
-            artifacts,
-            thresholds,
-            context.wiki_root,
-            true,
+            RerankInputs {
+                profile: &candidate.spec.profile,
+                artifacts,
+                accepted_licenses: candidate
+                    .accepted_licenses
+                    .as_ref()
+                    .expect("rerank readiness accepted licenses"),
+                thresholds,
+                wiki_root: context.wiki_root,
+                requested: true,
+            },
         )?;
         rerank_ms = elapsed_ms(rerank_started);
         rerank_applied = true;

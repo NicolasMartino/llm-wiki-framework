@@ -235,6 +235,14 @@ impl AcceptedLicenses {
         }
     }
 
+    pub fn accepts_model(&self, model: SearchModel) -> bool {
+        self.licenses.iter().any(|license| {
+            license.model_id == model.id
+                && license.license == model.license
+                && license.terms_url.as_deref() == model.terms_url
+        })
+    }
+
     pub fn read(path: &Path) -> Result<Option<Self>> {
         if !path.exists() {
             return Ok(None);
@@ -620,8 +628,8 @@ pub fn sha256_file(path: &Path) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        DEFAULT_PROFILE_ID, EMBEDDING_GEMMA_300M, ModelRole, QMD_QUERY_EXPANSION_17B,
-        SearchThresholdStore, SearchThresholds, profile_by_id,
+        AcceptedLicenses, DEFAULT_PROFILE_ID, EMBEDDING_GEMMA_300M, ModelRole,
+        QMD_QUERY_EXPANSION_17B, SearchThresholdStore, SearchThresholds, profile_by_id,
     };
 
     #[test]
@@ -633,6 +641,17 @@ mod tests {
         assert!(profile.reranker_model.is_none());
         assert_eq!(EMBEDDING_GEMMA_300M.role, ModelRole::Embedding);
         assert_eq!(EMBEDDING_GEMMA_300M.dimensions, Some(768));
+    }
+
+    #[test]
+    fn accepted_license_requires_current_license_and_terms() {
+        let mut accepted = AcceptedLicenses::from_models(&[EMBEDDING_GEMMA_300M]);
+
+        assert!(accepted.accepts_model(EMBEDDING_GEMMA_300M));
+
+        accepted.licenses[0].terms_url = Some("https://example.com/old-terms".to_string());
+
+        assert!(!accepted.accepts_model(EMBEDDING_GEMMA_300M));
     }
 
     #[test]

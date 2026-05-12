@@ -1,7 +1,7 @@
 # Wiki Index
 
 Project: Software Project Management Framework
-Stage: D1-D11 Completed; code-pack/CLI blueprint, CLI observability, and post-V1 P1 semantic/hybrid search completed; calibrated hybrid/auto search now has project-scoped thresholds, human-accepted framework and electric-car labels, redacted raw eval evidence, durable search-mode decision coverage, and completed verification gates; crash-report proposal open
+Stage: D1-D11 Completed; code-pack/CLI blueprint, CLI observability, and post-V1 P1 semantic/hybrid search completed; calibrated hybrid/auto search now has project-scoped thresholds, human-accepted framework and electric-car labels, redacted raw eval evidence, durable search-mode decision coverage, post-completion readiness hardening, and completed verification gates; crash-report proposal open
 Updated: 2026-05-12
 
 ## Specs
@@ -25,7 +25,7 @@ Updated: 2026-05-12
 - [Composable Project Init](decisions/composable-project-init.decision.md) — Accepted — `llm-wiki init` becomes a blueprint + pack composition over a compile-time template engine; per-project `.llm_wiki/init.toml` records the choices
 - [Skill Projection Template Engine](decisions/skill-projection-template-engine.decision.md) — Accepted — Claude/Codex skill markdown and Codex runtime config render through shared Askama templates
 - [Code Pack And CLI Tool Blueprint](decisions/code-pack-cli-blueprint.decision.md) — Accepted — Move root code/deploy folders behind an explicit `code` pack and add `cli-tool` as a command-line product blueprint
-- [Semantic Hybrid Search Mode](decisions/semantic-hybrid-search-mode.decision.md) — Accepted — `auto` defaults to calibrated hybrid when LLM search, fresh semantic indexes, and scoped thresholds are ready; lexical remains the exact fallback, semantic-only is diagnostic, and reranking stays opt-in pending its own calibrated profile
+- [Semantic Hybrid Search Mode](decisions/semantic-hybrid-search-mode.decision.md) — Accepted — `auto` defaults to calibrated hybrid when LLM search, accepted licenses, fresh semantic indexes, and scoped thresholds are ready; `search-all` reports per-project readiness; lexical remains the exact fallback, semantic-only is diagnostic, and reranking stays opt-in pending its own calibrated profile
 
 ## Roadmaps
 
@@ -68,7 +68,7 @@ Updated: 2026-05-12
 - [Skill Projection Template Engine](plans/skill-projection-template-engine.plan.md) — Completed — Migrated Claude/Codex skill markdown and Codex runtime config rendering onto `templates/skills/` Askama templates with byte-stable real-skill snapshots
 - [Code Pack And CLI Tool Blueprint](plans/code-pack-cli-blueprint.plan.md) — Completed — Implemented `Pack::Code`, added `cli-tool`, removed unconditional root code folders from init, and added golden tests for research/no-code and software/CLI code defaults
 - [CLI Verbose Diagnostics](plans/cli-observability.plan.md) — Completed — Implemented global `-v/--verbose`, `CliContext`, tracing stderr diagnostics, search/search-all retrieval proof, and concise command-specific diagnostics across every remaining binary command
-- [Semantic and Hybrid Search](plans/semantic-hybrid-search.plan.md) — Completed — Delivered install-time LLM search profiles, semantic indexes, auto/lexical/semantic/hybrid modes, hybrid fusion, optional reranking, search-all rank merge, wiki-query metadata consumption, model/profile-aware `eval run` / `eval calibrate`, scoped thresholds, redacted raw eval evidence, human label acceptance, and a durable semantic/hybrid search-mode decision
+- [Semantic and Hybrid Search](plans/semantic-hybrid-search.plan.md) — Completed — Delivered install-time LLM search profiles, semantic indexes, auto/lexical/semantic/hybrid modes, hybrid fusion, optional reranking, search-all rank merge with per-project readiness, wiki-query metadata consumption, model/profile-aware `eval run` / `eval calibrate`, scoped thresholds, redacted raw eval evidence, human label acceptance, post-completion readiness hardening, and a durable semantic/hybrid search-mode decision
 
 ## Experiments
 

@@ -11,6 +11,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use anyhow::{Context, Result, bail};
 use serde::Serialize;
 
+use crate::backup_policy::exclude_rebuildable_from_time_machine;
 use crate::cli::{
     CliContext, IndexAllArgs, IndexArgs, OutputFormat, SearchAllArgs, SearchArgs, SearchModeArg,
 };
@@ -29,7 +30,8 @@ use crate::search::semantic::{
     select_thresholds_for_index,
 };
 use crate::search_models::{
-    ModelArtifactRecord, ModelArtifacts, SearchThresholdStore, SearchThresholds, model_by_id,
+    AcceptedLicenses, ModelArtifactRecord, ModelArtifacts, SearchThresholdStore, SearchThresholds,
+    model_by_id,
 };
 use crate::search_profile::{ProjectSearchConfig, SearchConfig, SearchProfile};
 
@@ -114,6 +116,7 @@ fn index_registered_project(
     context.diagnostic(format!("lock path: {}", lock_path.display()));
     fs::create_dir_all(&project_index_dir)
         .with_context(|| format!("create search index dir {}", project_index_dir.display()))?;
+    exclude_rebuildable_from_time_machine(&paths.managed_index_root(), context);
     let _lock = ProjectIndexLock::acquire(&project_index_dir)?;
     maybe_sleep_for_test("LLM_WIKI_TEST_INDEX_SLEEP_MS");
     let temp_build = TempIndexBuild::new(&project_index_dir)?;
@@ -192,6 +195,23 @@ fn update_semantic_index_metadata(
             "semantic indexing requires model artifact records; run `llm-wiki install --configure-search`"
         );
     };
+    let Some(accepted_licenses) = AcceptedLicenses::read(&paths.accepted_licenses())? else {
+        bail!(
+            "semantic indexing requires accepted model license records; run `llm-wiki install --configure-search`"
+        );
+    };
+    let Some(embedding_model_id) = profile.embedding_model.as_deref() else {
+        bail!("semantic indexing requires an embedding model in the search profile");
+    };
+    let Some(embedding_model) = model_by_id(embedding_model_id) else {
+        bail!("semantic indexing requires a known embedding model: {embedding_model_id}");
+    };
+    if !accepted_licenses.accepts_model(embedding_model) {
+        bail!(
+            "semantic indexing requires accepted license records for {}; run `llm-wiki install --configure-search`",
+            embedding_model.id
+        );
+    }
     let metadata =
         SemanticIndexMetadata::build(&project.id, &project.wiki_root(), &profile, &artifacts)?;
     context.diagnostic(format!(
@@ -604,29 +624,7 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
     context.diagnostic(format!("registry: {}", registry_path.display()));
     let registry = ProjectRegistry::read(&paths.project_registry())?;
     let projects = select_projects(&registry, &args.include, &args.exclude)?;
-    let resolution =
-        match resolve_global_mode(&paths, args.mode, args.allow_lexical_fallback, args.rerank)? {
-            ModeResolutionOutcome::Ready(resolution) => resolution,
-            ModeResolutionOutcome::NotReady { failure, profile } => {
-                return handle_readiness_failure(
-                    &args.query,
-                    None,
-                    args.format,
-                    args.mode,
-                    args.rerank,
-                    failure,
-                    profile.as_ref(),
-                );
-            }
-        };
-    context.diagnostic(format!(
-        "selected mode: {}",
-        resolution.selected_mode.label()
-    ));
-    context.diagnostic(format!("mode reason: {}", resolution.reason));
-    if let Some(reason) = &resolution.fallback_reason {
-        context.diagnostic(format!("fallback reason: {reason}"));
-    }
+    ensure_base_install(&paths)?;
     context.diagnostic(format!(
         "project selection: {}",
         search_all_selection_label(&args.include, &args.exclude)
@@ -684,6 +682,46 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
             filters: &filters,
             limit: per_project_limit,
         };
+        let resolution = match resolve_project_mode(
+            &paths,
+            project,
+            args.mode,
+            args.allow_lexical_fallback,
+            args.rerank,
+        )? {
+            ModeResolutionOutcome::Ready(resolution) => resolution,
+            ModeResolutionOutcome::NotReady { failure, profile } => {
+                context.diagnostic(format!(
+                    "per-project readiness {}: {}",
+                    project.id, failure.reason
+                ));
+                warnings.push(SearchWarning {
+                    project_id: project.id.clone(),
+                    message: format!("project skipped: {}", failure.guidance),
+                });
+                project_reports.push(ProjectSearchReport {
+                    project_id: project.id.clone(),
+                    requested_mode: args.mode.label().to_string(),
+                    selected_mode: None,
+                    mode_selection_reason: None,
+                    fallback_reason: None,
+                    readiness_reason: Some(failure.reason),
+                    result_count: 0,
+                    no_result: None,
+                    profile,
+                });
+                continue;
+            }
+        };
+        context.diagnostic(format!(
+            "selected mode {}: {}",
+            project.id,
+            resolution.selected_mode.label()
+        ));
+        context.diagnostic(format!("mode reason {}: {}", project.id, resolution.reason));
+        if let Some(reason) = &resolution.fallback_reason {
+            context.diagnostic(format!("fallback reason {}: {reason}", project.id));
+        }
         let search =
             perform_resolved_project_search(&search_input, &resolution, args.rerank, context)?;
         context.diagnostic(format!(
@@ -720,6 +758,7 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
             readiness_reason: None,
             result_count: search.results.len(),
             no_result: no_result.flatten(),
+            profile: resolution.profile.clone(),
         });
         warnings.extend(search.warnings);
         let mut results = search.results;
@@ -778,7 +817,8 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
     match args.format {
         OutputFormat::Text => print_search_text(&warnings, &results),
         OutputFormat::Json => {
-            let mut mode_metadata = SearchModeJson::from_resolution(&resolution, args.rerank);
+            let mut mode_metadata =
+                SearchModeJson::from_search_all_reports(args.mode, args.rerank, &project_reports);
             if results.is_empty() {
                 mode_metadata.zero_result_reason =
                     Some("no selected project returned results".to_string());
@@ -889,24 +929,6 @@ fn resolve_project_mode(
     resolve_mode(
         paths,
         Some(project),
-        requested_mode,
-        allow_lexical_fallback,
-        rerank,
-        profile,
-    )
-}
-
-fn resolve_global_mode(
-    paths: &Paths,
-    requested_mode: SearchModeArg,
-    allow_lexical_fallback: bool,
-    rerank: bool,
-) -> Result<ModeResolutionOutcome> {
-    ensure_base_install(paths)?;
-    let profile = SearchConfig::read(&paths.search_config())?.map(|config| config.global_search);
-    resolve_mode(
-        paths,
-        None,
         requested_mode,
         allow_lexical_fallback,
         rerank,
@@ -1070,10 +1092,16 @@ fn readiness_failure(
     let Some(artifacts) = ModelArtifacts::read(&paths.model_artifacts())? else {
         return Ok(Some(readiness("model_missing")));
     };
+    let Some(accepted_licenses) = AcceptedLicenses::read(&paths.accepted_licenses())? else {
+        return Ok(Some(readiness("license_not_accepted")));
+    };
     for model_id in model_ids {
         let Some(model) = model_by_id(&model_id) else {
             return Ok(Some(readiness("model_missing")));
         };
+        if !accepted_licenses.accepts_model(model) {
+            return Ok(Some(readiness("license_not_accepted")));
+        }
         let Some(record) = artifacts.artifacts.iter().find(|artifact| {
             artifact.model_id == model_id
                 && artifact.expected_sha256 == model.expected_sha256
@@ -1150,6 +1178,10 @@ fn readiness(reason: &str) -> ReadinessFailure {
         }
         "model_missing" => {
             "run `llm-wiki install --configure-search` to materialize and verify search models"
+                .to_string()
+        }
+        "license_not_accepted" => {
+            "run `llm-wiki install --configure-search` to review and accept model licenses"
                 .to_string()
         }
         "thresholds_unconfigured" => {
@@ -1282,6 +1314,7 @@ struct ProjectSearchReport {
     readiness_reason: Option<String>,
     result_count: usize,
     no_result: Option<String>,
+    profile: Option<SearchProfile>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -1380,6 +1413,88 @@ impl SearchModeJson {
         }
     }
 
+    fn from_search_all_reports(
+        requested_mode: SearchModeArg,
+        rerank_requested: bool,
+        reports: &[ProjectSearchReport],
+    ) -> Self {
+        let selected_mode = common_report_value(reports.iter().filter_map(|report| {
+            report
+                .readiness_reason
+                .is_none()
+                .then_some(report.selected_mode.as_deref())
+                .flatten()
+        }));
+        let mode_selection_reason = common_report_value(reports.iter().filter_map(|report| {
+            report
+                .readiness_reason
+                .is_none()
+                .then_some(report.mode_selection_reason.as_deref())
+                .flatten()
+        }))
+        .or_else(|| {
+            reports
+                .iter()
+                .any(|report| report.readiness_reason.is_some())
+                .then(|| "per_project".to_string())
+        });
+        let fallback_reason = common_report_value(reports.iter().filter_map(|report| {
+            report
+                .readiness_reason
+                .is_none()
+                .then_some(report.fallback_reason.as_deref())
+                .flatten()
+        }));
+        let profile = common_report_value(reports.iter().filter_map(|report| {
+            report
+                .profile
+                .as_ref()
+                .and_then(|profile| profile.profile.as_deref())
+        }));
+        let embedding_model = common_report_value(reports.iter().filter_map(|report| {
+            report
+                .profile
+                .as_ref()
+                .and_then(|profile| profile.embedding_model.as_deref())
+        }));
+        let query_expansion_model = common_report_value(reports.iter().filter_map(|report| {
+            report
+                .profile
+                .as_ref()
+                .and_then(|profile| profile.query_expansion_model.as_deref())
+        }));
+        let reranker_model = common_report_value(reports.iter().filter_map(|report| {
+            report
+                .profile
+                .as_ref()
+                .and_then(|profile| profile.reranker_model.as_deref())
+        }));
+        let readiness_reason = reports
+            .iter()
+            .all(|report| report.readiness_reason.is_some())
+            .then(|| {
+                common_report_value(
+                    reports
+                        .iter()
+                        .filter_map(|report| report.readiness_reason.as_deref()),
+                )
+                .unwrap_or_else(|| "per_project_readiness_failure".to_string())
+            });
+        Self {
+            requested_mode: requested_mode.label().to_string(),
+            selected_mode,
+            mode_selection_reason,
+            fallback_reason,
+            readiness_reason,
+            zero_result_reason: None,
+            profile,
+            embedding_model,
+            query_expansion_model,
+            reranker_model,
+            rerank_requested,
+        }
+    }
+
     fn readiness_failure(
         requested_mode: SearchModeArg,
         reason: &str,
@@ -1403,6 +1518,15 @@ impl SearchModeJson {
     }
 }
 
+fn common_report_value<'a>(mut values: impl Iterator<Item = &'a str>) -> Option<String> {
+    let first = values.next()?;
+    if values.all(|value| value == first) {
+        Some(first.to_string())
+    } else {
+        Some("mixed".to_string())
+    }
+}
+
 fn print_search_text(warnings: &[SearchWarning], results: &[SearchResult]) {
     match warnings {
         [] => {}
@@ -1412,7 +1536,7 @@ fn print_search_text(warnings: &[SearchWarning], results: &[SearchResult]) {
                 println!("Warning: {}", warning.message);
             }
             if many.len() > 3 {
-                println!("Warning: ...{} more stale projects", many.len() - 3);
+                println!("Warning: ...{} more warnings", many.len() - 3);
             }
         }
     }
@@ -1759,6 +1883,7 @@ struct SemanticRuntimeState {
     thresholds: SearchThresholds,
     embedding_artifact: ModelArtifactRecord,
     artifacts: ModelArtifacts,
+    accepted_licenses: AcceptedLicenses,
 }
 
 fn perform_semantic_project_search(
@@ -1776,6 +1901,7 @@ fn perform_semantic_project_search(
         input.wiki_root,
     )?;
     let state = load_semantic_runtime_state(input.paths, input.project, input.wiki_root, profile)?;
+    ensure_profile_model_license(&state.accepted_licenses, profile.embedding_model.as_deref())?;
     let query_embedding = embed_query(
         input.query,
         &state.embedding_artifact,
@@ -1813,6 +1939,11 @@ fn perform_hybrid_project_search(
         .as_ref()
         .context("hybrid search selected without an LLM search profile")?;
     let state = load_semantic_runtime_state(input.paths, input.project, input.wiki_root, profile)?;
+    ensure_profile_model_license(&state.accepted_licenses, profile.embedding_model.as_deref())?;
+    ensure_profile_model_license(
+        &state.accepted_licenses,
+        profile.query_expansion_model.as_deref(),
+    )?;
     let expanded = expand_hybrid_queries(input.query, profile, &state.artifacts)?;
     context.diagnostic(format!(
         "hybrid query expansion: lexical={}, semantic={}",
@@ -1889,11 +2020,14 @@ fn perform_hybrid_project_search(
     results = maybe_rerank_results(
         input.query,
         results,
-        profile,
-        &state.artifacts,
-        &state.thresholds,
-        input.wiki_root,
-        rerank_requested,
+        RerankInputs {
+            profile,
+            artifacts: &state.artifacts,
+            accepted_licenses: &state.accepted_licenses,
+            thresholds: &state.thresholds,
+            wiki_root: input.wiki_root,
+            requested: rerank_requested,
+        },
     )?;
 
     Ok(SearchExecution {
@@ -1933,6 +2067,8 @@ fn load_semantic_runtime_state(
 ) -> Result<SemanticRuntimeState> {
     let artifacts = ModelArtifacts::read(&paths.model_artifacts())?
         .context("semantic search requires verified model artifact records")?;
+    let accepted_licenses = AcceptedLicenses::read(&paths.accepted_licenses())?
+        .context("semantic search requires accepted model license records")?;
     let threshold_store = SearchThresholdStore::read(&paths.search_thresholds())?
         .context("semantic search requires calibrated thresholds")?;
     let embedding_artifact = embedding_artifact_for_profile(&artifacts, profile)
@@ -1973,6 +2109,7 @@ fn load_semantic_runtime_state(
         thresholds,
         embedding_artifact,
         artifacts,
+        accepted_licenses,
     })
 }
 
@@ -1994,6 +2131,24 @@ fn artifact_for_model<'a>(
         .artifacts
         .iter()
         .find(|artifact| artifact.model_id == model_id)
+}
+
+fn ensure_profile_model_license(
+    accepted_licenses: &AcceptedLicenses,
+    model_id: Option<&str>,
+) -> Result<()> {
+    let Some(model_id) = model_id else {
+        bail!("selected search profile is missing a required model");
+    };
+    let Some(model) = model_by_id(model_id) else {
+        bail!("selected search profile references unknown model {model_id}");
+    };
+    if !accepted_licenses.accepts_model(model) {
+        bail!(
+            "license not accepted for model {model_id}; run `llm-wiki install --configure-search`"
+        );
+    }
+    Ok(())
 }
 
 pub(crate) struct HybridQuerySet {
@@ -2291,22 +2446,28 @@ fn pin_lexical_prefix(
     *results = pinned;
 }
 
+pub(crate) struct RerankInputs<'a> {
+    pub(crate) profile: &'a SearchProfile,
+    pub(crate) artifacts: &'a ModelArtifacts,
+    pub(crate) accepted_licenses: &'a AcceptedLicenses,
+    pub(crate) thresholds: &'a SearchThresholds,
+    pub(crate) wiki_root: &'a Path,
+    pub(crate) requested: bool,
+}
+
 pub(crate) fn maybe_rerank_results(
     query: &str,
     results: Vec<SearchResult>,
-    profile: &SearchProfile,
-    artifacts: &ModelArtifacts,
-    thresholds: &SearchThresholds,
-    wiki_root: &Path,
-    rerank_requested: bool,
+    inputs: RerankInputs<'_>,
 ) -> Result<Vec<SearchResult>> {
-    if !rerank_requested {
+    if !inputs.requested {
         return Ok(results);
     }
-    let Some(model_id) = profile.reranker_model.as_deref() else {
+    let Some(model_id) = inputs.profile.reranker_model.as_deref() else {
         bail!("rerank requested but selected profile has no reranker model");
     };
-    let artifact = artifact_for_model(artifacts, model_id)
+    ensure_profile_model_license(inputs.accepted_licenses, Some(model_id))?;
+    let artifact = artifact_for_model(inputs.artifacts, model_id)
         .context("rerank requested but reranker artifact is missing")?;
     if env::var("LLM_WIKI_TEST_RERANK")
         .ok()
@@ -2314,7 +2475,7 @@ pub(crate) fn maybe_rerank_results(
     {
         return Ok(deterministic_rerank_results(results));
     }
-    let project_root = wiki_root.parent().unwrap_or(wiki_root);
+    let project_root = inputs.wiki_root.parent().unwrap_or(inputs.wiki_root);
     let documents = results
         .iter()
         .map(|result| {
@@ -2331,7 +2492,7 @@ pub(crate) fn maybe_rerank_results(
     let reranked = engine.rerank(query, &documents)?;
     let mut results_by_rank = Vec::new();
     for item in reranked.results {
-        if f64::from(item.score) < thresholds.reranker_probability_floor {
+        if f64::from(item.score) < inputs.thresholds.reranker_probability_floor {
             continue;
         }
         let Some(original) = results.get(item.index) else {

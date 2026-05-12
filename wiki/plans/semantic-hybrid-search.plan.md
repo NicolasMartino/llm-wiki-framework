@@ -907,3 +907,31 @@ The promoted framework `hybrid_final_semantic_floor=0.399904` is intentionally
 calibrated just above observed anchor-leaking no-match evidence. Any future
 label, corpus, retrieval, model, qmd-rs, or chunking change must rerun
 `eval run` and `eval calibrate` before another threshold promotion.
+
+## Post-Completion Contract Hardening (2026-05-12)
+
+Follow-up review found five contract gaps after the plan was closed. They were
+fixed as plan-hardening work rather than reopening the baseline:
+
+- `search-all` now resolves mode readiness per project, skips unready projects
+  without aborting ready projects, and exposes per-project selected mode,
+  fallback, readiness, and result counts in JSON.
+- Runtime semantic, hybrid, and rerank execution require accepted model-license
+  records that match model id, license, and terms URL. Missing or stale license
+  acceptance fails closed with `license_not_accepted`.
+- Semantic indexing requires only the embedding model artifact and accepted
+  embedding license. Query-expansion and reranker artifacts remain optional for
+  indexing and are checked only when hybrid/rerank execution needs them.
+- Eval `auto` no longer falls back to lexical for unready candidates. It
+  records a readiness outcome, so eval summaries cannot disguise readiness
+  failure as lexical behavior.
+- Install and indexing attempt best-effort macOS Time Machine exclusion for the
+  rebuildable managed model and index roots.
+
+Focused verification for this hardening pass:
+
+- `cargo check`
+- `cargo test --test search_commands`
+- `cargo test --test eval_commands`
+- `cargo test --bin llm-wiki`
+- `just verify`

@@ -766,12 +766,6 @@ fn artifact_records(
     if let Some(model_id) = &profile.embedding_model {
         model_ids.push(model_id);
     }
-    if let Some(model_id) = &profile.query_expansion_model {
-        model_ids.push(model_id);
-    }
-    if let Some(model_id) = &profile.reranker_model {
-        model_ids.push(model_id);
-    }
 
     let mut records = Vec::new();
     for model_id in model_ids {
@@ -842,7 +836,11 @@ mod tests {
 
         assert_eq!(metadata.project_id, "fixture");
         assert_eq!(metadata.embedding_dimensions, 768);
-        assert_eq!(metadata.model_artifacts.len(), 2);
+        assert_eq!(metadata.model_artifacts.len(), 1);
+        assert_eq!(
+            metadata.model_artifacts[0].model_id,
+            "embeddinggemma-300m-q8_0"
+        );
         assert!(metadata.chunks.iter().any(|chunk| {
             chunk.path == "wiki/decisions/search.decision.md"
                 && chunk.document_class.as_deref() == Some("Decision")

@@ -116,7 +116,8 @@ required top-K for modes listed in the query table's `Applies` column:
 - Semantic: top 10 for conceptual queries after thresholds are configured.
 - Hybrid: top 5 for conceptual and mixed queries.
 - Auto: selected mode must match profile readiness and then satisfy the
-  selected mode's rule.
+  selected mode's rule. If the candidate is not hybrid-ready, auto records a
+  readiness outcome rather than falling back to lexical for eval measurement.
 
 Exact-identifier queries have an additional rule: hybrid must not bury the
 lexical exact target below rank 5.

@@ -2936,3 +2936,26 @@ wiki/specs/documentation-model.spec.md, wiki/specs/wiki-query-skill.spec.md,
 wiki/evals/natural-language-search-impact.md,
 wiki/plans/semantic-hybrid-search.plan.md,
 wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
+
+## [2026-05-12] update | semantic search readiness hardening
+
+Closed the post-completion review findings against the semantic/hybrid search
+implementation. `search-all` now resolves readiness per project and reports
+skipped projects in JSON, semantic/hybrid/rerank runtime paths require current
+accepted-license records, semantic indexing only requires the embedding model,
+eval `auto` records readiness failure instead of falling back to lexical for
+unready candidates, and install/index attempt best-effort macOS Time Machine
+exclusion for rebuildable model and index roots.
+
+Verification for this pass: `cargo check`;
+`cargo test --test search_commands`; `cargo test --test eval_commands`;
+`cargo test --bin llm-wiki`; `cargo test --workspace`; `just verify`;
+`git diff --check`.
+
+Pages updated: src/backup_policy.rs, src/eval.rs, src/install.rs, src/main.rs,
+src/search/commands.rs, src/search/semantic.rs, src/search_models.rs,
+tests/search_commands.rs, wiki/decisions/semantic-hybrid-search-mode.decision.md,
+wiki/evals/natural-language-search.eval.md,
+wiki/references/llm-search-model-licensing.reference.md,
+wiki/specs/documentation-model.spec.md, wiki/specs/wiki-query-skill.spec.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md

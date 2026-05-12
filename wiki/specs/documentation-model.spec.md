@@ -152,6 +152,10 @@ future CLI implementation plans and code reviews.
   implement the accepted semantic/hybrid mode decision, including readiness
   metadata, zero-result metadata, scoped thresholds, and exact-identifier
   preservation
+- Semantic/hybrid runtime readiness includes accepted model-license records,
+  fresh project-scoped semantic indexes, and compatible scoped thresholds;
+  `search-all` reports these outcomes per project and skips unready projects
+  without hiding the readiness reason
 - Every `llm-wiki` binary command accepts global `-v` / `--verbose` and emits
   command-specific diagnostics to stderr while preserving normal stdout and
   JSON result contracts

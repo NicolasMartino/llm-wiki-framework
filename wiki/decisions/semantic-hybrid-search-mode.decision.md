@@ -16,16 +16,28 @@ semantic/hybrid search plan.
 
 `llm-wiki search` defaults to `auto`. On a completed LLM-search install profile,
 `auto` selects `hybrid` only when the current project has compatible model
-artifacts, a fresh semantic index, and a matching scoped threshold record.
+artifacts, accepted model-license records, a fresh semantic index, and a
+matching scoped threshold record.
 When LLM search is disabled or not configured, `auto` selects lexical and
 reports that selection. Explicit `semantic` and `hybrid` modes fail closed on
 missing readiness unless the caller passes `--allow-lexical-fallback`.
+
+`llm-wiki search-all` resolves the mode independently for every selected
+project. Mixed-readiness cross-project searches keep ready projects in the
+result set, skip unready projects with per-project readiness metadata, and
+report selected mode, fallback, readiness, and result counts in the JSON
+`projects` array.
 
 Hybrid v1 uses query expansion, lexical retrieval, semantic retrieval,
 threshold gates, rank fusion, and exact-identifier preservation. `--rerank`
 remains an opt-in extension that executes the configured reranker when the
 reranker artifact and accepted-license record are present. Calibrated reranking
 is not part of the v1 hybrid promotion baseline.
+
+Semantic indexing depends only on the embedding model artifact and its accepted
+license record. Query-expansion and reranker artifacts are runtime requirements
+for hybrid and rerank execution, not prerequisites for building semantic vector
+metadata.
 
 Thresholds are project-scoped. A threshold record is valid only for its project
 or corpus, profile, embedding artifact, embedding dimensions, qmd-rs adapter
@@ -69,6 +81,12 @@ must rerun `eval run` and `eval calibrate` before threshold promotion.
 - Search results remain retrieval results, not synthesized answers. Wiki pages
   remain the citation source.
 - Zero results are valid when relevance thresholds reject all candidates.
+- Eval `auto` is a readiness-checked hybrid surface. It records readiness
+  failures for unready candidates instead of silently measuring lexical
+  behavior.
+- Managed model and index directories are rebuildable artifacts. On macOS user
+  home paths, install/index attempt best-effort Time Machine exclusion for
+  those directories.
 - The v1 shipped baseline is calibrated hybrid/auto without a calibrated
   reranker profile. A future reranker profile needs its own artifact/license
   readiness, eval run, calibration report, and threshold scope.
