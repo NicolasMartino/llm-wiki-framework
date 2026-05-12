@@ -1731,15 +1731,15 @@ fn derive_hybrid_final_floors(candidate: &EvalCandidateRun) -> HybridFinalFloors
             continue;
         }
         for index in 0..outcome.top_paths.len() {
-            if let Some(score) = optional_value_at(&outcome.top_semantic_scores, index) {
-                if score > max_no_match_sem {
-                    max_no_match_sem = score;
-                }
+            if let Some(score) = optional_value_at(&outcome.top_semantic_scores, index)
+                && score > max_no_match_sem
+            {
+                max_no_match_sem = score;
             }
-            if let Some(score) = optional_value_at(&outcome.top_lexical_scores, index) {
-                if score > max_no_match_lex {
-                    max_no_match_lex = score;
-                }
+            if let Some(score) = optional_value_at(&outcome.top_lexical_scores, index)
+                && score > max_no_match_lex
+            {
+                max_no_match_lex = score;
             }
         }
     }

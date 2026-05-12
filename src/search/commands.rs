@@ -1110,7 +1110,7 @@ fn readiness_failure(
     let Some(vector_index) = SemanticVectorIndex::read(&vector_path)? else {
         return Ok(Some(readiness("semantic_index_missing")));
     };
-    if !vector_index.is_compatible(&metadata, &thresholds) {
+    if !vector_index.is_compatible(&metadata, thresholds) {
         return Ok(Some(readiness("semantic_index_stale")));
     }
     Ok(None)

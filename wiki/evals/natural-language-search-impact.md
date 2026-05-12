@@ -202,6 +202,9 @@ the expected and no-match distributions is the next calibrator workstream.
 
 ## Derived Hybrid Final Floors (2026-05-12)
 
+Superseded by run `20260512T154322Z-77945`; retained as historical evidence
+for how final-floor derivation was introduced.
+
 The calibrator was extended to derive `hybrid_final_semantic_floor`,
 `hybrid_semantic_only_floor`, and `hybrid_strong_lexical_score_floor` from
 the no-match score distribution observed in the eval run, rather than

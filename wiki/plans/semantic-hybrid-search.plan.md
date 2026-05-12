@@ -1,12 +1,12 @@
 # Plan: Semantic and Hybrid Search
 
 - Document Class: Plan
-- Status: Active
+- Status: Completed
 - Date: 2026-05-11
 - Category: Search UX, semantic retrieval, qmd-rs adapter
 - Scope: Implement natural-language `llm-wiki search` through explicit lexical, semantic, hybrid, and auto modes while preserving current lexical behavior and keeping model/index state inspectable under `~/.llm_wiki`.
-- Sources: wiki/proposals/search-query-interpretation.proposal.md, wiki/proposals/cli-observability.proposal.md, wiki/decisions/search-backend-selection.decision.md, wiki/evals/search-backend-selection.eval.md, wiki/references/qmd-rs-search-crate.reference.md, assets/skills/wiki-query/SKILL.md, user instruction 2026-05-11 to treat CLI observability as finished in a separate worktree, user instruction 2026-05-11 to support tuning different models in eval calibration
-- Related: wiki/proposals/search-query-interpretation.proposal.md, wiki/proposals/cli-observability.proposal.md, wiki/decisions/search-backend-selection.decision.md, wiki/evals/search-backend-selection.eval.md, wiki/evals/natural-language-search.eval.md, wiki/references/qmd-rs-search-crate.reference.md, wiki/references/llm-search-model-licensing.reference.md, wiki/specs/wiki-query-skill.spec.md, wiki/specs/documentation-model.spec.md
+- Sources: wiki/proposals/search-query-interpretation.proposal.md, wiki/proposals/cli-observability.proposal.md, wiki/decisions/search-backend-selection.decision.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/evals/search-backend-selection.eval.md, wiki/evals/natural-language-search.eval.md, wiki/evals/natural-language-search-impact.md, wiki/references/qmd-rs-search-crate.reference.md, assets/skills/wiki-query/SKILL.md, user instruction 2026-05-11 to treat CLI observability as finished in a separate worktree, user instruction 2026-05-11 to support tuning different models in eval calibration
+- Related: wiki/proposals/search-query-interpretation.proposal.md, wiki/proposals/cli-observability.proposal.md, wiki/decisions/search-backend-selection.decision.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/evals/search-backend-selection.eval.md, wiki/evals/natural-language-search.eval.md, wiki/references/qmd-rs-search-crate.reference.md, wiki/references/llm-search-model-licensing.reference.md, wiki/specs/wiki-query-skill.spec.md, wiki/specs/documentation-model.spec.md
 
 ## Deliverable
 
@@ -882,3 +882,28 @@ model/profile-specific calibrated threshold run recorded under `Observed
 Runs`, diagnostics make readiness and zero-result cases explainable,
 `wiki-query` consumes the improved retrieval surface, and
 specs/decisions/evals record the validated outcome.
+
+## Completion Outcome (2026-05-12)
+
+Closed on 2026-05-12. The implemented v1 baseline is calibrated hybrid/auto
+search with project-scoped thresholds, human-accepted framework and electric-car
+labels, and a durable search-mode decision at
+`wiki/decisions/semantic-hybrid-search-mode.decision.md`.
+
+Completion verification passed:
+
+- `cargo test --workspace`
+- `just verify`
+- `git diff --check`
+
+The validated behavior is carried forward into
+`wiki/specs/documentation-model.spec.md` and
+`wiki/specs/wiki-query-skill.spec.md`. Reranking remains opt-in and
+readiness-gated; a calibrated default reranker profile is deferred until the
+local reranker artifact and accepted-license record are available and a
+reranker-specific eval is run.
+
+The promoted framework `hybrid_final_semantic_floor=0.399904` is intentionally
+calibrated just above observed anchor-leaking no-match evidence. Any future
+label, corpus, retrieval, model, qmd-rs, or chunking change must rerun
+`eval run` and `eval calibrate` before another threshold promotion.

@@ -24,6 +24,13 @@ Promotion note: accepted on 2026-05-11 for implementation planning in
 completed prerequisite in a separate worktree for planning purposes; this branch
 does not change the status of the observability proposal.
 
+Implementation outcome: completed on 2026-05-12 through
+`wiki/plans/semantic-hybrid-search.plan.md` and promoted into
+`wiki/decisions/semantic-hybrid-search-mode.decision.md`. The validated v1
+baseline is calibrated hybrid/auto search with scoped thresholds and
+human-accepted labels; reranking remains opt-in and requires a separate
+calibrated profile before it can become part of the default path.
+
 The current `llm-wiki search` path is lexical FTS. It sanitizes the user's
 string, sends the result to qmd-rs `search_fts`, and inherits FTS semantics.
 That is fast and useful for exact technical queries, but it is not the product

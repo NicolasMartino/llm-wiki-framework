@@ -5,8 +5,8 @@
 - Date: 2026-05-08
 - Category: Tooling
 - Scope: Query the project wiki and answer with citations.
-- Sources: assets/skills/wiki-query/SKILL.md, wiki/decisions/llm-wiki-binary-distribution.decision.md
-- Related: wiki/specs/documentation-model.spec.md, wiki/specs/wiki-ingest-skill.spec.md
+- Sources: assets/skills/wiki-query/SKILL.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/semantic-hybrid-search-mode.decision.md
+- Related: wiki/specs/documentation-model.spec.md, wiki/specs/wiki-ingest-skill.spec.md, wiki/evals/natural-language-search.eval.md
 
 ## Contract
 
@@ -17,6 +17,17 @@ and offers save-back when a synthesized answer creates durable knowledge.
 The skill must not browse the filesystem for project knowledge. The index is
 the entry point. `{llm_wiki_binary} search` may supplement navigation when the
 current project is registered and the index is not enough.
+
+For large or unclear queries, the projected skill uses
+`{llm_wiki_binary} search --mode auto --format json "<question>"` as a
+navigation supplement. It must inspect `selected_mode`, `readiness_reason`,
+`fallback_reason`, `zero_result_reason`, and per-result mode/backend metadata
+before trusting the result set. Search snippets are navigation aids only; the
+skill still reads and cites the returned wiki pages directly.
+
+If semantic/hybrid readiness is missing or search returns no useful result, the
+skill continues from index-based navigation instead of treating the search
+failure or zero-result outcome as an answer.
 
 ## Runtime Projection
 

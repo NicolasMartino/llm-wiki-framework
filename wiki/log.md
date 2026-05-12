@@ -2912,3 +2912,27 @@ another threshold promotion.
 Pages updated: wiki/evals/natural-language-search.eval.md,
 wiki/evals/natural-language-search-impact.md,
 wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-12] promote | semantic/hybrid search completion
+
+Promoted the validated semantic/hybrid search outcome into durable wiki state.
+The semantic/hybrid search plan is completed, the roadmap P1 status is
+completed, and the accepted mode contract now lives in
+`wiki/decisions/semantic-hybrid-search-mode.decision.md`.
+
+Updated the documentation model and wiki-query specs with the validated
+auto/lexical/semantic/hybrid behavior, scoped-threshold invariant, zero-result
+and readiness metadata expectations, and the rule that future label, corpus,
+retrieval, model, qmd-rs, or chunking changes require fresh eval and
+calibration before threshold promotion.
+
+Verification for the closure pass: `cargo test --workspace`; `just verify`;
+`git diff --check`.
+
+Pages updated: src/eval.rs, src/search/commands.rs,
+wiki/decisions/semantic-hybrid-search-mode.decision.md,
+wiki/proposals/search-query-interpretation.proposal.md,
+wiki/specs/documentation-model.spec.md, wiki/specs/wiki-query-skill.spec.md,
+wiki/evals/natural-language-search-impact.md,
+wiki/plans/semantic-hybrid-search.plan.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md

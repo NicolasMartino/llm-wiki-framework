@@ -5,8 +5,8 @@
 - Date: 2026-05-11
 - Category: Framework core
 - Scope: The validated documentation and execution model for projects using this framework.
-- Sources: raw/legacy/legacy-project-guidelines.md, raw/research/llm-wiki-pattern-research.md, raw/research/niharshrotri-llm-wiki-implementation.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/plans/cli-observability.plan.md, wiki/decisions/composable-project-init.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/evals/v1-proof-run.eval.md
-- Related: wiki/decisions/three-layer-architecture.decision.md, wiki/decisions/agent-owns-wiki.decision.md, wiki/decisions/typed-documents.decision.md, wiki/references/qmd-rs-search-crate.reference.md, wiki/decisions/search-backend-selection.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/specs/wiki-init-skill.spec.md, wiki/checklists/observability-contract.checklist.md
+- Sources: raw/legacy/legacy-project-guidelines.md, raw/research/llm-wiki-pattern-research.md, raw/research/niharshrotri-llm-wiki-implementation.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/plans/cli-observability.plan.md, wiki/decisions/composable-project-init.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/evals/v1-proof-run.eval.md, wiki/evals/natural-language-search.eval.md
+- Related: wiki/decisions/three-layer-architecture.decision.md, wiki/decisions/agent-owns-wiki.decision.md, wiki/decisions/typed-documents.decision.md, wiki/references/qmd-rs-search-crate.reference.md, wiki/decisions/search-backend-selection.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/specs/wiki-init-skill.spec.md, wiki/specs/wiki-query-skill.spec.md, wiki/checklists/observability-contract.checklist.md
 
 ## Current State
 
@@ -64,12 +64,7 @@ Nine typed document roles, each with distinct truth relationship:
 - Experiment (investigation evidence), Eval (measured performance)
 - Checklist (repeatable procedure), Reference (external evidence)
 
-## Navigation
-
-How a project answers questions once the index is too large: when the wiki
-exceeds the small-project threshold, the agent stops relying on `index.md`
-alone and answers questions through `llm-wiki search` against the
-project-local index instead.
+## Navigation: How Projects Answer Questions Once The Index Is Too Large
 
 - `wiki/index.md` is the sole agent entry point for small wikis (<100 pages)
 - `wiki/log.md` tracks all mutations chronologically
@@ -79,6 +74,22 @@ project-local index instead.
   cross-project retrieval across registered projects. The internal qmd-rs
   backend owns rebuildable search stores under host-local cache state; markdown
   files under `wiki/` remain canonical citations.
+
+Validated search behavior:
+
+- `llm-wiki search` defaults to `auto`.
+- `auto` selects lexical when LLM search is disabled or no completed
+  LLM-search profile exists.
+- `auto` selects hybrid when LLM search is enabled and the project has a fresh
+  compatible semantic index plus a matching scoped threshold record.
+- Explicit `semantic` and `hybrid` modes fail closed on missing readiness unless
+  the caller uses `--allow-lexical-fallback`.
+- Hybrid is the promoted natural-language path; semantic-only mode is
+  diagnostic and not the promotion surface.
+- Thresholds are scoped by project/corpus, profile, embedding artifact,
+  dimensions, qmd-rs adapter, qmd-rs version, and chunking strategy. Any label,
+  corpus, retrieval, model, qmd-rs, or chunking change requires fresh eval and
+  calibration before threshold promotion.
 
 ## Promotion Flow: How Accepted Proposals Become Plans
 
@@ -137,6 +148,10 @@ future CLI implementation plans and code reviews.
   registry state without writing to project files
 - `llm-wiki index`, `index-all`, `search`, and `search-all` provide default-on
   qmd-rs-backed search over registered project wiki pages
+- `llm-wiki search --mode auto` and explicit lexical/semantic/hybrid modes
+  implement the accepted semantic/hybrid mode decision, including readiness
+  metadata, zero-result metadata, scoped thresholds, and exact-identifier
+  preservation
 - Every `llm-wiki` binary command accepts global `-v` / `--verbose` and emits
   command-specific diagnostics to stderr while preserving normal stdout and
   JSON result contracts

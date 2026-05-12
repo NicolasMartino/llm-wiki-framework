@@ -557,11 +557,15 @@ Unlocks:
 
 ### P1 - Semantic and Hybrid Search
 
-Status: Active
+Status: Completed
 Promise: Natural-language project questions retrieve useful wiki pages through
 semantic/hybrid search without weakening exact lexical search.
 Depends On: D9; CLI verbose diagnostics completed in a separate worktree
 Execution Plan: wiki/plans/semantic-hybrid-search.plan.md
+Completed: 2026-05-12. Validated outcome is recorded in
+wiki/decisions/semantic-hybrid-search-mode.decision.md,
+wiki/specs/documentation-model.spec.md, wiki/specs/wiki-query-skill.spec.md,
+and wiki/evals/natural-language-search.eval.md.
 
 Included:
 - interactive LLM search profile setup
