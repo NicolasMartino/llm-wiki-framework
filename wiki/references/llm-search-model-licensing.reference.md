@@ -7,7 +7,7 @@
 - Scope: Stage 0 source record for semantic/hybrid search model candidates,
   licenses, terms, artifact hashes, download/cache implications, and qmd-rs
   resolver constraints.
-- Sources: raw/research/2026-05-11-llm-search-model-licensing/manifest.md, raw/research/2026-05-11-llm-search-model-licensing/research-summary.md, https://docs.rs/qmd/latest/qmd/, https://huggingface.co/ggml-org/embeddinggemma-300M-GGUF, https://huggingface.co/google/embeddinggemma-300m, https://ai.google.dev/gemma/terms, https://huggingface.co/ggml-org/Qwen3-Reranker-0.6B-Q8_0-GGUF, https://huggingface.co/Qwen/Qwen3-Reranker-0.6B, https://huggingface.co/tobil/qmd-query-expansion-1.7B-gguf
+- Sources: raw/research/2026-05-11-llm-search-model-licensing/manifest.md, raw/research/2026-05-11-llm-search-model-licensing/research-summary.md, https://docs.rs/qmd/latest/qmd/, https://huggingface.co/ggml-org/embeddinggemma-300M-GGUF, https://huggingface.co/api/models/ggml-org/embeddinggemma-300M-GGUF?blobs=true, https://huggingface.co/google/embeddinggemma-300m, https://ai.google.dev/gemma/terms, https://huggingface.co/ggml-org/Qwen3-Reranker-0.6B-Q8_0-GGUF, https://huggingface.co/Qwen/Qwen3-Reranker-0.6B, https://huggingface.co/tobil/qmd-query-expansion-1.7B-gguf, https://huggingface.co/api/models/tobil/qmd-query-expansion-1.7B-gguf?blobs=true
 - Related: wiki/plans/semantic-hybrid-search.plan.md, wiki/proposals/search-query-interpretation.proposal.md, wiki/evals/search-backend-selection.eval.md, wiki/evals/natural-language-search.eval.md, wiki/references/qmd-rs-search-crate.reference.md
 
 ## Summary
@@ -30,9 +30,25 @@ and artifact metadata under `~/.llm_wiki`.
 
 | Role | Repository and file | License/terms | Size | SHA-256 | Stage 0 decision |
 | --- | --- | --- | --- | --- | --- |
-| Embedding | `ggml-org/embeddinggemma-300M-GGUF` / `embeddinggemma-300M-Q8_0.gguf` | Upstream `google/embeddinggemma-300m` declares `gemma` and requires agreement to Google's usage license before file access on Hugging Face | 329 MB file page; 334 MB repository tree | `f470220f84b6235197541352d22f10bf00098a8242c18eaacea9c8a4add557bc` | Accept as default embedding candidate only through interactive install with explicit Gemma terms acknowledgement |
-| Query expansion | `tobil/qmd-query-expansion-1.7B-gguf` / `qmd-query-expansion-1.7B-q4_k_m.gguf` | Hugging Face model page declares `mit`; model card records Qwen3 1.7B lineage | 1.28 GB | `000dfb1c06efa6a049e9f64ba921c3740e2454f62abab6fa10e77bd30bb2bcc0` | Accept as baseline hybrid expansion candidate; required for `--mode hybrid` readiness |
+| Embedding | `ggml-org/embeddinggemma-300M-GGUF` / `embeddinggemma-300M-Q8_0.gguf` | Upstream `google/embeddinggemma-300m` declares `gemma` and requires agreement to Google's usage license before file access on Hugging Face | 333,590,944 bytes | `b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63` | Accept as default embedding candidate only through interactive install with explicit Gemma terms acknowledgement |
+| Query expansion | `tobil/qmd-query-expansion-1.7B-gguf` / `qmd-query-expansion-1.7B-q4_k_m.gguf` | Hugging Face model page declares `mit`; model card records Qwen3 1.7B lineage | 1,282,438,912 bytes | `000dfb1c06efa6a049e9f64ba921c3740e2454f62abab6fa10e77bd30bb2bcc0` | Accept as baseline hybrid expansion candidate; required for `--mode hybrid` readiness |
 | Reranker | `ggml-org/Qwen3-Reranker-0.6B-Q8_0-GGUF` / `qwen3-reranker-0.6b-q8_0.gguf` | Repository and upstream Qwen model card declare `apache-2.0` | 639 MB | `22c9979ce4fbcdc5acdc310c6641c32797eff1aa980b8f7a2db8a8ea23429a48` | Accept as optional `--rerank` candidate; not required for baseline hybrid |
+
+## Current Artifact Verification
+
+The original 2026-05-11 raw source recorded the EmbeddingGemma file page hash
+then visible on Hugging Face. During the first consented install attempt on
+2026-05-11, the downloaded artifact did not match that older hash. A follow-up
+Hugging Face API check for `ggml-org/embeddinggemma-300M-GGUF?blobs=true`
+reported repository revision `0f741b5a6585bd53aeb15cd1372c56f2a0f65e12`,
+file size `333590944`, and LFS SHA-256
+`b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63`.
+
+The implementation pins that immutable revision and treats the API-reported
+hash as the expected install hash. The query-expansion artifact is likewise
+pinned to repository revision `7816de0b72572c6c860ca1eddf97ba9e7fb8cc65`,
+where the q4_k_m file hash remains
+`000dfb1c06efa6a049e9f64ba921c3740e2454f62abab6fa10e77bd30bb2bcc0`.
 
 ## Artifact Pinning
 

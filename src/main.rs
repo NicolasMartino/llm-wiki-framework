@@ -2,6 +2,7 @@ mod build;
 mod cli;
 mod doctor;
 mod embed;
+mod eval;
 mod init;
 mod install;
 mod manifest;
@@ -32,6 +33,7 @@ fn main() -> Result<()> {
         Command::Build(args) => build::run(args, &context),
         Command::Install(args) => install::run(args, &context),
         Command::Init(args) => init::run(args, &context),
+        Command::Eval(args) => eval::run(args, &context),
         Command::Register(args) => registry::register(args, &context),
         Command::Forget(args) => registry::forget(args, &context),
         Command::Projects(args) => registry::projects(args, &context),

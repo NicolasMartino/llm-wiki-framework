@@ -525,6 +525,10 @@ fn hybrid_mode_fuses_lexical_and_semantic_results() {
         .expect("hybrid result");
     assert_eq!(result["mode"], "hybrid");
     assert_eq!(result["backend"], "qmd-rs-hybrid");
+    assert!(result["lexical_rank"].as_u64().is_some());
+    assert!(result["lexical_score"].as_f64().is_some());
+    assert!(result["semantic_rank"].as_u64().is_some());
+    assert!(result["semantic_score"].as_f64().is_some());
 }
 
 #[test]
@@ -1263,12 +1267,12 @@ model_id = "embeddinggemma-300m-q8_0"
 role = "embedding"
 profile = "balanced"
 repository = "ggml-org/embeddinggemma-300M-GGUF"
-revision = "main"
+revision = "0f741b5a6585bd53aeb15cd1372c56f2a0f65e12"
 file = "embeddinggemma-300M-Q8_0.gguf"
 download_url = "https://example.invalid/embedding.gguf"
 path = "{}"
-expected_sha256 = "f470220f84b6235197541352d22f10bf00098a8242c18eaacea9c8a4add557bc"
-observed_sha256 = "f470220f84b6235197541352d22f10bf00098a8242c18eaacea9c8a4add557bc"
+expected_sha256 = "b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63"
+observed_sha256 = "b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63"
 size_bytes = 1
 license = "gemma"
 dimensions = 768
@@ -1281,7 +1285,7 @@ model_id = "qmd-query-expansion-1.7b-q4_k_m"
 role = "query-expansion"
 profile = "balanced"
 repository = "tobil/qmd-query-expansion-1.7B-gguf"
-revision = "main"
+revision = "7816de0b72572c6c860ca1eddf97ba9e7fb8cc65"
 file = "qmd-query-expansion-1.7B-q4_k_m.gguf"
 download_url = "https://example.invalid/expansion.gguf"
 path = "{}"
@@ -1309,13 +1313,16 @@ updated_at = "2026-05-11T00:00:00Z"
 profile = "balanced"
 semantic_similarity_floor = 0.1
 hybrid_pre_fusion_semantic_floor = 0.1
+hybrid_final_semantic_floor = 0.1
+hybrid_semantic_only_floor = 0.1
+hybrid_strong_lexical_score_floor = 1.0
 reranker_probability_floor = 0.1
 lexical_exact_identifier_guard = "preserve_lexical_top_3"
 qmd_rs_version = "0.3.2"
 adapter_schema_version = 1
 chunking_strategy = "qmd-rs-character-v1:3200:480"
 embedding_model = "embeddinggemma-300m-q8_0"
-embedding_artifact_sha256 = "f470220f84b6235197541352d22f10bf00098a8242c18eaacea9c8a4add557bc"
+embedding_artifact_sha256 = "b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63"
 embedding_dimensions = 768
 "#,
     )

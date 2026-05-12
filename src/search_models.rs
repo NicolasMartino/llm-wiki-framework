@@ -110,6 +110,12 @@ pub struct SearchThresholds {
     pub profile: String,
     pub semantic_similarity_floor: f64,
     pub hybrid_pre_fusion_semantic_floor: f64,
+    #[serde(default = "default_hybrid_final_semantic_floor")]
+    pub hybrid_final_semantic_floor: f64,
+    #[serde(default = "default_hybrid_semantic_only_floor")]
+    pub hybrid_semantic_only_floor: f64,
+    #[serde(default = "default_hybrid_strong_lexical_score_floor")]
+    pub hybrid_strong_lexical_score_floor: f64,
     pub reranker_probability_floor: f64,
     pub lexical_exact_identifier_guard: String,
     pub qmd_rs_version: String,
@@ -120,16 +126,28 @@ pub struct SearchThresholds {
     pub embedding_dimensions: usize,
 }
 
+fn default_hybrid_final_semantic_floor() -> f64 {
+    0.39
+}
+
+fn default_hybrid_semantic_only_floor() -> f64 {
+    0.50
+}
+
+fn default_hybrid_strong_lexical_score_floor() -> f64 {
+    10.0
+}
+
 pub const EMBEDDING_GEMMA_300M: SearchModel = SearchModel {
     id: "embeddinggemma-300m-q8_0",
     role: ModelRole::Embedding,
     repository: "ggml-org/embeddinggemma-300M-GGUF",
-    revision: "main",
+    revision: "0f741b5a6585bd53aeb15cd1372c56f2a0f65e12",
     file: "embeddinggemma-300M-Q8_0.gguf",
     license: "gemma",
     terms_url: Some("https://ai.google.dev/gemma/terms"),
-    expected_sha256: "f470220f84b6235197541352d22f10bf00098a8242c18eaacea9c8a4add557bc",
-    expected_size_bytes: 334_000_000,
+    expected_sha256: "b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63",
+    expected_size_bytes: 333_590_944,
     dimensions: Some(768),
 };
 
@@ -137,12 +155,12 @@ pub const QMD_QUERY_EXPANSION_17B: SearchModel = SearchModel {
     id: "qmd-query-expansion-1.7b-q4_k_m",
     role: ModelRole::QueryExpansion,
     repository: "tobil/qmd-query-expansion-1.7B-gguf",
-    revision: "main",
+    revision: "7816de0b72572c6c860ca1eddf97ba9e7fb8cc65",
     file: "qmd-query-expansion-1.7B-q4_k_m.gguf",
     license: "mit",
     terms_url: None,
     expected_sha256: "000dfb1c06efa6a049e9f64ba921c3740e2454f62abab6fa10e77bd30bb2bcc0",
-    expected_size_bytes: 1_280_000_000,
+    expected_size_bytes: 1_282_438_912,
     dimensions: None,
 };
 
@@ -265,6 +283,62 @@ impl ModelArtifacts {
 }
 
 impl SearchThresholds {
+    pub fn calibrated(
+        profile: impl Into<String>,
+        embedding_model: impl Into<String>,
+        embedding_artifact_sha256: impl Into<String>,
+        embedding_dimensions: usize,
+        chunking_strategy: impl Into<String>,
+        semantic_similarity_floor: f64,
+        hybrid_pre_fusion_semantic_floor: f64,
+    ) -> Self {
+        Self {
+            schema_version: SEARCH_THRESHOLDS_SCHEMA_VERSION,
+            updated_at: timestamp(),
+            profile: profile.into(),
+            semantic_similarity_floor,
+            hybrid_pre_fusion_semantic_floor,
+            hybrid_final_semantic_floor: default_hybrid_final_semantic_floor(),
+            hybrid_semantic_only_floor: default_hybrid_semantic_only_floor(),
+            hybrid_strong_lexical_score_floor: default_hybrid_strong_lexical_score_floor(),
+            reranker_probability_floor: 0.50,
+            lexical_exact_identifier_guard: "preserve_lexical_top_3".to_string(),
+            qmd_rs_version: QMD_RS_VERSION.to_string(),
+            adapter_schema_version: ADAPTER_SCHEMA_VERSION,
+            chunking_strategy: chunking_strategy.into(),
+            embedding_model: embedding_model.into(),
+            embedding_artifact_sha256: embedding_artifact_sha256.into(),
+            embedding_dimensions,
+        }
+    }
+
+    pub fn measurement(
+        profile: impl Into<String>,
+        embedding_model: impl Into<String>,
+        embedding_artifact_sha256: impl Into<String>,
+        embedding_dimensions: usize,
+        chunking_strategy: impl Into<String>,
+    ) -> Self {
+        Self {
+            schema_version: SEARCH_THRESHOLDS_SCHEMA_VERSION,
+            updated_at: timestamp(),
+            profile: profile.into(),
+            semantic_similarity_floor: 0.0,
+            hybrid_pre_fusion_semantic_floor: 0.0,
+            hybrid_final_semantic_floor: 0.0,
+            hybrid_semantic_only_floor: 0.0,
+            hybrid_strong_lexical_score_floor: 0.0,
+            reranker_probability_floor: 0.0,
+            lexical_exact_identifier_guard: "preserve_lexical_top_3".to_string(),
+            qmd_rs_version: QMD_RS_VERSION.to_string(),
+            adapter_schema_version: ADAPTER_SCHEMA_VERSION,
+            chunking_strategy: chunking_strategy.into(),
+            embedding_model: embedding_model.into(),
+            embedding_artifact_sha256: embedding_artifact_sha256.into(),
+            embedding_dimensions,
+        }
+    }
+
     pub fn read(path: &Path) -> Result<Option<Self>> {
         if !path.exists() {
             return Ok(None);
@@ -448,7 +522,8 @@ pub fn sha256_file(path: &Path) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        DEFAULT_PROFILE_ID, EMBEDDING_GEMMA_300M, ModelRole, QMD_QUERY_EXPANSION_17B, profile_by_id,
+        DEFAULT_PROFILE_ID, EMBEDDING_GEMMA_300M, ModelRole, QMD_QUERY_EXPANSION_17B,
+        SearchThresholds, profile_by_id,
     };
 
     #[test]
@@ -460,5 +535,25 @@ mod tests {
         assert!(profile.reranker_model.is_none());
         assert_eq!(EMBEDDING_GEMMA_300M.role, ModelRole::Embedding);
         assert_eq!(EMBEDDING_GEMMA_300M.dimensions, Some(768));
+    }
+
+    #[test]
+    fn calibrated_thresholds_keep_non_calibrated_default_gates() {
+        let thresholds = SearchThresholds::calibrated(
+            "balanced",
+            EMBEDDING_GEMMA_300M.id,
+            "artifact-sha",
+            768,
+            "qmd-rs-character-v1:3200:480",
+            0.328,
+            0.027,
+        );
+
+        assert_eq!(thresholds.semantic_similarity_floor, 0.328);
+        assert_eq!(thresholds.hybrid_pre_fusion_semantic_floor, 0.027);
+        assert_eq!(thresholds.hybrid_final_semantic_floor, 0.39);
+        assert_eq!(thresholds.hybrid_semantic_only_floor, 0.50);
+        assert_eq!(thresholds.hybrid_strong_lexical_score_floor, 10.0);
+        assert_eq!(thresholds.reranker_probability_floor, 0.50);
     }
 }

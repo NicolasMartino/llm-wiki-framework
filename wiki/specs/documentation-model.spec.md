@@ -79,6 +79,15 @@ Nine typed document roles, each with distinct truth relationship:
 
 research -> raw/ -> ingest -> proposal/reference -> roadmap -> plan -> evidence -> spec/decision -> archive
 
+Promotion is role-based, not a filename move. Accepted proposals record an
+approved direction, but they do not automatically become validated truth. If
+the direction requires execution, the roadmap names and coordinates the
+deliverable, and a plan owns the tactical work, proof gates, and verification
+commands. Only after plan execution produces evidence should the durable
+behavior or lasting choice be promoted into a spec or decision. Superseded
+proposal and plan pages may then be archived once their validated content has
+been carried forward.
+
 ## CLI Observability Contract
 
 Observability is part of the framework's core user experience. Any future work

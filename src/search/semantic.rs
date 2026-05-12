@@ -11,6 +11,7 @@ use sha2::{Digest, Sha256};
 use crate::search::adapter::{
     Freshness, MatchSpan, Score, SearchFilters, SearchMode, SearchResult,
 };
+use crate::search::index_text::mask_search_ignored_spans;
 use crate::search::metadata::parse_wiki_metadata;
 use crate::search_models::{
     ADAPTER_SCHEMA_VERSION, ModelArtifactRecord, ModelArtifacts, QMD_RS_VERSION, SearchThresholds,
@@ -74,6 +75,13 @@ pub struct SemanticChunk {
     pub text_hash: String,
 }
 
+#[derive(Clone, Debug)]
+pub struct SemanticCorpusSnapshot {
+    pub source_files: Vec<SemanticSourceFile>,
+    pub chunks: Vec<SemanticChunk>,
+    pub chunk_texts: Vec<String>,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct SemanticVectorIndex {
     pub schema_version: u32,
@@ -117,13 +125,11 @@ impl SemanticIndexMetadata {
         profile: &SearchProfile,
         artifacts: &ModelArtifacts,
     ) -> Result<Self> {
-        let embedding_model = profile
-            .embedding_model
-            .clone()
-            .context("enabled LLM search profile is missing embedding_model")?;
-        let embedding_dimensions = model_by_id(&embedding_model)
-            .and_then(|model| model.dimensions)
-            .context("embedding model dimensions are missing from the model catalog")?;
+        let corpus = Self::build_corpus(wiki_root)?;
+        Self::from_corpus(project_id, profile, artifacts, &corpus)
+    }
+
+    pub fn build_corpus(wiki_root: &Path) -> Result<SemanticCorpusSnapshot> {
         let docs = collect_wiki_documents(wiki_root)?;
         let source_files = docs
             .iter()
@@ -134,20 +140,23 @@ impl SemanticIndexMetadata {
             })
             .collect::<Vec<_>>();
         let mut chunks = Vec::new();
+        let mut chunk_texts = Vec::new();
         for doc in docs {
-            let body = fs::read_to_string(&doc.absolute_path)
+            let raw_body = fs::read_to_string(&doc.absolute_path)
                 .with_context(|| format!("read {}", doc.absolute_path.display()))?;
+            let body = mask_search_ignored_spans(&raw_body);
             let metadata = parse_wiki_metadata(&body);
             let title = metadata
                 .title
                 .clone()
                 .filter(|value| !value.is_empty())
                 .unwrap_or_else(|| doc.canonical_path.clone());
-            for (ordinal, chunk) in
-                qmd::chunk_document(&body, CHUNK_SIZE_CHARS, CHUNK_OVERLAP_CHARS)
-                    .into_iter()
-                    .enumerate()
+            for (ordinal, chunk) in chunk_document(&body, CHUNK_SIZE_CHARS, CHUNK_OVERLAP_CHARS)
+                .into_iter()
+                .enumerate()
             {
+                let text_hash = sha256_bytes(chunk.text.as_bytes());
+                chunk_texts.push(chunk.text.to_string());
                 chunks.push(SemanticChunk {
                     path: doc.canonical_path.clone(),
                     ordinal,
@@ -160,10 +169,30 @@ impl SemanticIndexMetadata {
                     scope: metadata.field("Scope").map(ToString::to_string),
                     sources: metadata.field("Sources").map(ToString::to_string),
                     source_content_hash: doc.content_hash.clone(),
-                    text_hash: sha256_bytes(chunk.text.as_bytes()),
+                    text_hash,
                 });
             }
         }
+        Ok(SemanticCorpusSnapshot {
+            source_files,
+            chunks,
+            chunk_texts,
+        })
+    }
+
+    pub fn from_corpus(
+        project_id: &str,
+        profile: &SearchProfile,
+        artifacts: &ModelArtifacts,
+        corpus: &SemanticCorpusSnapshot,
+    ) -> Result<Self> {
+        let embedding_model = profile
+            .embedding_model
+            .clone()
+            .context("enabled LLM search profile is missing embedding_model")?;
+        let embedding_dimensions = model_by_id(&embedding_model)
+            .and_then(|model| model.dimensions)
+            .context("embedding model dimensions are missing from the model catalog")?;
 
         Ok(Self {
             schema_version: SEMANTIC_INDEX_SCHEMA_VERSION,
@@ -178,8 +207,8 @@ impl SemanticIndexMetadata {
             model_artifacts: artifact_records(profile, artifacts)?,
             embedding_dimensions,
             chunking_strategy: CHUNKING_STRATEGY.to_string(),
-            source_files,
-            chunks,
+            source_files: corpus.source_files.clone(),
+            chunks: corpus.chunks.clone(),
         })
     }
 
@@ -254,6 +283,47 @@ impl SemanticVectorIndex {
         for chunk in &metadata.chunks {
             let text = chunk_text(wiki_root, chunk)?;
             let embedding = embedder.embed_document(&text, Some(&chunk.title))?;
+            validate_embedding_dimensions(&embedding, metadata.embedding_dimensions)?;
+            vectors.push(SemanticVector {
+                path: chunk.path.clone(),
+                ordinal: chunk.ordinal,
+                text_hash: chunk.text_hash.clone(),
+                embedding,
+            });
+        }
+
+        Ok(Self {
+            schema_version: SEMANTIC_VECTOR_SCHEMA_VERSION,
+            adapter_schema_version: metadata.adapter_schema_version,
+            qmd_rs_version: metadata.qmd_rs_version.clone(),
+            project_id: metadata.project_id.clone(),
+            generated_at: timestamp(),
+            embedding_model: metadata.embedding_model.clone(),
+            embedding_artifact_sha256: embedding_artifact.observed_sha256.clone(),
+            embedding_dimensions: metadata.embedding_dimensions,
+            chunking_strategy: metadata.chunking_strategy.clone(),
+            source_fingerprint: metadata.source_fingerprint(),
+            vectors,
+        })
+    }
+
+    pub fn build_from_corpus(
+        metadata: &SemanticIndexMetadata,
+        corpus: &SemanticCorpusSnapshot,
+        embedding_artifact: &ModelArtifactRecord,
+    ) -> Result<Self> {
+        if metadata.chunks.len() != corpus.chunk_texts.len() {
+            bail!(
+                "semantic corpus text count {} does not match chunk count {}",
+                corpus.chunk_texts.len(),
+                metadata.chunks.len()
+            );
+        }
+        let mut embedder =
+            SemanticEmbedder::new(&embedding_artifact.path, metadata.embedding_dimensions)?;
+        let mut vectors = Vec::with_capacity(metadata.chunks.len());
+        for (chunk, text) in metadata.chunks.iter().zip(corpus.chunk_texts.iter()) {
+            let embedding = embedder.embed_document(text, Some(&chunk.title))?;
             validate_embedding_dimensions(&embedding, metadata.embedding_dimensions)?;
             vectors.push(SemanticVector {
                 path: chunk.path.clone(),
@@ -406,6 +476,10 @@ impl SemanticVectorIndex {
                 backend: "qmd-rs-semantic".to_string(),
                 mode: context.mode,
                 freshness: context.freshness,
+                lexical_rank: None,
+                lexical_score: None,
+                semantic_rank: None,
+                semantic_score: None,
             };
 
             rolled
@@ -533,10 +607,49 @@ struct WikiDocument {
     modified_unix_seconds: i64,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct TextChunk<'a> {
+    pos: usize,
+    text: &'a str,
+}
+
+fn chunk_document(text: &str, chunk_size_chars: usize, overlap_chars: usize) -> Vec<TextChunk<'_>> {
+    if text.is_empty() || chunk_size_chars == 0 {
+        return Vec::new();
+    }
+
+    let step_chars = chunk_size_chars.saturating_sub(overlap_chars).max(1);
+    let mut char_boundaries = text
+        .char_indices()
+        .map(|(index, _)| index)
+        .collect::<Vec<_>>();
+    char_boundaries.push(text.len());
+
+    let total_chars = char_boundaries.len() - 1;
+    let mut chunks = Vec::new();
+    let mut start_char = 0;
+    while start_char < total_chars {
+        let end_char = (start_char + chunk_size_chars).min(total_chars);
+        let start = char_boundaries[start_char];
+        let end = char_boundaries[end_char];
+        chunks.push(TextChunk {
+            pos: start,
+            text: &text[start..end],
+        });
+        if end_char == total_chars {
+            break;
+        }
+        start_char += step_chars;
+    }
+
+    chunks
+}
+
 fn chunk_text(wiki_root: &Path, chunk: &SemanticChunk) -> Result<String> {
     let project_root = wiki_root.parent().unwrap_or(wiki_root);
     let path = project_root.join(&chunk.path);
-    let body = fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?;
+    let raw_body = fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?;
+    let body = mask_search_ignored_spans(&raw_body);
     let text = body
         .get(chunk.source_start..chunk.source_end)
         .with_context(|| {
@@ -702,6 +815,20 @@ mod tests {
                 && chunk.document_class.as_deref() == Some("Decision")
                 && chunk.status.as_deref() == Some("Accepted")
         }));
+    }
+
+    #[test]
+    fn chunk_document_uses_utf8_boundary_spans() {
+        let text = "abc│def🙂ghi";
+        let chunks = chunk_document(text, 5, 1);
+
+        assert_eq!(chunks.len(), 3);
+        for chunk in chunks {
+            let end = chunk.pos + chunk.text.len();
+            assert!(text.is_char_boundary(chunk.pos));
+            assert!(text.is_char_boundary(end));
+            assert_eq!(&text[chunk.pos..end], chunk.text);
+        }
     }
 
     #[test]

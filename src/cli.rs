@@ -35,6 +35,7 @@ pub enum Command {
     Build(BuildArgs),
     Install(InstallArgs),
     Init(InitArgs),
+    Eval(EvalArgs),
     Register(RegisterArgs),
     Forget(ForgetArgs),
     Projects(ProjectsArgs),
@@ -46,6 +47,66 @@ pub enum Command {
     Status,
     Doctor,
     Uninstall(UninstallArgs),
+}
+
+#[derive(Debug, clap::Args)]
+pub struct EvalArgs {
+    #[command(subcommand)]
+    pub command: EvalCommand,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum EvalCommand {
+    Run(EvalRunArgs),
+    Calibrate(EvalCalibrateArgs),
+}
+
+#[derive(Clone, Debug, clap::Args)]
+pub struct EvalRunArgs {
+    #[arg(long, default_value = "wiki/evals/natural-language-search.eval.md")]
+    pub eval_page: PathBuf,
+    #[arg(long)]
+    pub project: Option<String>,
+    #[arg(long)]
+    pub project_root: Option<PathBuf>,
+    #[arg(long = "candidate-profile")]
+    pub candidate_profiles: Vec<String>,
+    #[arg(long)]
+    pub embedding_model: Option<String>,
+    #[arg(long)]
+    pub query_expansion_model: Option<String>,
+    #[arg(long)]
+    pub reranker_model: Option<String>,
+    #[arg(long)]
+    pub candidate_name: Option<String>,
+    #[arg(long)]
+    pub output_dir: Option<PathBuf>,
+    #[arg(long, default_value_t = 10)]
+    pub limit: usize,
+    #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
+    pub format: OutputFormat,
+    #[arg(long)]
+    pub rerank: bool,
+    #[arg(long)]
+    pub time_budget_warn_ms: Option<u64>,
+}
+
+#[derive(Debug, clap::Args)]
+pub struct EvalCalibrateArgs {
+    #[arg(long)]
+    pub run_report: Option<PathBuf>,
+    #[command(flatten)]
+    pub run: EvalRunArgs,
+    #[arg(long)]
+    pub apply: bool,
+    #[arg(long)]
+    pub apply_profile: Option<String>,
+    #[arg(long)]
+    pub record: bool,
+    #[arg(long)]
+    pub export_raw_data: bool,
+    #[arg(long)]
+    pub raw_data_dir: Option<PathBuf>,
 }
 
 #[derive(Debug, clap::Args)]

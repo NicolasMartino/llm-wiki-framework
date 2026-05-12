@@ -1,5 +1,199 @@
 # Wiki Log
 
+## [2026-05-11] update | eval mode applicability and C3/C9 calibration blockers
+
+Continued the natural-language search eval improvement path after the C10
+no-match split fix. Added an `Applies` column to
+`wiki/evals/natural-language-search.eval.md` so individual rows can opt out of
+irrelevant modes. C1 now applies to lexical, hybrid, and auto only because it
+is a paper-trail query in this framework wiki, not a pure semantic
+battery-domain query. Expanded C5's expected targets to include
+`wiki/proposals/search-query-interpretation.proposal.md` and
+`wiki/specs/wiki-query-skill.spec.md`, which the real-model run showed are
+valid answers for the scale/question-answering prompt.
+
+Tightened `llm-wiki eval calibrate` so non-applicable modes are skipped during
+floor derivation and failed low-rank expected hits are not treated as valid
+threshold evidence. Added per-mode min-expected / max-no-match diagnostics to
+the calibration JSON/text report. Also fixed the future threshold application
+constructor so calibrated semantic and hybrid pre-fusion floors preserve the
+seeded final hybrid gate, semantic-only gate, strong lexical gate, reranker
+gate, and exact-identifier guard instead of zeroing them.
+
+Reran the balanced real-model eval into
+`target/evals/20260511-mode-applicability-c5-balanced/`. Report
+`eval-run.json` measured lexical 14 pass / 12 fail / 4 not applicable,
+semantic 24 / 5 / 1, hybrid 22 / 8, and auto 22 / 8. Calibration report
+`eval-calibration.json` is still non-promotable with status
+`blocked_missing_expected_targets`: C1 and C5 are resolved, but C3 and C9 miss
+the required hybrid top 5. C3's expected decision target is semantic rank 1
+but hybrid rank 6; C9's expected wiki-init spec target is semantic rank 1 but
+below hybrid top 5. C10 remains the calibration no-match sentinel and still
+returns candidates, so no thresholds were applied.
+
+Documented the findings in the eval page, updated the semantic/hybrid plan,
+updated the index summaries, and documented the optional eval `Applies` column
+in README. Next work is C3/C9 hybrid ranking, then no-match relevance tuning
+for C10/H9/H11/H20, with an explicit note that hybrid calibration must
+distinguish fused scores from semantic branch scores before any hybrid
+pre-fusion floor is promoted.
+
+Verification: `cargo fmt --check`; `cargo test --bin llm-wiki eval::`;
+`cargo test --bin llm-wiki search_models::`; `cargo test --test
+eval_commands`; `cargo test --test natural_language_search_eval`; real-model
+`cargo run -- eval run`; real-model `cargo run -- eval calibrate`;
+`cargo test --workspace`; `cargo clippy --workspace --all-targets
+--all-features -- -D warnings -D dead_code`; `git diff --check`.
+
+Pages updated: README.md, src/eval.rs, src/search_models.rs,
+tests/natural_language_search_eval.rs,
+wiki/evals/natural-language-search.eval.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-11] update | real eval calibration rerun and C10 no-match coverage
+
+Ran the real-model `llm-wiki eval run` / `eval calibrate` path against the
+balanced profile to establish a baseline before changing the eval split.
+Baseline report `target/evals/20260511T184522Z-53329/eval-run.json` measured
+lexical at 14 pass / 12 fail / 4 not applicable, semantic at 23 / 7, and
+hybrid/auto at 21 / 9. Calibration report
+`target/evals/20260511T184522Z-53329/eval-calibration.json` proposed
+`semantic_similarity_floor = 0.328` and
+`hybrid_pre_fusion_semantic_floor = 0.020`, but was
+`blocked_no_calibration_no_match` because the calibration split had zero
+no-match rows.
+
+Updated `wiki/evals/natural-language-search.eval.md` so C10 is now the
+calibration no-match sentinel and H10 now holds the displaced agent-ownership
+expected-match query. Updated
+`tests/natural_language_search_eval.rs` so the Rust table guard expects
+no-match IDs `C10`, `H9`, `H11`, and `H20`. Rebuilt the local wiki index with
+`cargo run -- index --project llm-wiki-framework-semantic-search --force`.
+
+Reran the full real-model eval into
+`target/evals/20260511-c10-no-match-balanced/`. The second report kept the
+same aggregate counts (lexical 14 / 12 / 4, semantic 23 / 7, hybrid/auto
+21 / 9), but calibration now sees 9 expected calibration rows and 1
+calibration no-match row. The proposal remains non-promotable with status
+`blocked_missing_expected_targets` because C1 and C5 still miss required
+semantic evidence. C10 also exposes the no-match weakness directly in
+calibration: semantic and hybrid/auto still return qmd-rs/search-backend pages
+for the unrelated PostgreSQL query. No `--apply` was run; thresholds remain
+seeded.
+
+Documented the before/after reports, blockers, no-apply decision, and tool UX
+findings in the eval page. Updated the semantic/hybrid plan and index so the
+next work is clear: C-split no-match coverage is fixed, but threshold
+promotion is still blocked by C1/C5 and no-match relevance behavior.
+
+Verification: `cargo fmt --check`; `cargo test --test
+natural_language_search_eval`; `cargo test --test eval_commands`;
+`cargo test --bin llm-wiki eval::`; `cargo test --workspace`; `git diff
+--check`.
+
+Pages updated: tests/natural_language_search_eval.rs,
+wiki/evals/natural-language-search.eval.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-11] update | implement model-aware eval subcommands
+
+Implemented the first `llm-wiki eval` command surface. `eval run` parses eval
+markdown tables, evaluates lexical/semantic/hybrid/auto for one or more
+candidate model/profile bundles, records model IDs, repository revisions,
+artifact hashes, sizes, dimensions, accepted-license state, source
+fingerprints, vector counts, per-query outcomes, and JSON/markdown reports
+under `target/evals/<run-id>/` by default. Candidate semantic metadata and
+vectors are written under the eval output directory, not the production managed
+index, and missing artifacts or licenses are readiness failures rather than
+download side effects.
+
+Added `eval calibrate` to consume an eval run report or run measurement inline,
+derive candidate-specific floor proposals from Calibration rows only, report
+blocked proposals when no feasible threshold exists or when the calibration
+split has no no-match coverage, and require explicit `--apply` /
+`--apply-profile` gates before writing thresholds. The current natural-language
+eval still blocks threshold promotion until calibration no-match coverage is
+added or explicitly handled.
+
+Verification: `cargo fmt --check`; `cargo check`; `cargo test --test
+eval_commands`; `cargo test --bin llm-wiki eval::`; `cargo test --test
+natural_language_search_eval`; `cargo test --workspace`; `cargo clippy
+--workspace --all-targets --all-features -- -D warnings -D dead_code`;
+`cargo insta test --workspace --check`; `just audit-legacy`; `git diff
+--check`.
+
+Pages updated: README.md, src/cli.rs, src/eval.rs, src/main.rs,
+src/search/commands.rs, src/search_models.rs, tests/eval_commands.rs,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-11] update | model-aware search eval calibration scope
+
+Refined `wiki/plans/semantic-hybrid-search.plan.md` so Stage 7 treats model
+and profile bundles as first-class eval candidates. The plan now splits
+measurement from tuning with `llm-wiki eval run` and `llm-wiki eval
+calibrate`, records exact model IDs, revisions, artifact hashes, dimensions,
+license state, source fingerprints, candidate indexes, latency, disk cost, and
+pass/fail changes, and requires explicit `--apply-profile` when accepting a
+candidate that is not the active project profile.
+
+This preserves the current scope boundary: the tool can compare and calibrate
+different verified models, but it does not silently download models, mutate
+production state, or auto-tune as a side effect of search/index/wiki-query.
+Updated the plan summary and index entry so the multi-model tuning requirement
+is visible outside the detailed Stage 7 section.
+
+Pages updated: wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-11] update | scope eval calibrate subcommand in plan
+
+Added `Stage 7 - Eval Calibration Subcommand` to
+`wiki/plans/semantic-hybrid-search.plan.md`. Stage 7 scopes
+`llm-wiki eval calibrate`: a subcommand that parses the eval markdown's
+query table, runs each query with the relevance floor lowered to zero,
+collects per-(query, doc) semantic and hybrid pre-fusion scores, derives
+proposed floors from the C-split only, and reports the proposal. Explicit
+`--apply` rotates the threshold file aside and writes the proposed values;
+explicit `--record` appends an `Observed Runs` entry. Without either flag,
+calibration is a dry run.
+
+Calibration is intentionally non-automatic. Re-tuning on every run would
+Goodhart the eval gate against C1-C10 and weaken H1-H20 as a regression
+check, so `--apply` is a human-confirmed step per run. Updated `In Scope`,
+`Pages To Update On Completion`, and `What Closes The Plan` to require at
+least one accepted calibrated run before plan closure.
+
+Pages updated: wiki/plans/semantic-hybrid-search.plan.md, wiki/log.md
+
+## [2026-05-11] update | rust natural-language search eval run
+
+Added `tests/natural_language_search_eval.rs` so the natural-language search
+suite lives inside the Rust project. The default test validates the 30-query
+wiki table without loading models; the ignored test runs lexical, semantic,
+hybrid, and auto modes against the managed `~/.llm_wiki` GGUF artifacts and
+writes `target/evals/natural-language-search-results.json` plus
+`target/evals/natural-language-search-summary.md`.
+
+Ran the ignored harness against the local semantic index. The run confirmed
+clean JSON stdout and `auto -> hybrid` selection for all 30 queries, with
+lexical at 16/26 applicable passes, semantic at 25/30, and hybrid/auto at
+23/30. The observed failures keep the seeded threshold table from being
+promoted: C5, C9, H9, H10, H11, H12, and H20 still fail hybrid/auto.
+
+Implementation fixes from the run: pinned the model catalog to observed
+upstream revisions and hashes, made semantic chunk spans UTF-8 boundary safe,
+and changed hybrid query expansion to retain the raw query before adding
+expansion variants.
+
+Verification: `cargo test --test natural_language_search_eval`;
+`cargo test --test natural_language_search_eval -- --ignored --nocapture`.
+
+Pages updated: src/search_models.rs, src/search/semantic.rs,
+src/search/commands.rs, tests/search_commands.rs,
+tests/natural_language_search_eval.rs,
+wiki/evals/natural-language-search.eval.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
 ## [2026-05-11] update | semantic/hybrid thresholds adopt seeded defaults
 
 Replaced the `TBD` row in `wiki/evals/natural-language-search.eval.md` with
@@ -2423,3 +2617,154 @@ src/doctor.rs, tests/search_commands.rs, assets/skills/wiki-query/SKILL.md,
 crates/llm-wiki-schema/tests/snapshots/,
 wiki/plans/semantic-hybrid-search.plan.md,
 wiki/evals/natural-language-search.eval.md, wiki/index.md, wiki/log.md
+
+## [2026-05-11] update | semantic hybrid branch-aware calibration
+
+Completed the next semantic/hybrid eval implementation slice. Hybrid search
+results now expose branch evidence (`lexical_rank`, `lexical_score`,
+`semantic_rank`, `semantic_score`) in JSON and eval reports, and
+`eval calibrate` derives hybrid pre-fusion semantic floor evidence from the
+semantic branch score rather than the rank-fused hybrid display score.
+
+The branch-aware real-model run
+`target/evals/20260511-branch-evidence-docflow-balanced/eval-run.json`
+measured the balanced profile at lexical 14 pass / 12 fail / 4 not applicable,
+semantic 24 / 5 / 1, hybrid 25 / 5, and auto 25 / 5. The C3 and C9 hybrid
+ranking blockers are fixed: the search-backend decision and wiki-init skill
+spec now rank first in hybrid and auto. Calibration still correctly refuses
+promotion with `blocked_no_feasible_threshold` because the weakest hybrid
+semantic branch evidence (`0.103599`) is below the C10 calibration no-match
+semantic branch score (`0.194490`). The report also records that H12 still
+misses the expected documentation-flow targets and H9/H11/H20 remain no-match
+hold-out risks.
+
+Updated the documentation model to clarify proposal promotion: accepted
+proposals record approved direction, roadmaps coordinate deliverables, plans
+own tactical execution and proof gates, and specs/decisions receive only
+validated durable outcomes. Thresholds were not applied.
+
+Pages updated: README.md, src/search/adapter.rs, src/search/commands.rs,
+src/search/qmd_rs.rs, src/search/semantic.rs, src/eval.rs,
+tests/search_commands.rs,
+wiki/specs/documentation-model.spec.md,
+wiki/evals/natural-language-search.eval.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-12] update | eval proposal simulation diagnostics
+
+Closed the Stage 7 calibration-reporting gaps identified in review.
+`eval calibrate` proposals now include proposed pass summaries, hold-out
+summaries, verdict changes, no-match precision, exact-identifier preservation,
+model artifact bytes, and candidate index bytes. The proposal simulation
+re-judges captured eval results with the proposed calibrated floors plus the
+production default hybrid final gates, using branch evidence where available.
+`--record` now appends proposed floors, summaries, verdict-change count, model
+bytes, and index bytes to the eval page instead of writing only a JSON pointer.
+
+The eval command integration test now runs two candidates in one report and
+asserts that their candidate vector indexes are written to distinct output
+directories. It also asserts the new calibration JSON diagnostics. The unused
+`unix_seconds` helper was removed.
+
+Recomputed
+`target/evals/20260511-branch-evidence-docflow-balanced/eval-calibration.json`
+with the richer report. The source run remains non-promotable:
+`blocked_no_feasible_threshold`, `proposed_calibration_pass=false`,
+`holdout_pass=false`, 34 verdict changes, simulated hybrid/auto 17 / 13,
+simulated hold-out hybrid/auto 12 / 8, no-match precision hybrid/auto 4 / 4,
+exact-identifier preservation hybrid/auto 3 / 4, model artifact bytes
+`1616029856`, and candidate index bytes `2707024`. Thresholds were not applied.
+
+Pages updated: README.md, src/eval.rs, tests/eval_commands.rs,
+wiki/evals/natural-language-search.eval.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-12] ingest | natural-language search raw eval data
+
+Implemented and used the raw eval-data evidence flow. `eval calibrate` now
+accepts `--export-raw-data`, which writes redacted `eval-run.json` and
+`eval-calibration.json` reports from scratch `target/evals/` output into
+`raw/data/eval/<corpus-slug>/<run-id>/<candidate-name>/` and writes a
+hash-bearing `manifest.toml`.
+
+Exported the current branch-evidence run into
+`raw/data/eval/natural-language-search/20260511T205231Z-79135/balanced/` and
+ingested it into `wiki/evals/natural-language-search-impact.md`. The impact
+page records the run ledger, current/proposed/hold-out mode summary,
+no-match precision, exact-identifier preservation, verdict changes, and the
+optimization reading. The earlier uncommitted flat raw bundles were removed
+after the PII preflight found absolute home paths.
+
+Pages updated: README.md, src/cli.rs, src/eval.rs, tests/eval_commands.rs,
+raw/data/eval/natural-language-search/20260511T205231Z-79135/balanced/,
+wiki/evals/natural-language-search.eval.md,
+wiki/evals/natural-language-search-impact.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-12] eval | natural-language search optimization replay
+
+Started optimization from the raw impact ledger. The calibration replay now
+uses the same path-anchor clause that production hybrid search uses after the
+final semantic gate, and raw eval bundles now use the corpus/run/candidate
+layout so candidates can be compared within a run.
+
+Re-calibrated the existing branch-evidence run and exported the second attempt
+to
+`raw/data/eval/natural-language-search/20260511T205231Z-79135/balanced/`.
+The candidate remains `blocked_no_feasible_threshold`, but the impact improved:
+proposal changes dropped from 34 to 26, hybrid/auto proposed totals recovered
+from 17 / 13 to 25 / 5, and hold-out hybrid/auto improved from 12 / 8 to
+17 / 3. Remaining blockers are C5/C8 calibration regressions, H6/H17 hold-out
+regressions, hybrid/auto exact-identifier preservation at 3 / 4, and the
+hybrid branch floor overlap between the 0.103599 weakest expected score and
+the 0.194490 C10 no-match maximum.
+
+Pages updated: README.md, src/eval.rs, src/search/commands.rs,
+tests/eval_commands.rs,
+raw/data/eval/natural-language-search/20260511T205231Z-79135/balanced/,
+wiki/evals/natural-language-search.eval.md,
+wiki/evals/natural-language-search-impact.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-12] update | autonomous eval test bed preflight
+
+Incorporated the eval-testbed review into the Stage 7 plan and started the
+implementation path. The plan now requires a PII/history preflight before raw
+exports are committed, documents the corpus/run/candidate raw bundle schema,
+clarifies that old flat bundles stay only if safe and historical, and defines
+the shared semantic state as the corpus snapshot rather than the
+model-specific semantic metadata wrapper.
+
+Audit results: `git log --diff-filter=A -- raw/data/eval/` found no committed
+raw eval bundle history. `rg -n "/Users/|/home/" raw/data/eval/` found
+absolute home paths in the staged, uncommitted flat bundles, so those bundles
+were removed and regenerated as
+`raw/data/eval/natural-language-search/20260511T205231Z-79135/balanced/`.
+The regenerated raw bundle grep is clean.
+
+Implementation progress: `eval run --project-root <path>` now builds a
+scratch lexical qmd-rs store under the eval output directory, no longer
+requires registry lookup or a managed prebuilt project index, records
+per-candidate and per-mode timing fields, supports
+`--time-budget-warn-ms`, and shares lexical indexing plus the semantic corpus
+snapshot across candidates. Added the vendored
+`tests/fixtures/eval-testbed/` corpus and documented the canonical invocation.
+
+Pages updated: README.md, src/cli.rs, src/eval.rs, src/search/semantic.rs,
+tests/eval_commands.rs, tests/fixtures/eval-testbed/,
+raw/data/eval/natural-language-search/20260511T205231Z-79135/balanced/,
+wiki/evals/natural-language-search.eval.md,
+wiki/evals/natural-language-search-impact.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-12] update | electric-car eval corpus fixture
+
+Vendored the electric-car battery technology wiki as a richer domain corpus
+for repeated semantic/hybrid model comparison. The fixture keeps a separate
+raw research provenance bundle, the compiled wiki corpus, and a hidden
+`wiki/evals/electric-cars.eval.md` input/output query table so eval labels do
+not contaminate the searchable corpus.
+
+Pages updated: README.md,
+tests/fixtures/eval-corpora/electric-cars/,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md

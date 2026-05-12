@@ -1,0 +1,29 @@
+schema_version = 1
+exported_at = "2026-05-12T05:56:56Z"
+source_run_id = "20260511T205231Z-79135"
+project_id = "llm-wiki-framework-semantic-search"
+project_name = "llm_wiki_framework_semantic_search"
+eval_page = "wiki/evals/natural-language-search.eval.md"
+source_run_report = "target/evals/20260511-branch-evidence-docflow-balanced/eval-run.json"
+source_calibration_report = "target/evals/20260511-branch-evidence-docflow-balanced/eval-calibration.json"
+selected_candidate = "balanced"
+
+[[candidates]]
+name = "balanced"
+status = "blocked_no_feasible_threshold"
+promotable = false
+semantic_similarity_floor = 0.328807
+hybrid_pre_fusion_semantic_floor = 0.103599
+proposed_calibration_pass = false
+holdout_pass = false
+verdict_changes = 26
+
+[[files]]
+name = "eval-run.json"
+sha256 = "fec3727e021ad87d3daf67735cc0cf03fb06ce1e50150a26ca8ca5bb6493e9cb"
+size_bytes = 231887
+
+[[files]]
+name = "eval-calibration.json"
+sha256 = "4c0592eef9d03df90ed035d982374d6dad12a6c4afb31a785ad0970fdc971257"
+size_bytes = 14412

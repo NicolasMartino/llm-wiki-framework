@@ -1,8 +1,8 @@
 # Wiki Index
 
 Project: Software Project Management Framework
-Stage: D1-D11 Completed; code-pack/CLI blueprint and CLI observability completed; semantic/hybrid search runtime implemented behind unapproved threshold gate; crash-report proposal open
-Updated: 2026-05-11
+Stage: D1-D11 Completed; code-pack/CLI blueprint and CLI observability completed; semantic/hybrid search runtime implemented with model-aware, branch-aware, proposal-simulating, timing-instrumented, autonomous project-root, and raw-data-exporting eval subcommands; redacted raw eval bundles are ingested into an impact table and vendored eval corpora now include both a small infrastructure testbed and an electric-car domain corpus; C3/C9 hybrid ranking fixed, but threshold promotion remains blocked by hybrid branch/no-match feasibility, remaining proposal regressions, and H12 documentation-flow hold-out behavior; crash-report proposal open
+Updated: 2026-05-12
 
 ## Specs
 
@@ -67,7 +67,7 @@ Updated: 2026-05-11
 - [Skill Projection Template Engine](plans/skill-projection-template-engine.plan.md) — Completed — Migrated Claude/Codex skill markdown and Codex runtime config rendering onto `templates/skills/` Askama templates with byte-stable real-skill snapshots
 - [Code Pack And CLI Tool Blueprint](plans/code-pack-cli-blueprint.plan.md) — Completed — Implemented `Pack::Code`, added `cli-tool`, removed unconditional root code folders from init, and added golden tests for research/no-code and software/CLI code defaults
 - [CLI Verbose Diagnostics](plans/cli-observability.plan.md) — Completed — Implemented global `-v/--verbose`, `CliContext`, tracing stderr diagnostics, search/search-all retrieval proof, and concise command-specific diagnostics across every remaining binary command
-- [Semantic and Hybrid Search](plans/semantic-hybrid-search.plan.md) — Active — Implements the accepted natural-language search direction: install-time LLM search profiles, semantic indexes, auto/lexical/semantic/hybrid modes, hybrid fusion, optional reranking, search-all rank merge, and wiki-query metadata consumption
+- [Semantic and Hybrid Search](plans/semantic-hybrid-search.plan.md) — Active — Implements the accepted natural-language search direction: install-time LLM search profiles, semantic indexes, auto/lexical/semantic/hybrid modes, hybrid fusion, optional reranking, search-all rank merge, wiki-query metadata consumption, and model/profile-aware `eval run` / `eval calibrate`; latest work adds autonomous `--project-root` evals, scratch lexical indexing, timing instrumentation, redacted corpus/run/candidate raw bundles, shared corpus snapshots across candidates, a small vendored eval testbed, and a richer electric-car domain eval corpus; remains non-promotable because hybrid semantic branch scores overlap the C10 no-match sentinel and C5/C8 plus H6/H17 still need calibrated preservation
 
 ## Experiments
 
@@ -76,7 +76,8 @@ Updated: 2026-05-11
 ## Evals
 
 - [Search Backend Selection Eval](evals/search-backend-selection.eval.md) — Accepted — Fixed query set, qmd-rs and SQLite BM25 baselines, and recommendation for qmd-rs as D9 backend
-- [Natural-Language Search Eval](evals/natural-language-search.eval.md) — Planned — Stage 0 30-query semantic/hybrid eval suite with calibration split, draft target labels, threshold methodology, and observability evidence
+- [Natural-Language Search Eval](evals/natural-language-search.eval.md) — Active — 30-query semantic/hybrid eval suite with calibration split, draft target labels, seeded thresholds, Rust deep harness, and 2026-05-11 eval subcommand reports; branch-aware scoring and path-anchor proposal replay fix C3/C9 hybrid ranking and remove several false simulated regressions, but the current candidate remains non-promotable because C10 no-match overlaps hybrid semantic branch floor evidence, C5/C8 and H6/H17 still regress, and H12 still misses the expected documentation-flow targets
+- [Natural-Language Search Impact](evals/natural-language-search-impact.md) — Active — Ingested comparison ledger from raw eval data; records run-to-run mode summaries, proposed-threshold impact, no-match precision, exact-identifier preservation, and verdict changes for optimization
 - [V1 Proof Run](evals/v1-proof-run.eval.md) — Accepted — Evidence for D4-D7: durable query knowledge, temp project spawning, 50-page index check, and two-blueprint self-replication proof
 
 ## Checklists

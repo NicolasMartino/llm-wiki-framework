@@ -595,7 +595,7 @@ Periodically or on request:
 See @AGENTS.md.
 
 # .llm_wiki/init.toml
-framework_version = "0.1.0"
+framework_version = "0.1.1"
 blueprint = "custom"
 packs = ["qmd-rs-scale"]
 

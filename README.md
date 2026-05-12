@@ -51,4 +51,49 @@ llm-wiki -v search "query" --project my-project
 llm-wiki index --project my-project -v
 ```
 
+## Search Evals
+
+Semantic search candidates can be measured without changing production search
+state:
+
+```bash
+llm-wiki eval run --project my-project \
+  --candidate-profile balanced \
+  --eval-page wiki/evals/natural-language-search.eval.md
+```
+
+`llm-wiki eval calibrate --run-report <target/evals/.../eval-run.json>`
+derives candidate-specific threshold proposals from the calibration split. It
+does not apply thresholds unless `--apply` is passed, and candidate model
+changes require an explicit `--apply-profile <scope>`.
+
+Eval tables may include an `Applies` column before the expected-target column.
+Use `all` for the default or a comma-separated mode list such as
+`lexical`, `hybrid`, `auto`; non-applicable modes are reported separately and
+are excluded from calibration floor derivation.
+
+Hybrid eval JSON records both fused scores and branch evidence
+(`lexical_rank`, `lexical_score`, `semantic_rank`, `semantic_score`) so
+calibration can reason about pre-fusion semantic thresholds instead of treating
+rank-fused display scores as semantic similarity. Reports produced before that
+branch evidence exists are intentionally not promotable for hybrid threshold
+application.
+
+Calibration reports also include proposed-threshold diagnostics: proposed pass
+summaries, hold-out summaries, verdict changes, no-match precision,
+exact-identifier preservation, model artifact bytes, and candidate index bytes.
+Pass `--export-raw-data` to `eval calibrate` to copy the selected run report
+and calibration report into
+`raw/data/eval/<corpus-slug>/<run-id>/<candidate-name>/` with a hash-bearing
+`manifest.toml`; wiki eval pages should ingest those raw files into
+human-readable comparison tables. Repeated calibration attempts create separate
+run directories when needed so their impact can be compared over time.
+
+For repeatable corpus-level comparison, use the committed eval fixtures:
+
+- `tests/fixtures/eval-testbed/` for fast infrastructure checks.
+- `tests/fixtures/eval-corpora/electric-cars/` for a richer domain retrieval
+  corpus with separate raw provenance, compiled wiki pages, and a hidden eval
+  table.
+
 Run `llm-wiki --help` for the full command surface.

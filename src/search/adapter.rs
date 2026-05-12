@@ -66,6 +66,10 @@ pub struct SearchResult {
     pub backend: String,
     pub mode: SearchMode,
     pub freshness: Freshness,
+    pub lexical_rank: Option<usize>,
+    pub lexical_score: Option<Score>,
+    pub semantic_rank: Option<usize>,
+    pub semantic_score: Option<Score>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

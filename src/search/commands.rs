@@ -31,6 +31,8 @@ use crate::search::semantic::{
 use crate::search_models::{ModelArtifactRecord, ModelArtifacts, SearchThresholds, model_by_id};
 use crate::search_profile::{ProjectSearchConfig, SearchConfig, SearchProfile};
 
+const HIGH_CONFIDENCE_SEMANTIC_PREFIX_BOOST: f64 = 0.05;
+
 pub fn index(args: &IndexArgs, context: &CliContext) -> Result<()> {
     context.diagnostic("command: index");
     context.diagnostic(format!(
@@ -730,6 +732,10 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
                 .or_insert_with(|| FusedResult {
                     result: result.clone(),
                     score: rrf,
+                    lexical_rank: None,
+                    lexical_score: None,
+                    semantic_rank: None,
+                    semantic_score: None,
                 });
         }
     }
@@ -1247,6 +1253,16 @@ fn select_projects(
 struct FusedResult {
     result: SearchResult,
     score: f64,
+    lexical_rank: Option<usize>,
+    lexical_score: Option<f64>,
+    semantic_rank: Option<usize>,
+    semantic_score: Option<f64>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum HybridBranch {
+    Lexical,
+    Semantic,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1426,6 +1442,14 @@ struct SearchResultJson {
     backend: String,
     mode: String,
     freshness: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    lexical_rank: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    lexical_score: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    semantic_rank: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    semantic_score: Option<f64>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -1492,6 +1516,10 @@ fn print_search_json(
             backend: result.backend.clone(),
             mode: result.mode.to_string(),
             freshness: freshness_label(result.freshness),
+            lexical_rank: result.lexical_rank,
+            lexical_score: result.lexical_score.map(|score| score.0),
+            semantic_rank: result.semantic_rank,
+            semantic_score: result.semantic_score.map(|score| score.0),
         })
         .collect::<Vec<_>>();
     let warnings = warnings
@@ -1548,7 +1576,7 @@ fn freshness_label(freshness: Freshness) -> &'static str {
     }
 }
 
-fn freshness_for_status(status: &BackendStatus) -> Freshness {
+pub(crate) fn freshness_for_status(status: &BackendStatus) -> Freshness {
     match status.state {
         BackendState::Ready => Freshness::Fresh,
         BackendState::Stale => Freshness::Stale,
@@ -1846,7 +1874,7 @@ fn perform_hybrid_project_search(
     let semantic_results = dedupe_by_path_preserving_rank(semantic_results);
     let mut results = fuse_hybrid_results(
         input.query,
-        &state.thresholds.lexical_exact_identifier_guard,
+        &state.thresholds,
         lexical_results,
         semantic_results,
         input.limit,
@@ -1956,12 +1984,12 @@ fn artifact_for_model<'a>(
         .find(|artifact| artifact.model_id == model_id)
 }
 
-struct HybridQuerySet {
-    lexical: Vec<String>,
-    semantic: Vec<String>,
+pub(crate) struct HybridQuerySet {
+    pub(crate) lexical: Vec<String>,
+    pub(crate) semantic: Vec<String>,
 }
 
-fn expand_hybrid_queries(
+pub(crate) fn expand_hybrid_queries(
     query: &str,
     profile: &SearchProfile,
     artifacts: &ModelArtifacts,
@@ -1983,24 +2011,25 @@ fn expand_hybrid_queries(
         .context("hybrid search requires a verified query expansion model artifact")?;
     let engine = qmd::GenerationEngine::new(&artifact.path)?;
     let expanded = engine.expand_query(query, true)?;
-    let mut lexical = Vec::new();
-    let mut semantic = Vec::new();
+    let mut lexical = vec![query.to_string()];
+    let mut semantic = vec![query.to_string()];
     for item in expanded {
         match item.query_type {
             qmd::QueryType::Lex => lexical.push(item.text),
             qmd::QueryType::Vec | qmd::QueryType::Hyde => semantic.push(item.text),
         }
     }
-    if lexical.is_empty() {
-        lexical.push(query.to_string());
-    }
-    if semantic.is_empty() {
-        semantic.push(query.to_string());
-    }
+    dedupe_strings_preserving_order(&mut lexical);
+    dedupe_strings_preserving_order(&mut semantic);
     Ok(HybridQuerySet { lexical, semantic })
 }
 
-fn dedupe_by_path_preserving_rank(results: Vec<SearchResult>) -> Vec<SearchResult> {
+fn dedupe_strings_preserving_order(values: &mut Vec<String>) {
+    let mut seen = BTreeSet::new();
+    values.retain(|value| seen.insert(value.clone()));
+}
+
+pub(crate) fn dedupe_by_path_preserving_rank(results: Vec<SearchResult>) -> Vec<SearchResult> {
     let mut seen = BTreeSet::new();
     let mut deduped = Vec::new();
     for result in results {
@@ -2017,17 +2046,22 @@ fn dedupe_warnings(warnings: &mut Vec<SearchWarning>) {
     warnings.retain(|warning| seen.insert((warning.project_id.clone(), warning.message.clone())));
 }
 
-fn fuse_hybrid_results(
+pub(crate) fn fuse_hybrid_results(
     query: &str,
-    lexical_exact_identifier_guard: &str,
+    thresholds: &SearchThresholds,
     lexical_results: Vec<SearchResult>,
     semantic_results: Vec<SearchResult>,
     limit: usize,
 ) -> Vec<SearchResult> {
     let mut fused: BTreeMap<String, FusedResult> = BTreeMap::new();
-    add_ranked_results(&mut fused, lexical_results.clone());
-    add_ranked_results(&mut fused, semantic_results);
+    add_ranked_results(&mut fused, HybridBranch::Lexical, lexical_results.clone());
+    add_ranked_results(&mut fused, HybridBranch::Semantic, semantic_results);
     let mut results = fused.into_values().collect::<Vec<_>>();
+    apply_hybrid_anchor_boost(query, &mut results);
+    if !query_has_exact_identifier(query) {
+        boost_semantic_confidence_prefix(&mut results, thresholds, 1);
+    }
+    results.retain(|result| hybrid_candidate_survives_final_gate(query, thresholds, result));
     results.sort_by(|left, right| {
         right
             .score
@@ -2042,31 +2076,175 @@ fn fuse_hybrid_results(
             fused.result.score = Score(fused.score);
             fused.result.backend = "qmd-rs-hybrid".to_string();
             fused.result.mode = SearchMode::Hybrid;
+            fused.result.lexical_rank = fused.lexical_rank;
+            fused.result.lexical_score = fused.lexical_score.map(Score);
+            fused.result.semantic_rank = fused.semantic_rank;
+            fused.result.semantic_score = fused.semantic_score.map(Score);
             fused.result
         })
         .collect::<Vec<_>>();
     if query_has_exact_identifier(query)
-        && lexical_exact_identifier_guard == "preserve_lexical_top_3"
+        && thresholds.lexical_exact_identifier_guard == "preserve_lexical_top_3"
     {
         pin_lexical_prefix(&mut results, &lexical_results, 3, limit);
     }
     results
 }
 
-fn add_ranked_results(fused: &mut BTreeMap<String, FusedResult>, results: Vec<SearchResult>) {
+fn boost_semantic_confidence_prefix(
+    results: &mut [FusedResult],
+    thresholds: &SearchThresholds,
+    count: usize,
+) {
+    if count == 0 {
+        return;
+    }
+    let floor = thresholds.hybrid_semantic_only_floor.max(0.50);
+    for result in results {
+        if result.semantic_rank.is_some_and(|rank| rank < count)
+            && result.semantic_score.is_some_and(|score| score >= floor)
+        {
+            result.score += HIGH_CONFIDENCE_SEMANTIC_PREFIX_BOOST;
+        }
+    }
+}
+
+fn add_ranked_results(
+    fused: &mut BTreeMap<String, FusedResult>,
+    branch: HybridBranch,
+    results: Vec<SearchResult>,
+) {
     for (rank, result) in results.into_iter().enumerate() {
         let rrf = 1.0 / (60.0 + rank as f64 + 1.0);
+        let branch_weight = match branch {
+            HybridBranch::Lexical => 1.0,
+            HybridBranch::Semantic => 1.25,
+        };
         let key = result.path.to_string_lossy().to_string();
         fused
             .entry(key)
             .and_modify(|entry| {
-                entry.score += rrf;
+                entry.score += branch_weight * rrf;
+                record_branch_evidence(entry, branch, rank, result.score.0);
                 if result.score.0 > entry.result.score.0 {
                     entry.result = result.clone();
                 }
             })
-            .or_insert(FusedResult { result, score: rrf });
+            .or_insert_with(|| {
+                let score = result.score.0;
+                let mut fused = FusedResult {
+                    result,
+                    score: branch_weight * rrf,
+                    lexical_rank: None,
+                    lexical_score: None,
+                    semantic_rank: None,
+                    semantic_score: None,
+                };
+                record_branch_evidence(&mut fused, branch, rank, score);
+                fused
+            });
     }
+}
+
+fn record_branch_evidence(fused: &mut FusedResult, branch: HybridBranch, rank: usize, score: f64) {
+    match branch {
+        HybridBranch::Lexical => {
+            fused.lexical_rank = Some(fused.lexical_rank.map_or(rank, |current| current.min(rank)));
+            fused.lexical_score = Some(
+                fused
+                    .lexical_score
+                    .map_or(score, |current| current.max(score)),
+            );
+        }
+        HybridBranch::Semantic => {
+            fused.semantic_rank = Some(
+                fused
+                    .semantic_rank
+                    .map_or(rank, |current| current.min(rank)),
+            );
+            fused.semantic_score = Some(
+                fused
+                    .semantic_score
+                    .map_or(score, |current| current.max(score)),
+            );
+        }
+    }
+}
+
+fn hybrid_candidate_survives_final_gate(
+    query: &str,
+    thresholds: &SearchThresholds,
+    fused: &FusedResult,
+) -> bool {
+    if query_has_exact_identifier(query)
+        && thresholds.lexical_exact_identifier_guard == "preserve_lexical_top_3"
+        && fused.lexical_rank.is_some_and(|rank| rank < 3)
+    {
+        return true;
+    }
+
+    if fused
+        .lexical_score
+        .is_some_and(|score| score >= thresholds.hybrid_strong_lexical_score_floor)
+    {
+        return true;
+    }
+
+    if fused
+        .semantic_score
+        .is_some_and(|score| score >= thresholds.hybrid_semantic_only_floor)
+    {
+        return true;
+    }
+
+    let semantic_passes_final_floor = fused
+        .semantic_score
+        .is_some_and(|score| score >= thresholds.hybrid_final_semantic_floor);
+    if !semantic_passes_final_floor {
+        return false;
+    }
+
+    fused.lexical_rank.is_some() || candidate_anchor_match_count(query, &fused.result) > 0
+}
+
+fn apply_hybrid_anchor_boost(query: &str, results: &mut [FusedResult]) {
+    for result in results {
+        let matched = candidate_anchor_match_count(query, &result.result);
+        if matched > 0 {
+            result.score += matched as f64 * 0.004;
+        }
+    }
+}
+
+fn candidate_anchor_match_count(query: &str, result: &SearchResult) -> usize {
+    let anchors = query_anchor_terms(query);
+    if anchors.is_empty() {
+        return 0;
+    }
+    let haystack = format!(
+        "{} {} {}",
+        result.path.to_string_lossy().to_ascii_lowercase(),
+        result.title.to_ascii_lowercase(),
+        result
+            .snippet
+            .as_deref()
+            .unwrap_or_default()
+            .to_ascii_lowercase()
+    );
+    anchors
+        .iter()
+        .filter(|anchor| haystack.contains(anchor.as_str()))
+        .count()
+}
+
+pub(crate) fn query_anchor_terms(query: &str) -> Vec<String> {
+    let mut seen = BTreeSet::new();
+    query
+        .split(|ch: char| !ch.is_ascii_alphanumeric())
+        .map(|term| term.to_ascii_lowercase())
+        .filter(|term| term.len() >= 4)
+        .filter(|term| seen.insert(term.clone()))
+        .collect()
 }
 
 fn query_has_exact_identifier(query: &str) -> bool {
@@ -2276,9 +2454,14 @@ fn maybe_remove_test_marker(var: &str) {
 #[cfg(test)]
 mod tests {
     use std::fs;
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
 
-    use super::{ProjectIndexLock, RelatedStorePaths, StoreFileRole, promote_qmd_rs_store_inner};
+    use super::{
+        FusedResult, ProjectIndexLock, RelatedStorePaths, StoreFileRole, fuse_hybrid_results,
+        hybrid_candidate_survives_final_gate, promote_qmd_rs_store_inner, query_anchor_terms,
+    };
+    use crate::search::adapter::{Freshness, Score, SearchMode, SearchResult};
+    use crate::search_models::SearchThresholds;
 
     #[test]
     fn project_index_lock_is_exclusive() {
@@ -2351,5 +2534,128 @@ mod tests {
             temp.path(StoreFileRole::Shm).extension(),
             live.path(StoreFileRole::Shm).extension()
         );
+    }
+
+    #[test]
+    fn hybrid_final_gate_rejects_weak_lexical_only_candidates() {
+        let thresholds = test_thresholds();
+        let mut candidate = fused_result("wiki/evals/search.eval.md");
+        candidate.lexical_rank = Some(0);
+        candidate.lexical_score = Some(6.0);
+
+        assert!(!hybrid_candidate_survives_final_gate(
+            "GPU shader compiler roadmap",
+            &thresholds,
+            &candidate
+        ));
+
+        candidate.lexical_score = Some(12.0);
+        assert!(hybrid_candidate_survives_final_gate(
+            "what are the most cutting edge battery technologies",
+            &thresholds,
+            &candidate
+        ));
+    }
+
+    #[test]
+    fn hybrid_final_gate_keeps_high_confidence_semantic_candidates() {
+        let thresholds = test_thresholds();
+        let mut candidate = fused_result("wiki/specs/wiki-init-skill.spec.md");
+        candidate.semantic_rank = Some(0);
+        candidate.semantic_score = Some(0.62);
+
+        assert!(hybrid_candidate_survives_final_gate(
+            "which files prove the wiki init skill works",
+            &thresholds,
+            &candidate
+        ));
+    }
+
+    #[test]
+    fn hybrid_boosts_high_confidence_semantic_top_result() {
+        let thresholds = test_thresholds();
+        let lexical_results = vec![
+            search_result("wiki/log.md", 6.0),
+            search_result("wiki/plans/llm-wiki-binary.plan.md", 5.5),
+        ];
+        let semantic_results = vec![
+            search_result("wiki/specs/wiki-init-skill.spec.md", 0.64),
+            search_result("wiki/log.md", 0.60),
+            search_result("wiki/plans/llm-wiki-binary.plan.md", 0.58),
+        ];
+
+        let results = fuse_hybrid_results(
+            "which files prove the wiki init skill works",
+            &thresholds,
+            lexical_results,
+            semantic_results,
+            5,
+        );
+
+        assert_eq!(
+            results.first().map(|result| result.path.as_path()),
+            Some(Path::new("wiki/specs/wiki-init-skill.spec.md"))
+        );
+    }
+
+    #[test]
+    fn query_anchor_terms_keep_meaningful_path_terms() {
+        assert_eq!(
+            query_anchor_terms("which files prove the wiki init skill works"),
+            vec!["which", "files", "prove", "wiki", "init", "skill", "works"]
+        );
+    }
+
+    fn fused_result(path: &str) -> FusedResult {
+        FusedResult {
+            result: search_result(path, 0.0),
+            score: 0.0,
+            lexical_rank: None,
+            lexical_score: None,
+            semantic_rank: None,
+            semantic_score: None,
+        }
+    }
+
+    fn search_result(path: &str, score: f64) -> SearchResult {
+        SearchResult {
+            project_id: "fixture".to_string(),
+            project_name: None,
+            path: PathBuf::from(path),
+            title: path.replace(['/', '.', '-'], " "),
+            document_class: None,
+            status: None,
+            score: Score(score),
+            snippet: None,
+            match_span: None,
+            backend: "test".to_string(),
+            mode: SearchMode::Hybrid,
+            freshness: Freshness::Fresh,
+            lexical_rank: None,
+            lexical_score: None,
+            semantic_rank: None,
+            semantic_score: None,
+        }
+    }
+
+    fn test_thresholds() -> SearchThresholds {
+        SearchThresholds {
+            schema_version: 1,
+            updated_at: "2026-05-11T00:00:00Z".to_string(),
+            profile: "balanced".to_string(),
+            semantic_similarity_floor: 0.35,
+            hybrid_pre_fusion_semantic_floor: 0.35,
+            hybrid_final_semantic_floor: 0.39,
+            hybrid_semantic_only_floor: 0.50,
+            hybrid_strong_lexical_score_floor: 10.0,
+            reranker_probability_floor: 0.50,
+            lexical_exact_identifier_guard: "preserve_lexical_top_3".to_string(),
+            qmd_rs_version: "0.3.2".to_string(),
+            adapter_schema_version: 1,
+            chunking_strategy: "qmd-rs-character-v1:3200:480".to_string(),
+            embedding_model: "embeddinggemma-300m-q8_0".to_string(),
+            embedding_artifact_sha256: "sha".to_string(),
+            embedding_dimensions: 768,
+        }
     }
 }

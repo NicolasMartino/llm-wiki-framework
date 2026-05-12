@@ -12,6 +12,7 @@ use crate::search::adapter::{
     BackendState, BackendStatus, Freshness, IndexOptions, MatchSpan, Score, SearchBackend,
     SearchFilters, SearchMode, SearchResult,
 };
+use crate::search::index_text::mask_search_ignored_spans;
 use crate::search::metadata::parse_wiki_metadata;
 use crate::search::sanitize::{query_terms, sanitize_fts_query};
 
@@ -47,8 +48,9 @@ impl SearchBackend for QmdRsBackend {
         let collection = collection_name(project_id);
 
         for doc in &docs {
-            let body = fs::read_to_string(&doc.absolute_path)
+            let raw_body = fs::read_to_string(&doc.absolute_path)
                 .with_context(|| format!("read {}", doc.absolute_path.display()))?;
+            let body = mask_search_ignored_spans(&raw_body);
             let metadata = parse_wiki_metadata(&body);
             let title = metadata
                 .title
@@ -144,6 +146,10 @@ impl SearchBackend for QmdRsBackend {
                 backend: BACKEND_NAME.to_string(),
                 mode: SearchMode::Fts,
                 freshness,
+                lexical_rank: None,
+                lexical_score: None,
+                semantic_rank: None,
+                semantic_score: None,
             });
 
             if results.len() == limit {
@@ -555,6 +561,56 @@ mod tests {
             stale_results
                 .iter()
                 .any(|result| result.freshness == Freshness::Stale)
+        );
+    }
+
+    #[test]
+    fn index_masks_search_ignored_spans() {
+        let temp = tempfile::TempDir::new().expect("tempdir");
+        let wiki = temp.path().join("wiki");
+        fs::create_dir_all(wiki.join("evals")).expect("mkdir");
+        fs::write(wiki.join("index.md"), "# Index").expect("index");
+        fs::write(wiki.join("log.md"), "# Log").expect("log");
+        fs::write(
+            wiki.join("evals/search.eval.md"),
+            "# Search Eval\n\n- Document Class: Eval\n- Status: Active\n\n\
+<!-- llm-wiki-search-ignore-start -->\n\
+GPU shader compiler roadmap\n\
+<!-- llm-wiki-search-ignore-end -->\n\n\
+Visible calibration evidence.",
+        )
+        .expect("eval");
+
+        let store = temp.path().join("indexes/project/qmd-rs.sqlite");
+        let backend = QmdRsBackend::new();
+        backend
+            .index_project("fixture", &wiki, &store, &IndexOptions { force: true })
+            .expect("index");
+
+        let hidden = backend
+            .search_project(
+                &store,
+                &wiki,
+                "GPU shader compiler roadmap",
+                &SearchFilters::default(),
+                5,
+            )
+            .expect("hidden search");
+        assert!(hidden.is_empty());
+
+        let visible = backend
+            .search_project(
+                &store,
+                &wiki,
+                "Visible calibration evidence",
+                &SearchFilters::default(),
+                5,
+            )
+            .expect("visible search");
+        assert_eq!(visible.len(), 1);
+        assert_eq!(
+            visible[0].path.to_string_lossy(),
+            "wiki/evals/search.eval.md"
         );
     }
 
