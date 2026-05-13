@@ -935,3 +935,51 @@ Focused verification for this hardening pass:
 - `cargo test --test eval_commands`
 - `cargo test --bin llm-wiki`
 - `just verify`
+
+## Addendum: Default Install Search Prompt (2026-05-13)
+
+Plain `llm-wiki install` should install the complete framework runtime and ask
+which search posture the user wants for that install. The current completed
+implementation only runs search setup when `--configure-search` or
+`--disable-llm-search` is supplied, which makes the default install feel
+incomplete: a fresh user can finish installation, run `search --mode auto`, and
+silently get lexical behavior because no LLM-search profile was configured.
+
+The install UX should be hardened as a post-completion addendum:
+
+1. Plain `llm-wiki install` is an interactive installation flow. It should
+   include the search configuration prompt every time it runs, not only on first
+   install.
+2. When an existing `~/.llm_wiki/search.toml` is present and parseable, the
+   prompt should reflect the current configured choice. An enabled profile
+   preselects semantic/hybrid LLM search; a disabled profile preselects
+   lexical-only / no LLM search. Recovered partial installs follow the same
+   rule after recovery: prompt from the current persisted state.
+3. If `search.toml` is missing, unparseable, or unsupported by the current
+   schema, the prompt should show an empty/new choice rather than silently
+   skipping configuration.
+4. The prompt should make the choice explicit:
+   - semantic/hybrid LLM search with the default balanced profile
+   - lexical-only / no LLM search for now
+5. With no current choice, the default selection should be semantic/hybrid LLM
+   search. Consent is expressed by submitting that choice, followed by the
+   license/terms acknowledgement before model bytes are downloaded.
+6. Choosing semantic/hybrid continues to require explicit license/terms
+   acknowledgement before any model bytes are downloaded.
+7. `--disable-llm-search` remains the explicit automation path for
+   lexical-only/no-LLM install. `--configure-search` remains the explicit
+   reconfiguration path. No third "skip but leave indeterminate" flag is part of
+   this addendum.
+8. Non-interactive plain `llm-wiki install` is not a supported default path for
+   this UX. Scripts and CI should pass an explicit search posture flag, such as
+   `--disable-llm-search` for lexical-only installs or `--configure-search` when
+   an operator is intentionally running the prompt.
+9. No command may silently download models. The default install may prompt, but
+   model materialization still happens only after explicit user consent.
+
+This addendum does not change the accepted runtime mode contract: `search`
+still defaults to `--mode auto`, and `auto` selects hybrid only when the
+configured profile, accepted licenses, model artifacts, fresh semantic index,
+and scoped thresholds are ready. It changes the first-run install experience so
+users are asked about that profile during normal interactive installation
+rather than having to know about `--configure-search` up front.

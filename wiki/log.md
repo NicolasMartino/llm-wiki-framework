@@ -2959,3 +2959,14 @@ wiki/evals/natural-language-search.eval.md,
 wiki/references/llm-search-model-licensing.reference.md,
 wiki/specs/documentation-model.spec.md, wiki/specs/wiki-query-skill.spec.md,
 wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-13] update | default install search prompt addendum
+
+Added a semantic/hybrid search plan addendum for interactive install UX. Plain
+`llm-wiki install` should prompt users to choose semantic/hybrid LLM search or
+lexical-only search, reflect the current configured choice on reinstalls,
+default to semantic/hybrid when no current choice exists, preserve explicit
+license consent before model downloads, and require scripts/CI to pass an
+explicit search posture flag.
+
+Pages updated: wiki/plans/semantic-hybrid-search.plan.md, wiki/log.md
