@@ -375,11 +375,6 @@ impl SearchThresholds {
         self.project_id = Some(project_id.into());
         self
     }
-
-    #[allow(dead_code)]
-    pub fn write_atomic(&self, path: &Path) -> Result<()> {
-        write_toml_atomic(path, self, "search thresholds")
-    }
 }
 
 impl SearchThresholdStore {

@@ -51,6 +51,19 @@ llm-wiki -v search "query" --project my-project
 llm-wiki index --project my-project -v
 ```
 
+## Search Modes
+
+`llm-wiki search` defaults to `--mode auto`. Auto selects calibrated hybrid
+search only when the install profile, accepted licenses, model artifacts, fresh
+semantic index, and scoped thresholds are ready; otherwise it reports the
+lexical selection or readiness failure in command metadata.
+
+`--rerank` is currently an opt-in, readiness-gated extension rather than part of
+the v1 promoted hybrid baseline. The shipped balanced profile does not configure
+a reranker by default, so rerank requests fail closed until a future reranker
+profile has a local artifact, accepted-license record, eval run, calibration,
+and threshold scope.
+
 ## Search Evals
 
 Semantic search candidates can be measured without changing production search
@@ -83,8 +96,8 @@ exists are intentionally not promotable for hybrid threshold application.
 When `eval run --rerank` is passed, hybrid and auto evaluation use the selected
 reranker artifact, rewrite the hybrid result order through the same qmd-rs
 rerank path as production search, and report `rerank_applied` plus
-`rerank_ms`. Missing reranker configuration or artifacts remain explicit
-readiness failures.
+`rerank_ms`. Missing reranker configuration, artifacts, or license acceptance
+remain explicit readiness failures.
 
 Calibration reports also include proposed-threshold diagnostics: proposed pass
 summaries, hold-out summaries, verdict changes, no-match precision,

@@ -32,7 +32,10 @@ Hybrid v1 uses query expansion, lexical retrieval, semantic retrieval,
 threshold gates, rank fusion, and exact-identifier preservation. `--rerank`
 remains an opt-in extension that executes the configured reranker when the
 reranker artifact and accepted-license record are present. Calibrated reranking
-is not part of the v1 hybrid promotion baseline.
+is not part of the v1 hybrid promotion baseline. The current shipped balanced
+profile intentionally has no configured reranker, so `--rerank` fails closed
+until a future reranker profile has local artifact materialization, accepted
+license records, eval evidence, calibration, and a threshold scope.
 
 Semantic indexing depends only on the embedding model artifact and its accepted
 license record. Query-expansion and reranker artifacts are runtime requirements

@@ -2994,3 +2994,22 @@ Pages updated: src/install.rs, tests/init.rs, tests/install.rs,
 tests/post_install.rs, tests/properties.rs, tests/search_commands.rs,
 tests/status_doctor.rs, wiki/plans/semantic-hybrid-search.plan.md,
 wiki/index.md, wiki/log.md
+
+## [2026-05-13] update | semantic search review cleanup
+
+Removed stale dead-code allowances from the search adapter mode variants and
+deleted the obsolete single-record `SearchThresholds::write_atomic`; scoped
+threshold stores now own threshold writes. Clarified the public reranker
+contract in the README and semantic-hybrid search-mode decision: `--rerank` is
+readiness-gated and remains deferred for the shipped balanced profile until a
+future reranker profile has artifact materialization, accepted licenses, eval
+evidence, calibration, and threshold scope.
+
+Verification: `cargo clippy --all-targets --all-features -- -D warnings -D dead_code`;
+`cargo test --bin llm-wiki threshold_store_upserts_without_clobbering_other_project_scopes`;
+`git diff --check`. The strict clippy command was first attempted with
+`--locked`, but the existing staged `Cargo.lock` version drift requires a lock
+update, so the lockfile was preserved and restored around the verification.
+
+Pages updated: src/search/adapter.rs, src/search_models.rs, README.md,
+wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/log.md
