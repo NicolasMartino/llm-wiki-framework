@@ -1,8 +1,8 @@
 # Wiki Index
 
 Project: Software Project Management Framework
-Stage: D1-D11 Completed; code-pack/CLI blueprint, CLI observability, and post-V1 P1 semantic/hybrid search completed; calibrated hybrid/auto search now has project-scoped thresholds, human-accepted framework and electric-car labels, redacted raw eval evidence, durable search-mode decision coverage, post-completion readiness hardening, and completed verification gates; crash-report proposal open
-Updated: 2026-05-12
+Stage: D1-D11 Completed; code-pack/CLI blueprint, CLI observability, and post-V1 P1 semantic/hybrid search completed; calibrated hybrid/auto search now has project-scoped thresholds, human-accepted framework and electric-car labels, redacted raw eval evidence, durable search-mode decision coverage, post-completion readiness hardening, interactive install search posture prompting, and completed verification gates; crash-report proposal open
+Updated: 2026-05-13
 
 ## Specs
 
@@ -68,7 +68,7 @@ Updated: 2026-05-12
 - [Skill Projection Template Engine](plans/skill-projection-template-engine.plan.md) — Completed — Migrated Claude/Codex skill markdown and Codex runtime config rendering onto `templates/skills/` Askama templates with byte-stable real-skill snapshots
 - [Code Pack And CLI Tool Blueprint](plans/code-pack-cli-blueprint.plan.md) — Completed — Implemented `Pack::Code`, added `cli-tool`, removed unconditional root code folders from init, and added golden tests for research/no-code and software/CLI code defaults
 - [CLI Verbose Diagnostics](plans/cli-observability.plan.md) — Completed — Implemented global `-v/--verbose`, `CliContext`, tracing stderr diagnostics, search/search-all retrieval proof, and concise command-specific diagnostics across every remaining binary command
-- [Semantic and Hybrid Search](plans/semantic-hybrid-search.plan.md) — Completed — Delivered install-time LLM search profiles, semantic indexes, auto/lexical/semantic/hybrid modes, hybrid fusion, optional reranking, search-all rank merge with per-project readiness, wiki-query metadata consumption, model/profile-aware `eval run` / `eval calibrate`, scoped thresholds, redacted raw eval evidence, human label acceptance, post-completion readiness hardening, and a durable semantic/hybrid search-mode decision
+- [Semantic and Hybrid Search](plans/semantic-hybrid-search.plan.md) — Completed — Delivered install-time LLM search profiles, semantic indexes, auto/lexical/semantic/hybrid modes, hybrid fusion, optional reranking, search-all rank merge with per-project readiness, wiki-query metadata consumption, model/profile-aware `eval run` / `eval calibrate`, scoped thresholds, redacted raw eval evidence, human label acceptance, post-completion readiness hardening, interactive default install search prompting, and a durable semantic/hybrid search-mode decision
 
 ## Experiments
 

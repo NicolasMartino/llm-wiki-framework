@@ -255,7 +255,7 @@ fn init_runtime_manifest_records_managed_install() {
     let home = TempDir::new().expect("home");
 
     llm_wiki(home.path())
-        .args(["install", "--skip-path-guidance"])
+        .args(["install", "--skip-path-guidance", "--disable-llm-search"])
         .assert()
         .success();
     llm_wiki(home.path())

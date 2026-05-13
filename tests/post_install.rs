@@ -20,7 +20,7 @@ fn redirected_home_install_manifest_matches_filesystem() {
 
     llm_wiki()
         .env("HOME", home.path())
-        .arg("install")
+        .args(["install", "--disable-llm-search"])
         .assert()
         .success();
 
@@ -71,7 +71,7 @@ fn managed_binary_runs_without_path_after_install() {
     llm_wiki()
         .env("HOME", home.path())
         .env("PATH", sanitized_path)
-        .args(["install", "--skip-path-guidance"])
+        .args(["install", "--skip-path-guidance", "--disable-llm-search"])
         .assert()
         .success();
 
@@ -96,14 +96,14 @@ fn managed_binary_can_self_install() {
 
     llm_wiki()
         .env("HOME", home.path())
-        .args(["install", "--skip-path-guidance"])
+        .args(["install", "--skip-path-guidance", "--disable-llm-search"])
         .assert()
         .success();
 
     Command::new(home.path().join(".llm_wiki/bin/llm-wiki"))
         .env("HOME", home.path())
         .env_remove("RUST_LOG")
-        .args(["install", "--skip-path-guidance"])
+        .args(["install", "--skip-path-guidance", "--disable-llm-search"])
         .assert()
         .success();
 }

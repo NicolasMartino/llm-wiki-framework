@@ -15,7 +15,7 @@ proptest! {
                 .expect("binary")
                 .env("HOME", home.path())
                 .env_remove("RUST_LOG")
-                .arg("install")
+                .args(["install", "--disable-llm-search"])
                 .assert()
                 .success();
         }

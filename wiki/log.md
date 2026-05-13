@@ -2970,3 +2970,27 @@ license consent before model downloads, and require scripts/CI to pass an
 explicit search posture flag.
 
 Pages updated: wiki/plans/semantic-hybrid-search.plan.md, wiki/log.md
+
+## [2026-05-13] update | default install search prompt implementation
+
+Implemented the addendum: `llm-wiki install` now always configures search,
+interactive installs prompt for semantic/hybrid or lexical-only posture,
+unconfigured installs default to semantic/hybrid, existing profiles preselect
+their current posture, and plain non-interactive installs fail with guidance to
+use an explicit search posture flag. Automated tests now pass
+`--disable-llm-search` where they need lexical-only/no-LLM installation, and
+search tests that need the missing-profile readiness branch remove the disabled
+profile explicitly.
+
+Verification: `cargo test --test install`; `cargo test --test search_commands`;
+`cargo test --test status_doctor`;
+`cargo test --test init init_runtime_manifest_records_managed_install`;
+`cargo test search_posture_cursor_defaults_to_semantic_hybrid`. The
+`post_install` and `properties` targets also passed during the grouped run. Full
+`cargo test --test init` is still blocked by the pre-existing package-version
+snapshot drift from `0.1.1` to `0.1.1-SNAPSHOT`.
+
+Pages updated: src/install.rs, tests/init.rs, tests/install.rs,
+tests/post_install.rs, tests/properties.rs, tests/search_commands.rs,
+tests/status_doctor.rs, wiki/plans/semantic-hybrid-search.plan.md,
+wiki/index.md, wiki/log.md

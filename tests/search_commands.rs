@@ -325,6 +325,7 @@ fn search_json_reports_auto_lexical_mode_reason() {
     let workspace = TempDir::new().expect("workspace");
     let project = fixture_project(workspace.path(), "Fixture Project");
     register_project(home.path(), &project);
+    remove_search_profile(home.path());
 
     llm_wiki(home.path())
         .args(["index", "--project", "fixture", "--force"])
@@ -355,6 +356,7 @@ fn explicit_hybrid_without_fallback_reports_readiness_json() {
     let workspace = TempDir::new().expect("workspace");
     let project = fixture_project(workspace.path(), "Fixture Project");
     register_project(home.path(), &project);
+    remove_search_profile(home.path());
 
     let output = llm_wiki(home.path())
         .args([
@@ -382,6 +384,7 @@ fn explicit_hybrid_with_fallback_uses_lexical() {
     let workspace = TempDir::new().expect("workspace");
     let project = fixture_project(workspace.path(), "Fixture Project");
     register_project(home.path(), &project);
+    remove_search_profile(home.path());
 
     llm_wiki(home.path())
         .args(["index", "--project", "fixture", "--force"])
@@ -1420,9 +1423,20 @@ fn ensure_installed(home: &Path) {
         return;
     }
     llm_wiki(home)
-        .args(["install", "--skip-path-guidance"])
+        .args(["install", "--skip-path-guidance", "--disable-llm-search"])
         .assert()
         .success();
+}
+
+fn remove_search_profile(home: &Path) {
+    let search = home.join(".llm_wiki/search.toml");
+    if search.exists() {
+        fs::remove_file(search).expect("remove search profile");
+    }
+    let dependencies = home.join(".llm_wiki/external-dependencies.toml");
+    if dependencies.exists() {
+        fs::remove_file(dependencies).expect("remove external dependencies");
+    }
 }
 
 fn write_enabled_search_profile_with_fake_artifacts(home: &Path) {

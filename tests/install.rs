@@ -17,7 +17,10 @@ fn llm_wiki(home: &Path) -> Command {
 fn install_writes_files_and_manifest() {
     let home = TempDir::new().expect("home");
 
-    llm_wiki(home.path()).arg("install").assert().success();
+    llm_wiki(home.path())
+        .args(["install", "--disable-llm-search"])
+        .assert()
+        .success();
 
     assert!(
         home.path()
@@ -33,13 +36,7 @@ fn install_writes_files_and_manifest() {
     assert_eq!(manifest["binary"]["version"], env!("CARGO_PKG_VERSION"));
     assert!(home.path().join(".llm_wiki/bin/llm-wiki").exists());
     assert!(!home.path().join(".llm_wiki/install.partial.json").exists());
-    assert!(!home.path().join(".llm_wiki/search.toml").exists());
-    assert!(
-        !home
-            .path()
-            .join(".llm_wiki/external-dependencies.toml")
-            .exists()
-    );
+    assert_disabled_search_profile(home.path());
     let backup_manifest = Path::new(
         manifest["backups"][0]["path"]
             .as_str()
@@ -57,6 +54,22 @@ fn install_writes_files_and_manifest() {
 }
 
 #[test]
+fn plain_noninteractive_install_requires_explicit_search_posture() {
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .arg("install")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "interactive install requires a terminal for search setup",
+        ))
+        .stderr(predicate::str::contains("--disable-llm-search"));
+
+    assert!(!home.path().join(".llm_wiki/manifest.json").exists());
+}
+
+#[test]
 fn install_disable_llm_search_writes_disabled_search_profile() {
     let home = TempDir::new().expect("home");
 
@@ -65,33 +78,7 @@ fn install_disable_llm_search_writes_disabled_search_profile() {
         .assert()
         .success();
 
-    let search = read_toml(&home.path().join(".llm_wiki/search.toml"));
-    assert_eq!(search["schema_version"].as_integer(), Some(1));
-    assert_eq!(
-        search["project_default"]["llm_search_enabled"].as_bool(),
-        Some(false)
-    );
-    assert_eq!(
-        search["project_default"]["reason"].as_str(),
-        Some("llm_search_disabled")
-    );
-    assert_eq!(
-        search["global_search"]["llm_search_enabled"].as_bool(),
-        Some(false)
-    );
-    assert_eq!(
-        search["global_search"]["reason"].as_str(),
-        Some("llm_search_disabled")
-    );
-
-    let external = read_toml(&home.path().join(".llm_wiki/external-dependencies.toml"));
-    assert_eq!(external["schema_version"].as_integer(), Some(1));
-    assert!(
-        external["dependencies"]
-            .as_array()
-            .expect("dependencies array")
-            .is_empty()
-    );
+    assert_disabled_search_profile(home.path());
 }
 
 #[cfg(unix)]
@@ -101,7 +88,10 @@ fn install_managed_binary_is_executable() {
 
     let home = TempDir::new().expect("home");
 
-    llm_wiki(home.path()).arg("install").assert().success();
+    llm_wiki(home.path())
+        .args(["install", "--disable-llm-search"])
+        .assert()
+        .success();
 
     let mode = fs::metadata(home.path().join(".llm_wiki/bin/llm-wiki"))
         .expect("managed binary")
@@ -114,9 +104,15 @@ fn install_managed_binary_is_executable() {
 fn install_is_idempotent() {
     let home = TempDir::new().expect("home");
 
-    llm_wiki(home.path()).arg("install").assert().success();
+    llm_wiki(home.path())
+        .args(["install", "--disable-llm-search"])
+        .assert()
+        .success();
     let before = fs::read_to_string(home.path().join(".llm_wiki/manifest.json")).expect("manifest");
-    llm_wiki(home.path()).arg("install").assert().success();
+    llm_wiki(home.path())
+        .args(["install", "--disable-llm-search"])
+        .assert()
+        .success();
     let after = fs::read_to_string(home.path().join(".llm_wiki/manifest.json")).expect("manifest");
 
     let before: Value = serde_json::from_str(&before).expect("json");
@@ -129,7 +125,12 @@ fn verbose_install_emits_command_diagnostics() {
     let home = TempDir::new().expect("home");
 
     llm_wiki(home.path())
-        .args(["--verbose", "install", "--skip-path-guidance"])
+        .args([
+            "--verbose",
+            "install",
+            "--skip-path-guidance",
+            "--disable-llm-search",
+        ])
         .assert()
         .success()
         .stderr(predicate::str::contains("command: install"))
@@ -166,7 +167,7 @@ fn install_cleans_leaked_partial_marker_after_completed_manifest() {
     let home = TempDir::new().expect("home");
 
     llm_wiki(home.path())
-        .args(["install", "--skip-path-guidance"])
+        .args(["install", "--skip-path-guidance", "--disable-llm-search"])
         .assert()
         .success();
     let manifest = read_manifest(home.path());
@@ -186,7 +187,7 @@ fn install_cleans_leaked_partial_marker_after_completed_manifest() {
     .expect("partial");
 
     llm_wiki(home.path())
-        .args(["install", "--skip-path-guidance"])
+        .args(["install", "--skip-path-guidance", "--disable-llm-search"])
         .assert()
         .success();
 
@@ -203,13 +204,18 @@ fn install_rejects_stale_partial_target_without_force() {
     );
 
     llm_wiki(home.path())
-        .args(["install", "--skip-path-guidance"])
+        .args(["install", "--skip-path-guidance", "--disable-llm-search"])
         .assert()
         .failure()
         .stderr(predicate::str::contains("stale partial install targets"));
 
     llm_wiki(home.path())
-        .args(["install", "--force", "--skip-path-guidance"])
+        .args([
+            "install",
+            "--force",
+            "--skip-path-guidance",
+            "--disable-llm-search",
+        ])
         .assert()
         .success();
 }
@@ -224,7 +230,7 @@ fn install_rejects_stale_partial_hash_without_force() {
     );
 
     llm_wiki(home.path())
-        .args(["install", "--skip-path-guidance"])
+        .args(["install", "--skip-path-guidance", "--disable-llm-search"])
         .assert()
         .failure()
         .stderr(predicate::str::contains(
@@ -232,7 +238,12 @@ fn install_rejects_stale_partial_hash_without_force() {
         ));
 
     llm_wiki(home.path())
-        .args(["install", "--force", "--skip-path-guidance"])
+        .args([
+            "install",
+            "--force",
+            "--skip-path-guidance",
+            "--disable-llm-search",
+        ])
         .assert()
         .success();
 }
@@ -242,7 +253,7 @@ fn install_reports_interrupted_partial_binary_without_force() {
     let home = TempDir::new().expect("home");
 
     llm_wiki(home.path())
-        .args(["install", "--skip-path-guidance"])
+        .args(["install", "--skip-path-guidance", "--disable-llm-search"])
         .assert()
         .success();
     let manifest = read_manifest(home.path());
@@ -256,7 +267,7 @@ fn install_reports_interrupted_partial_binary_without_force() {
     );
 
     llm_wiki(home.path())
-        .args(["install", "--skip-path-guidance"])
+        .args(["install", "--skip-path-guidance", "--disable-llm-search"])
         .assert()
         .failure()
         .stderr(predicate::str::contains(
@@ -264,7 +275,12 @@ fn install_reports_interrupted_partial_binary_without_force() {
         ));
 
     llm_wiki(home.path())
-        .args(["install", "--force", "--skip-path-guidance"])
+        .args([
+            "install",
+            "--force",
+            "--skip-path-guidance",
+            "--disable-llm-search",
+        ])
         .assert()
         .success();
 }
@@ -274,7 +290,7 @@ fn install_rejects_unsupported_manifest_schema() {
     let home = TempDir::new().expect("home");
 
     llm_wiki(home.path())
-        .args(["install", "--skip-path-guidance"])
+        .args(["install", "--skip-path-guidance", "--disable-llm-search"])
         .assert()
         .success();
     let manifest_path = home.path().join(".llm_wiki/manifest.json");
@@ -315,7 +331,7 @@ fn install_rejects_unsupported_partial_schema() {
     .expect("write partial");
 
     llm_wiki(home.path())
-        .args(["install", "--skip-path-guidance"])
+        .args(["install", "--skip-path-guidance", "--disable-llm-search"])
         .assert()
         .failure()
         .stderr(predicate::str::contains(
@@ -330,7 +346,10 @@ fn install_refuses_user_authored_collision_by_default() {
     fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
     fs::write(&path, "user skill").expect("write");
 
-    llm_wiki(home.path()).arg("install").assert().failure();
+    llm_wiki(home.path())
+        .args(["install", "--disable-llm-search"])
+        .assert()
+        .failure();
     assert_eq!(fs::read_to_string(&path).expect("read"), "user skill");
     assert!(!home.path().join(".llm_wiki").exists());
 }
@@ -343,7 +362,7 @@ fn install_refuses_unmanaged_binary_collision_by_default() {
     fs::write(&managed_binary, "foreign binary").expect("write foreign");
 
     llm_wiki(home.path())
-        .args(["install", "--skip-path-guidance"])
+        .args(["install", "--skip-path-guidance", "--disable-llm-search"])
         .assert()
         .failure()
         .stderr(predicate::str::contains(
@@ -356,7 +375,12 @@ fn install_refuses_unmanaged_binary_collision_by_default() {
     assert_no_install_metadata(home.path());
 
     llm_wiki(home.path())
-        .args(["install", "--force", "--skip-path-guidance"])
+        .args([
+            "install",
+            "--force",
+            "--skip-path-guidance",
+            "--disable-llm-search",
+        ])
         .assert()
         .success();
 
@@ -396,7 +420,7 @@ fn force_install_backs_up_and_replaces_collision() {
     fs::write(&path, "user skill").expect("write");
 
     llm_wiki(home.path())
-        .args(["install", "--force"])
+        .args(["install", "--force", "--disable-llm-search"])
         .assert()
         .success();
 
@@ -436,7 +460,10 @@ fn uninstall_removes_manifest_owned_files_only() {
     fs::create_dir_all(user_file.parent().expect("parent")).expect("mkdir");
     fs::write(&user_file, "keep").expect("write");
 
-    llm_wiki(home.path()).arg("install").assert().success();
+    llm_wiki(home.path())
+        .args(["install", "--disable-llm-search"])
+        .assert()
+        .success();
     llm_wiki(home.path()).arg("uninstall").assert().success();
 
     assert!(user_file.exists());
@@ -454,7 +481,10 @@ fn uninstall_removes_manifest_owned_files_only() {
 fn uninstall_include_binary_removes_managed_binary() {
     let home = TempDir::new().expect("home");
 
-    llm_wiki(home.path()).arg("install").assert().success();
+    llm_wiki(home.path())
+        .args(["install", "--disable-llm-search"])
+        .assert()
+        .success();
     llm_wiki(home.path())
         .args(["uninstall", "--include-binary"])
         .assert()
@@ -467,7 +497,10 @@ fn uninstall_include_binary_removes_managed_binary() {
 fn verbose_uninstall_emits_command_diagnostics() {
     let home = TempDir::new().expect("home");
 
-    llm_wiki(home.path()).arg("install").assert().success();
+    llm_wiki(home.path())
+        .args(["install", "--disable-llm-search"])
+        .assert()
+        .success();
     llm_wiki(home.path())
         .args(["--verbose", "uninstall"])
         .assert()
@@ -484,7 +517,10 @@ fn uninstall_refuses_drifted_manifest_file() {
     let home = TempDir::new().expect("home");
     let path = home.path().join(".claude/skills/wiki-init/SKILL.md");
 
-    llm_wiki(home.path()).arg("install").assert().success();
+    llm_wiki(home.path())
+        .args(["install", "--disable-llm-search"])
+        .assert()
+        .success();
     fs::write(&path, "user edit").expect("write");
 
     llm_wiki(home.path())
@@ -506,6 +542,36 @@ fn read_manifest(home: &Path) -> Value {
 
 fn read_toml(path: &Path) -> TomlValue {
     toml::from_str(&fs::read_to_string(path).expect("toml exists")).expect("toml")
+}
+
+fn assert_disabled_search_profile(home: &Path) {
+    let search = read_toml(&home.join(".llm_wiki/search.toml"));
+    assert_eq!(search["schema_version"].as_integer(), Some(1));
+    assert_eq!(
+        search["project_default"]["llm_search_enabled"].as_bool(),
+        Some(false)
+    );
+    assert_eq!(
+        search["project_default"]["reason"].as_str(),
+        Some("llm_search_disabled")
+    );
+    assert_eq!(
+        search["global_search"]["llm_search_enabled"].as_bool(),
+        Some(false)
+    );
+    assert_eq!(
+        search["global_search"]["reason"].as_str(),
+        Some("llm_search_disabled")
+    );
+
+    let external = read_toml(&home.join(".llm_wiki/external-dependencies.toml"));
+    assert_eq!(external["schema_version"].as_integer(), Some(1));
+    assert!(
+        external["dependencies"]
+            .as_array()
+            .expect("dependencies array")
+            .is_empty()
+    );
 }
 
 fn write_partial(home: &Path, target_binary: impl AsRef<Path>, current_exe_hash: &str) {

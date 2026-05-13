@@ -18,7 +18,10 @@ fn llm_wiki(home: &Path) -> Command {
 #[test]
 fn status_reports_installed_files() {
     let home = TempDir::new().expect("home");
-    llm_wiki(home.path()).arg("install").assert().success();
+    llm_wiki(home.path())
+        .args(["install", "--disable-llm-search"])
+        .assert()
+        .success();
 
     llm_wiki(home.path())
         .arg("status")
@@ -41,7 +44,10 @@ fn verbose_path_status_and_doctor_emit_diagnostics() {
         .stderr(predicate::str::contains("managed home:"))
         .stderr(predicate::str::contains("managed binary:"));
 
-    llm_wiki(home.path()).arg("install").assert().success();
+    llm_wiki(home.path())
+        .args(["install", "--disable-llm-search"])
+        .assert()
+        .success();
     llm_wiki(home.path())
         .args(["--verbose", "status"])
         .assert()
@@ -65,7 +71,10 @@ fn verbose_path_status_and_doctor_emit_diagnostics() {
 #[test]
 fn status_reports_drift() {
     let home = TempDir::new().expect("home");
-    llm_wiki(home.path()).arg("install").assert().success();
+    llm_wiki(home.path())
+        .args(["install", "--disable-llm-search"])
+        .assert()
+        .success();
     fs::write(
         home.path().join(".claude/skills/wiki-init/SKILL.md"),
         "tampered",
@@ -82,7 +91,10 @@ fn status_reports_drift() {
 #[test]
 fn doctor_reports_missing_and_unknown_files() {
     let home = TempDir::new().expect("home");
-    llm_wiki(home.path()).arg("install").assert().success();
+    llm_wiki(home.path())
+        .args(["install", "--disable-llm-search"])
+        .assert()
+        .success();
     fs::remove_file(home.path().join(".claude/skills/wiki-init/SKILL.md")).expect("remove");
     fs::write(
         home.path().join(".claude/skills/wiki-query/SKILL.md"),
@@ -128,7 +140,10 @@ fn doctor_reports_path_binary_drift() {
     let fake_bin = TempDir::new().expect("fake bin");
     fs::write(fake_bin.path().join("llm-wiki"), "different binary").expect("fake binary");
 
-    llm_wiki(home.path()).arg("install").assert().success();
+    llm_wiki(home.path())
+        .args(["install", "--disable-llm-search"])
+        .assert()
+        .success();
 
     llm_wiki(home.path())
         .env("PATH", fake_bin.path())

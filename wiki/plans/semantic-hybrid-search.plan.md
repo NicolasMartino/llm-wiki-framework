@@ -983,3 +983,21 @@ configured profile, accepted licenses, model artifacts, fresh semantic index,
 and scoped thresholds are ready. It changes the first-run install experience so
 users are asked about that profile during normal interactive installation
 rather than having to know about `--configure-search` up front.
+
+Implementation outcome (2026-05-13): `llm-wiki install` now always enters the
+search setup path. Interactive installs prompt for semantic/hybrid LLM search
+or lexical-only search, defaulting to semantic/hybrid when there is no current
+choice and preselecting the existing configured posture on reinstall. Plain
+non-interactive install now fails with an explicit terminal/search-posture
+diagnostic, while `--disable-llm-search` remains the supported automation path
+for lexical-only/no-LLM installs. The enabled semantic/hybrid path still
+requires the license/terms acknowledgement before model downloads.
+
+Verification for the implementation pass: `cargo test --test install`;
+`cargo test --test search_commands`; `cargo test --test status_doctor`;
+`cargo test --test init init_runtime_manifest_records_managed_install`;
+`cargo test search_posture_cursor_defaults_to_semantic_hybrid`. The touched
+`post_install` and `properties` targets also passed in the grouped run before
+the search fixture expectation was tightened. Full `cargo test --test init`
+remains blocked by the pre-existing `0.1.1` -> `0.1.1-SNAPSHOT` version drift in
+the init baseline snapshot, not by this install prompt change.

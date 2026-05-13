@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::env;
 use std::fs;
+use std::io::{self, IsTerminal};
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
@@ -27,15 +28,16 @@ use crate::search_profile::{ExternalDependencies, SearchConfig, SearchProfile};
 use crate::skill_render::{apply_binary_context, managed_binary_invocation};
 
 pub fn run(args: &InstallArgs, context: &CliContext) -> Result<()> {
-    if args.disable_llm_search && !args.configure_search {
-        context.diagnostic("search configuration: --disable-llm-search implies --configure-search");
+    if args.disable_llm_search {
+        context.diagnostic("search configuration: explicit disabled profile requested");
     }
     context.diagnostic("command: install");
     context.diagnostic(format!("force: {}", args.force));
     context.diagnostic(format!("path guidance: {}", !args.skip_path_guidance));
+    context.diagnostic(format!("configure search: {}", true));
     context.diagnostic(format!(
-        "configure search: {}",
-        should_configure_search(args)
+        "configure search requested: {}",
+        args.configure_search
     ));
     let paths = Paths::from_env()?;
     context.diagnostic(format!("managed home: {}", paths.managed_home().display()));
@@ -64,6 +66,7 @@ pub fn run(args: &InstallArgs, context: &CliContext) -> Result<()> {
         "model artifacts: {}",
         paths.model_artifacts().display()
     ));
+    ensure_search_prompt_available(args)?;
     let current_exe = env::current_exe().context("failed to resolve current executable")?;
     context.diagnostic(format!("current executable: {}", current_exe.display()));
     let current_exe_bytes = fs::read(&current_exe).with_context(|| {
@@ -140,30 +143,94 @@ pub fn run(args: &InstallArgs, context: &CliContext) -> Result<()> {
             )
         })?;
     }
-    if should_configure_search(args) {
-        configure_search(args, &paths, context)?;
-    }
+    configure_search(args, &paths, context)?;
     if !args.skip_path_guidance {
         path_guidance::print_guidance(&paths);
     }
     Ok(())
 }
 
-fn should_configure_search(args: &InstallArgs) -> bool {
-    args.configure_search || args.disable_llm_search
-}
-
 fn configure_search(args: &InstallArgs, paths: &Paths, context: &CliContext) -> Result<()> {
     context.diagnostic("search configuration action: start");
-    if !args.disable_llm_search {
-        let enabled = inquire::Confirm::new("Enable semantic/hybrid LLM search now?")
-            .with_default(false)
-            .prompt()?;
-        if enabled {
-            return configure_enabled_search(args, paths, context);
-        }
+    if args.disable_llm_search {
+        return configure_disabled_search(paths, context);
     }
 
+    let posture = current_search_posture(paths, context);
+    let selected = prompt_search_posture(posture)?;
+    if selected == SearchInstallPosture::SemanticHybrid {
+        return configure_enabled_search(args, paths, context);
+    }
+    configure_disabled_search(paths, context)
+}
+
+fn ensure_search_prompt_available(args: &InstallArgs) -> Result<()> {
+    if args.disable_llm_search || io::stdin().is_terminal() {
+        return Ok(());
+    }
+    bail!(
+        "interactive install requires a terminal for search setup; rerun with `--disable-llm-search` for lexical-only/no-LLM automation or run `llm-wiki install` from a terminal"
+    )
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum SearchInstallPosture {
+    SemanticHybrid,
+    LexicalOnly,
+    Unconfigured,
+}
+
+impl SearchInstallPosture {
+    fn starting_cursor(self) -> usize {
+        match self {
+            Self::SemanticHybrid | Self::Unconfigured => 0,
+            Self::LexicalOnly => 1,
+        }
+    }
+}
+
+fn current_search_posture(paths: &Paths, context: &CliContext) -> SearchInstallPosture {
+    match SearchConfig::read(&paths.search_config()) {
+        Ok(Some(config))
+            if config.project_default.llm_search_enabled
+                || config.global_search.llm_search_enabled =>
+        {
+            context.diagnostic("search configuration current choice: semantic/hybrid");
+            SearchInstallPosture::SemanticHybrid
+        }
+        Ok(Some(_)) => {
+            context.diagnostic("search configuration current choice: lexical-only");
+            SearchInstallPosture::LexicalOnly
+        }
+        Ok(None) => {
+            context.diagnostic("search configuration current choice: unconfigured");
+            SearchInstallPosture::Unconfigured
+        }
+        Err(error) => {
+            context.diagnostic(format!(
+                "search configuration current choice: unconfigured ({error:#})"
+            ));
+            SearchInstallPosture::Unconfigured
+        }
+    }
+}
+
+fn prompt_search_posture(current: SearchInstallPosture) -> Result<SearchInstallPosture> {
+    const SEMANTIC_HYBRID: &str = "semantic/hybrid LLM search with the balanced profile";
+    const LEXICAL_ONLY: &str = "lexical-only / no LLM search for now";
+
+    let selected = inquire::Select::new("Search setup", vec![SEMANTIC_HYBRID, LEXICAL_ONLY])
+        .with_starting_cursor(current.starting_cursor())
+        .without_filtering()
+        .prompt()?;
+    if selected == SEMANTIC_HYBRID {
+        Ok(SearchInstallPosture::SemanticHybrid)
+    } else {
+        Ok(SearchInstallPosture::LexicalOnly)
+    }
+}
+
+fn configure_disabled_search(paths: &Paths, context: &CliContext) -> Result<()> {
     let config = SearchConfig::disabled();
     config.write_atomic(&paths.search_config())?;
     ExternalDependencies::empty().write_atomic(&paths.external_dependencies())?;
@@ -898,7 +965,7 @@ mod tests {
 
     use tempfile::TempDir;
 
-    use super::backup_with_suffix;
+    use super::{SearchInstallPosture, backup_with_suffix};
 
     #[test]
     fn backup_retries_when_first_candidate_exists() {
@@ -917,5 +984,12 @@ mod tests {
             "existing"
         );
         assert!(!path.exists());
+    }
+
+    #[test]
+    fn search_posture_cursor_defaults_to_semantic_hybrid() {
+        assert_eq!(SearchInstallPosture::Unconfigured.starting_cursor(), 0);
+        assert_eq!(SearchInstallPosture::SemanticHybrid.starting_cursor(), 0);
+        assert_eq!(SearchInstallPosture::LexicalOnly.starting_cursor(), 1);
     }
 }
