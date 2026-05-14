@@ -3065,8 +3065,19 @@ cleanup command rather than the install/configure flow. The targeted
 search-artifact cleanup path is required to refuse while LLM search is still
 enabled unless the user passes `--force`.
 
+Follow-up review tightened the plan before implementation: it now names the
+uninstall/CLI/path/registry touchpoints, treats full uninstall cleanup as a new
+decision superseding the older D9 cache-preservation clause, specifies
+license-only repair wording, requires pure planning tests with injectable
+catalog/downloader/prompt decisions, defines cleanup refusal across both
+`[project_default]` and `[global_search]`, narrows targeted cleanup to
+model/license/semantic sidecar artifacts, and clarifies that ordinary runtime
+readiness may trust install-time artifact records instead of rehashing model
+bytes every run.
+
 Pages updated: wiki/plans/idempotent-search-model-install.plan.md,
-wiki/index.md, wiki/log.md
+wiki/plans/project-registry-search-artifacts.plan.md, wiki/index.md,
+wiki/log.md
 
 ## [2026-05-14] update | init rerun schema drift plan
 

@@ -114,8 +114,11 @@ Registry rules:
    explicit conflict check and does not create duplicate `search-all` results by
    default. V1 should reject same-root/different-ID duplicates unless a later
    use case proves they are needed.
-7. `llm-wiki uninstall` must not remove the registry, search indexes, or model
-   cache.
+7. Superseded 2026-05-14 by
+   `wiki/plans/idempotent-search-model-install.plan.md`: full
+   `llm-wiki uninstall` is now planned to remove global framework-owned
+   registry, search index, and model/cache state while preserving project-local
+   repositories and project-local `.llm_wiki/` folders.
 
 ## Initial Default-Release Contract
 
