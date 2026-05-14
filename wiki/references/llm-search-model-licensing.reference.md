@@ -2,13 +2,13 @@
 
 - Document Class: Reference
 - Status: Sourced
-- Date: 2026-05-11
+- Date: 2026-05-14
 - Category: Search model licensing, install state, runtime dependencies
 - Scope: Stage 0 source record for semantic/hybrid search model candidates,
   licenses, terms, artifact hashes, download/cache implications, and qmd-rs
   resolver constraints.
-- Sources: raw/research/2026-05-11-llm-search-model-licensing/manifest.md, raw/research/2026-05-11-llm-search-model-licensing/research-summary.md, https://docs.rs/qmd/latest/qmd/, https://huggingface.co/ggml-org/embeddinggemma-300M-GGUF, https://huggingface.co/api/models/ggml-org/embeddinggemma-300M-GGUF?blobs=true, https://huggingface.co/google/embeddinggemma-300m, https://ai.google.dev/gemma/terms, https://huggingface.co/ggml-org/Qwen3-Reranker-0.6B-Q8_0-GGUF, https://huggingface.co/Qwen/Qwen3-Reranker-0.6B, https://huggingface.co/tobil/qmd-query-expansion-1.7B-gguf, https://huggingface.co/api/models/tobil/qmd-query-expansion-1.7B-gguf?blobs=true
-- Related: wiki/plans/semantic-hybrid-search.plan.md, wiki/proposals/search-query-interpretation.proposal.md, wiki/evals/search-backend-selection.eval.md, wiki/evals/natural-language-search.eval.md, wiki/references/qmd-rs-search-crate.reference.md
+- Sources: raw/research/2026-05-11-llm-search-model-licensing/manifest.md, raw/research/2026-05-11-llm-search-model-licensing/research-summary.md, https://docs.rs/qmd/latest/qmd/, https://huggingface.co/ggml-org/embeddinggemma-300M-GGUF, https://huggingface.co/api/models/ggml-org/embeddinggemma-300M-GGUF?blobs=true, https://huggingface.co/google/embeddinggemma-300m, https://ai.google.dev/gemma/terms, https://huggingface.co/ggml-org/Qwen3-Reranker-0.6B-Q8_0-GGUF, https://huggingface.co/Qwen/Qwen3-Reranker-0.6B, https://huggingface.co/tobil/qmd-query-expansion-1.7B-gguf, https://huggingface.co/api/models/tobil/qmd-query-expansion-1.7B-gguf?blobs=true, wiki/plans/idempotent-search-model-install.plan.md, src/install.rs, src/search_models.rs, src/uninstall.rs
+- Related: wiki/plans/semantic-hybrid-search.plan.md, wiki/plans/idempotent-search-model-install.plan.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/proposals/search-query-interpretation.proposal.md, wiki/evals/search-backend-selection.eval.md, wiki/evals/natural-language-search.eval.md, wiki/references/qmd-rs-search-crate.reference.md
 
 ## Summary
 
@@ -25,6 +25,37 @@ These are not bundled with the binary. They are consented install-time
 downloads only. `llm-wiki` must pin immutable repository revisions before
 materialization, verify local bytes by SHA-256, and record license acceptance
 and artifact metadata under `~/.llm_wiki`.
+
+## Install Idempotency And Cleanup Contract
+
+As of the 2026-05-14 idempotent install implementation, `llm-wiki install`
+and `llm-wiki install --configure-search` classify every model required by the
+selected profile before asking for downloads. A managed model file is reusable
+when it exists under `~/.llm_wiki/models/`, hashes to the embedded catalog
+SHA-256, and the current accepted-license records match the model id, license,
+and terms URL.
+
+Repeated enabled installs with fully verified artifacts and current license
+records skip the download prompt and rewrite fresh control-plane records as
+needed. Missing artifacts are downloaded one by one without touching already
+verified models. Hash mismatches fail closed unless `--force` is present; the
+forced path replaces only missing or invalid artifacts and still reuses valid
+local files.
+
+License acceptance is separate from byte reuse. If model files are verified but
+accepted-license records are missing or stale, install prompts only for
+license/terms acknowledgement and does not describe the action as a download.
+Missing or stale `models/artifacts.toml` is repaired from verified local bytes.
+
+Disabling LLM search through install/configure writes a disabled search profile
+and invalidates active accepted-license readiness, but it does not delete model
+files or semantic indexes. Removal is explicit: `llm-wiki uninstall
+--search-artifacts` removes managed model files, accepted-license records,
+semantic sidecars, and threshold records while preserving lexical qmd-rs stores
+and install state. That targeted cleanup refuses while either global search
+profile still enables LLM search unless `--force` is supplied. Full
+`llm-wiki uninstall` removes global framework-owned runtime state while leaving
+project-local repositories and project-local `.llm_wiki/` folders untouched.
 
 ## Candidate Matrix
 

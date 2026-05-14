@@ -6,8 +6,8 @@
 - Category: Search UX, semantic retrieval, hybrid retrieval
 - Scope: Durable mode contract for `llm-wiki search`, `llm-wiki search-all`,
   threshold promotion, and v1 reranker treatment.
-- Sources: wiki/proposals/search-query-interpretation.proposal.md, wiki/plans/semantic-hybrid-search.plan.md, wiki/evals/natural-language-search.eval.md, wiki/evals/natural-language-search-impact.md
-- Related: wiki/decisions/search-backend-selection.decision.md, wiki/specs/documentation-model.spec.md, wiki/specs/wiki-query-skill.spec.md
+- Sources: wiki/proposals/search-query-interpretation.proposal.md, wiki/plans/semantic-hybrid-search.plan.md, wiki/evals/natural-language-search.eval.md, wiki/evals/natural-language-search-impact.md, wiki/plans/idempotent-search-model-install.plan.md
+- Related: wiki/decisions/search-backend-selection.decision.md, wiki/specs/documentation-model.spec.md, wiki/specs/wiki-query-skill.spec.md, wiki/references/llm-search-model-licensing.reference.md
 
 ## Choice
 
@@ -90,6 +90,11 @@ must rerun `eval run` and `eval calibrate` before threshold promotion.
 - Managed model and index directories are rebuildable artifacts. On macOS user
   home paths, install/index attempt best-effort Time Machine exclusion for
   those directories.
+- Repeated install reuses verified managed model artifacts and repairs
+  control-plane records without re-downloading unchanged bytes. Disabling LLM
+  search changes readiness immediately but does not delete model files or
+  semantic indexes; explicit cleanup is owned by `llm-wiki uninstall
+  --search-artifacts` or full uninstall.
 - The v1 shipped baseline is calibrated hybrid/auto without a calibrated
   reranker profile. A future reranker profile needs its own artifact/license
   readiness, eval run, calibration report, and threshold scope.

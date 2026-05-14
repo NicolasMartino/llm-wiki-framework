@@ -1,7 +1,7 @@
 # Plan: Idempotent Search Model Install
 
 - Document Class: Plan
-- Status: Active
+- Status: Completed
 - Date: 2026-05-14
 - Category: Install UX, search model materialization, managed runtime state
 - Scope: Make repeated `llm-wiki install` and `llm-wiki install --configure-search` reuse already verified search model artifacts instead of downloading unchanged model bytes again, while keeping search-type changes separate from artifact deletion.
@@ -329,6 +329,47 @@ Full verification target:
 ```bash
 cargo test install search_models --workspace
 cargo test --test install
+cargo clippy --all-targets --all-features -- -D warnings
+git diff --check
+```
+
+## Implementation Result
+
+Completed on 2026-05-14.
+
+`src/search_models.rs` now exposes model artifact classification and explicit
+materialization outcomes. Verified local files return `Reused`; missing files
+download; hash mismatches fail unless `--force` is present; forced
+materialization still reuses valid artifacts and replaces only invalid or
+missing ones.
+
+`src/install.rs` now plans the enabled search install before prompting. The
+installer skips download consent when all required model files are verified and
+licenses are current, prompts for license acknowledgement only when verified
+bytes exist but license records are stale or absent, downloads only missing
+models, repairs `models/artifacts.toml` from verified local bytes, and writes a
+disabled profile plus empty accepted-license readiness when LLM search is
+disabled. Disabling LLM search leaves model files and semantic indexes in
+place and prints cleanup guidance when artifacts remain.
+
+`llm-wiki uninstall --search-artifacts` is the targeted cleanup surface. It
+removes managed model files, accepted-license records, semantic sidecars, and
+threshold records while preserving lexical qmd-rs stores, registry state,
+installed skills, manifest state, and the managed binary. It refuses while
+either global search profile still enables LLM search unless `--force` is
+supplied. Full `llm-wiki uninstall` now removes global framework-owned runtime
+state, including registry, managed indexes, model artifacts, search config,
+accepted licenses, thresholds, backups, and legacy cache state, while leaving
+project-local repositories and project-local `.llm_wiki/` folders untouched.
+
+Verification run:
+
+```bash
+cargo fmt --check
+cargo test search_models --workspace
+cargo test install::tests --workspace
+cargo test --test install
+cargo test --workspace
 cargo clippy --all-targets --all-features -- -D warnings
 git diff --check
 ```

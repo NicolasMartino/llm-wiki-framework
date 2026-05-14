@@ -21,8 +21,9 @@ use crate::manifest::{
 use crate::path_guidance;
 use crate::paths::Paths;
 use crate::search_models::{
-    AcceptedLicenses, DEFAULT_PROFILE_ID, ModelArtifacts, materialize_model, models_for_profile,
-    profile_by_id,
+    AcceptedLicenses, DEFAULT_PROFILE_ID, MaterializationOutcome, ModelArtifactClassification,
+    ModelArtifactRecord, ModelArtifacts, SearchModel, classify_model_artifact, materialize_model,
+    models_for_profile, profile_by_id,
 };
 use crate::search_profile::{ExternalDependencies, SearchConfig, SearchProfile};
 use crate::skill_render::{apply_binary_context, managed_binary_invocation};
@@ -234,6 +235,7 @@ fn configure_disabled_search(paths: &Paths, context: &CliContext) -> Result<()> 
     let config = SearchConfig::disabled();
     config.write_atomic(&paths.search_config())?;
     ExternalDependencies::empty().write_atomic(&paths.external_dependencies())?;
+    AcceptedLicenses::from_models(&[]).write_atomic(&paths.accepted_licenses())?;
     context.diagnostic("search configuration action: wrote disabled LLM search profile");
     context.diagnostic(format!(
         "search config: {}",
@@ -243,6 +245,15 @@ fn configure_disabled_search(paths: &Paths, context: &CliContext) -> Result<()> 
         "external dependencies: {}",
         paths.external_dependencies().display()
     ));
+    context.diagnostic(format!(
+        "accepted licenses: {}",
+        paths.accepted_licenses().display()
+    ));
+    if search_artifacts_present(paths)? {
+        println!(
+            "LLM search artifacts remain on disk. Remove them with `llm-wiki uninstall --search-artifacts` when you no longer need them."
+        );
+    }
     Ok(())
 }
 
@@ -253,29 +264,89 @@ fn configure_enabled_search(args: &InstallArgs, paths: &Paths, context: &CliCont
     context.diagnostic(format!("search profile selected: {}", profile.id));
     context.diagnostic(format!("search profile models: {}", models.len()));
 
+    let accepted_licenses = AcceptedLicenses::read(&paths.accepted_licenses())?;
+    let classifications = models
+        .iter()
+        .copied()
+        .map(|model| {
+            classify_model_artifact(model, profile, &paths.managed_model_root())
+                .map(|classification| (model, classification))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let install_plan = plan_enabled_search_install(
+        &models,
+        accepted_licenses.as_ref(),
+        classifications,
+        args.force,
+    )?;
+
     println!("LLM search profile: {}", profile.display_name);
-    println!("Models to download and verify:");
-    for model in &models {
+    if install_plan.requires_download() {
+        println!("Models to download and verify:");
+        for model in install_plan.models_to_download() {
+            print_model_license_line(model, Some(model.expected_sha256));
+        }
+        for replacement in install_plan.models_to_replace() {
+            println!(
+                "- {}: {} / {} ({}, sha256 {}, replacing local hash {}){}",
+                replacement.model.role.label(),
+                replacement.model.repository,
+                replacement.model.file,
+                license_label(replacement.model),
+                replacement.model.expected_sha256,
+                replacement.observed_sha256,
+                terms_suffix(replacement.model)
+            );
+        }
+        let reused_unaccepted = install_plan.reused_models_requiring_license_ack();
+        if !reused_unaccepted.is_empty() {
+            println!(
+                "Already installed and verified, but license/terms acknowledgement is also required:"
+            );
+            for model in reused_unaccepted {
+                print_model_license_line(model, None);
+            }
+        }
         println!(
-            "- {}: {} / {} ({}, sha256 {})",
-            model.role.label(),
-            model.repository,
-            model.file,
-            model.license,
-            model.expected_sha256
+            "Model bytes are stored under {} and are not bundled with llm-wiki.",
+            paths.managed_model_root().display()
+        );
+        let accepted = inquire::Confirm::new(
+            "I acknowledge the listed model licenses/terms and want to download them now",
+        )
+        .with_default(false)
+        .prompt()?;
+        if !accepted {
+            bail!("LLM search enablement cancelled; search profile was not changed");
+        }
+    } else if install_plan.license_prompt_required {
+        println!("All required model artifacts are already installed and verified.");
+        println!("Model license/terms acknowledgement is required before enabling this profile:");
+        for model in &models {
+            print_model_license_line(*model, None);
+        }
+        let accepted = inquire::Confirm::new(
+            "I acknowledge the listed model licenses/terms and want to enable LLM search",
+        )
+        .with_default(false)
+        .prompt()?;
+        if !accepted {
+            bail!("LLM search enablement cancelled; search profile was not changed");
+        }
+    } else {
+        println!(
+            "All required model artifacts are already installed and verified; reusing managed copies."
         );
     }
-    println!(
-        "Model bytes are stored under {} and are not bundled with llm-wiki.",
-        paths.managed_model_root().display()
-    );
-    let accepted = inquire::Confirm::new(
-        "I acknowledge the listed model licenses/terms and want to download them now",
-    )
-    .with_default(false)
-    .prompt()?;
-    if !accepted {
-        bail!("LLM search enablement cancelled; search profile was not changed");
+
+    for action in &install_plan.actions {
+        if let PlannedModelAction::Reuse { model, record } = action {
+            context.diagnostic(format!(
+                "search model materialization: {} -> {} reused verified artifact",
+                model.id,
+                record.path.display()
+            ));
+        }
     }
 
     AcceptedLicenses::from_models(&models).write_atomic(&paths.accepted_licenses())?;
@@ -297,18 +368,34 @@ fn configure_enabled_search(args: &InstallArgs, paths: &Paths, context: &CliCont
     exclude_rebuildable_from_time_machine(&paths.managed_index_root(), context);
 
     let mut artifact_records = Vec::new();
-    for model in models {
-        context.diagnostic(format!(
-            "search model materialization: {} -> {}",
-            model.id,
-            model.managed_path(&paths.managed_model_root()).display()
-        ));
-        artifact_records.push(materialize_model(
-            model,
-            profile,
-            &paths.managed_model_root(),
-            args.force,
-        )?);
+    for action in install_plan.actions {
+        match action {
+            PlannedModelAction::Reuse { record, .. } => {
+                artifact_records.push(*record);
+            }
+            PlannedModelAction::Download { model }
+            | PlannedModelAction::Replace {
+                model,
+                observed_sha256: _,
+            } => {
+                context.diagnostic(format!(
+                    "search model materialization: {} -> {}",
+                    model.id,
+                    model.managed_path(&paths.managed_model_root()).display()
+                ));
+                let materialized =
+                    materialize_model(model, profile, &paths.managed_model_root(), args.force)?;
+                context.diagnostic(format!(
+                    "search model materialization outcome: {} -> {}",
+                    model.id,
+                    match materialized.outcome {
+                        MaterializationOutcome::Reused => "reused",
+                        MaterializationOutcome::Downloaded => "downloaded",
+                    }
+                ));
+                artifact_records.push(materialized.record);
+            }
+        }
     }
     ModelArtifacts::from_records(artifact_records).write_atomic(&paths.model_artifacts())?;
     context.diagnostic("search configuration action: recorded model artifacts");
@@ -323,6 +410,224 @@ fn configure_enabled_search(args: &InstallArgs, paths: &Paths, context: &CliCont
     ExternalDependencies::empty().write_atomic(&paths.external_dependencies())?;
     context.diagnostic("search configuration action: wrote enabled LLM search profile");
     Ok(())
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct EnabledSearchInstallPlan {
+    actions: Vec<PlannedModelAction>,
+    license_prompt_required: bool,
+    models_requiring_license_ack: Vec<SearchModel>,
+}
+
+impl EnabledSearchInstallPlan {
+    fn requires_download(&self) -> bool {
+        self.actions.iter().any(|action| {
+            matches!(
+                action,
+                PlannedModelAction::Download { .. } | PlannedModelAction::Replace { .. }
+            )
+        })
+    }
+
+    fn models_to_download(&self) -> Vec<SearchModel> {
+        self.actions
+            .iter()
+            .filter_map(|action| match action {
+                PlannedModelAction::Download { model } => Some(*model),
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn models_to_replace(&self) -> Vec<PlannedReplacement<'_>> {
+        self.actions
+            .iter()
+            .filter_map(|action| match action {
+                PlannedModelAction::Replace {
+                    model,
+                    observed_sha256,
+                } => Some(PlannedReplacement {
+                    model: *model,
+                    observed_sha256,
+                }),
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn reused_models_requiring_license_ack(&self) -> Vec<SearchModel> {
+        self.actions
+            .iter()
+            .filter_map(|action| match action {
+                PlannedModelAction::Reuse { model, .. }
+                    if self.models_requiring_license_ack.contains(model) =>
+                {
+                    Some(*model)
+                }
+                _ => None,
+            })
+            .collect()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum PlannedModelAction {
+    Reuse {
+        model: SearchModel,
+        record: Box<ModelArtifactRecord>,
+    },
+    Download {
+        model: SearchModel,
+    },
+    Replace {
+        model: SearchModel,
+        observed_sha256: String,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct PlannedReplacement<'a> {
+    model: SearchModel,
+    observed_sha256: &'a str,
+}
+
+fn plan_enabled_search_install(
+    models: &[SearchModel],
+    accepted_licenses: Option<&AcceptedLicenses>,
+    classifications: Vec<(SearchModel, ModelArtifactClassification)>,
+    force: bool,
+) -> Result<EnabledSearchInstallPlan> {
+    let models_requiring_license_ack = models
+        .iter()
+        .copied()
+        .filter(|model| match accepted_licenses {
+            Some(accepted) => !accepted.accepts_model(*model),
+            None => true,
+        })
+        .collect::<Vec<_>>();
+    let license_prompt_required = !models_requiring_license_ack.is_empty();
+    if classifications.len() != models.len() {
+        bail!(
+            "internal search install plan error: classified {} models for {} required models",
+            classifications.len(),
+            models.len()
+        );
+    }
+    let mut actions = Vec::with_capacity(classifications.len());
+
+    for (expected_model, (model, classification)) in models.iter().copied().zip(classifications) {
+        if model.id != expected_model.id {
+            bail!(
+                "internal search install plan error: classified {} while planning {}",
+                model.id,
+                expected_model.id
+            );
+        }
+        match classification {
+            ModelArtifactClassification::Verified { record } => {
+                actions.push(PlannedModelAction::Reuse { model, record });
+            }
+            ModelArtifactClassification::Missing { .. } => {
+                actions.push(PlannedModelAction::Download { model });
+            }
+            ModelArtifactClassification::HashMismatch {
+                path,
+                observed_sha256,
+            } => {
+                if !force {
+                    bail!(
+                        "model artifact hash mismatch for {}; rerun `llm-wiki install --configure-search --force` to replace {}",
+                        model.id,
+                        path.display()
+                    );
+                }
+                actions.push(PlannedModelAction::Replace {
+                    model,
+                    observed_sha256,
+                });
+            }
+        }
+    }
+
+    Ok(EnabledSearchInstallPlan {
+        actions,
+        license_prompt_required,
+        models_requiring_license_ack,
+    })
+}
+
+fn print_model_license_line(model: SearchModel, expected_sha256: Option<&str>) {
+    match expected_sha256 {
+        Some(expected_sha256) => println!(
+            "- {}: {} / {} ({}, sha256 {}){}",
+            model.role.label(),
+            model.repository,
+            model.file,
+            license_label(model),
+            expected_sha256,
+            terms_suffix(model)
+        ),
+        None => println!(
+            "- {}: {} / {} ({}){}",
+            model.role.label(),
+            model.repository,
+            model.file,
+            license_label(model),
+            terms_suffix(model)
+        ),
+    }
+}
+
+fn license_label(model: SearchModel) -> &'static str {
+    model.license
+}
+
+fn terms_suffix(model: SearchModel) -> String {
+    model
+        .terms_url
+        .map(|terms_url| format!(", terms {terms_url}"))
+        .unwrap_or_default()
+}
+
+fn search_artifacts_present(paths: &Paths) -> Result<bool> {
+    Ok(dir_has_entries(&paths.managed_model_root())?
+        || semantic_sidecars_present(&paths.managed_index_root())?)
+}
+
+fn dir_has_entries(path: &Path) -> Result<bool> {
+    if !path.exists() {
+        return Ok(false);
+    }
+    let mut entries =
+        fs::read_dir(path).with_context(|| format!("failed to read {}", path.display()))?;
+    Ok(entries.next().transpose()?.is_some())
+}
+
+fn semantic_sidecars_present(root: &Path) -> Result<bool> {
+    if !root.exists() {
+        return Ok(false);
+    }
+    for entry in fs::read_dir(root).with_context(|| format!("failed to read {}", root.display()))? {
+        let entry = entry.with_context(|| format!("failed to read {}", root.display()))?;
+        let path = entry.path();
+        if path.is_dir() {
+            if semantic_sidecars_present(&path)? {
+                return Ok(true);
+            }
+            continue;
+        }
+        if is_semantic_sidecar(&path) {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+fn is_semantic_sidecar(path: &Path) -> bool {
+    matches!(
+        path.file_name().and_then(|name| name.to_str()),
+        Some("semantic-index.json" | "semantic-vectors.json")
+    )
 }
 
 fn preflight_managed_binary(
@@ -962,10 +1267,18 @@ impl InstallLabel for FileKind {
 #[cfg(test)]
 mod tests {
     use std::fs;
+    use std::path::{Path, PathBuf};
 
     use tempfile::TempDir;
 
-    use super::{SearchInstallPosture, backup_with_suffix};
+    use super::{
+        PlannedModelAction, SearchInstallPosture, backup_with_suffix, plan_enabled_search_install,
+    };
+    use crate::search_models::{
+        ADAPTER_SCHEMA_VERSION, AcceptedLicenses, BALANCED_PROFILE, EMBEDDING_GEMMA_300M,
+        ModelArtifactClassification, ModelArtifactRecord, QMD_QUERY_EXPANSION_17B, QMD_RS_VERSION,
+        SearchModel,
+    };
 
     #[test]
     fn backup_retries_when_first_candidate_exists() {
@@ -991,5 +1304,241 @@ mod tests {
         assert_eq!(SearchInstallPosture::Unconfigured.starting_cursor(), 0);
         assert_eq!(SearchInstallPosture::SemanticHybrid.starting_cursor(), 0);
         assert_eq!(SearchInstallPosture::LexicalOnly.starting_cursor(), 1);
+    }
+
+    #[test]
+    fn enabled_search_plan_reuses_verified_artifacts_when_licenses_current() {
+        let models = [EMBEDDING_GEMMA_300M, QMD_QUERY_EXPANSION_17B];
+        let accepted = AcceptedLicenses::from_models(&models);
+        let plan = plan_enabled_search_install(
+            &models,
+            Some(&accepted),
+            vec![
+                (
+                    EMBEDDING_GEMMA_300M,
+                    ModelArtifactClassification::Verified {
+                        record: Box::new(artifact_record(EMBEDDING_GEMMA_300M)),
+                    },
+                ),
+                (
+                    QMD_QUERY_EXPANSION_17B,
+                    ModelArtifactClassification::Verified {
+                        record: Box::new(artifact_record(QMD_QUERY_EXPANSION_17B)),
+                    },
+                ),
+            ],
+            false,
+        )
+        .expect("plan");
+
+        assert!(!plan.license_prompt_required);
+        assert!(!plan.requires_download());
+        assert!(matches!(
+            plan.actions[0],
+            PlannedModelAction::Reuse {
+                model: EMBEDDING_GEMMA_300M,
+                ..
+            }
+        ));
+        assert!(matches!(
+            plan.actions[1],
+            PlannedModelAction::Reuse {
+                model: QMD_QUERY_EXPANSION_17B,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn enabled_search_plan_prompts_license_only_for_verified_artifacts_with_stale_acceptance() {
+        let models = [EMBEDDING_GEMMA_300M, QMD_QUERY_EXPANSION_17B];
+        let plan = plan_enabled_search_install(
+            &models,
+            None,
+            vec![
+                (
+                    EMBEDDING_GEMMA_300M,
+                    ModelArtifactClassification::Verified {
+                        record: Box::new(artifact_record(EMBEDDING_GEMMA_300M)),
+                    },
+                ),
+                (
+                    QMD_QUERY_EXPANSION_17B,
+                    ModelArtifactClassification::Verified {
+                        record: Box::new(artifact_record(QMD_QUERY_EXPANSION_17B)),
+                    },
+                ),
+            ],
+            false,
+        )
+        .expect("plan");
+
+        assert!(plan.license_prompt_required);
+        assert!(!plan.requires_download());
+    }
+
+    #[test]
+    fn enabled_search_plan_downloads_only_missing_artifacts() {
+        let models = [EMBEDDING_GEMMA_300M, QMD_QUERY_EXPANSION_17B];
+        let accepted = AcceptedLicenses::from_models(&models);
+        let plan = plan_enabled_search_install(
+            &models,
+            Some(&accepted),
+            vec![
+                (
+                    EMBEDDING_GEMMA_300M,
+                    ModelArtifactClassification::Verified {
+                        record: Box::new(artifact_record(EMBEDDING_GEMMA_300M)),
+                    },
+                ),
+                (
+                    QMD_QUERY_EXPANSION_17B,
+                    ModelArtifactClassification::Missing {
+                        path: PathBuf::from("/tmp/missing-expansion.gguf"),
+                    },
+                ),
+            ],
+            false,
+        )
+        .expect("plan");
+
+        assert!(!plan.license_prompt_required);
+        assert!(plan.requires_download());
+        assert_eq!(plan.models_to_download(), vec![QMD_QUERY_EXPANSION_17B]);
+        assert!(matches!(
+            plan.actions[0],
+            PlannedModelAction::Reuse {
+                model: EMBEDDING_GEMMA_300M,
+                ..
+            }
+        ));
+        assert!(matches!(
+            plan.actions[1],
+            PlannedModelAction::Download {
+                model: QMD_QUERY_EXPANSION_17B
+            }
+        ));
+    }
+
+    #[test]
+    fn enabled_search_plan_tracks_reused_unaccepted_models_when_download_needed() {
+        let models = [EMBEDDING_GEMMA_300M, QMD_QUERY_EXPANSION_17B];
+        let accepted = AcceptedLicenses::from_models(&[QMD_QUERY_EXPANSION_17B]);
+        let plan = plan_enabled_search_install(
+            &models,
+            Some(&accepted),
+            vec![
+                (
+                    EMBEDDING_GEMMA_300M,
+                    ModelArtifactClassification::Verified {
+                        record: Box::new(artifact_record(EMBEDDING_GEMMA_300M)),
+                    },
+                ),
+                (
+                    QMD_QUERY_EXPANSION_17B,
+                    ModelArtifactClassification::Missing {
+                        path: PathBuf::from("/tmp/missing-expansion.gguf"),
+                    },
+                ),
+            ],
+            false,
+        )
+        .expect("plan");
+
+        assert!(plan.requires_download());
+        assert!(plan.license_prompt_required);
+        assert_eq!(
+            plan.reused_models_requiring_license_ack(),
+            vec![EMBEDDING_GEMMA_300M]
+        );
+        assert_eq!(plan.models_to_download(), vec![QMD_QUERY_EXPANSION_17B]);
+    }
+
+    #[test]
+    fn enabled_search_plan_refuses_hash_mismatch_without_force() {
+        let models = [EMBEDDING_GEMMA_300M];
+
+        let error = plan_enabled_search_install(
+            &models,
+            None,
+            vec![(
+                EMBEDDING_GEMMA_300M,
+                ModelArtifactClassification::HashMismatch {
+                    path: PathBuf::from("/tmp/corrupt-embedding.gguf"),
+                    observed_sha256: "bad-sha".to_string(),
+                },
+            )],
+            false,
+        )
+        .expect_err("mismatch should fail");
+
+        assert!(format!("{error:#}").contains("model artifact hash mismatch"));
+    }
+
+    #[test]
+    fn enabled_search_plan_force_replaces_only_mismatched_artifacts() {
+        let models = [EMBEDDING_GEMMA_300M, QMD_QUERY_EXPANSION_17B];
+        let accepted = AcceptedLicenses::from_models(&models);
+        let plan = plan_enabled_search_install(
+            &models,
+            Some(&accepted),
+            vec![
+                (
+                    EMBEDDING_GEMMA_300M,
+                    ModelArtifactClassification::Verified {
+                        record: Box::new(artifact_record(EMBEDDING_GEMMA_300M)),
+                    },
+                ),
+                (
+                    QMD_QUERY_EXPANSION_17B,
+                    ModelArtifactClassification::HashMismatch {
+                        path: PathBuf::from("/tmp/corrupt-expansion.gguf"),
+                        observed_sha256: "bad-sha".to_string(),
+                    },
+                ),
+            ],
+            true,
+        )
+        .expect("plan");
+
+        assert!(!plan.license_prompt_required);
+        assert!(plan.requires_download());
+        assert!(matches!(
+            plan.actions[0],
+            PlannedModelAction::Reuse {
+                model: EMBEDDING_GEMMA_300M,
+                ..
+            }
+        ));
+        assert!(matches!(
+            plan.actions[1],
+            PlannedModelAction::Replace {
+                model: QMD_QUERY_EXPANSION_17B,
+                ..
+            }
+        ));
+        assert_eq!(plan.models_to_replace()[0].observed_sha256, "bad-sha");
+    }
+
+    fn artifact_record(model: SearchModel) -> ModelArtifactRecord {
+        ModelArtifactRecord {
+            model_id: model.id.to_string(),
+            role: model.role.label().to_string(),
+            profile: BALANCED_PROFILE.id.to_string(),
+            repository: model.repository.to_string(),
+            revision: model.revision.to_string(),
+            file: model.file.to_string(),
+            download_url: model.download_url(),
+            path: Path::new("/tmp").join(model.file),
+            expected_sha256: model.expected_sha256.to_string(),
+            observed_sha256: model.expected_sha256.to_string(),
+            size_bytes: model.expected_size_bytes,
+            license: model.license.to_string(),
+            terms_url: model.terms_url.map(ToString::to_string),
+            dimensions: model.dimensions,
+            qmd_rs_version: QMD_RS_VERSION.to_string(),
+            adapter_schema_version: ADAPTER_SCHEMA_VERSION,
+            verified_at: "2026-05-14T00:00:00Z".to_string(),
+        }
     }
 }

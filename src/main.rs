@@ -45,7 +45,7 @@ fn main() -> Result<()> {
         Command::Path => path_guidance::run(&context),
         Command::Status => status::run(&context),
         Command::Doctor => doctor::run(&context),
-        Command::Uninstall(args) => uninstall::run(args.include_binary, &context),
+        Command::Uninstall(args) => uninstall::run(args, &context),
     }
 }
 

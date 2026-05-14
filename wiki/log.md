@@ -1,5 +1,34 @@
 # Wiki Log
 
+## [2026-05-14] update | idempotent search model install implementation
+
+Implemented the idempotent search model install plan. Added managed model
+artifact classification, explicit reused/downloaded materialization outcomes,
+enabled-search install planning, license-only prompting for verified artifacts
+with stale acceptance records, missing-only downloads, force-scoped corrupt
+artifact replacement, disabled-search license invalidation, and explicit
+cleanup guidance when model or semantic index artifacts remain.
+
+Added `llm-wiki uninstall --search-artifacts` for targeted model/search
+artifact cleanup with an enabled-search refusal unless `--force` is supplied.
+Full `llm-wiki uninstall` now removes global framework-owned registry, search
+config, accepted licenses, model artifacts, managed indexes, thresholds,
+backups, and legacy cache state while preserving project-local repositories and
+project-local `.llm_wiki/` folders.
+
+Verification: `cargo fmt --check`; `cargo test search_models --workspace`;
+`cargo test install::tests --workspace`; `cargo test --test install`;
+`cargo clippy --all-targets --all-features -- -D warnings`; `git diff
+--check`; `cargo test --workspace`.
+
+Pages affected: src/search_models.rs, src/install.rs, src/uninstall.rs,
+src/cli.rs, src/main.rs, tests/install.rs,
+wiki/plans/idempotent-search-model-install.plan.md,
+wiki/references/llm-search-model-licensing.reference.md,
+wiki/plans/project-registry-search-artifacts.plan.md,
+wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/index.md,
+wiki/log.md
+
 ## [2026-05-11] update | eval mode applicability and C3/C9 calibration blockers
 
 Continued the natural-language search eval improvement path after the C10

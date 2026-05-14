@@ -494,6 +494,208 @@ fn uninstall_include_binary_removes_managed_binary() {
 }
 
 #[test]
+fn uninstall_force_requires_search_artifacts() {
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .args(["uninstall", "--force"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("--search-artifacts"));
+
+    llm_wiki(home.path())
+        .args(["uninstall", "--include-binary", "--force"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("cannot be used with '--force'"));
+}
+
+#[test]
+fn disable_llm_search_preserves_artifacts_and_prints_cleanup_guidance() {
+    let home = TempDir::new().expect("home");
+    seed_search_artifacts(home.path());
+
+    llm_wiki(home.path())
+        .args(["install", "--skip-path-guidance", "--disable-llm-search"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "llm-wiki uninstall --search-artifacts",
+        ));
+
+    assert!(
+        home.path()
+            .join(".llm_wiki/models/fixture/model.gguf")
+            .exists()
+    );
+    assert!(
+        home.path()
+            .join(".llm_wiki/indexes/fixture/semantic-index.json")
+            .exists()
+    );
+    let accepted = read_toml(&home.path().join(".llm_wiki/accepted-licenses.toml"));
+    assert!(
+        accepted["licenses"]
+            .as_array()
+            .expect("licenses array")
+            .is_empty()
+    );
+}
+
+#[test]
+fn search_artifact_cleanup_refuses_when_either_global_search_profile_is_enabled() {
+    for (project_default_enabled, global_search_enabled) in [(true, false), (false, true)] {
+        let home = TempDir::new().expect("home");
+        seed_search_artifacts(home.path());
+        write_search_config(home.path(), project_default_enabled, global_search_enabled);
+
+        llm_wiki(home.path())
+            .args(["uninstall", "--search-artifacts"])
+            .assert()
+            .failure()
+            .stderr(predicate::str::contains(
+                "refusing to remove search artifacts while LLM search is enabled",
+            ));
+
+        assert!(
+            home.path()
+                .join(".llm_wiki/models/fixture/model.gguf")
+                .exists()
+        );
+    }
+}
+
+#[test]
+fn forced_search_artifact_cleanup_deletes_artifacts_without_rewriting_search_config() {
+    let home = TempDir::new().expect("home");
+    seed_search_artifacts(home.path());
+    write_search_config(home.path(), true, true);
+
+    llm_wiki(home.path())
+        .args(["uninstall", "--search-artifacts", "--force"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Removed LLM search artifacts"));
+
+    assert!(!home.path().join(".llm_wiki/models").exists());
+    assert!(
+        !home
+            .path()
+            .join(".llm_wiki/accepted-licenses.toml")
+            .exists()
+    );
+    assert!(
+        !home
+            .path()
+            .join(".llm_wiki/search-thresholds.toml")
+            .exists()
+    );
+    assert!(
+        !home
+            .path()
+            .join(".llm_wiki/indexes/fixture/semantic-index.json")
+            .exists()
+    );
+    assert!(
+        !home
+            .path()
+            .join(".llm_wiki/indexes/fixture/semantic-vectors.json")
+            .exists()
+    );
+    assert!(
+        home.path()
+            .join(".llm_wiki/indexes/fixture/qmd-rs.sqlite")
+            .exists()
+    );
+    let search = read_toml(&home.path().join(".llm_wiki/search.toml"));
+    assert_eq!(
+        search["project_default"]["llm_search_enabled"].as_bool(),
+        Some(true)
+    );
+    assert_eq!(
+        search["global_search"]["llm_search_enabled"].as_bool(),
+        Some(true)
+    );
+}
+
+#[test]
+fn search_artifact_cleanup_preserves_install_registry_and_lexical_indexes() {
+    let home = TempDir::new().expect("home");
+    llm_wiki(home.path())
+        .args(["install", "--disable-llm-search"])
+        .assert()
+        .success();
+    seed_search_artifacts(home.path());
+    write_project_registry(home.path());
+
+    llm_wiki(home.path())
+        .args(["uninstall", "--search-artifacts"])
+        .assert()
+        .success();
+
+    assert!(home.path().join(".llm_wiki/manifest.json").exists());
+    assert!(home.path().join(".llm_wiki/bin/llm-wiki").exists());
+    assert!(
+        home.path()
+            .join(".claude/skills/wiki-init/SKILL.md")
+            .exists()
+    );
+    assert!(
+        home.path()
+            .join(".local/share/llm-wiki/projects.json")
+            .exists()
+    );
+    assert!(
+        home.path()
+            .join(".llm_wiki/indexes/fixture/qmd-rs.sqlite")
+            .exists()
+    );
+    assert!(!home.path().join(".llm_wiki/models").exists());
+    assert!(
+        !home
+            .path()
+            .join(".llm_wiki/accepted-licenses.toml")
+            .exists()
+    );
+}
+
+#[test]
+fn full_uninstall_removes_global_runtime_state_but_keeps_project_local_state() {
+    let home = TempDir::new().expect("home");
+    let project = TempDir::new().expect("project");
+    fs::create_dir_all(project.path().join(".llm_wiki")).expect("project state");
+    fs::write(project.path().join(".llm_wiki/keep"), "project-local").expect("project keep");
+
+    llm_wiki(home.path())
+        .args(["install", "--disable-llm-search"])
+        .assert()
+        .success();
+    seed_search_artifacts(home.path());
+    write_project_registry(home.path());
+
+    llm_wiki(home.path()).arg("uninstall").assert().success();
+
+    assert!(!home.path().join(".llm_wiki/manifest.json").exists());
+    assert!(!home.path().join(".llm_wiki/models").exists());
+    assert!(!home.path().join(".llm_wiki/indexes").exists());
+    assert!(!home.path().join(".llm_wiki/search.toml").exists());
+    assert!(
+        !home
+            .path()
+            .join(".llm_wiki/accepted-licenses.toml")
+            .exists()
+    );
+    assert!(
+        !home
+            .path()
+            .join(".local/share/llm-wiki/projects.json")
+            .exists()
+    );
+    assert!(home.path().join(".llm_wiki/bin/llm-wiki").exists());
+    assert!(project.path().join(".llm_wiki/keep").exists());
+}
+
+#[test]
 fn verbose_uninstall_emits_command_diagnostics() {
     let home = TempDir::new().expect("home");
 
@@ -597,6 +799,96 @@ fn assert_no_install_metadata(home: &Path) {
     assert!(!home.join(".llm_wiki/manifest.json").exists());
     assert!(!home.join(".llm_wiki/install.partial.json").exists());
     assert!(!home.join(".llm_wiki/backups").exists());
+}
+
+fn seed_search_artifacts(home: &Path) {
+    let model = home.join(".llm_wiki/models/fixture/model.gguf");
+    fs::create_dir_all(model.parent().expect("model parent")).expect("model dir");
+    fs::write(&model, "model-bytes").expect("model");
+    fs::write(
+        home.join(".llm_wiki/models/artifacts.toml"),
+        "schema_version = 1\n",
+    )
+    .expect("artifacts");
+    fs::write(
+        home.join(".llm_wiki/accepted-licenses.toml"),
+        r#"
+schema_version = 1
+updated_at = "2026-05-14T00:00:00Z"
+
+[[licenses]]
+model_id = "fixture"
+license = "test"
+accepted_at = "2026-05-14T00:00:00Z"
+accepted_by_version = "test"
+"#,
+    )
+    .expect("accepted licenses");
+    fs::write(
+        home.join(".llm_wiki/search-thresholds.toml"),
+        "schema_version = 2\nupdated_at = \"2026-05-14T00:00:00Z\"\nthresholds = []\n",
+    )
+    .expect("thresholds");
+    let index = home.join(".llm_wiki/indexes/fixture");
+    fs::create_dir_all(&index).expect("index dir");
+    fs::write(index.join("semantic-index.json"), "{}").expect("semantic metadata");
+    fs::write(index.join("semantic-vectors.json"), "{}").expect("semantic vectors");
+    fs::write(index.join("qmd-rs.sqlite"), "lexical").expect("qmd store");
+}
+
+fn write_project_registry(home: &Path) {
+    let registry = home.join(".local/share/llm-wiki/projects.json");
+    fs::create_dir_all(registry.parent().expect("registry parent")).expect("registry dir");
+    fs::write(
+        registry,
+        r#"
+{
+  "schema_version": 1,
+  "updated_at": "2026-05-14T00:00:00Z",
+  "projects": []
+}
+"#,
+    )
+    .expect("registry");
+}
+
+fn write_search_config(home: &Path, project_default_enabled: bool, global_search_enabled: bool) {
+    let search = home.join(".llm_wiki/search.toml");
+    fs::create_dir_all(search.parent().expect("search parent")).expect("search dir");
+    fs::write(
+        search,
+        format!(
+            r#"
+schema_version = 1
+updated_at = "2026-05-14T00:00:00Z"
+
+[project_default]
+{}
+
+[global_search]
+{}
+"#,
+            search_profile_toml(project_default_enabled),
+            search_profile_toml(global_search_enabled)
+        ),
+    )
+    .expect("search config");
+}
+
+fn search_profile_toml(enabled: bool) -> &'static str {
+    if enabled {
+        r#"llm_search_enabled = true
+configured_at = "2026-05-14T00:00:00Z"
+configured_by_version = "test"
+profile = "balanced"
+embedding_model = "embeddinggemma-300m-q8_0"
+query_expansion_model = "qmd-query-expansion-1.7b-q4_k_m""#
+    } else {
+        r#"llm_search_enabled = false
+configured_at = "2026-05-14T00:00:00Z"
+configured_by_version = "test"
+reason = "llm_search_disabled""#
+    }
 }
 
 fn installed_files(home: &Path) -> usize {

@@ -104,6 +104,32 @@ pub struct ModelArtifactRecord {
     pub verified_at: String,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ModelArtifactClassification {
+    Verified {
+        record: Box<ModelArtifactRecord>,
+    },
+    Missing {
+        path: PathBuf,
+    },
+    HashMismatch {
+        path: PathBuf,
+        observed_sha256: String,
+    },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MaterializedModel {
+    pub record: ModelArtifactRecord,
+    pub outcome: MaterializationOutcome,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum MaterializationOutcome {
+    Reused,
+    Downloaded,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct SearchThresholds {
     pub schema_version: u32,
@@ -495,24 +521,69 @@ pub fn materialize_model(
     profile: ProfileBundle,
     model_root: &Path,
     force: bool,
-) -> Result<ModelArtifactRecord> {
+) -> Result<MaterializedModel> {
+    materialize_model_with_downloader(model, profile, model_root, force, download_model)
+}
+
+pub fn classify_model_artifact(
+    model: SearchModel,
+    profile: ProfileBundle,
+    model_root: &Path,
+) -> Result<ModelArtifactClassification> {
     let path = model.managed_path(model_root);
-    if path.exists() {
-        let observed = sha256_file(&path)?;
-        if observed == model.expected_sha256 {
-            return artifact_record(model, profile, path, observed);
-        }
-        if !force {
-            bail!(
-                "model artifact hash mismatch for {}; rerun `llm-wiki install --configure-search --force` to replace {}",
-                model.id,
-                path.display()
-            );
-        }
+    if !path.exists() {
+        return Ok(ModelArtifactClassification::Missing { path });
     }
 
-    download_model(model, &path)?;
-    let observed = sha256_file(&path)?;
+    let observed_sha256 = sha256_file(&path)?;
+    if observed_sha256 == model.expected_sha256 {
+        return Ok(ModelArtifactClassification::Verified {
+            record: Box::new(artifact_record(model, profile, path, observed_sha256)?),
+        });
+    }
+
+    Ok(ModelArtifactClassification::HashMismatch {
+        path,
+        observed_sha256,
+    })
+}
+
+fn materialize_model_with_downloader(
+    model: SearchModel,
+    profile: ProfileBundle,
+    model_root: &Path,
+    force: bool,
+    downloader: impl Fn(SearchModel, &Path) -> Result<()>,
+) -> Result<MaterializedModel> {
+    match classify_model_artifact(model, profile, model_root)? {
+        ModelArtifactClassification::Verified { record } => Ok(MaterializedModel {
+            record: *record,
+            outcome: MaterializationOutcome::Reused,
+        }),
+        ModelArtifactClassification::Missing { path } => {
+            download_and_verify_model(model, profile, &path, downloader)
+        }
+        ModelArtifactClassification::HashMismatch { path, .. } => {
+            if !force {
+                bail!(
+                    "model artifact hash mismatch for {}; rerun `llm-wiki install --configure-search --force` to replace {}",
+                    model.id,
+                    path.display()
+                );
+            }
+            download_and_verify_model(model, profile, &path, downloader)
+        }
+    }
+}
+
+fn download_and_verify_model(
+    model: SearchModel,
+    profile: ProfileBundle,
+    path: &Path,
+    downloader: impl Fn(SearchModel, &Path) -> Result<()>,
+) -> Result<MaterializedModel> {
+    downloader(model, path)?;
+    let observed = sha256_file(path)?;
     if observed != model.expected_sha256 {
         bail!(
             "downloaded model artifact hash mismatch for {}; expected {}, observed {}",
@@ -521,7 +592,10 @@ pub fn materialize_model(
             observed
         );
     }
-    artifact_record(model, profile, path, observed)
+    Ok(MaterializedModel {
+        record: artifact_record(model, profile, path.to_path_buf(), observed)?,
+        outcome: MaterializationOutcome::Downloaded,
+    })
 }
 
 fn required_model(id: &str) -> Result<SearchModel> {
@@ -622,9 +696,39 @@ pub fn sha256_file(path: &Path) -> Result<String> {
 
 #[cfg(test)]
 mod tests {
+    use std::cell::Cell;
+    use std::fs;
+
     use super::{
-        AcceptedLicenses, DEFAULT_PROFILE_ID, EMBEDDING_GEMMA_300M, ModelRole,
-        QMD_QUERY_EXPANSION_17B, SearchThresholdStore, SearchThresholds, profile_by_id,
+        AcceptedLicenses, DEFAULT_PROFILE_ID, EMBEDDING_GEMMA_300M, MaterializationOutcome,
+        ModelArtifactClassification, ModelRole, ProfileBundle, QMD_QUERY_EXPANSION_17B,
+        SearchModel, SearchThresholdStore, SearchThresholds, classify_model_artifact,
+        materialize_model_with_downloader, profile_by_id,
+    };
+    use tempfile::TempDir;
+
+    const FIXTURE_MODEL_BYTES: &[u8] = b"fixture model";
+    const BAD_MODEL_BYTES: &[u8] = b"bad model";
+
+    const FIXTURE_MODEL: SearchModel = SearchModel {
+        id: "fixture-model-q8",
+        role: ModelRole::Embedding,
+        repository: "example/fixture-model",
+        revision: "fixture-revision",
+        file: "fixture-model.gguf",
+        license: "test-license",
+        terms_url: Some("https://example.invalid/terms"),
+        expected_sha256: "c7a3a8c7435ef8e4cf1ca2d261f7e09ca85de6cdb70f7c689a836680523a180c",
+        expected_size_bytes: 13,
+        dimensions: Some(4),
+    };
+
+    const FIXTURE_PROFILE: ProfileBundle = ProfileBundle {
+        id: "fixture-profile",
+        display_name: "Fixture profile",
+        embedding_model: FIXTURE_MODEL.id,
+        query_expansion_model: FIXTURE_MODEL.id,
+        reranker_model: None,
     };
 
     #[test]
@@ -647,6 +751,121 @@ mod tests {
         accepted.licenses[0].terms_url = Some("https://example.com/old-terms".to_string());
 
         assert!(!accepted.accepts_model(EMBEDDING_GEMMA_300M));
+    }
+
+    #[test]
+    fn model_classification_reports_missing_file() {
+        let temp = TempDir::new().expect("tempdir");
+
+        let classification = classify_model_artifact(FIXTURE_MODEL, FIXTURE_PROFILE, temp.path())
+            .expect("classification");
+
+        assert_eq!(
+            classification,
+            ModelArtifactClassification::Missing {
+                path: FIXTURE_MODEL.managed_path(temp.path())
+            }
+        );
+    }
+
+    #[test]
+    fn model_classification_verifies_local_bytes_without_artifact_record() {
+        let temp = TempDir::new().expect("tempdir");
+        write_fixture_model(temp.path(), FIXTURE_MODEL_BYTES);
+
+        let classification = classify_model_artifact(FIXTURE_MODEL, FIXTURE_PROFILE, temp.path())
+            .expect("classification");
+
+        let ModelArtifactClassification::Verified { record } = classification else {
+            panic!("expected verified classification");
+        };
+        assert_eq!(record.model_id, FIXTURE_MODEL.id);
+        assert_eq!(record.profile, FIXTURE_PROFILE.id);
+        assert_eq!(record.observed_sha256, FIXTURE_MODEL.expected_sha256);
+        assert_eq!(record.size_bytes, FIXTURE_MODEL.expected_size_bytes);
+    }
+
+    #[test]
+    fn model_classification_reports_hash_mismatch() {
+        let temp = TempDir::new().expect("tempdir");
+        write_fixture_model(temp.path(), BAD_MODEL_BYTES);
+
+        let classification = classify_model_artifact(FIXTURE_MODEL, FIXTURE_PROFILE, temp.path())
+            .expect("classification");
+
+        assert_eq!(
+            classification,
+            ModelArtifactClassification::HashMismatch {
+                path: FIXTURE_MODEL.managed_path(temp.path()),
+                observed_sha256: "28d2eb87e38b9c76005f04cdd1d43b411b1f835fe27454e4fced0db741561c52"
+                    .to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn materialize_reuses_verified_model_without_downloader() {
+        let temp = TempDir::new().expect("tempdir");
+        write_fixture_model(temp.path(), FIXTURE_MODEL_BYTES);
+        let downloader_called = Cell::new(false);
+
+        let materialized = materialize_model_with_downloader(
+            FIXTURE_MODEL,
+            FIXTURE_PROFILE,
+            temp.path(),
+            false,
+            |_, _| {
+                downloader_called.set(true);
+                Ok(())
+            },
+        )
+        .expect("materialized");
+
+        assert_eq!(materialized.outcome, MaterializationOutcome::Reused);
+        assert_eq!(materialized.record.model_id, FIXTURE_MODEL.id);
+        assert!(!downloader_called.get());
+    }
+
+    #[test]
+    fn materialize_rejects_hash_mismatch_without_force() {
+        let temp = TempDir::new().expect("tempdir");
+        write_fixture_model(temp.path(), BAD_MODEL_BYTES);
+
+        let error = materialize_model_with_downloader(
+            FIXTURE_MODEL,
+            FIXTURE_PROFILE,
+            temp.path(),
+            false,
+            |_, _| panic!("downloader should not run"),
+        )
+        .expect_err("mismatch should fail");
+
+        assert!(format!("{error:#}").contains("model artifact hash mismatch"));
+    }
+
+    #[test]
+    fn materialize_force_replaces_hash_mismatch_only() {
+        let temp = TempDir::new().expect("tempdir");
+        let path = FIXTURE_MODEL.managed_path(temp.path());
+        write_fixture_model(temp.path(), BAD_MODEL_BYTES);
+
+        let materialized = materialize_model_with_downloader(
+            FIXTURE_MODEL,
+            FIXTURE_PROFILE,
+            temp.path(),
+            true,
+            |_, destination| {
+                fs::write(destination, FIXTURE_MODEL_BYTES).expect("replacement");
+                Ok(())
+            },
+        )
+        .expect("materialized");
+
+        assert_eq!(materialized.outcome, MaterializationOutcome::Downloaded);
+        assert_eq!(
+            fs::read(path).expect("model bytes"),
+            FIXTURE_MODEL_BYTES.to_vec()
+        );
     }
 
     #[test]
@@ -720,5 +939,11 @@ mod tests {
             .expect("electric thresholds");
         assert_eq!(framework.semantic_similarity_floor, 0.400);
         assert_eq!(electric.semantic_similarity_floor, 0.571);
+    }
+
+    fn write_fixture_model(model_root: &std::path::Path, bytes: &[u8]) {
+        let path = FIXTURE_MODEL.managed_path(model_root);
+        fs::create_dir_all(path.parent().expect("model parent")).expect("model dir");
+        fs::write(path, bytes).expect("model bytes");
     }
 }

@@ -142,6 +142,10 @@ pub struct InstallArgs {
 pub struct UninstallArgs {
     #[arg(long)]
     pub include_binary: bool,
+    #[arg(long, conflicts_with = "include_binary")]
+    pub search_artifacts: bool,
+    #[arg(long, requires = "search_artifacts", conflicts_with = "include_binary")]
+    pub force: bool,
 }
 
 #[derive(Debug, clap::Args)]

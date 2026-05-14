@@ -1,7 +1,7 @@
 # Wiki Index
 
 Project: Software Project Management Framework
-Stage: D1-D11 Completed; code-pack/CLI blueprint, CLI observability, and post-V1 P1 semantic/hybrid search completed; calibrated hybrid/auto search now has project-scoped thresholds, human-accepted framework and electric-car labels, redacted raw eval evidence, durable search-mode decision coverage, post-completion readiness hardening, interactive install search posture prompting, and completed verification gates; idempotent search model install plan active; crash-report proposal open
+Stage: D1-D11 Completed; code-pack/CLI blueprint, CLI observability, and post-V1 P1 semantic/hybrid search completed; calibrated hybrid/auto search now has project-scoped thresholds, human-accepted framework and electric-car labels, redacted raw eval evidence, durable search-mode decision coverage, post-completion readiness hardening, interactive install search posture prompting, completed verification gates, and idempotent search model install/cleanup semantics; init rerun schema drift active; crash-report proposal open
 Updated: 2026-05-14
 
 ## Specs
@@ -69,7 +69,7 @@ Updated: 2026-05-14
 - [Code Pack And CLI Tool Blueprint](plans/code-pack-cli-blueprint.plan.md) — Completed — Implemented `Pack::Code`, added `cli-tool`, removed unconditional root code folders from init, and added golden tests for research/no-code and software/CLI code defaults
 - [CLI Verbose Diagnostics](plans/cli-observability.plan.md) — Completed — Implemented global `-v/--verbose`, `CliContext`, tracing stderr diagnostics, search/search-all retrieval proof, and concise command-specific diagnostics across every remaining binary command
 - [Semantic and Hybrid Search](plans/semantic-hybrid-search.plan.md) — Completed — Delivered install-time LLM search profiles, semantic indexes, auto/lexical/semantic/hybrid modes, hybrid fusion, optional reranking, search-all rank merge with per-project readiness, wiki-query metadata consumption, model/profile-aware `eval run` / `eval calibrate`, scoped thresholds, redacted raw eval evidence, human label acceptance, post-completion readiness hardening, interactive default install search prompting, and a durable semantic/hybrid search-mode decision
-- [Idempotent Search Model Install](plans/idempotent-search-model-install.plan.md) — Active — Make repeated enabled installs reuse verified managed model artifacts, support explicit search-type changes, and move model/index deletion to an explicit uninstall or cleanup command
+- [Idempotent Search Model Install](plans/idempotent-search-model-install.plan.md) — Completed — Implemented verified model reuse, license-only prompting, missing-only downloads, force-scoped replacement, disabled-search artifact preservation, targeted `uninstall --search-artifacts`, and full global runtime cleanup semantics
 - [Init Rerun Schema Drift](plans/init-rerun-pack-drift.plan.md) — Active — Detect pack-set and resolved-folder composition drift on rerun, preserve orphan content, append structured `wiki/log.md` evidence, and minimally refresh a schema-drift section in `wiki/index.md`
 
 ## Experiments

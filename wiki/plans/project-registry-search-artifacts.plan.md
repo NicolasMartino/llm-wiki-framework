@@ -114,11 +114,13 @@ Registry rules:
    explicit conflict check and does not create duplicate `search-all` results by
    default. V1 should reject same-root/different-ID duplicates unless a later
    use case proves they are needed.
-7. Superseded 2026-05-14 by
+7. Superseded and implemented 2026-05-14 by
    `wiki/plans/idempotent-search-model-install.plan.md`: full
-   `llm-wiki uninstall` is now planned to remove global framework-owned
-   registry, search index, and model/cache state while preserving project-local
-   repositories and project-local `.llm_wiki/` folders.
+   `llm-wiki uninstall` now removes global framework-owned registry, search
+   index, and model/cache state while preserving project-local repositories and
+   project-local `.llm_wiki/` folders. Targeted search-artifact cleanup uses
+   `llm-wiki uninstall --search-artifacts` and preserves lexical qmd-rs stores
+   unless full uninstall is requested.
 
 ## Initial Default-Release Contract
 
