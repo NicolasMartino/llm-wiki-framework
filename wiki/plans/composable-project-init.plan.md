@@ -13,9 +13,14 @@ Post-D11 note: this plan was written before the skill family was renamed from
 `knowledge-init`; the current active initialization spec is
 `wiki/specs/wiki-init-skill.spec.md`.
 
+Post-D10 rerun note: on 2026-05-13, `init` gained a narrow rerun mode for
+projects with `.llm_wiki/init.toml`. The manifest now stores project name and
+description as setup answers, interactive reruns prefill from the manifest, and
+rerun writes preserve existing `wiki/index.md` and `wiki/log.md`.
+
 ## Deliverable
 
-D10: `llm-wiki init` produces a tailored `AGENTS.md` and `project_guidelines.md` from a chosen blueprint plus a selected set of packs, rendered through a compile-time template engine. For Claude compatibility, init also writes a small `CLAUDE.md` shim that points at `AGENTS.md`; `AGENTS.md` is the canonical generated schema file. A per-project `.llm_wiki/` folder records the choices in `init.toml` for a future `upgrade` command. The existing static template is retired in the same change set.
+D10: `llm-wiki init` produces a tailored `AGENTS.md` and `project_guidelines.md` from a chosen blueprint plus a selected set of packs, rendered through a compile-time template engine. For Claude compatibility, init also writes a small `CLAUDE.md` shim that points at `AGENTS.md`; `AGENTS.md` is the canonical generated schema file. A per-project `.llm_wiki/` folder records setup choices in `init.toml` for reruns and a future `upgrade` command. The existing static template is retired in the same change set.
 
 Two contrasting blueprints (`ml-research` and `ops-infra`) bootstrap green wikis end-to-end, including all expected folders, doc types, and status vocabulary, with golden-file coverage proving the rendered output is byte-stable.
 
@@ -53,7 +58,9 @@ Inspect these sites before changing code:
 - The full blueprint catalog: `generic`, `web-product`, `library-sdk`, `ml-research`, `ops-infra`, `security`, `research`, `custom`.
 - Two-step interactive flow with `inquire`: `Select` over blueprints, then `MultiSelect` over packs with the blueprint's defaults pre-checked.
 - Non-interactive path: `--blueprint <name>` and repeatable `--pack <name>` flags, with the same defaulting rules.
-- Per-project `.llm_wiki/` folder, with `init.toml` recording chosen blueprint, resolved pack list, and framework version.
+- Per-project `.llm_wiki/` folder, with `init.toml` recording setup answers,
+  including project name, project description, chosen blueprint, resolved pack
+  list, and framework version.
 - Migration of the existing init template onto the same engine in this change set.
 - Migration of generated schema output from `CLAUDE.md` to `AGENTS.md` in the same change set.
 - Retirement of `<!-- SECTION:ML_AI -->` / `<!-- SECTION:SEARCH -->` flags (replaced by the `ml` and `qmd-rs-scale` packs).
@@ -134,7 +141,9 @@ Implement the smallest set of packs that exercises every code path: `ml`, `ops`,
 
 1. Define `InitManifest { blueprint: Blueprint, packs: Vec<Pack>, framework_version: String }` with `serde::Serialize`.
 2. Write `.llm_wiki/init.toml` as the last step of `init`, after all other files have been written successfully.
-3. Do not read it back yet — no `upgrade` command in this plan. Just write.
+3. D10 originally only wrote the manifest. Post-D10 rerun init now reads it
+   back for prompt defaults, while a full `upgrade` command remains out of
+   scope.
 
 ### 9. Documentation and cleanup
 

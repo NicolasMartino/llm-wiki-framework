@@ -7,7 +7,7 @@ Updated: 2026-05-13
 ## Specs
 
 - [Documentation Model](specs/documentation-model.spec.md) — Active — Three-layer architecture, operations, document types, binary distribution, composable init templates, and `llm-wiki search` scale strategy
-- [Wiki Init Skill](specs/wiki-init-skill.spec.md) — Active — `wiki-init` wrapper over `llm-wiki init --non-interactive` with blueprint and pack selection
+- [Wiki Init Skill](specs/wiki-init-skill.spec.md) — Active — `wiki-init` wrapper over `llm-wiki init` with blueprint/pack selection and manifest-backed rerun defaults
 - [Wiki Query Skill](specs/wiki-query-skill.spec.md) — Active — `wiki-query` skill for querying the wiki with citations and save-back
 - [Wiki Ingest Skill](specs/wiki-ingest-skill.spec.md) — Active — `wiki-ingest` skill for processing raw sources into wiki pages with 3-phase pipeline
 - [Wiki Lint Skill](specs/wiki-lint-skill.spec.md) — Active — `wiki-lint` skill for scanning and fixing wiki consistency issues
@@ -22,7 +22,7 @@ Updated: 2026-05-13
 - [LLM Wiki Binary Distribution](decisions/llm-wiki-binary-distribution.decision.md) — Accepted — Single Rust binary owns global skill installation, project scaffolding, and skill projection
 - [Managed Binary Runtime Install](decisions/binary-path-bootstrap.decision.md) — Accepted — `llm-wiki install` will manage a runtime binary under `~/.llm_wiki/` so installed skills do not require `PATH`
 - [Search Backend Selection](decisions/search-backend-selection.decision.md) — Accepted — qmd-rs is the D9 backend for `llm-wiki search` and `search-all`, with direct SQLite FTS5 as fallback
-- [Composable Project Init](decisions/composable-project-init.decision.md) — Accepted — `llm-wiki init` becomes a blueprint + pack composition over a compile-time template engine; per-project `.llm_wiki/init.toml` records the choices
+- [Composable Project Init](decisions/composable-project-init.decision.md) — Accepted — `llm-wiki init` is blueprint + pack composition over compile-time templates; `.llm_wiki/init.toml` records setup answers for reruns and future upgrades
 - [Skill Projection Template Engine](decisions/skill-projection-template-engine.decision.md) — Accepted — Claude/Codex skill markdown and Codex runtime config render through shared Askama templates
 - [Code Pack And CLI Tool Blueprint](decisions/code-pack-cli-blueprint.decision.md) — Accepted — Move root code/deploy folders behind an explicit `code` pack and add `cli-tool` as a command-line product blueprint
 - [Semantic Hybrid Search Mode](decisions/semantic-hybrid-search-mode.decision.md) — Accepted — `auto` defaults to calibrated hybrid when LLM search, accepted licenses, fresh semantic indexes, and scoped thresholds are ready; `search-all` reports per-project readiness; lexical remains the exact fallback, semantic-only is diagnostic, and reranking stays opt-in pending its own calibrated profile
@@ -64,7 +64,7 @@ Updated: 2026-05-13
 - [qmd-rs Search Backend](plans/qmd-rs-search-backend.plan.md) — Completed — D9 backend slice landed qmd-rs adapter, query sanitization, metadata, snippets, doctor checks, eval replay, and release findings
 - [Project Registry and Search Artifacts](plans/project-registry-search-artifacts.plan.md) — Completed — Implemented D9 registry/search commands and default-on qmd-rs release behavior
 - [Project and Skill Rename](plans/project-and-skill-rename.plan.md) — Completed — D11 executed: package renamed to `llm-wiki-rs`, `knowledge*` skill surface renamed to `wiki-*`, the Codex dispatcher renamed from `knowledge` to `wiki`, runtime mirrors regenerated, and the one-off legacy home-level symlink migration now points at frozen `.claude.legacy/` / `.codex.legacy/` trees
-- [Composable Project Init](plans/composable-project-init.plan.md) — Completed — D10 execution adopted Askama, migrated init templates, shipped blueprints + packs, two-step interactive flow, AGENTS/CLAUDE schema handling, and `.llm_wiki/init.toml`
+- [Composable Project Init](plans/composable-project-init.plan.md) — Completed — D10 execution adopted Askama, migrated init templates, shipped blueprints + packs, AGENTS/CLAUDE handling, `.llm_wiki/init.toml`, and post-D10 rerun defaults
 - [Skill Projection Template Engine](plans/skill-projection-template-engine.plan.md) — Completed — Migrated Claude/Codex skill markdown and Codex runtime config rendering onto `templates/skills/` Askama templates with byte-stable real-skill snapshots
 - [Code Pack And CLI Tool Blueprint](plans/code-pack-cli-blueprint.plan.md) — Completed — Implemented `Pack::Code`, added `cli-tool`, removed unconditional root code folders from init, and added golden tests for research/no-code and software/CLI code defaults
 - [CLI Verbose Diagnostics](plans/cli-observability.plan.md) — Completed — Implemented global `-v/--verbose`, `CliContext`, tracing stderr diagnostics, search/search-all retrieval proof, and concise command-specific diagnostics across every remaining binary command

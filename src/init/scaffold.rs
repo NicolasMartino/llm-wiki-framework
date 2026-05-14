@@ -12,13 +12,22 @@ use crate::init::sources::{copy_initial_sources, validate_initial_sources};
 use crate::paths::Paths;
 use crate::search_profile::{ProjectSearchConfig, SearchConfig};
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum InitMode {
+    Fresh,
+    Rerun,
+}
+
 pub(super) fn create_project(
     path: &Path,
     answers: &Answers,
     plan: &RenderPlan,
     initial_sources: &[PathBuf],
-) -> Result<()> {
-    refuse_framework_collision(path)?;
+) -> Result<InitMode> {
+    let mode = init_mode(path);
+    if mode == InitMode::Fresh {
+        refuse_framework_collision(path)?;
+    }
     validate_initial_sources(initial_sources)?;
     fs::create_dir_all(path).with_context(|| format!("failed to create {}", path.display()))?;
 
@@ -30,6 +39,12 @@ pub(super) fn create_project(
     }
 
     for file in &output.files {
+        if mode == InitMode::Rerun && preserves_project_knowledge(&file.path) {
+            let target = path.join(&file.path);
+            if target.exists() {
+                continue;
+            }
+        }
         fs::write(path.join(&file.path), &file.contents)
             .with_context(|| format!("failed to write {}", path.join(&file.path).display()))?;
     }
@@ -41,21 +56,43 @@ pub(super) fn create_project(
         );
     }
 
-    write_manifest(path, answers, output.resolved_packs)?;
+    write_manifest(path, answers, output.resolved_packs, mode)?;
 
-    println!("Initialized LLM Wiki project at {}", path.display());
-    Ok(())
+    match mode {
+        InitMode::Fresh => println!("Initialized LLM Wiki project at {}", path.display()),
+        InitMode::Rerun => println!("Updated LLM Wiki project at {}", path.display()),
+    }
+    Ok(mode)
+}
+
+fn init_mode(path: &Path) -> InitMode {
+    if path.join(".llm_wiki/init.toml").is_file() {
+        InitMode::Rerun
+    } else {
+        InitMode::Fresh
+    }
+}
+
+fn preserves_project_knowledge(path: &str) -> bool {
+    matches!(path, "wiki/index.md" | "wiki/log.md")
 }
 
 fn write_manifest(
     path: &Path,
     answers: &Answers,
     packs: Vec<crate::init::packs::Pack>,
+    mode: InitMode,
 ) -> Result<()> {
     let manifest_dir = path.join(".llm_wiki");
     fs::create_dir_all(&manifest_dir)
         .with_context(|| format!("failed to create {}", manifest_dir.display()))?;
-    let manifest = InitManifest::new(answers.blueprint, packs).to_toml()?;
+    let manifest = InitManifest::new(
+        answers.name.clone(),
+        answers.description.clone(),
+        answers.blueprint,
+        packs,
+    )
+    .to_toml()?;
     fs::write(manifest_dir.join("init.toml"), manifest).with_context(|| {
         format!(
             "failed to write {}",
@@ -70,7 +107,9 @@ fn write_manifest(
             manifest_dir.join("runtime.toml").display()
         )
     })?;
-    seed_project_search_config(&manifest_dir, &paths, runtime.install_id)?;
+    if mode == InitMode::Fresh || !manifest_dir.join("search.toml").exists() {
+        seed_project_search_config(&manifest_dir, &paths, runtime.install_id)?;
+    }
     Ok(())
 }
 

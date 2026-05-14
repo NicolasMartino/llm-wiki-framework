@@ -84,6 +84,151 @@ fn init_refuses_framework_artifact_collision() {
 }
 
 #[test]
+fn init_rerun_refreshes_schema_and_preserves_wiki_content() {
+    let project = TempDir::new().expect("project");
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .arg("init")
+        .arg(project.path())
+        .args([
+            "--no-register",
+            "--non-interactive",
+            "--name",
+            "Original Project",
+            "--description",
+            "Original description.",
+            "--blueprint",
+            "generic",
+        ])
+        .assert()
+        .success();
+
+    let index = "# Wiki Index\n\nProject: Original Project\n\n## Specs\n\n- custom entry\n";
+    let log = "# Wiki Log\n\n## [2026-05-13] update | custom\n\nKeep this.\n";
+    fs::write(project.path().join("wiki/index.md"), index).expect("index");
+    fs::write(project.path().join("wiki/log.md"), log).expect("log");
+
+    llm_wiki(home.path())
+        .arg("init")
+        .arg(project.path())
+        .args([
+            "--no-register",
+            "--non-interactive",
+            "--name",
+            "Updated Project",
+            "--description",
+            "Updated description.",
+            "--blueprint",
+            "web-product",
+            "--pack",
+            "api",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Updated LLM Wiki project"));
+
+    let manifest = read_init_manifest(project.path());
+    assert_eq!(manifest["project_name"].as_str(), Some("Updated Project"));
+    assert_eq!(
+        manifest["project_description"].as_str(),
+        Some("Updated description.")
+    );
+    assert_eq!(manifest["blueprint"].as_str(), Some("web-product"));
+    assert_eq!(manifest_packs(project.path()), vec!["api"]);
+    assert!(project.path().join("wiki/apis").is_dir());
+    assert!(!project.path().join("src").exists());
+    assert_eq!(
+        fs::read_to_string(project.path().join("wiki/index.md")).expect("index"),
+        index
+    );
+    assert_eq!(
+        fs::read_to_string(project.path().join("wiki/log.md")).expect("log"),
+        log
+    );
+    assert!(
+        fs::read_to_string(project.path().join("AGENTS.md"))
+            .expect("agents")
+            .contains("This is Updated Project: Updated description.")
+    );
+}
+
+#[test]
+fn init_rerun_updates_registry_entry_without_duplicate() {
+    let project = TempDir::new().expect("project");
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .arg("init")
+        .arg(project.path())
+        .args([
+            "--non-interactive",
+            "--name",
+            "Original Project",
+            "--description",
+            "Original description.",
+            "--blueprint",
+            "generic",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Project initialized. Registry: registered as original-project.",
+        ));
+
+    llm_wiki(home.path())
+        .arg("init")
+        .arg(project.path())
+        .args([
+            "--non-interactive",
+            "--name",
+            "Renamed Project",
+            "--description",
+            "Renamed description.",
+            "--blueprint",
+            "generic",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Project updated. Registry: updated original-project.",
+        ));
+
+    llm_wiki(home.path())
+        .arg("init")
+        .arg(project.path())
+        .args([
+            "--non-interactive",
+            "--name",
+            "Renamed Project",
+            "--description",
+            "Renamed description.",
+            "--blueprint",
+            "generic",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Project updated. Registry: already registered as original-project.",
+        ));
+
+    let registry = read_registry(home.path());
+    let projects = registry["projects"].as_array().expect("projects");
+    assert_eq!(projects.len(), 1);
+    assert_eq!(projects[0]["id"], "original-project");
+    assert_eq!(projects[0]["name"], "Renamed Project");
+    assert_eq!(
+        projects[0]["root"],
+        project
+            .path()
+            .canonicalize()
+            .expect("root")
+            .to_string_lossy()
+            .as_ref()
+    );
+}
+
+#[test]
 fn init_rejects_retired_type_and_scale_flags() {
     let temp = TempDir::new().expect("tempdir");
 

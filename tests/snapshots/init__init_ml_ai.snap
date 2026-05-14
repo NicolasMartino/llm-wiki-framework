@@ -637,7 +637,9 @@ Periodically or on request:
 See @AGENTS.md.
 
 # .llm_wiki/init.toml
-framework_version = "0.1.1"
+framework_version = "0.1.2"
+project_name = "Fixture Project"
+project_description = "A fixture project."
 blueprint = "custom"
 packs = ["ml"]
 

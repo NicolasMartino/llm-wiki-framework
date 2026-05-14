@@ -3013,3 +3013,40 @@ update, so the lockfile was preserved and restored around the verification.
 
 Pages updated: src/search/adapter.rs, src/search_models.rs, README.md,
 wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/log.md
+
+## [2026-05-13] update | manifest-backed init reruns
+
+Implemented rerun init as a narrow edit surface for project setup. Projects
+with `.llm_wiki/init.toml` now prefill interactive answers from the manifest;
+new manifests record project name and description alongside blueprint,
+resolved packs, and framework version. Rerun writes refresh framework-owned
+root schema files and create newly selected pack folders while preserving
+existing `wiki/index.md` and `wiki/log.md`. Follow-up review tightened
+blueprint-change behavior so rerun pack defaults follow a newly selected
+blueprint instead of pinning the old pack set, documented that saved packs from
+the previous blueprint are not preselected after a blueprint switch, and added
+registry coverage showing same-root rerun renames update the existing registry
+entry without duplicating it or changing its stable project id. The same test
+also locks unchanged registry stdout for reruns with the same name.
+
+Verification: `cargo insta test --accept -- init_profiles_match_snapshots`;
+`cargo test init --workspace`;
+`cargo clippy --all-targets --all-features -- -D warnings`;
+`git diff --check`; `cargo test --workspace`; `cargo run -- build --out .`;
+`cargo test --test build`;
+`cargo insta test --accept -p llm-wiki-schema --test real_skills`;
+`cargo test -p llm-wiki-schema --test real_skills`;
+`cargo test --test registry`. A parallel focused test attempt raced cargo
+rebuilds against install-time binary hashing; the same init suite passed when
+rerun without concurrent target mutation.
+
+Pages updated: assets/skills/wiki-init/SKILL.md,
+.claude/skills/wiki-init/SKILL.md, .codex/skills/wiki-init/SKILL.md,
+src/init/answers.rs, src/init/command.rs, src/init/manifest.rs,
+src/init/scaffold.rs, tests/init.rs, tests/snapshots/init__*.snap,
+crates/llm-wiki-schema/tests/snapshots/real_skills__wiki-init_*.snap,
+wiki/specs/wiki-init-skill.spec.md,
+wiki/decisions/composable-project-init.decision.md,
+wiki/plans/composable-project-init.plan.md,
+wiki/roadmaps/framework-v1.roadmap.md,
+wiki/specs/documentation-model.spec.md, wiki/index.md, wiki/log.md

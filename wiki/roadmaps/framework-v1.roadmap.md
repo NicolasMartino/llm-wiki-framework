@@ -440,9 +440,9 @@ Promise: `llm-wiki init` produces a tailored canonical `AGENTS.md` and
 set of opt-in packs, rendered through a compile-time template engine. Claude
 compatibility is preserved by writing a tiny `CLAUDE.md` shim pointing at
 `AGENTS.md`. The current static template gated by `<!-- SECTION:ML_AI -->` /
-`<!-- SECTION:SEARCH -->` is retired in the same change set. Each new project
-gains a `.llm_wiki/init.toml` recording the choices for a future `upgrade`
-command.
+`<!-- SECTION:SEARCH -->` is retired in the same change set. Each project
+gains a `.llm_wiki/init.toml` recording setup answers for manifest-backed
+reruns and a future `upgrade` command.
 Depends On: D8.1
 Execution Plan: wiki/plans/composable-project-init.plan.md
 
@@ -456,23 +456,31 @@ Included:
   file plus `CLAUDE.md` shim transition.
 - Rust `Pack` and `Blueprint` enums in `src/init/` with accessor methods —
   the pack catalog is a Rust API surface, not a TOML schema.
-- Initial pack catalog: `api`, `frontend`, `library`, `ml`, `data`, `ops`,
-  `ops-lite`, `security`, `research`, `qmd-rs-scale`.
+- Initial pack catalog plus post-D10 code pack: `api`, `frontend`, `library`,
+  `ml`, `data`, `ops`, `ops-lite`, `security`, `research`, `qmd-rs-scale`,
+  `code`.
 - Initial blueprint catalog: `generic`, `web-product`, `library-sdk`,
-  `ml-research`, `ops-infra`, `security`, `research`, `custom`.
+  `cli-tool`, `ml-research`, `ops-infra`, `security`, `research`, `custom`.
 - Two-step interactive flow with `inquire`: blueprint `Select`, then pack
   `MultiSelect` with the blueprint's defaults pre-checked.
 - Non-interactive flag mapping: `--blueprint <name>` and repeatable
   `--pack <name>`; the old `--type` and `--scale` init flags are retired with
   the static profile model.
-- Per-project `.llm_wiki/` folder with `init.toml` recording chosen blueprint,
-  resolved pack list, and framework version.
+- Per-project `.llm_wiki/` folder with `init.toml` recording project name,
+  project description, chosen blueprint, resolved pack list, and framework
+  version.
+- Manifest-backed rerun mode: interactive reruns prefill current setup answers,
+  newly selected pack folders are created, and existing `wiki/index.md` /
+  `wiki/log.md` content is preserved.
+- Blueprint changes during rerun use the new blueprint's pack defaults, and
+  auto-registration updates the existing same-root registry entry while
+  preserving its project id.
 
 Excluded:
 - Skill projection migration onto the same engine (sibling proposal:
   `wiki/proposals/skills-template-engine.proposal.md`).
-- An `upgrade` command. `.llm_wiki/init.toml` is written for that future, not
-  this one.
+- A full `upgrade` migration command. Rerun init can edit setup answers, but it
+  does not perform arbitrary project migrations.
 - Project-local pack overrides under `.llm_wiki/`.
 - User-defined packs (defining a pack means writing Rust).
 

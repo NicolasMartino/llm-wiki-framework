@@ -14,7 +14,11 @@ Collect project setup answers, then delegate deterministic scaffolding to the
 
 1. Determine the target path; default to the current working directory.
 2. Ask for five values: project name, one-sentence description, blueprint,
-   optional pack overrides, and optional initial source paths.
+   optional pack overrides, and optional initial source paths. If the target
+   already has `.llm_wiki/init.toml`, use the recorded project values as the
+   default answers and leave any newly introduced questions empty/defaulted.
+   If the user changes blueprint during a rerun, use the new blueprint's pack
+   defaults rather than the previous pack set.
 3. Validate that required answers are present. Accepted blueprints are
    `generic`, `web-product`, `library-sdk`, `cli-tool`, `ml-research`,
    `ops-infra`, `security`, `research`, and `custom`. Accepted packs are

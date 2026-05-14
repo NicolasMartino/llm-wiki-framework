@@ -3,7 +3,7 @@ use anyhow::Result;
 use crate::cli::InitArgs;
 use crate::init::answers::from_args;
 use crate::init::compose::RenderPlan;
-use crate::init::scaffold::create_project;
+use crate::init::scaffold::{InitMode, create_project};
 use crate::paths::Paths;
 use crate::registry;
 
@@ -35,7 +35,7 @@ pub fn run(args: &InitArgs, context: &crate::cli::CliContext) -> Result<()> {
             context.diagnostic(format!("initial source: {}", source.display()));
         }
     }
-    create_project(&args.path, &answers, &plan, &args.initial_sources)?;
+    let init_mode = create_project(&args.path, &answers, &plan, &args.initial_sources)?;
 
     let mut registry_summary = None;
     if !args.no_register {
@@ -57,8 +57,7 @@ pub fn run(args: &InitArgs, context: &crate::cli::CliContext) -> Result<()> {
                     "registration outcome: {}",
                     registry::outcome_id(&outcome)
                 ));
-                registry_summary =
-                    Some(format!("registered as {}", registry::outcome_id(&outcome)));
+                registry_summary = Some(registry_outcome_summary(&outcome));
             }
             Err(error) => {
                 context.diagnostic(format!("registration outcome: failed: {error}"));
@@ -74,8 +73,21 @@ pub fn run(args: &InitArgs, context: &crate::cli::CliContext) -> Result<()> {
     }
 
     if let Some(summary) = registry_summary {
-        println!("Project initialized. Registry: {summary}.");
+        let action = match init_mode {
+            InitMode::Fresh => "initialized",
+            InitMode::Rerun => "updated",
+        };
+        println!("Project {action}. Registry: {summary}.");
     }
 
     Ok(())
+}
+
+fn registry_outcome_summary(outcome: &registry::RegisterOutcome) -> String {
+    let id = registry::outcome_id(outcome);
+    match outcome {
+        registry::RegisterOutcome::Created(_) => format!("registered as {id}"),
+        registry::RegisterOutcome::Updated(_) => format!("updated {id}"),
+        registry::RegisterOutcome::Unchanged(_) => format!("already registered as {id}"),
+    }
 }

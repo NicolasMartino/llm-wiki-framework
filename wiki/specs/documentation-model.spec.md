@@ -24,7 +24,9 @@ selection. `CLAUDE.md` is generated as `See @AGENTS.md.` for compatibility.
 Root code/deploy folders (`src/`, `tests/`, `scripts/`, `infra/`) are created
 only when the resolved pack set includes the `code` pack. Software-shaped
 blueprints, including `cli-tool`, default to `code`; `generic`, `research`, and
-`custom` do not.
+`custom` do not. Project init writes `.llm_wiki/init.toml` with the setup
+answers needed for reruns: project name, project description, blueprint,
+resolved packs, and framework version.
 
 Framework distribution is binary-owned. The `llm-wiki` Rust binary embeds the
 canonical skill sources and templates, renders runtime skill variants, installs
@@ -163,6 +165,9 @@ future CLI implementation plans and code reviews.
   using `--blueprint` and repeatable `--pack`, with golden tests for generic,
   custom-pack, `research`, `web-product`, `cli-tool`, `ml-research`, and
   `ops-infra` outputs
+- Rerunning `llm-wiki init` against a project with `.llm_wiki/init.toml`
+  preloads current setup answers, can create newly selected pack folders, and
+  preserves existing `wiki/index.md` and `wiki/log.md`
 - `llm-wiki build --out .` regenerates this repo's committed runtime skill
   outputs from canonical skill markdown
 - This project uses the framework to manage itself
