@@ -3050,3 +3050,32 @@ wiki/decisions/composable-project-init.decision.md,
 wiki/plans/composable-project-init.plan.md,
 wiki/roadmaps/framework-v1.roadmap.md,
 wiki/specs/documentation-model.spec.md, wiki/index.md, wiki/log.md
+
+## [2026-05-14] create | idempotent search model install plan
+
+Created an active plan for making repeated enabled `llm-wiki install` runs
+reuse already verified managed model artifacts instead of downloading unchanged
+model bytes again. The plan covers model-state classification, explicit
+reuse/download outcomes, prompt skipping for complete profiles, force semantics,
+tests, and documentation follow-up. Clarified that `install --configure-search`
+is also the explicit search-type change surface: switching to lexical-only
+writes a disabled search profile immediately and reports leftover artifacts,
+while model/index artifact deletion belongs to a separate explicit uninstall or
+cleanup command rather than the install/configure flow. The targeted
+search-artifact cleanup path is required to refuse while LLM search is still
+enabled unless the user passes `--force`.
+
+Pages updated: wiki/plans/idempotent-search-model-install.plan.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-14] update | init rerun schema drift plan
+
+Revised the active init rerun drift plan from pack-set-only log append behavior
+to schema-drift audit behavior. The plan now treats both pack-set changes and
+same-pack resolved-folder composition changes as drift, records resolved folders
+in future manifests, preserves orphan content on disk, appends structured
+`wiki/log.md` evidence, and minimally refreshes a generated `wiki/index.md`
+schema-drift section without pruning existing catalog entries.
+
+Pages updated: wiki/plans/init-rerun-pack-drift.plan.md, wiki/index.md,
+wiki/log.md
