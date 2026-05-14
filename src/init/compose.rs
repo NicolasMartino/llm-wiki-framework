@@ -65,11 +65,7 @@ pub fn compose(plan: &RenderPlan) -> Result<InitOutput> {
     let agents_fragments = collect_agents_fragments(&packs)?;
     let guidelines_fragments = collect_guidelines_fragments(&packs)?;
 
-    let mut folders = BTreeSet::new();
-    folders.extend(SPINE_FOLDERS.iter().map(|folder| (*folder).to_string()));
-    for pack in &packs {
-        folders.extend(pack.folders().iter().map(|folder| (*folder).to_string()));
-    }
+    let folders = resolve_folders(&packs);
 
     let files = vec![
         InitFile {
@@ -105,12 +101,21 @@ pub fn compose(plan: &RenderPlan) -> Result<InitOutput> {
     ];
 
     Ok(InitOutput {
-        folders: folders.into_iter().collect(),
+        folders,
         files,
         resolved_packs: packs.clone(),
         doc_types: dedupe_doc_types(&packs),
         status_vocab: dedupe_status_vocab(&packs),
     })
+}
+
+pub(super) fn resolve_folders(packs: &[Pack]) -> Vec<String> {
+    let mut folders = BTreeSet::new();
+    folders.extend(SPINE_FOLDERS.iter().map(|folder| (*folder).to_string()));
+    for pack in packs {
+        folders.extend(pack.folders().iter().map(|folder| (*folder).to_string()));
+    }
+    folders.into_iter().collect()
 }
 
 fn dedupe_packs(packs: &[Pack]) -> Vec<Pack> {

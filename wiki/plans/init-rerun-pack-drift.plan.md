@@ -1,7 +1,7 @@
 # Plan: Init Rerun Schema Drift Recorded In Wiki
 
 - Document Class: Plan
-- Status: Active
+- Status: Completed
 - Date: 2026-05-14
 - Category: Tooling, project scaffolding, rerun observability
 - Scope: Extend `llm-wiki init` rerun behavior so that when the resolved pack set or resolved pack composition changes, the rerun records schema drift in `wiki/log.md` and a minimal `wiki/index.md` drift section. Orphan-folder content stays on disk; users or future lint cleanup decide whether to archive, rehome, or remove it.
@@ -125,9 +125,25 @@ Inspect these sites before changing code:
 ## Verification Gates
 
 1. `cargo test --workspace` is green, including the three new init rerun assertions.
-2. `cargo insta test --accept` shows no churn in existing init snapshots (the change only affects rerun paths, and snapshot tests are fresh-init).
+2. `cargo insta test --accept` shows only the expected fresh-init snapshot
+   churn from adding `resolved_folders` to `.llm_wiki/init.toml`.
 3. A manual smoke: init a `generic` project, write a marker line into `wiki/index.md` and `wiki/log.md`, rerun with `--blueprint ml-research`, observe (a) the existing marker/catalog content in `wiki/index.md` is preserved, (b) `wiki/index.md` has a schema-drift section naming newly claimed and orphaned folders, (c) `wiki/log.md` ends with a `schema drift | generic -> ml-research` entry naming `ml`, `data`, `research`, `code` as added packs and listing the new folders, and (d) `llm-wiki search "schema drift"` can surface the changed log/index after reindex because those wiki markdown files changed.
 4. Outside the generated schema-drift section, `wiki/index.md` is byte-identical between the pre-rerun and post-rerun state in the drift test.
+
+## Completion Evidence
+
+Completed on 2026-05-14. The implementation records `resolved_folders` in
+fresh and rerun init manifests, computes rerun drift before manifest overwrite,
+appends an idempotent structured `wiki/log.md` entry, and adds or refreshes only
+the generated `## Schema Drift` section in `wiki/index.md`.
+
+Verification passed with `cargo test --test init init_rerun`,
+`cargo test -p llm-wiki-rs search::qmd_rs::tests::staleness_tracks_wiki_markdown_file_snapshots`,
+`cargo insta test --accept`, `cargo test --workspace`, and
+`cargo clippy --workspace --all-targets`. The manual smoke initialized a
+generic project, preserved marker content in generated wiki files, reran as
+`ml-research`, indexed the project, and confirmed `llm-wiki search "schema
+drift"` returned both `wiki/log.md` and `wiki/index.md`.
 
 ## Pages To Update On Completion
 

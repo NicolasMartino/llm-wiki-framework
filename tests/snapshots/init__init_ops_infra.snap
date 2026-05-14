@@ -618,6 +618,25 @@ packs = [
     "ops",
     "code",
 ]
+resolved_folders = [
+    "infra",
+    "raw",
+    "raw/incidents",
+    "scripts",
+    "src",
+    "tests",
+    "wiki/archive",
+    "wiki/checklists",
+    "wiki/decisions",
+    "wiki/plans",
+    "wiki/postmortems",
+    "wiki/proposals",
+    "wiki/references",
+    "wiki/roadmaps",
+    "wiki/runbooks",
+    "wiki/slos",
+    "wiki/specs",
+]
 
 # wiki/index.md
 # Wiki Index

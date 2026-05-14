@@ -600,6 +600,17 @@ project_name = "Fixture Project"
 project_description = "A fixture project."
 blueprint = "custom"
 packs = ["qmd-rs-scale"]
+resolved_folders = [
+    "raw",
+    "wiki/archive",
+    "wiki/checklists",
+    "wiki/decisions",
+    "wiki/plans",
+    "wiki/proposals",
+    "wiki/references",
+    "wiki/roadmaps",
+    "wiki/specs",
+]
 
 # wiki/index.md
 # Wiki Index

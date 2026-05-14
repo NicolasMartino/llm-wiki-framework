@@ -2,10 +2,10 @@
 
 - Document Class: Spec
 - Status: Active
-- Date: 2026-05-08
+- Date: 2026-05-14
 - Category: Tooling
 - Scope: The `wiki-init` agent skill as a thin conversational wrapper over the `llm-wiki init` binary command.
-- Sources: assets/skills/wiki-init/SKILL.md, src/init/mod.rs, src/init/blueprints.rs, src/init/packs.rs, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/decisions/composable-project-init.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md
+- Sources: assets/skills/wiki-init/SKILL.md, src/init/mod.rs, src/init/blueprints.rs, src/init/packs.rs, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/decisions/composable-project-init.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/plans/init-rerun-pack-drift.plan.md
 - Related: wiki/specs/documentation-model.spec.md, wiki/specs/wiki-ingest-skill.spec.md, wiki/decisions/composable-project-init.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/plans/composable-project-init.plan.md
 
 ## Contract
@@ -76,9 +76,10 @@ The `custom` blueprint starts with no pack defaults.
 When `llm-wiki init <path>` targets a project with `.llm_wiki/init.toml`,
 interactive prompts are prefilled from the current project manifest. The
 manifest records project name, project description, blueprint, resolved packs,
-and framework version. Projects initialized before name and description were
-recorded fall back to generated `wiki/index.md`, `AGENTS.md`, or
-`project_guidelines.md` when those values can be recovered.
+resolved folders, and framework version. Projects initialized before name,
+description, or resolved folders were recorded fall back to generated
+`wiki/index.md`, `AGENTS.md`, or `project_guidelines.md` when those values can
+be recovered.
 
 The pack multiselect uses the manifest's saved pack set when the selected
 blueprint still matches the manifest blueprint. If the user switches blueprint
@@ -94,6 +95,17 @@ manifest is present. When registration is enabled, rerun init updates the
 existing registry entry matched by canonical project root rather than creating
 a duplicate; the existing project id remains stable.
 
+When a rerun changes the resolved pack set, or when the same resolved pack set
+now resolves to a different folder composition than the previous manifest
+recorded, init records schema drift before replacing `.llm_wiki/init.toml`.
+The audit appends a fixed-shape `init | schema drift` entry to `wiki/log.md`
+and adds or refreshes only a generated `## Schema Drift` section in
+`wiki/index.md`. Existing catalog entries stay intact, orphaned folders and
+their content remain on disk, and cleanup remains a manual or future
+`wiki-lint` concern. Search freshness follows changed wiki markdown file
+snapshots, including `wiki/index.md` and `wiki/log.md`, rather than parent
+directory timestamps.
+
 ## Proven By
 
 - `llm-wiki init` has golden tests for baseline, ML, qmd-rs, combined ML+qmd-rs,
@@ -105,10 +117,14 @@ a duplicate; the existing project id remains stable.
 - `llm-wiki init` refuses paths containing framework artifacts.
 - Initial-source tests assert files are copied into `raw/initial/` and no ingest results appear in `wiki/`.
 - The init manifest records project name, project description, blueprint,
-  resolved packs, and framework version in `.llm_wiki/init.toml`.
+  resolved packs, resolved folders, and framework version in
+  `.llm_wiki/init.toml`.
 - Rerun tests assert existing manifests prefill current answers, selected
-  packs can be changed, new pack folders are created, and existing
-  `wiki/index.md` / `wiki/log.md` content is preserved.
+  packs can be changed, new pack folders are created, existing
+  `wiki/index.md` / `wiki/log.md` content is preserved, schema drift is
+  recorded for pack-set and same-pack folder-composition changes, identical
+  reruns do not write drift breadcrumbs, and legacy manifests without
+  `resolved_folders` are upgraded without false same-pack drift.
 - Registry rerun tests assert project rename updates the existing same-root
   registry entry without changing its id or creating a duplicate.
 - The `wiki-init` canonical is embedded at compile time and projection snapshots lock both runtime variants.

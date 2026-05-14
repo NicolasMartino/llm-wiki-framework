@@ -565,6 +565,38 @@ mod tests {
     }
 
     #[test]
+    fn staleness_tracks_wiki_markdown_file_snapshots() {
+        let temp = tempfile::TempDir::new().expect("tempdir");
+        let wiki = temp.path().join("wiki");
+        fs::create_dir_all(&wiki).expect("mkdir");
+        fs::write(wiki.join("index.md"), "# Index").expect("index");
+        fs::write(wiki.join("log.md"), "# Log").expect("log");
+
+        let store = temp.path().join("indexes/project/qmd-rs.sqlite");
+        let backend = QmdRsBackend::new();
+        backend
+            .index_project("fixture", &wiki, &store, &IndexOptions { force: true })
+            .expect("index");
+
+        fs::write(wiki.join(".directory-marker"), "parent mtime only").expect("marker");
+        let ready = backend.status(&store, &wiki).expect("status");
+        assert_eq!(ready.state, BackendState::Ready);
+
+        fs::write(
+            wiki.join("index.md"),
+            "# Index\n\n## Schema Drift\n\nLatest drift: 2026-05-14\n",
+        )
+        .expect("index");
+        fs::write(
+            wiki.join("log.md"),
+            "# Log\n\n## [2026-05-14] init | schema drift | generic -> web-product\n",
+        )
+        .expect("log");
+        let stale = backend.status(&store, &wiki).expect("status");
+        assert_eq!(stale.state, BackendState::Stale);
+    }
+
+    #[test]
     fn index_masks_search_ignored_spans() {
         let temp = tempfile::TempDir::new().expect("tempdir");
         let wiki = temp.path().join("wiki");

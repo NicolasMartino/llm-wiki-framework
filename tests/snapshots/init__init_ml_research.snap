@@ -699,6 +699,34 @@ packs = [
     "research",
     "code",
 ]
+resolved_folders = [
+    "data",
+    "evals",
+    "infra",
+    "models",
+    "notebooks",
+    "raw",
+    "raw/data",
+    "raw/papers",
+    "scripts",
+    "src",
+    "tests",
+    "wiki/archive",
+    "wiki/checklists",
+    "wiki/data",
+    "wiki/datasets",
+    "wiki/decisions",
+    "wiki/evals",
+    "wiki/experiments",
+    "wiki/hypotheses",
+    "wiki/literature",
+    "wiki/model-cards",
+    "wiki/plans",
+    "wiki/proposals",
+    "wiki/references",
+    "wiki/roadmaps",
+    "wiki/specs",
+]
 
 # wiki/index.md
 # Wiki Index

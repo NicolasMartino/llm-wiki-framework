@@ -2,10 +2,10 @@
 
 - Document Class: Spec
 - Status: Active
-- Date: 2026-05-11
+- Date: 2026-05-14
 - Category: Framework core
 - Scope: The validated documentation and execution model for projects using this framework.
-- Sources: raw/legacy/legacy-project-guidelines.md, raw/research/llm-wiki-pattern-research.md, raw/research/niharshrotri-llm-wiki-implementation.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/plans/cli-observability.plan.md, wiki/decisions/composable-project-init.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/evals/v1-proof-run.eval.md, wiki/evals/natural-language-search.eval.md
+- Sources: raw/legacy/legacy-project-guidelines.md, raw/research/llm-wiki-pattern-research.md, raw/research/niharshrotri-llm-wiki-implementation.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/plans/cli-observability.plan.md, wiki/decisions/composable-project-init.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/plans/init-rerun-pack-drift.plan.md, wiki/evals/v1-proof-run.eval.md, wiki/evals/natural-language-search.eval.md
 - Related: wiki/decisions/three-layer-architecture.decision.md, wiki/decisions/agent-owns-wiki.decision.md, wiki/decisions/typed-documents.decision.md, wiki/references/qmd-rs-search-crate.reference.md, wiki/decisions/search-backend-selection.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/specs/wiki-init-skill.spec.md, wiki/specs/wiki-query-skill.spec.md, wiki/checklists/observability-contract.checklist.md
 
 ## Current State
@@ -26,7 +26,7 @@ only when the resolved pack set includes the `code` pack. Software-shaped
 blueprints, including `cli-tool`, default to `code`; `generic`, `research`, and
 `custom` do not. Project init writes `.llm_wiki/init.toml` with the setup
 answers needed for reruns: project name, project description, blueprint,
-resolved packs, and framework version.
+resolved packs, resolved folders, and framework version.
 
 Framework distribution is binary-owned. The `llm-wiki` Rust binary embeds the
 canonical skill sources and templates, renders runtime skill variants, installs
@@ -167,7 +167,10 @@ future CLI implementation plans and code reviews.
   `ops-infra` outputs
 - Rerunning `llm-wiki init` against a project with `.llm_wiki/init.toml`
   preloads current setup answers, can create newly selected pack folders, and
-  preserves existing `wiki/index.md` and `wiki/log.md`
+  preserves existing `wiki/index.md` and `wiki/log.md`; when the resolved pack
+  set or resolved folder composition changes, rerun appends structured
+  schema-drift evidence to `wiki/log.md` and refreshes only the generated
+  schema-drift section in `wiki/index.md`
 - `llm-wiki build --out .` regenerates this repo's committed runtime skill
   outputs from canonical skill markdown
 - This project uses the framework to manage itself

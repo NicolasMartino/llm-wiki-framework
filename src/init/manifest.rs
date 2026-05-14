@@ -16,6 +16,8 @@ pub struct InitManifest {
     pub project_description: Option<String>,
     pub blueprint: Blueprint,
     pub packs: Vec<Pack>,
+    #[serde(default)]
+    pub resolved_folders: Vec<String>,
 }
 
 impl InitManifest {
@@ -24,6 +26,7 @@ impl InitManifest {
         project_description: impl Into<String>,
         blueprint: Blueprint,
         packs: Vec<Pack>,
+        resolved_folders: Vec<String>,
     ) -> Self {
         Self {
             framework_version: env!("CARGO_PKG_VERSION").to_string(),
@@ -31,6 +34,7 @@ impl InitManifest {
             project_description: Some(project_description.into()),
             blueprint,
             packs,
+            resolved_folders,
         }
     }
 

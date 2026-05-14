@@ -642,6 +642,23 @@ project_name = "Fixture Project"
 project_description = "A fixture project."
 blueprint = "custom"
 packs = ["ml"]
+resolved_folders = [
+    "evals",
+    "models",
+    "notebooks",
+    "raw",
+    "wiki/archive",
+    "wiki/checklists",
+    "wiki/decisions",
+    "wiki/evals",
+    "wiki/experiments",
+    "wiki/model-cards",
+    "wiki/plans",
+    "wiki/proposals",
+    "wiki/references",
+    "wiki/roadmaps",
+    "wiki/specs",
+]
 
 # wiki/index.md
 # Wiki Index

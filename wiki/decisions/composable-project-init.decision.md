@@ -103,6 +103,14 @@ blueprint, the pack prompt follows the new blueprint defaults instead of
 pinning the old pack set. Auto-registration updates the existing same-root
 registry entry and keeps the project id stable.
 
+On 2026-05-14, rerun init gained a schema-drift audit without becoming a full
+migration engine. New manifests record resolved folders; reruns compare the
+previous manifest's pack set and resolved folder composition against the
+current composition before overwrite. When drift exists, init preserves orphan
+content on disk, appends structured evidence to `wiki/log.md`, and refreshes a
+minimal generated `## Schema Drift` section in `wiki/index.md` while preserving
+existing catalog entries.
+
 ## What Would Cause This Decision To Be Revisited
 
 - The blueprint catalog stops fitting real project shapes after dogfooding (the third or fourth project can't be expressed as a blueprint + pack combination).

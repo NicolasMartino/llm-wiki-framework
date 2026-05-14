@@ -644,6 +644,27 @@ packs = [
     "ops-lite",
     "code",
 ]
+resolved_folders = [
+    "infra",
+    "raw",
+    "raw/api",
+    "raw/screenshots",
+    "scripts",
+    "src",
+    "tests",
+    "wiki/apis",
+    "wiki/archive",
+    "wiki/checklists",
+    "wiki/components",
+    "wiki/decisions",
+    "wiki/designs",
+    "wiki/plans",
+    "wiki/proposals",
+    "wiki/references",
+    "wiki/roadmaps",
+    "wiki/runbooks",
+    "wiki/specs",
+]
 
 # wiki/index.md
 # Wiki Index

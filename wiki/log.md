@@ -3119,3 +3119,30 @@ schema-drift section without pruning existing catalog entries.
 
 Pages updated: wiki/plans/init-rerun-pack-drift.plan.md, wiki/index.md,
 wiki/log.md
+
+## [2026-05-14] update | init rerun schema drift implementation
+
+Completed the init rerun schema-drift audit. New init manifests record
+`resolved_folders`; reruns compare the previous pack set and resolved folder
+composition against the current composition before manifest overwrite. Drift
+runs append an idempotent structured `init | schema drift` entry to generated
+`wiki/log.md`, refresh only the generated `## Schema Drift` section in
+generated `wiki/index.md`, preserve existing catalog entries, and leave orphan
+folders/content on disk. Added coverage for pack-set drift, same-pack
+folder-composition drift, no-drift reruns, legacy manifests without
+`resolved_folders`, and qmd-rs staleness from changed wiki markdown file
+snapshots.
+
+Verification: `cargo test --test init init_rerun`;
+`cargo test -p llm-wiki-rs search::qmd_rs::tests::staleness_tracks_wiki_markdown_file_snapshots`;
+`cargo insta test --accept`; `cargo test --workspace`;
+`cargo clippy --workspace --all-targets`; manual smoke with a generic temp
+project rerun as `ml-research`, followed by `llm-wiki index --force` and
+`llm-wiki search "schema drift"` returning both generated `wiki/log.md` and
+`wiki/index.md`.
+
+Pages updated: src/init/compose.rs, src/init/manifest.rs, src/init/scaffold.rs,
+src/search/qmd_rs.rs, tests/init.rs, tests/snapshots/init__*.snap,
+wiki/plans/init-rerun-pack-drift.plan.md, wiki/specs/wiki-init-skill.spec.md,
+wiki/specs/documentation-model.spec.md,
+wiki/decisions/composable-project-init.decision.md, wiki/index.md, wiki/log.md

@@ -1,12 +1,12 @@
 # Wiki Index
 
 Project: Software Project Management Framework
-Stage: D1-D11 Completed; code-pack/CLI blueprint, CLI observability, and post-V1 P1 semantic/hybrid search completed; calibrated hybrid/auto search now has project-scoped thresholds, human-accepted framework and electric-car labels, redacted raw eval evidence, durable search-mode decision coverage, post-completion readiness hardening, interactive install search posture prompting, completed verification gates, and idempotent search model install/cleanup semantics; init rerun schema drift active; crash-report proposal open
+Stage: D1-D11 Completed; code-pack/CLI blueprint, CLI observability, post-V1 P1 semantic/hybrid search, idempotent search model install/cleanup semantics, and init rerun schema-drift audit completed; calibrated hybrid/auto search now has project-scoped thresholds, human-accepted framework and electric-car labels, redacted raw eval evidence, durable search-mode decision coverage, post-completion readiness hardening, interactive install search posture prompting, and completed verification gates; crash-report proposal open
 Updated: 2026-05-14
 
 ## Specs
 
-- [Documentation Model](specs/documentation-model.spec.md) — Active — Three-layer architecture, operations, document types, binary distribution, composable init templates, and `llm-wiki search` scale strategy
+- [Documentation Model](specs/documentation-model.spec.md) — Active — Three-layer architecture, operations, document types, binary distribution, composable init templates, rerun schema-drift audit, and `llm-wiki search` scale strategy
 - [Wiki Init Skill](specs/wiki-init-skill.spec.md) — Active — `wiki-init` wrapper over `llm-wiki init` with blueprint/pack selection and manifest-backed rerun defaults
 - [Wiki Query Skill](specs/wiki-query-skill.spec.md) — Active — `wiki-query` skill for querying the wiki with citations and save-back
 - [Wiki Ingest Skill](specs/wiki-ingest-skill.spec.md) — Active — `wiki-ingest` skill for processing raw sources into wiki pages with 3-phase pipeline
@@ -70,7 +70,7 @@ Updated: 2026-05-14
 - [CLI Verbose Diagnostics](plans/cli-observability.plan.md) — Completed — Implemented global `-v/--verbose`, `CliContext`, tracing stderr diagnostics, search/search-all retrieval proof, and concise command-specific diagnostics across every remaining binary command
 - [Semantic and Hybrid Search](plans/semantic-hybrid-search.plan.md) — Completed — Delivered install-time LLM search profiles, semantic indexes, auto/lexical/semantic/hybrid modes, hybrid fusion, optional reranking, search-all rank merge with per-project readiness, wiki-query metadata consumption, model/profile-aware `eval run` / `eval calibrate`, scoped thresholds, redacted raw eval evidence, human label acceptance, post-completion readiness hardening, interactive default install search prompting, and a durable semantic/hybrid search-mode decision
 - [Idempotent Search Model Install](plans/idempotent-search-model-install.plan.md) — Completed — Implemented verified model reuse, license-only prompting, missing-only downloads, force-scoped replacement, disabled-search artifact preservation, targeted `uninstall --search-artifacts`, and full global runtime cleanup semantics
-- [Init Rerun Schema Drift](plans/init-rerun-pack-drift.plan.md) — Active — Detect pack-set and resolved-folder composition drift on rerun, preserve orphan content, append structured `wiki/log.md` evidence, and minimally refresh a schema-drift section in `wiki/index.md`
+- [Init Rerun Schema Drift](plans/init-rerun-pack-drift.plan.md) — Completed — Detects pack-set and resolved-folder composition drift on rerun, preserves orphan content, appends structured `wiki/log.md` evidence, refreshes or appends an init-owned schema-drift section in `wiki/index.md`, and records `resolved_folders` in init manifests
 
 ## Experiments
 

@@ -635,6 +635,20 @@ packs = [
     "research",
     "qmd-rs-scale",
 ]
+resolved_folders = [
+    "raw",
+    "raw/papers",
+    "wiki/archive",
+    "wiki/checklists",
+    "wiki/decisions",
+    "wiki/hypotheses",
+    "wiki/literature",
+    "wiki/plans",
+    "wiki/proposals",
+    "wiki/references",
+    "wiki/roadmaps",
+    "wiki/specs",
+]
 
 # wiki/index.md
 # Wiki Index

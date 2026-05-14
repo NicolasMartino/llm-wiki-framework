@@ -84,7 +84,7 @@ fn init_refuses_framework_artifact_collision() {
 }
 
 #[test]
-fn init_rerun_refreshes_schema_and_preserves_wiki_content() {
+fn init_rerun_appends_schema_drift_log_and_index_entry() {
     let project = TempDir::new().expect("project");
     let home = TempDir::new().expect("home");
 
@@ -138,6 +138,79 @@ fn init_rerun_refreshes_schema_and_preserves_wiki_content() {
     assert_eq!(manifest_packs(project.path()), vec!["api"]);
     assert!(project.path().join("wiki/apis").is_dir());
     assert!(!project.path().join("src").exists());
+    let folders = manifest_resolved_folders(project.path());
+    assert!(folders.contains(&"raw/api".to_string()));
+    assert!(folders.contains(&"wiki/apis".to_string()));
+
+    let updated_index = fs::read_to_string(project.path().join("wiki/index.md")).expect("index");
+    assert!(updated_index.starts_with(index));
+    assert!(updated_index.contains("## Schema Drift"));
+    assert!(updated_index.contains("Newly claimed folders: raw/api, wiki/apis"));
+    assert!(updated_index.contains("Orphaned folders: none"));
+    assert!(updated_index.contains("Audit trail: `wiki/log.md`"));
+
+    let updated_log = fs::read_to_string(project.path().join("wiki/log.md")).expect("log");
+    assert!(updated_log.starts_with(log));
+    assert!(updated_log.contains("init | schema drift | generic -> web-product"));
+    assert!(updated_log.contains("Added packs: api"));
+    assert!(updated_log.contains("Removed packs: none"));
+    assert!(updated_log.contains("Trigger: both"));
+    assert!(updated_log.contains("Added folders: raw/api, wiki/apis"));
+    assert!(updated_log.contains("Orphaned folders: none"));
+    assert!(
+        updated_log.trim_end().ends_with(
+            "Orphan content is preserved on disk. Markdown under wiki/ remains searchable; non-wiki folders are preserved but not indexed by wiki search."
+        )
+    );
+    assert!(
+        fs::read_to_string(project.path().join("AGENTS.md"))
+            .expect("agents")
+            .contains("This is Updated Project: Updated description.")
+    );
+}
+
+#[test]
+fn init_rerun_with_identical_answers_and_composition_does_not_drift_log_or_index() {
+    let project = TempDir::new().expect("project");
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .arg("init")
+        .arg(project.path())
+        .args([
+            "--no-register",
+            "--non-interactive",
+            "--name",
+            "Original Project",
+            "--description",
+            "Original description.",
+            "--blueprint",
+            "generic",
+        ])
+        .assert()
+        .success();
+
+    let index = "# Wiki Index\n\nProject: Original Project\n\n## Specs\n\n- custom entry\n";
+    let log = "# Wiki Log\n\n## [2026-05-13] update | custom\n\nKeep this.\n";
+    fs::write(project.path().join("wiki/index.md"), index).expect("index");
+    fs::write(project.path().join("wiki/log.md"), log).expect("log");
+
+    llm_wiki(home.path())
+        .arg("init")
+        .arg(project.path())
+        .args([
+            "--no-register",
+            "--non-interactive",
+            "--name",
+            "Original Project",
+            "--description",
+            "Original description.",
+            "--blueprint",
+            "generic",
+        ])
+        .assert()
+        .success();
+
     assert_eq!(
         fs::read_to_string(project.path().join("wiki/index.md")).expect("index"),
         index
@@ -146,11 +219,169 @@ fn init_rerun_refreshes_schema_and_preserves_wiki_content() {
         fs::read_to_string(project.path().join("wiki/log.md")).expect("log"),
         log
     );
-    assert!(
-        fs::read_to_string(project.path().join("AGENTS.md"))
-            .expect("agents")
-            .contains("This is Updated Project: Updated description.")
+    assert!(!manifest_resolved_folders(project.path()).is_empty());
+}
+
+#[test]
+fn init_rerun_records_same_pack_folder_composition_drift() {
+    let project = TempDir::new().expect("project");
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .arg("init")
+        .arg(project.path())
+        .args([
+            "--no-register",
+            "--non-interactive",
+            "--name",
+            "API Project",
+            "--description",
+            "API description.",
+            "--blueprint",
+            "generic",
+            "--pack",
+            "api",
+        ])
+        .assert()
+        .success();
+
+    fs::write(
+        project.path().join(".llm_wiki/init.toml"),
+        r#"framework_version = "0.1.2"
+project_name = "API Project"
+project_description = "API description."
+blueprint = "generic"
+packs = ["api"]
+resolved_folders = [
+    "raw",
+    "wiki/apis",
+    "wiki/archive",
+    "wiki/checklists",
+    "wiki/decisions",
+    "wiki/plans",
+    "wiki/proposals",
+    "wiki/references",
+    "wiki/roadmaps",
+    "wiki/specs",
+]
+"#,
+    )
+    .expect("manifest");
+
+    llm_wiki(home.path())
+        .arg("init")
+        .arg(project.path())
+        .args([
+            "--no-register",
+            "--non-interactive",
+            "--name",
+            "API Project",
+            "--description",
+            "API description.",
+            "--blueprint",
+            "generic",
+            "--pack",
+            "api",
+        ])
+        .assert()
+        .success();
+
+    let log = fs::read_to_string(project.path().join("wiki/log.md")).expect("log");
+    assert!(log.contains("init | schema drift | generic -> generic"));
+    assert!(log.contains("Added packs: none"));
+    assert!(log.contains("Removed packs: none"));
+    assert!(log.contains("Trigger: composition change"));
+    assert!(log.contains("Added folders: raw/api"));
+    assert!(log.contains("Orphaned folders: none"));
+
+    let index = fs::read_to_string(project.path().join("wiki/index.md")).expect("index");
+    assert!(index.contains("## Schema Drift"));
+    assert!(index.contains("Newly claimed folders: raw/api"));
+}
+
+#[test]
+fn init_rerun_legacy_manifest_without_resolved_folders_seeds_then_drifts_on_pack_change() {
+    let project = TempDir::new().expect("project");
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .arg("init")
+        .arg(project.path())
+        .args([
+            "--no-register",
+            "--non-interactive",
+            "--name",
+            "Legacy Project",
+            "--description",
+            "Legacy description.",
+            "--blueprint",
+            "generic",
+        ])
+        .assert()
+        .success();
+
+    let legacy_manifest = r#"framework_version = "0.1.2"
+project_name = "Legacy Project"
+project_description = "Legacy description."
+blueprint = "generic"
+packs = []
+"#;
+    fs::write(project.path().join(".llm_wiki/init.toml"), legacy_manifest).expect("manifest");
+
+    let index = "# Wiki Index\n\nProject: Legacy Project\n\n## Specs\n\n- legacy entry\n";
+    let log = "# Wiki Log\n\n## [2026-05-13] update | legacy\n\nKeep this.\n";
+    fs::write(project.path().join("wiki/index.md"), index).expect("index");
+    fs::write(project.path().join("wiki/log.md"), log).expect("log");
+
+    llm_wiki(home.path())
+        .arg("init")
+        .arg(project.path())
+        .args([
+            "--no-register",
+            "--non-interactive",
+            "--name",
+            "Legacy Project",
+            "--description",
+            "Legacy description.",
+            "--blueprint",
+            "generic",
+        ])
+        .assert()
+        .success();
+
+    assert_eq!(
+        fs::read_to_string(project.path().join("wiki/index.md")).expect("index"),
+        index
     );
+    assert_eq!(
+        fs::read_to_string(project.path().join("wiki/log.md")).expect("log"),
+        log
+    );
+    assert!(manifest_resolved_folders(project.path()).contains(&"wiki/specs".to_string()));
+
+    fs::write(project.path().join(".llm_wiki/init.toml"), legacy_manifest).expect("manifest");
+    llm_wiki(home.path())
+        .arg("init")
+        .arg(project.path())
+        .args([
+            "--no-register",
+            "--non-interactive",
+            "--name",
+            "Legacy Project",
+            "--description",
+            "Legacy description.",
+            "--blueprint",
+            "generic",
+            "--pack",
+            "api",
+        ])
+        .assert()
+        .success();
+
+    let log = fs::read_to_string(project.path().join("wiki/log.md")).expect("log");
+    assert!(log.contains("init | schema drift | generic -> generic"));
+    assert!(log.contains("Added packs: api"));
+    assert!(log.contains("Added folders: raw/api, wiki/apis"));
 }
 
 #[test]
@@ -780,6 +1011,15 @@ fn manifest_packs(project: &Path) -> Vec<String> {
         .expect("packs")
         .iter()
         .map(|pack| pack.as_str().expect("pack string").to_string())
+        .collect()
+}
+
+fn manifest_resolved_folders(project: &Path) -> Vec<String> {
+    read_init_manifest(project)["resolved_folders"]
+        .as_array()
+        .expect("resolved folders")
+        .iter()
+        .map(|folder| folder.as_str().expect("folder string").to_string())
         .collect()
 }
 
