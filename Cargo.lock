@@ -1387,6 +1387,7 @@ dependencies = [
  "assert_cmd",
  "chrono",
  "clap",
+ "dirs",
  "inquire",
  "insta",
  "llm-wiki-schema",
