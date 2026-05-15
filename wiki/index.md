@@ -1,8 +1,8 @@
 # Wiki Index
 
 Project: Software Project Management Framework
-Stage: D1-D11 Completed; code-pack/CLI blueprint, CLI observability, post-V1 P1 semantic/hybrid search, idempotent search model install/cleanup semantics, and init rerun schema-drift audit completed; calibrated hybrid/auto search now has project-scoped thresholds, human-accepted framework and electric-car labels, redacted raw eval evidence, durable search-mode decision coverage, post-completion readiness hardening, interactive install search posture prompting, and completed verification gates; crash-report proposal open
-Updated: 2026-05-14
+Stage: D1-D11 Completed; code-pack/CLI blueprint, CLI observability, post-V1 P1 semantic/hybrid search, idempotent search model install/cleanup semantics, and init rerun schema-drift audit completed; calibrated hybrid/auto search now has project-scoped thresholds, human-accepted framework and electric-car labels, redacted raw eval evidence, durable search-mode decision coverage, post-completion readiness hardening, interactive install search posture prompting, and completed verification gates; crash-report, project-update, search-model selection, and full-Windows-support proposals open
+Updated: 2026-05-15
 
 ## Specs
 
@@ -48,12 +48,14 @@ Updated: 2026-05-14
 - [Search Backend Selection](proposals/search-backend-selection.proposal.md) — Accepted — Promoted to backend decision; qmd-rs selected for D9 with adapter-owned metadata and model/cache handling
 - [Managed Binary Install and PATH Guidance](proposals/binary-path-bootstrap.proposal.md) — Accepted — Promoted to D8.1 decision and plan; make installed skills call a managed binary path while PATH remains convenience guidance
 - [Composable Project Init: Blueprints and Packs](proposals/blueprint-pack-init.proposal.md) — Accepted — Promoted to D10 decision and plan; replace the static project guidelines template with a blueprint + pack composition model and add a per-project `.llm_wiki/` folder with an `init.toml` manifest
+- [Project Update Command](proposals/project-update-command.proposal.md) — Proposed — Adds scope-first `llm-wiki update` for project-scoped maintenance, separates machine defaults into `llm-wiki defaults`, keeps global runtime/assets under `llm-wiki install`, and requires help text to state each command's write scope
 - [Skill Projection on the Composable-Init Template Engine](proposals/skills-template-engine.proposal.md) — Accepted — Promoted to decision and completed plan; skill projection now uses the shared Askama template engine
 - [CLI Verbose Diagnostics](proposals/cli-observability.proposal.md) — Accepted — Implemented through the completed CLI observability plan; every binary command now accepts global `-v/--verbose` diagnostics while normal stdout remains stable
 - [Code Scaffolding As An Opt-In Pack](proposals/code-folders-opt-in.proposal.md) — Accepted — Promoted to code-pack/CLI blueprint decision and implementation plan
 - [Semantic and Hybrid Search for Natural-Language Queries](proposals/search-query-interpretation.proposal.md) — Accepted — Implemented through the completed semantic/hybrid search plan and promoted to the semantic-hybrid search-mode decision
 - [Always-On Crash Reports](proposals/crash-reports.proposal.md) — Proposed — Capture a crash report under `~/.llm_wiki/crashes/` for every panic (full origin backtrace) and every post-parse error-exit (anyhow error chain) of the binary, with no opt-in flag
 - [Search Model Selection: Per-Project and Cross-Project Profiles](proposals/search-model-selection.proposal.md) — Proposed — Adds project and cross-project profile-bundle selection, pending state for uninstalled choices, install-owned materialization, `[project_default]` / `[global_search]` / `[project]` scope split, and a non-interactive `--model <id-or-profile>` sibling
+- [Full Windows Support](proposals/full-windows-support.proposal.md) — Proposed — Defines release-grade Windows support through Windows artifacts, Known Folder managed paths, quoted `.exe` skill invocation, registry canonicalization, qmd-rs/search parity, black-box real-use release E2E with command/file verification, Defender/CRLF/JSON proof gates, and update sequencing
 
 ## Plans
 

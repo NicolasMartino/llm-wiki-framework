@@ -3146,3 +3146,143 @@ src/search/qmd_rs.rs, tests/init.rs, tests/snapshots/init__*.snap,
 wiki/plans/init-rerun-pack-drift.plan.md, wiki/specs/wiki-init-skill.spec.md,
 wiki/specs/documentation-model.spec.md,
 wiki/decisions/composable-project-init.decision.md, wiki/index.md, wiki/log.md
+
+## [2026-05-15] create | project upgrade command proposal
+
+Created a proposal for `llm-wiki upgrade` as the explicit project migration
+surface. The proposed command archives previous framework-owned artifacts under
+`.llm_wiki/archive/artifacts/<from-version>/<timestamp>/`, replays init answers
+from `.llm_wiki/init.toml` where possible, overwrites generated
+framework-owned artifacts from the current binary, and preserves existing
+`wiki/` content and raw references for later lint or archival workflows.
+
+The proposal also records the intended simplification path for `llm-wiki init`:
+fresh init remains the create path, while existing-project migration moves to
+upgrade or a compatibility handoff once the command exists.
+
+Pages updated: wiki/proposals/project-upgrade-command.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-15] update | project upgrade command proposal review
+
+Revised the project upgrade command proposal after review. Clarified that
+upgrade creates newly claimed pack folders, never removes orphaned folders, and
+reuses the generated `## Schema Drift` section in `wiki/index.md` for folder
+drift. Removed the unsupported assumption that `.llm_wiki/init.toml` already
+stores per-artifact hashes; first-cut dirty/generated-drift evidence now lives
+in the archive manifest's before/after hashes. Added explicit registry behavior
+for same-root id stability, search-index staleness reporting without automatic
+reindex, additive landing semantics for init rerun, and a bounded legacy
+artifact detection requirement for the implementation plan.
+
+Pages updated: wiki/proposals/project-upgrade-command.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-15] create | full Windows support proposal
+
+Created a proposed platform-support direction for moving Windows from
+compatibility design to release-grade support. The proposal defines the support
+claim, release-artifact expectations, Windows managed runtime paths under
+`%LOCALAPPDATA%\llm_wiki\`, quoted `.exe` skill invocation, command and
+qmd-rs/search parity, Windows CI and release-smoke proof gates, documentation
+requirements, out-of-scope items, and promotion into a post-V1 roadmap item if
+accepted.
+
+Pages updated: wiki/proposals/full-windows-support.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-15] update | project update command scope precision
+
+Tightened the project update command proposal after review. The proposal now
+describes `llm-wiki update` as project-scoped rather than strictly
+project-local, allowing writes to project-root files plus target-project-scoped
+host-local registry/cache state such as the same-root registry entry and
+project search indexes. Top-level help grouping now separates project commands,
+registry commands, and machine commands. The proposal also explicitly amends
+the search-model selection proposal: `llm-wiki defaults search` administers
+machine-wide search defaults, `llm-wiki update --search` administers one
+project's search configuration, and `llm-wiki install` remains responsible for
+license acceptance, model downloads, hash verification, and managed artifact
+promotion. Updated the Windows support proposal's optional update proof gate to
+use the same project-scoped terminology.
+
+Pages updated: wiki/proposals/project-update-command.proposal.md,
+wiki/proposals/full-windows-support.proposal.md, wiki/index.md, wiki/log.md
+
+## [2026-05-15] update | project upgrade command proposal follow-up review
+
+Tightened the project upgrade command proposal after a follow-up review. The
+generated project log example now uses the existing `update` operation
+vocabulary and records upgrade as the subject, with a note that promoting
+`upgrade` to a first-class log operation would require updating framework
+templates and specs. Clarified that `.llm_wiki/archive/**` is excluded from the
+framework-owned artifact set so upgrade never recursively archives prior
+archives. Added transaction-marker and same-directory atomic-write requirements
+for the replacement phase, plus partial replacement failure coverage in
+acceptance criteria. Added a source-capture note requiring the conversational
+basis to be captured as raw evidence or replaced with a durable source before
+promotion.
+
+Pages updated: wiki/proposals/project-upgrade-command.proposal.md,
+wiki/log.md
+
+## [2026-05-15] update | project update command scope split
+
+Reframed the project upgrade proposal as a project update command proposal.
+`llm-wiki update` is now the project-local maintenance surface for framework
+artifacts, layout, project search configuration, and project reindexing.
+Machine-wide defaults move to a separate `llm-wiki defaults` surface, while
+global runtime assets, installed skills, model downloads, license acceptance,
+and managed artifact promotion remain owned by `llm-wiki install`.
+
+Added a scope-first help contract requiring each command's `--help` output to
+state whether it writes project-local state, machine-wide defaults, or global
+runtime assets. The proposal now requires top-level help to group project
+commands separately from machine/global commands and includes example
+confirmation text that names the affected scope before mutation.
+
+Pages updated: wiki/proposals/project-update-command.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-15] update | full Windows support proposal review tightening
+
+Incorporated review feedback into the full Windows support proposal. The update
+separates documented Windows design intent from the current Unix-shaped
+implementation, names the path helpers that need Windows branches, requires
+Known Folder API based path resolution, defines registry canonicalization for
+local drive paths, replaces ad hoc `where.exe` wording with PATHEXT-resolving
+lookup semantics, adds upgrade sequencing and NTFS-safe archive timestamp
+requirements, and expands proof gates for Defender/default-runner behavior,
+Codex skill invocation, long local paths, CRLF stability, duplicate registry
+prevention, and JSON path round-trips.
+
+Pages updated: wiki/proposals/full-windows-support.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-15] update | full Windows support cross-platform E2E gate
+
+Expanded the full Windows support proposal to make P2 establish a
+cross-platform release E2E story for every supported artifact target, not only
+Windows. The proposal now requires artifact-based E2E runs across existing
+macOS/Linux targets plus Windows targets, with command-by-command filesystem
+verification for install, build, init, registry, indexing, search, search-all,
+status, doctor, uninstall, and `llm-wiki update` if it lands before P2. It also
+records Windows containers as supplemental only; host or VM runner coverage
+remains required for the release claim.
+
+Pages updated: wiki/proposals/full-windows-support.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-15] update | full Windows support real-use E2E standard
+
+Tightened the full Windows support proposal around the goal of proving real
+user behavior beyond ordinary unit or integration confidence. Added a Real-Use
+Simulation Standard requiring black-box release-artifact testing through
+documented CLI commands and platform shells, empty user/runtime state unless
+testing documented migration, realistic fresh-machine and project workflows,
+filesystem/manifest/hash/JSON/stdout-stderr verification, and explicit notes
+for any runtime stubs or shortcuts. The proof gates now require the release E2E
+to follow that standard before P2 can be marked complete.
+
+Pages updated: wiki/proposals/full-windows-support.proposal.md,
+wiki/index.md, wiki/log.md
