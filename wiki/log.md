@@ -3191,6 +3191,20 @@ accepted.
 Pages updated: wiki/proposals/full-windows-support.proposal.md,
 wiki/index.md, wiki/log.md
 
+## [2026-05-15] update | full Windows support command and path matrices
+
+Addressed the follow-up review on the cross-platform release E2E and Windows
+support proposal. Added a source-capture requirement before promotion, an
+explicit Windows OS/PowerShell support baseline, mandatory Windows ZIP/checksum
+acquisition semantics, a helper-by-helper Windows path mapping with migration
+notes, a PowerShell/full-rendered-command skill invocation requirement, and a
+command coverage matrix for every current CLI command and important flag group,
+including `forget`, `index-all`, `eval run`, `eval calibrate`, and
+semantic/hybrid readiness behavior.
+
+Pages updated: wiki/proposals/full-windows-support.proposal.md,
+wiki/index.md, wiki/log.md
+
 ## [2026-05-15] update | project update command scope precision
 
 Tightened the project update command proposal after review. The proposal now
@@ -3283,6 +3297,36 @@ testing documented migration, realistic fresh-machine and project workflows,
 filesystem/manifest/hash/JSON/stdout-stderr verification, and explicit notes
 for any runtime stubs or shortcuts. The proof gates now require the release E2E
 to follow that standard before P2 can be marked complete.
+
+Pages updated: wiki/proposals/full-windows-support.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-15] update | full Windows support re-review fixes
+
+Addressed re-review feedback on the full Windows support proposal. Renamed the
+promoted deliverable to `P2 - Cross-Platform Release E2E And Windows Support`,
+made runner sourcing provider-neutral, required documented platform acquisition
+paths in the E2E, added Windows long-path-aware manifest and runner-setting
+language, added an explicit managed `.exe` runnability gate for doctor/install
+state, made SQLite fallback a pre-release narrowing-decision requirement, and
+merged the release E2E proof gates into a single tracked obligation.
+
+Pages updated: wiki/proposals/full-windows-support.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-15] update | full Windows support command-surface proof gates
+
+Tightened the cross-platform release E2E and Windows support proposal after
+command-surface review. The command parity section now explicitly includes
+`eval run` and `eval calibrate`, expands eval/search/search-all flag coverage,
+and the minimum E2E story now verifies `forget`, `index-all`, and eval command
+side effects from the release artifact.
+
+Strengthened the Windows skill-invocation proof so tests must execute the full
+rendered command through the target runtime or PowerShell shell, including the
+call operator where required. The proof gates and documentation requirements now
+also tie command coverage to the matrix, Windows support baseline, documented
+artifact-acquisition path, and JSON/path round-trip behavior.
 
 Pages updated: wiki/proposals/full-windows-support.proposal.md,
 wiki/index.md, wiki/log.md

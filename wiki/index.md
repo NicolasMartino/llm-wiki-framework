@@ -1,7 +1,7 @@
 # Wiki Index
 
 Project: Software Project Management Framework
-Stage: D1-D11 Completed; code-pack/CLI blueprint, CLI observability, post-V1 P1 semantic/hybrid search, idempotent search model install/cleanup semantics, and init rerun schema-drift audit completed; calibrated hybrid/auto search now has project-scoped thresholds, human-accepted framework and electric-car labels, redacted raw eval evidence, durable search-mode decision coverage, post-completion readiness hardening, interactive install search posture prompting, and completed verification gates; crash-report, project-update, search-model selection, and full-Windows-support proposals open
+Stage: D1-D11 Completed; code-pack/CLI blueprint, CLI observability, post-V1 P1 semantic/hybrid search, idempotent search model install/cleanup semantics, and init rerun schema-drift audit completed; calibrated hybrid/auto search now has project-scoped thresholds, human-accepted framework and electric-car labels, redacted raw eval evidence, durable search-mode decision coverage, post-completion readiness hardening, interactive install search posture prompting, and completed verification gates; crash-report, project-update, search-model selection, and cross-platform-release-E2E/Windows-support proposals open
 Updated: 2026-05-15
 
 ## Specs
@@ -55,7 +55,7 @@ Updated: 2026-05-15
 - [Semantic and Hybrid Search for Natural-Language Queries](proposals/search-query-interpretation.proposal.md) — Accepted — Implemented through the completed semantic/hybrid search plan and promoted to the semantic-hybrid search-mode decision
 - [Always-On Crash Reports](proposals/crash-reports.proposal.md) — Proposed — Capture a crash report under `~/.llm_wiki/crashes/` for every panic (full origin backtrace) and every post-parse error-exit (anyhow error chain) of the binary, with no opt-in flag
 - [Search Model Selection: Per-Project and Cross-Project Profiles](proposals/search-model-selection.proposal.md) — Proposed — Adds project and cross-project profile-bundle selection, pending state for uninstalled choices, install-owned materialization, `[project_default]` / `[global_search]` / `[project]` scope split, and a non-interactive `--model <id-or-profile>` sibling
-- [Full Windows Support](proposals/full-windows-support.proposal.md) — Proposed — Defines release-grade Windows support through Windows artifacts, Known Folder managed paths, quoted `.exe` skill invocation, registry canonicalization, qmd-rs/search parity, black-box real-use release E2E with command/file verification, Defender/CRLF/JSON proof gates, and update sequencing
+- [Cross-Platform Release E2E And Windows Support](proposals/full-windows-support.proposal.md) — Proposed — Defines release-grade Windows support through an explicit Windows baseline, checksum-verified artifact acquisition, Known Folder managed paths, full PowerShell/rendered-command skill invocation, path-helper mapping, command coverage matrix, qmd-rs/search parity, black-box real-use release E2E with command/file verification, hosted/self-hosted runner flexibility, long-path/runnability gates, Defender/CRLF/JSON proof gates, source-capture prerequisite, and update sequencing
 
 ## Plans
 

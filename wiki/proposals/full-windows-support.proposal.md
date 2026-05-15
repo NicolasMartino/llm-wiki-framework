@@ -1,13 +1,14 @@
-# Full Windows Support
+# Cross-Platform Release E2E And Windows Support
 
 - Document Class: Proposal
 - Status: Proposed
 - Date: 2026-05-15
 - Category: Distribution tooling, platform support, release engineering
-- Scope: Promote Windows from compatibility design to a first-class supported
-  platform for the `llm-wiki` binary, including release artifacts, managed
-  runtime paths, cross-platform release E2E coverage, search parity, and
-  install/doctor/uninstall behavior.
+- Scope: Establish black-box release E2E guarantees for every supported
+  platform artifact and promote Windows from compatibility design to a
+  first-class supported platform for the `llm-wiki` binary, including release
+  artifacts, managed runtime paths, search parity, and install/doctor/uninstall
+  behavior.
 - Sources: conversational request 2026-05-15; wiki/roadmaps/framework-v1.roadmap.md;
   wiki/decisions/llm-wiki-binary-distribution.decision.md;
   wiki/plans/llm-wiki-binary.plan.md;
@@ -15,31 +16,41 @@
   wiki/plans/binary-path-bootstrap.plan.md;
   wiki/decisions/search-backend-selection.decision.md;
   wiki/plans/qmd-rs-search-backend.plan.md; proposal review feedback
-  2026-05-15; cross-platform E2E and real-use simulation feedback
-  2026-05-15; src/paths.rs; src/skill_render.rs; src/doctor.rs
+  2026-05-15; cross-platform E2E, real-use simulation, and re-review feedback
+  2026-05-15; command-surface review feedback 2026-05-15; Cargo.toml;
+  src/cli.rs; src/paths.rs; src/skill_render.rs; src/doctor.rs
 - Related: wiki/specs/documentation-model.spec.md,
   wiki/specs/wiki-init-skill.spec.md,
   wiki/checklists/observability-contract.checklist.md,
   wiki/proposals/project-update-command.proposal.md
 
+## Source Capture
+
+This proposal currently cites conversational input and review feedback because
+the direction was developed in chat. Before acceptance, promotion to a roadmap
+item, or conversion into an implementation plan, capture the conversation and
+review basis as a raw source under `raw/` or replace the conversational source
+references with another durable source path.
+
 ## Question
 
-What has to be true before the project can honestly claim full Windows support,
-instead of only saying the managed-runtime design is Windows-compatible?
+What has to be true before the project can honestly claim full Windows support
+and provide strong release-artifact guarantees for every supported platform?
 
 ## Proposal
 
-Accept a dedicated post-V1 deliverable for release-grade Windows support.
+Accept a dedicated post-V1 deliverable for cross-platform release E2E and
+release-grade Windows support.
 
 The support target is: a Windows user can install `llm-wiki`, run
 `llm-wiki install`, invoke installed framework skills through Claude/Codex, and
 use init, registry, indexing, search, status, doctor, and uninstall without WSL,
 without a Rust toolchain, and without hand-editing shell profiles.
 
-The work should be promoted into the roadmap as the next platform deliverable
-after the currently completed V1 and P1 search work. A tactical plan should
-then implement it in narrow phases with Windows CI and a cross-platform release
-E2E matrix as the proof gate.
+The work should be promoted into the roadmap as the next release/platform
+deliverable after the currently completed V1 and P1 search work. A tactical
+plan should then implement it in narrow phases with Windows CI and a
+cross-platform release E2E matrix as the proof gate.
 
 ## Current Baseline
 
@@ -76,6 +87,24 @@ Current implementation gap:
 
 Windows is first-class only when all of the following are true.
 
+### Windows Baseline
+
+The first Windows support claim covers:
+
+1. Windows 10 22H2 or newer.
+2. Windows 11.
+3. Windows Server 2022 or newer for CI/server validation.
+4. Windows PowerShell 5.1 for documented commands and installer acquisition.
+5. PowerShell 7 only when release docs name `pwsh` or a PowerShell 7-specific
+   installer path.
+
+Hosted Windows CI is acceptable for routine release gates only when it can prove
+the required profile, Known Folder, path-with-spaces, long-path, and Defender
+behaviors. If hosted CI cannot prove one of those behaviors, the tactical plan
+must use a self-hosted runner or VM. A public "Windows desktop" claim requires a
+recorded Windows 10/11 client smoke before release; server-only CI is not enough
+for that wording.
+
 ### Release Artifacts
 
 `cargo-dist` or the release pipeline produces Windows artifacts for:
@@ -88,6 +117,29 @@ If Windows ARM64 cannot ship in the same deliverable, the project must record
 that as an explicit limitation before calling the x64 path supported. The
 release notes must not imply ARM64 support unless an ARM64 artifact exists and
 passes the same install smoke.
+
+Current release configuration only declares shell installers and the four
+non-Windows targets. P2 must update release metadata before implementation can
+claim Windows.
+
+Mandatory Windows acquisition path:
+
+1. Ship a Windows ZIP artifact per supported Windows target containing
+   `llm-wiki.exe`.
+2. Publish SHA-256 checksums for each Windows artifact and make checksum
+   verification part of the documented install path and E2E.
+3. Document the Windows install path as PowerShell-based ZIP acquisition and
+   expansion unless a PowerShell installer is added.
+4. If a PowerShell installer is added, E2E must run the installer path exactly
+   as documented. ZIP acquisition may remain as the fallback manual path.
+5. If artifacts remain unsigned, release notes must say so and call out the
+   expected SmartScreen posture. Code signing is still out of scope unless a
+   later decision changes release policy.
+
+Unix-like acquisition remains the documented shell installer or archive
+extraction path for each supported target. The release E2E must use the same
+documented path for each platform rather than a custom unpack helper that users
+do not run.
 
 ### Install And Runtime Paths
 
@@ -110,6 +162,12 @@ enterprise setups.
 `cache_home`, and `data_home` must come from platform-aware roots. `$HOME`,
 `.llm_wiki`, and XDG fallback paths remain Unix-like behavior only.
 
+Windows release artifacts must be long-path-aware. The build should embed an
+application manifest with `longPathAware` enabled. The long-local-path proof
+gate requires a runner with Windows long paths enabled; if the runner cannot
+enable that host setting, the gate must be recorded as skipped with a known
+limitation rather than mistaken for a product pass.
+
 Search indexes, model caches, and other rebuildable host-local state must use
 platform-aware Windows locations under the framework's Windows data/cache
 roots. The exact subdirectories can follow the existing Rust path helpers, but
@@ -118,6 +176,22 @@ they must be documented by `doctor` and covered by tests.
 Project-local `.llm_wiki\` remains project-local metadata and should work under
 normal Windows paths. Canonical wiki citations should remain repo-relative
 markdown paths, independent of the host separator.
+
+Path helper mapping:
+
+| Helper(s) | Windows location | Migration behavior |
+| --- | --- | --- |
+| `home` | Known Folder `Profile` | Resolve through Windows APIs; no `HOME` requirement |
+| `claude_skill`, `codex_skill`, `codex_config` | Runtime skill directories under the user profile, e.g. `%USERPROFILE%\.claude\skills\...` and `%USERPROFILE%\.codex\skills\...` unless runtime docs specify a different Windows root | Existing user-authored runtime files remain protected by install collision rules |
+| `managed_home` | `%LOCALAPPDATA%\llm_wiki` using Known Folder `LocalAppData` | First supported Windows release creates this root; no pre-public Windows migration promise |
+| `managed_bin_dir`, `managed_binary` | `%LOCALAPPDATA%\llm_wiki\bin\llm-wiki.exe` | Install copies/verifies the running release artifact here |
+| `manifest`, `partial_install`, backup paths | `%LOCALAPPDATA%\llm_wiki\manifest.json`, `%LOCALAPPDATA%\llm_wiki\install.partial.json`, `%LOCALAPPDATA%\llm_wiki\backups\...` | Interrupted installs recover from this state; local dogfood state can be repaired with documented install/doctor/uninstall paths |
+| `search_config`, `search_thresholds`, `external_dependencies`, `accepted_licenses` | `%LOCALAPPDATA%\llm_wiki\*.toml` | Global managed config follows the runtime home; existing Unix config remains unchanged |
+| `managed_model_root`, `model_artifacts` | `%LOCALAPPDATA%\llm_wiki\models\...` | Managed model artifacts are install-owned; missing/corrupt artifacts are repaired by install-owned flows |
+| `managed_index_root`, `project_index_dir`, `qmd_rs_store_path`, `semantic_index_metadata`, `semantic_vector_index` | `%LOCALAPPDATA%\llm_wiki\indexes\<project-id>\...` | Rebuildable indexes may be removed/rebuilt; stale stores are not canonical project knowledge |
+| `cache_home`, `legacy_index_root`, `legacy_project_index_dir`, `legacy_qmd_rs_store_path`, `model_cache` | `%LOCALAPPDATA%\llm_wiki\cache\...` | Used only for cache/legacy lookup or migration; all contents are rebuildable |
+| `data_home`, `project_registry` | `%LOCALAPPDATA%\llm_wiki\data\projects.json` | Registry writes are atomic; canonicalized roots prevent duplicate same-project entries |
+| project-local `.llm_wiki/*` | `<project>\.llm_wiki\...` | Project-local metadata remains inside the project and is not part of global runtime cleanup |
 
 Registry canonicalization must have a concrete Windows rule. For local drive
 paths, persistent project identity uses `std::fs::canonicalize`, strips the
@@ -129,12 +203,19 @@ plan adds explicit proof gates for them.
 ### Skill Invocation
 
 Installed Claude and Codex skills on Windows must invoke the managed binary by
-an absolute, quoted `.exe` path. A user profile path with spaces must be a
-release-gate fixture, for example:
+an absolute `.exe` path using syntax that works in the target shell/runtime. A
+user profile path with spaces must be a release-gate fixture, for example:
 
 ```text
 C:\Users\Test User\AppData\Local\llm_wiki\bin\llm-wiki.exe
 ```
+
+PowerShell execution is a load-bearing case. A quoted executable path by itself
+is not enough; the rendered command must be executable through PowerShell, for
+example `& "C:\Users\Test User\AppData\Local\llm_wiki\bin\llm-wiki.exe" ...`
+when the command is interpreted by PowerShell. The E2E must execute the full
+rendered command string through the target Windows shell or actual runtime, not
+only spawn the `.exe` path directly.
 
 No installed skill may rely on `PATH` for correctness. `PATH` remains terminal
 convenience only, as on Unix-like systems.
@@ -145,13 +226,40 @@ The Windows build must support the same user-visible V1/P1 command surface as
 macOS and Linux:
 
 1. `install`, `path`, `build`, `init`, `status`, `doctor`, `uninstall`
-2. `register`, `forget`, `projects`
-3. `index`, `index-all`, `search`, `search-all`
-4. semantic/hybrid readiness paths when LLM search is enabled
-5. JSON output contracts and `-v` / `--verbose` diagnostics
+2. `eval run`, `eval calibrate`
+3. `register`, `forget`, `projects`
+4. `index`, `index-all`, `search`, `search-all`
+5. semantic/hybrid readiness paths when LLM search is enabled
+6. JSON output contracts and `-v` / `--verbose` diagnostics
 
 If a command cannot be supported on Windows, that is a release blocker unless a
 new decision explicitly narrows the support claim.
+
+Command coverage matrix:
+
+| Command surface | Coverage | Required proof |
+| --- | --- | --- |
+| global `--help`, `--version`, `-v/--verbose` | Smoke | Help/version run without mutation; representative verbose runs prove diagnostics stay on stderr and do not alter exit semantics |
+| `build --target both/claude/codex --out` | Full | Rendered skill trees and Codex runtime config files appear only under `--out` |
+| `install`, repeat install, `--force`, `--skip-path-guidance` | Full | Managed binary, manifest, backups/collisions, idempotency, and no-path-guidance behavior are verified |
+| `install --configure-search`, `--disable-llm-search` | Smoke | Search profile state changes are verified without silently downloading or deleting artifacts outside install-owned flows |
+| `init --non-interactive --name --description --blueprint --pack --initial-sources --no-register` | Full | Project files, copied sources, manifest, generated wiki files, pack folders, and no-register behavior are verified |
+| hidden legacy `init --type`, `--scale` | Exempt from release E2E | Hidden compatibility flags remain covered by focused compatibility tests if retained |
+| `eval run --eval-page --project --project-root --candidate-profile --embedding-model --query-expansion-model --reranker-model --candidate-name --output-dir --limit --format text/json --rerank --time-budget-warn-ms` | Smoke | Fixture eval page runs from the release artifact, emits text and JSON/report output, exercises candidate/profile plumbing, and writes any requested output directory |
+| `eval calibrate --run-report`, flattened `eval run` flags, `--select-candidate`, `--record`, `--apply`, `--apply-profile`, `--export-raw-data`, `--raw-data-dir` | Smoke | Fixture run report calibrates through the release artifact; threshold/profile writes, recorded eval output, and raw-data export effects are verified against redirected state |
+| `register [path] --name --id`, `register --update` | Full | Registry JSON has stable ids, same-root update behavior, canonical roots, and no duplicate same-project entries |
+| `forget`, `forget --delete-cache` | Full | Registry entry removal and project cache cleanup are verified while project files remain untouched |
+| `projects --format text/json` | Full | Text is human-readable; JSON parses and path fields resolve |
+| `index`, `index --project`, `index --force` | Full | qmd-rs store, freshness metadata, and force rebuild behavior are verified |
+| `index-all --force` | Full | Two registered projects are indexed; failure of one project is reported without corrupting the other |
+| `search <query> --project --mode auto/lexical --format text/json --class --status --limit` | Full | Lexical/auto retrieval returns canonical wiki citations, filters work, project selection works, and JSON round-trips |
+| `search <query> --project --mode semantic/hybrid --allow-lexical-fallback --rerank` | Full for readiness, full retrieval when the managed model profile is installed | Missing/disabled/stale/unconfigured readiness states fail closed with guidance; fallback behavior is explicit; successful semantic/hybrid retrieval uses a real managed profile or a documented accepted fixture profile, not mocks |
+| `search-all <query> --mode auto/lexical/semantic/hybrid --include --exclude --class --status --limit --format text/json --allow-lexical-fallback --rerank` | Full for readiness and rank/fusion contracts | Multi-project results include project labels, readiness/skipped metadata, filters, limits, and JSON round-trip behavior |
+| `path` | Full | Prints platform-appropriate PATH guidance and does not mutate filesystem state |
+| `status` | Full | Reports clean, missing, and drifted install states from real files |
+| `doctor` | Full | Reports install, PATH convenience, registry, project, search, model, and Windows runnability state; Windows runnability invokes the managed `.exe` |
+| `uninstall`, `--include-binary`, `--search-artifacts`, `--force` | Full | Removes only manifest-owned global state or explicit search artifacts; unrelated files and project files are preserved |
+| `update` and `defaults` if accepted before P2 | Full | Project-scoped and machine-default scopes are verified according to the accepted proposal |
 
 The sibling `llm-wiki update` proposal is still proposed. If `update` is
 accepted and implemented before P2 lands, Windows support must include update
@@ -175,6 +283,9 @@ Required supported-platform matrix:
 6. Windows ARM64 release artifact if that target is included in the support
    claim
 
+Runners may be hosted or self-hosted. The gate is artifact behavior on the
+target OS/architecture, not a commitment to a specific CI provider.
+
 The E2E must install and run the built artifact, not `cargo run`, and must use a
 fresh redirected user/runtime home for each platform run. It should verify files
 on disk after each command instead of trusting stdout alone.
@@ -185,9 +296,11 @@ Real-use simulation standard:
    commands run, but it must invoke documented CLI commands through the platform
    shell instead of calling internal Rust APIs, test-only hooks, or helper
    functions.
-2. Exercise the same acquisition and install path a user would follow for that
-   platform: unpack or run the release artifact, run `llm-wiki install`, then
-   use the managed binary and installed skills produced by that install.
+2. Exercise the same documented acquisition and install path a user would
+   follow for that platform, such as the documented shell installer or archive
+   extraction on Unix-like systems and the documented PowerShell installer or
+   ZIP expansion on Windows. Then run `llm-wiki install` and use the managed
+   binary and installed skills produced by that install.
 3. Use normal platform conventions: PowerShell on Windows, normal shell quoting
    on Unix-like systems, platform-native temp/profile directories, real path
    separators, and platform-specific environment behavior.
@@ -204,8 +317,10 @@ Real-use simulation standard:
    recovery steps.
 7. Prefer actual runtime invocation for installed Claude/Codex skills when a
    stable runtime API exists. If no stable API exists, the fallback must execute
-   the command path rendered into the installed skill files and assert that this
-   reaches the managed binary; it must not simply assert that the text exists.
+   the full command string rendered into the installed skill files through the
+   target platform shell and assert that this reaches the managed binary; it
+   must not simply assert that the text exists or spawn the binary by a
+   separately constructed path.
 8. Keep any shortcuts explicit. A scenario that uses a fixture, stub runtime, or
    redirected home must state which part of real use it simulates and which
    guarantee it cannot provide.
@@ -221,7 +336,9 @@ Minimum E2E command story:
 3. `llm-wiki path`: verify platform-appropriate PATH guidance and no filesystem
    mutation.
 4. `llm-wiki status` and `doctor`: verify they report clean install state and
-   the expected managed/runtime paths for the current platform.
+   the expected managed/runtime paths for the current platform, and verify the
+   managed binary is runnable by invoking it, for example with
+   `llm-wiki --version`.
 5. `llm-wiki build --out <tmp>`: verify rendered Claude and Codex skill trees
    and runtime config files are created under the requested output directory,
    without touching global install state.
@@ -231,18 +348,26 @@ Minimum E2E command story:
 7. `llm-wiki register` and `projects --format json`: verify registry file
    contents, stable project id, parseable JSON, and project paths resolving to
    the created project.
-8. `llm-wiki index`: verify qmd-rs store and semantic sidecar state expected
+8. `llm-wiki forget --delete-cache`: verify registry removal and cache cleanup
+   for a temporary registered project without deleting project files.
+9. `llm-wiki index`: verify qmd-rs store and semantic sidecar state expected
    for the chosen search mode.
-9. `llm-wiki search --format json`: verify parseable results cite canonical
-   repo-relative wiki paths and that path strings round-trip on the platform.
-10. `llm-wiki search-all --format json`: verify registered-project results,
+10. `llm-wiki index-all --force`: verify two registered projects are traversed,
+    indexed, and reported without cross-project corruption.
+11. `llm-wiki search --format json`: verify parseable results cite canonical
+    repo-relative wiki paths and that path strings round-trip on the platform.
+12. `llm-wiki search-all --format json`: verify registered-project results,
     project labels, and readiness/skipped-project metadata.
-11. `llm-wiki update` if implemented before P2: verify project-scoped
+13. `llm-wiki eval run` and `llm-wiki eval calibrate`: verify the release
+    artifact can run the eval CLI surface, emit JSON/report artifacts, apply or
+    record calibration output under redirected state, and export raw eval data
+    when requested.
+14. `llm-wiki update` if implemented before P2: verify project-scoped
     mutation, including project-root writes plus target-project host-local
     cache/registry writes, archive manifest contents, generated artifact
     rewrites, preserved compiled wiki content, and search staleness or reindex
     behavior.
-12. `llm-wiki uninstall`: verify manifest-owned skills and optional managed
+15. `llm-wiki uninstall`: verify manifest-owned skills and optional managed
     binary cleanup behavior, and verify unrelated files under runtime dirs are
     preserved.
 
@@ -269,6 +394,10 @@ the plan should use the existing adapter boundary to decide between:
 The project should not silently ship a Windows binary where search commands are
 missing or materially weaker than documented default behavior.
 
+If option 3 is chosen, the narrowing decision must land before the Windows
+release, not after. That decision is what satisfies the Command Parity blocker
+rule for a deliberately different Windows backend.
+
 ## Implementation Surface
 
 The tactical plan should inspect and adapt these areas first:
@@ -285,8 +414,9 @@ The tactical plan should inspect and adapt these areas first:
 7. search index path construction and qmd-rs store creation on Windows
 8. release E2E harness and fixtures that assert filesystem state after every
    command on every supported artifact target
-9. integration tests that currently assume Unix path strings or executable bits
-10. README, release notes, and install documentation
+9. Windows application manifest and long-path-aware build configuration
+10. integration tests that currently assume Unix path strings or executable bits
+11. README, release notes, and install documentation
 
 ## Test And Proof Gates
 
@@ -302,50 +432,52 @@ pass in CI or in a recorded release-gate run:
    targets.
 5. Cross-platform release E2E runs from built artifacts on every supported
    platform target, including the four existing macOS/Linux targets and each
-   new Windows target.
-6. The release E2E follows the Real-Use Simulation Standard: documented
-   commands through platform shells, no internal API calls, no preseeded state
-   except documented migration fixtures, and explicit notes for any runtime
-   stubs.
-7. The release E2E verifies command-by-command filesystem effects for install,
-   build, init, register/projects, index, search, search-all, status, doctor,
-   and uninstall. If `llm-wiki update` has landed before P2, it is included in
-   the same E2E story.
-8. Install smoke on Windows from a release artifact, not only from `cargo run`,
+   new Windows target; follows the Real-Use Simulation Standard; and verifies
+   the Command Coverage Matrix with command-by-command filesystem effects. If
+   `llm-wiki update` or `llm-wiki defaults` has landed before P2, it is included
+   in the same E2E story.
+6. Install smoke on Windows from a release artifact, not only from `cargo run`,
    with default Windows Defender behavior left enabled.
-9. Path-resolution tests prove the Windows Known Folder path is used for the
+7. Path-resolution tests prove the Windows Known Folder path is used for the
    managed runtime and that the command does not require `HOME`, XDG variables,
    or a manually populated `LOCALAPPDATA` environment variable.
-10. Redirected-profile install tests use `%USERPROFILE%`, the resolved
+8. Redirected-profile install tests use `%USERPROFILE%`, the resolved
    LocalAppData location, and a user path containing spaces.
-11. `llm-wiki install` writes Windows skill files with quoted absolute `.exe`
-   invocations and a manifest under the Windows managed home.
-12. Claude and Codex installed-skill smoke tests, or skill-equivalent command
+9. `llm-wiki install` writes Windows skill files with shell-correct absolute
+   `.exe` invocations, including the PowerShell call operator where required,
+   and a manifest under the Windows managed home.
+10. Claude and Codex installed-skill smoke tests, or skill-equivalent command
    stubs when the runtime has no stable Windows discovery API, both execute the
-   managed `.exe` path. If Codex skill discovery has a Windows limitation, it
-   must be recorded before claiming Codex support.
-13. A second `llm-wiki install` is idempotent under the same Windows runner,
+   full rendered command through the target runtime or shell and prove it
+   reaches the managed `.exe` path. If Codex skill discovery has a Windows
+   limitation, it must be recorded before claiming Codex support.
+11. A second `llm-wiki install` is idempotent under the same Windows runner,
     including hash verification after Defender real-time scanning.
-14. `llm-wiki doctor` reports managed binary state, PATH convenience state,
-    registry state, and search/index state without Unix-specific path wording.
-15. `llm-wiki uninstall` removes only manifest-owned files and handles
+12. `llm-wiki doctor` reports managed binary state, PATH convenience state,
+    registry state, and search/index state without Unix-specific path wording;
+    its Windows runnability check invokes the managed `.exe` rather than only
+    statting the file.
+13. `llm-wiki uninstall` removes only manifest-owned files and handles
     `--include-binary`.
-16. `llm-wiki init` creates a project in a Windows temp directory with spaces
-    in the path and in a local nested path longer than 260 characters.
-17. Registering the same local project root through drive-letter case variants
+14. `llm-wiki init` creates a project in a Windows temp directory with spaces
+    in the path and in a local nested path longer than 260 characters when the
+    runner has long paths enabled. If long paths cannot be enabled on the
+    runner, the skipped gate is recorded as a known limitation.
+15. Registering the same local project root through drive-letter case variants
     and, where applicable, with/without an extended-length `\\?\` prefix
     produces one registry entry.
-18. `llm-wiki register`, `index`, `search`, and `search-all` work on that
-    project.
-19. JSON-capable commands (`projects`, `search`, `search-all`, and eval
+16. `llm-wiki register`, `forget`, `index`, `index-all`, `search`,
+    `search-all`, `eval run`, and `eval calibrate` work from the release
+    artifact against Windows project state.
+17. JSON-capable commands (`projects`, `search`, `search-all`, and eval
     subcommands) round-trip through `serde_json` with Windows path fields
     escaped correctly and resolvable after parsing.
-20. Snapshot and golden tests are line-ending-stable on Windows. The preferred
+18. Snapshot and golden tests are line-ending-stable on Windows. The preferred
     defense is a committed `.gitattributes` rule forcing LF for skill assets,
     templates, snapshot fixtures, and markdown used in golden tests.
-21. If `llm-wiki update` has landed before P2, update smoke passes on Windows
+19. If `llm-wiki update` has landed before P2, update smoke passes on Windows
     and archives use NTFS-safe timestamp/path names.
-22. A clean Windows smoke run and the cross-platform release E2E result are
+20. A clean Windows smoke run and the cross-platform release E2E result are
     recorded in a wiki eval or checklist before
     the roadmap item is marked completed.
 
@@ -356,10 +488,13 @@ Acceptance requires documentation updates in the same deliverable:
 1. README install instructions include Windows release-artifact and Cargo paths.
 2. `llm-wiki path` prints PowerShell-friendly PATH guidance on Windows.
 3. `doctor` output names Windows managed paths and recovery commands.
-4. The release notes state the exact supported Windows targets.
+4. The release notes state the exact supported Windows targets, supported
+   Windows versions, required shell baseline, and whether validation came from
+   hosted CI, self-hosted CI, client VM smoke, or a combination.
 5. Release documentation states that every supported platform artifact passes
-   the release E2E harness, summarizes what the harness verifies, and states
-   any explicit simulation fallback such as a runtime stub.
+   the release E2E harness, summarizes what the harness verifies, names the
+   documented acquisition path exercised per platform, and states any explicit
+   simulation fallback such as a runtime stub.
 6. `wiki/specs/documentation-model.spec.md` replaces the existing
    forward-looking Windows managed-home sentence with validated target-specific
    support language only after the proof gates pass.
@@ -404,7 +539,8 @@ called out in release notes if signing remains out of scope.
 
 If accepted:
 
-1. Add a post-V1 roadmap item, tentatively `P2 - Full Windows Support`.
+1. Add a post-V1 roadmap item, tentatively
+   `P2 - Cross-Platform Release E2E And Windows Support`.
 2. Write a tactical plan that owns the implementation phases and proof gates.
 3. Apply the Observability Contract checklist to every changed command path.
 4. Add or update a repeatable release E2E checklist/eval so future releases can
