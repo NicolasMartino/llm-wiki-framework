@@ -1,7 +1,7 @@
 # Sandbox-Safe Search Cache Reads
 
 - Document Class: Proposal
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-05-23
 - Category: Search infrastructure, sandboxed agents, qmd-rs adapter
 - Scope: Make read-only search and diagnostics work against managed search
@@ -13,7 +13,8 @@
   wiki/decisions/semantic-hybrid-search-mode.decision.md,
   wiki/proposals/project-update-command.proposal.md,
   wiki/specs/wiki-query-skill.spec.md
-- Related: wiki/plans/qmd-rs-search-backend.plan.md,
+- Related: wiki/plans/sandbox-safe-search-cache-reads.plan.md,
+  wiki/plans/qmd-rs-search-backend.plan.md,
   wiki/plans/project-registry-search-artifacts.plan.md,
   wiki/checklists/observability-contract.checklist.md
 
@@ -39,12 +40,14 @@ architecture notes because the issue was found while dogfooding
 - Current promotion moves the SQLite file, metadata, WAL, and SHM files one at
   a time, and current comments already allow readers to observe transient
   missing state during promotion. Completed-store immutable reads therefore need
-  an explicit writer-side completion proof and publication contract before this
-  proposal becomes an implementation plan.
+  an explicit writer-side completion proof and publication contract during
+  implementation.
 
-Before promotion to a decision or implementation plan, capture the reproduction
-notes as a raw source or replace the conversational source with another durable
-evidence path.
+This proposal is accepted for implementation because the dogfooding failure is
+blocking the framework's search-first query workflow. The active plan treats
+the implementation tests as the durable reproduction record. Before promotion
+to a durable decision, either capture the reproduction notes as a raw source or
+replace the conversational source with another durable evidence path.
 
 ## Question
 

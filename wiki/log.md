@@ -1,5 +1,19 @@
 # Wiki Log
 
+## [2026-05-23] promote | sandbox-safe search cache reads plan
+
+Promoted the sandbox-safe search cache reads proposal to an active
+implementation plan and added post-V1 P2 roadmap tracking. The plan chooses an
+adapter-owned immutable SQLite read path for completed qmd-rs stores as the
+first implementation path, keeps qmd-rs as the writer/indexer, requires
+writer-side completed-store proof before live promotion, threads
+`transient` and `permission_denied` states through search/doctor/registry
+consumers, and defines JSON/verbose observability and parity-test coverage.
+
+Pages affected: wiki/plans/sandbox-safe-search-cache-reads.plan.md,
+wiki/proposals/sandbox-safe-search-cache-reads.proposal.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
+
 ## [2026-05-23] update | sandbox-safe search cache completed-store gates
 
 Incorporated review feedback on completed-store proof and publication

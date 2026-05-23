@@ -606,3 +606,53 @@ Unlocks:
 - direct CLI search for realistic project questions
 - search-first `wiki-query` retrieval for registered-project queries, with
   index-based fallback when search is unavailable or unhelpful
+
+### P2 - Sandbox-Safe Search Cache Reads
+
+Status: Active
+Promise: Read-only search, search-all, doctor, and project-status checks can
+inspect completed managed qmd-rs caches from sandboxed agents without cache
+write permission and without misclassifying access failures as corruption.
+Depends On: P1, D9
+Execution Plan: wiki/plans/sandbox-safe-search-cache-reads.plan.md
+Proposal: wiki/proposals/sandbox-safe-search-cache-reads.proposal.md
+
+Included:
+- immutable completed-store read path for lexical/status reads
+- writer-side completed-store proof before qmd-rs live promotion
+- metadata-first validation for completed stores
+- retryable transient state for mixed sqlite/metadata promotion observations
+- `permission_denied` state distinct from corrupt/schema-mismatch/stale/missing
+- `search-all` per-project JSON readiness and warning behavior for cache access
+  failures
+- backend-status JSON `open_mode`
+
+Excluded:
+- moving indexes into project roots
+- implicit rebuilds from read commands
+- model/license/materialization changes
+- Metal, query-expansion, embedding, or reranker runtime diagnostics
+- replacing qmd-rs
+
+Proof:
+- lexical JSON search succeeds against a managed qmd-rs cache with read access
+  but no write access
+- doctor/projects report read-only caches as ready or stale and true access
+  failures distinctly
+- permission_denied never routes to force-reindex guidance
+- search-all JSON stays parseable and reports per-project access failures while
+  returning other ready results
+- writer promotion verifies immutable readability before publication and treats
+  races as completed old/new or retryable transient states
+- existing qmd-rs query parity tests remain green
+
+Promotion Target:
+- wiki/decisions/search-backend-selection.decision.md
+- wiki/decisions/semantic-hybrid-search-mode.decision.md
+- wiki/specs/documentation-model.spec.md
+- wiki/specs/wiki-query-skill.spec.md
+
+Unlocks:
+- reliable search-first `wiki-query` in sandboxed Codex sessions
+- safer project-update `--reindex` follow-on
+- cleaner Windows/E2E proof later because read/write cache scopes are explicit
