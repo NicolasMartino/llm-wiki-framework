@@ -1,5 +1,18 @@
 # Wiki Log
 
+## [2026-05-23] update | sandbox-safe search cache plan review fixes
+
+Incorporated review findings into the sandbox-safe search cache reads plan.
+The plan now requires parseable single-project JSON readiness/status envelopes
+on cache access failures, project-aware qmd-rs status/search APIs for metadata
+project validation, explicit semantic/hybrid status-path handling,
+permission-preserving path checks instead of lossy existence checks, and a
+strict candidate-proof mode that treats transient or incomplete temp stores as
+fatal before promotion.
+
+Pages affected: wiki/plans/sandbox-safe-search-cache-reads.plan.md,
+wiki/log.md
+
 ## [2026-05-23] update | sandbox-safe search cache dogfood evidence
 
 Recorded the local post-plan reproduction evidence in the sandbox-safe search

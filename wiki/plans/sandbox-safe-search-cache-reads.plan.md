@@ -13,7 +13,10 @@
   wiki/checklists/observability-contract.checklist.md, src/search/qmd_rs.rs,
   src/search/adapter.rs, src/search/commands.rs, src/doctor.rs,
   src/registry/mod.rs, tests/search_commands.rs, tests/status_doctor.rs,
-  local command reproduction 2026-05-23 after `llm-wiki index --force`
+  local command reproduction 2026-05-23 after `llm-wiki index --force`,
+  review findings 2026-05-23 on JSON failure envelopes, project-aware status,
+  semantic/hybrid status paths, permission-preserving path checks, and strict
+  candidate verification
 - Related: wiki/proposals/sandbox-safe-search-cache-reads.proposal.md,
   wiki/plans/qmd-rs-search-backend.plan.md,
   wiki/plans/project-registry-search-artifacts.plan.md,
@@ -71,6 +74,8 @@ reads, permission/access classification, and real corruption.
 
 - Add read-path metadata to backend status, including `open_mode`.
 - Add explicit backend states for `transient` and `permission_denied`.
+- Make qmd-rs read/status APIs project-aware so metadata project/collection
+  validation has the expected project id available.
 - Make qmd-rs status metadata-first for completed stores.
 - Open completed stores through immutable SQLite for lexical/status reads.
 - Preserve qmd-rs as the write/index path.
@@ -106,6 +111,9 @@ reads, permission/access classification, and real corruption.
   path is used. Pin to the qmd-rs-compatible version already present in
   `Cargo.lock` unless cargo resolution requires otherwise.
 - `src/search/adapter.rs`: extend `BackendStatus` and `BackendState`.
+- `src/search/adapter.rs`: carry the expected project id and read purpose into
+  status/search calls, either by changing the trait signatures or by adding
+  project-aware qmd-rs helper APIs used by every qmd-rs consumer.
 - `src/search/qmd_rs.rs`: implement immutable completed-store status and
   lexical query reads, completed-store proof helpers, permission/corruption
   classification, and query parity tests.
@@ -132,10 +140,19 @@ Extend the backend status model before changing storage behavior.
    - `read_only_immutable`
    - `read_write_indexing`
    - `not_opened`
-4. Keep `Ready`, `Stale`, `Missing`, `Corrupt`, and `SchemaMismatch` semantics
+4. Add a read context that carries:
+   - expected project/collection id
+   - read purpose: live read/status vs pre-promotion candidate proof
+   - store location: managed or legacy, when known by the caller
+5. Update the `SearchBackend` trait or add project-aware qmd-rs helper methods
+   so `status`, `doctor`, and `search_project` cannot validate metadata
+   without knowing the expected project id. `StoreMetadata.project_id` must be
+   compared against caller intent, not merely trusted because the file path
+   was selected by convention.
+6. Keep `Ready`, `Stale`, `Missing`, `Corrupt`, and `SchemaMismatch` semantics
    intact.
-5. Update all state label helpers in search, doctor, and registry code.
-6. Update `freshness_for_status` so only `Ready` is fresh, `Stale` is stale,
+7. Update all state label helpers in search, doctor, and registry code.
+8. Update `freshness_for_status` so only `Ready` is fresh, `Stale` is stale,
    and permission/transient/corrupt/schema/missing states remain unknown.
 
 Verbose diagnostics must explain:
@@ -162,12 +179,17 @@ Implement a narrow immutable reader in `src/search/qmd_rs.rs`.
 2. Classify a missing sqlite file or missing metadata during promotion as
    `Transient` when related store files or backups indicate publication is in
    flight; classify an ordinary absence as `Missing`.
-3. Validate metadata backend, schema version, project/collection, file count,
-   and wiki snapshot before reporting `Ready` or `Stale`.
-4. Open the SQLite store with URI `mode=ro&immutable=1` and read-only flags.
-5. Classify filesystem or sandbox access failures as `PermissionDenied`.
-6. Classify SQLite parse/schema failures as `Corrupt` or `SchemaMismatch`.
-7. Implement lexical query reads through the immutable connection.
+3. Do not use lossy `Path::exists()`-style checks for readiness
+   classification. Use `try_exists`, `fs::metadata`, metadata-file reads, and
+   SQLite open/read attempts that preserve `PermissionDenied` and other
+   filesystem error kinds for both the sqlite file and the llm-wiki metadata
+   file.
+4. Validate metadata backend, schema version, expected project/collection,
+   file count, and wiki snapshot before reporting `Ready` or `Stale`.
+5. Open the SQLite store with URI `mode=ro&immutable=1` and read-only flags.
+6. Classify filesystem or sandbox access failures as `PermissionDenied`.
+7. Classify SQLite parse/schema failures as `Corrupt` or `SchemaMismatch`.
+8. Implement lexical query reads through the immutable connection.
 
 The query SQL should be the smallest llm-wiki-owned equivalent of the qmd-rs
 FTS query currently used by `Store::search_fts` and `Store::get_document`.
@@ -183,9 +205,12 @@ Tests:
 - ordinary qmd-rs lexical search and immutable SQL search agree on top results
   for existing fixture queries
 - a plain unreadable store reports `permission_denied`
+- unreadable sqlite or metadata paths do not collapse to `missing`
 - a malformed readable sqlite file reports `corrupt`
 - stale metadata still reports `stale`, not permission or corruption
 - metadata schema mismatch reports `schema_mismatch`
+- mismatched metadata project id reports `schema_mismatch` or another explicit
+  project-mismatch state, not `ready`
 
 ## Phase 3 - Completed-Store Proof And Promotion
 
@@ -195,8 +220,10 @@ promotion.
 1. After qmd-rs indexing finishes, close/drop the write store before proof.
 2. Checkpoint or otherwise force the candidate main SQLite file to contain all
    committed index content needed by immutable readers.
-3. Run the same immutable completed-store status path against the temp store.
-4. Fail the index command before promotion if immutable verification fails.
+3. Run immutable verification against the temp store in strict candidate-proof
+   mode, with the expected project id and current wiki snapshot.
+4. Fail the index command before promotion unless candidate proof reports a
+   fully ready completed store for the expected project.
 5. Keep the existing file-by-file promotion initially.
 6. Teach readers to retry `Transient` observations in the same place they
    already retry the current missing/open-race window.
@@ -208,9 +235,19 @@ true atomic sqlite+metadata publication unit. The first implementation may keep
 file-by-file promotion if readers classify half-promoted states as retryable
 `transient` and tests prove that behavior.
 
+Candidate proof and live-read classification are separate contracts. The live
+read path may classify mixed live files as retryable `Transient` because a
+reader can race with promotion. The pre-promotion candidate proof must treat
+missing metadata, mixed files, `Transient`, `PermissionDenied`, `Corrupt`,
+`SchemaMismatch`, project mismatch, and stale snapshot observations as fatal.
+A candidate build is not published until immutable verification proves the
+candidate is complete and current.
+
 Tests:
 
 - candidate promotion refuses to publish when immutable verification fails
+- candidate proof treats transient, missing metadata, permission denied,
+  project mismatch, stale snapshot, corrupt, and schema mismatch as fatal
 - `index --force` still restores the old live store on simulated promotion
   failure
 - `search` racing with promotion retries transient state and then succeeds
@@ -229,16 +266,27 @@ Thread the new states through every read consumer.
    - `Ready` and `Stale` to query execution
 2. `perform_project_search` must not route `PermissionDenied` through the
    existing `ForceReindex` path.
-3. Single-project `search --format json` keeps the existing top-level fields
-   and adds backend-status metadata, including `state`, `open_mode`, and a
-   concise access or freshness message.
-4. `search-all --format json` reports backend-status metadata per project.
+3. Single-project `search --format json` must print a parseable JSON envelope
+   for cache access failures before returning, rather than bailing before
+   `print_search_json`. `PermissionDenied`, exhausted `Transient`, and other
+   backend-readiness failures should appear as readiness/status metadata in
+   the same JSON family used for existing readiness failures. The process may
+   still exit non-zero, but stdout must remain structured JSON.
+4. Single-project successful `search --format json` keeps the existing
+   top-level fields and adds backend-status metadata, including `state`,
+   `open_mode`, and a concise access or freshness message.
+5. `search-all --format json` reports backend-status metadata per project.
    Per-project `permission_denied` and `transient` states become project
    warnings/readiness reports while other ready projects still contribute
    results.
-5. Human-readable `doctor` output distinguishes ready, stale, missing,
+6. `semantic_base_status`, `perform_semantic_project_search`, and hybrid
+   lexical branch setup must use the same state mapping and JSON-envelope
+   behavior as lexical search. Semantic/hybrid readiness checks must not bail
+   with missing/force-reindex guidance before JSON shaping when the failure is
+   a cache access, transient, permission, or completed-store status failure.
+7. Human-readable `doctor` output distinguishes ready, stale, missing,
    transient, permission denied, corrupt, and schema mismatch.
-6. `projects`/registry status exposes permission failures without labeling the
+8. `projects`/registry status exposes permission failures without labeling the
    index as corrupt or suggesting forced reindex for a healthy but inaccessible
    cache.
 
@@ -247,8 +295,14 @@ Tests:
 - `permission_denied` guidance names read access to the managed cache, not
   `--force`
 - corrupt/schema mismatch still uses force-reindex guidance
+- `llm-wiki search --format json` returns parseable readiness/status JSON for
+  single-project `permission_denied`
+- `llm-wiki search --format json` returns parseable readiness/status JSON for
+  exhausted single-project `transient`
 - `search-all --format json` remains parseable with one inaccessible project
   and one ready project
+- semantic and hybrid JSON searches preserve parseable readiness/status output
+  for cache access failures before semantic runtime loading or fusion
 - top-level and per-project JSON include `open_mode`
 - text output remains concise and stdout is not contaminated by diagnostics
 
@@ -308,6 +362,8 @@ Acceptance proof:
   stale
 - true access failures report `permission_denied`
 - permission failures never route to forced reindex guidance
+- single-project `search --format json` emits parseable JSON on cache access
+  failure
 - promotion races report retryable transient states, not corruption
 - `search-all --format json` remains parseable with per-project access
   failures
