@@ -1,5 +1,164 @@
 # Wiki Log
 
+## [2026-05-23] update | sandbox-safe search cache completed-store gates
+
+Incorporated review feedback on completed-store proof and publication
+semantics into the sandbox-safe search cache reads proposal. The proposal now
+requires writer-side checkpoint or immutable-read verification before live
+promotion, defines a completed store as a matching sqlite+metadata unit,
+requires metadata-first readiness checks where possible, treats promotion races
+as completed old/new stores or retryable transient states, specifies
+`search-all --format json` per-project access reporting, and places `open_mode`
+in backend-status metadata.
+
+Pages affected: wiki/proposals/sandbox-safe-search-cache-reads.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-23] update | sandbox-safe search cache mechanism preference
+
+Updated the sandbox-safe search cache reads proposal after follow-up review.
+The proposal now explicitly rejects a read-write to immutable cascade for
+ordinary read commands, names a narrow qmd-rs immutable read-only constructor
+as the preferred mechanism if cheap enough to land, keeps adapter-owned SQL as
+the pragmatic fallback with parity tests, and clarifies that fresh immutable
+completed-store reads should expose their open mode without being marked
+degraded solely because they are read-only.
+
+Pages affected: wiki/proposals/sandbox-safe-search-cache-reads.proposal.md,
+wiki/log.md
+
+## [2026-05-23] update | sandbox-safe search cache read-path architecture
+
+Tightened the sandbox-safe search cache reads proposal to make immutable reads
+the normal completed-store query and status path, not a fallback after a
+writable qmd-rs open fails. The proposal now requires search behavior,
+ranking, readiness labels, and diagnostics to be permission-independent across
+writable and non-writable cache environments, and requires parity tests for any
+adapter-owned SQL read path.
+
+Pages affected: wiki/proposals/sandbox-safe-search-cache-reads.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-23] update | sandbox-safe search cache reads review fixes
+
+Incorporated review feedback into the sandbox-safe search cache reads proposal.
+The proposal now treats SQLite `mode=ro&immutable=1` as a core requirement for
+completed qmd-rs store reads, records why plain `mode=ro` is insufficient for
+WAL-backed stores on read-only media, documents the uncheckpointed-WAL tradeoff
+and atomic-promotion dependency, and requires permission-denied states to bypass
+forced-reindex guidance across search, doctor, registry status, and freshness
+labels.
+
+Pages affected: wiki/proposals/sandbox-safe-search-cache-reads.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-23] create | sandbox-safe search cache reads proposal
+
+Created a separate proposal for sandbox-safe read access to managed qmd-rs
+search caches. The proposal keeps cache writes owned by `index`, `index-all`,
+and future `update --reindex`, while requiring read-only commands such as
+`search`, `search-all`, `doctor`, and registry status checks to inspect
+existing `~/.llm_wiki` stores without write permission and without
+misclassifying permission failures as corruption.
+
+Pages affected: wiki/proposals/sandbox-safe-search-cache-reads.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-23] complete | non-interactive LLM search install
+
+Implemented the non-interactive LLM search install plan. The install command
+now supports explicit scripted enabled-search posture with
+`--non-interactive --enable-llm-search --profile balanced`,
+`--confirm-model-downloads`, and `--accept-profile-licenses`; it runs an early
+no-write preflight before managed install/search state mutation, keeps
+download and license consent as separate runtime gates, accepts redundant
+`--configure-search` beside explicit posture, and records verbose diagnostics
+for posture, profile, artifact, license, skipped-prompt, and refusal decisions.
+The package version was bumped from `0.2.0` to `0.2.1`, init snapshots were
+refreshed, and the managed-binary proof showed the installed binary moved from
+`llm-wiki 0.2.0` to `llm-wiki 0.2.1` while reusing verified search model
+artifacts.
+
+Pages affected: wiki/plans/noninteractive-llm-search-install.plan.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-23] promote | non-interactive LLM search install plan
+
+Promoted the non-interactive LLM search install proposal to an active
+implementation plan. The plan breaks the work into CLI validation, early
+no-write preflight, runtime confirmation validation, install-flow integration,
+observability, tests/fixtures, documentation, and one-off version-proof phases.
+It preserves install-owned model materialization and requires missing runtime
+confirmations to fail before any managed install/search state is mutated.
+
+Pages affected: wiki/plans/noninteractive-llm-search-install.plan.md,
+wiki/proposals/noninteractive-llm-search-install.proposal.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-23] update | non-interactive install proposal fail-closed review
+
+Tightened the non-interactive LLM search install proposal after a second
+review. The proposal now distinguishes the recommended full automation command
+from the minimum runtime-state-specific flags, requires missing runtime
+confirmation failures to occur before any managed install/search state is
+mutated, expands the test matrix to cover stale licenses, missing artifacts,
+hash mismatches, extra consent flags, and no-write refusals, and adds explicit
+observability requirements tied to the active CLI observability checklist.
+
+Pages affected: wiki/proposals/noninteractive-llm-search-install.proposal.md,
+wiki/log.md
+
+## [2026-05-23] update | non-interactive install proposal review fixes
+
+Revised the non-interactive LLM search install proposal after review. The
+canonical scripted command now starts with `--non-interactive` and uses
+expressive consent flags:
+`--confirm-model-downloads` and `--accept-profile-licenses`. The proposal now
+distinguishes static clap validation from state-dependent runtime validation,
+defines the relationship with `--configure-search`, states that enabled
+non-interactive install writes the same `[project_default]` and
+`[global_search]` config as the interactive path, and treats the one-off
+version bump as implementation-proof evidence.
+
+Pages affected: wiki/proposals/noninteractive-llm-search-install.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-23] create | non-interactive LLM search install proposal
+
+Created a proposal for explicit non-interactive LLM search installation. The
+proposed command is
+`llm-wiki install --enable-llm-search --profile balanced --yes --accept-all-licenses`.
+The proposal keeps model materialization and license acceptance install-owned,
+preserves the lexical-only `--disable-llm-search` automation path, requires
+`--force` for hash-mismatch replacement, and records version bumping only as a
+one-off implementation proof signal.
+
+Pages affected: wiki/proposals/noninteractive-llm-search-install.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-23] update | wiki-query search-first retrieval
+
+Accepted search-first retrieval for `wiki-query`. The canonical skill now reads
+`wiki/index.md` for orientation and then attempts
+`llm-wiki search --mode auto --format json` for every registered-project query.
+Search metadata must be inspected before trusting results, snippets remain
+navigation aids only, returned wiki pages must be read directly before
+answering, and unregistered/stale/unready/unhelpful search falls back to
+index-based navigation.
+
+Recorded the durable rationale in a decision, updated the active query and
+documentation specs, and refreshed qmd-rs guidance in the base project
+guidelines template so generated projects dogfood search by default.
+
+Pages affected: assets/skills/wiki-query/SKILL.md,
+wiki/decisions/wiki-query-search-first.decision.md,
+wiki/specs/wiki-query-skill.spec.md, wiki/specs/documentation-model.spec.md,
+wiki/decisions/semantic-hybrid-search-mode.decision.md,
+templates/base/project_guidelines.md,
+templates/packs/qmd-rs-scale/project_guidelines.md,
+wiki/plans/semantic-hybrid-search.plan.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
+
 ## [2026-05-14] update | idempotent search model install implementation
 
 Implemented the idempotent search model install plan. Added managed model

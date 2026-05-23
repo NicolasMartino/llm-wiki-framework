@@ -77,10 +77,13 @@ must rerun `eval run` and `eval calibrate` before threshold promotion.
 
 ## Consequences
 
-- `wiki-query` can use `llm-wiki search --mode auto --format json` to
-  supplement `wiki/index.md`, but it must inspect selected-mode, readiness,
-  fallback, zero-result, and per-result metadata before reading and citing the
-  returned wiki pages.
+- `wiki-query` uses `llm-wiki search --mode auto --format json` for every query
+  after reading `wiki/index.md` when the current project is registered, but it
+  must inspect selected-mode, readiness, fallback, zero-result, and per-result
+  metadata before reading and citing the returned wiki pages.
+- If search is unavailable, the project is unregistered, the index is stale, or
+  results are not useful, `wiki-query` falls back to index-based navigation
+  rather than treating search failure or zero results as an answer.
 - Search results remain retrieval results, not synthesized answers. Wiki pages
   remain the citation source.
 - Zero results are valid when relevance thresholds reject all candidates.

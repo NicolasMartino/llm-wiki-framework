@@ -127,6 +127,10 @@ pub enum BuildTarget {
 }
 
 #[derive(Debug, clap::Args)]
+#[command(group(
+    clap::ArgGroup::new("search_posture")
+        .args(["enable_llm_search", "disable_llm_search"])
+))]
 pub struct InstallArgs {
     #[arg(long)]
     pub force: bool,
@@ -135,7 +139,34 @@ pub struct InstallArgs {
     #[arg(long)]
     pub configure_search: bool,
     #[arg(long)]
+    pub non_interactive: bool,
+    #[arg(
+        long,
+        conflicts_with = "disable_llm_search",
+        requires_all = ["non_interactive", "profile"]
+    )]
+    pub enable_llm_search: bool,
+    #[arg(long, value_enum, requires = "enable_llm_search")]
+    pub profile: Option<InstallSearchProfileArg>,
+    #[arg(long, requires = "enable_llm_search")]
+    pub confirm_model_downloads: bool,
+    #[arg(long, requires = "enable_llm_search")]
+    pub accept_profile_licenses: bool,
+    #[arg(long)]
     pub disable_llm_search: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub enum InstallSearchProfileArg {
+    Balanced,
+}
+
+impl InstallSearchProfileArg {
+    pub const fn id(self) -> &'static str {
+        match self {
+            Self::Balanced => "balanced",
+        }
+    }
 }
 
 #[derive(Debug, clap::Args)]

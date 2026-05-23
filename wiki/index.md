@@ -1,14 +1,14 @@
 # Wiki Index
 
 Project: Software Project Management Framework
-Stage: D1-D11 Completed; code-pack/CLI blueprint, CLI observability, post-V1 P1 semantic/hybrid search, idempotent search model install/cleanup semantics, and init rerun schema-drift audit completed; calibrated hybrid/auto search now has project-scoped thresholds, human-accepted framework and electric-car labels, redacted raw eval evidence, durable search-mode decision coverage, post-completion readiness hardening, interactive install search posture prompting, and completed verification gates; crash-report, project-update, search-model selection, and cross-platform-release-E2E/Windows-support proposals open
-Updated: 2026-05-15
+Stage: D1-D11 Completed; code-pack/CLI blueprint, CLI observability, post-V1 P1 semantic/hybrid search, idempotent search model install/cleanup semantics, init rerun schema-drift audit, search-first `wiki-query` dogfooding decision, and non-interactive LLM-search install completed; calibrated hybrid/auto search now has project-scoped thresholds, human-accepted framework and electric-car labels, redacted raw eval evidence, durable search-mode decision coverage, post-completion readiness hardening, interactive install search posture prompting, and completed verification gates; crash-report, project-update, sandbox-safe search cache reads, search-model selection, and cross-platform-release-E2E/Windows-support proposals open
+Updated: 2026-05-23
 
 ## Specs
 
-- [Documentation Model](specs/documentation-model.spec.md) — Active — Three-layer architecture, operations, document types, binary distribution, composable init templates, rerun schema-drift audit, and `llm-wiki search` scale strategy
+- [Documentation Model](specs/documentation-model.spec.md) — Active — Three-layer architecture, operations, document types, binary distribution, composable init templates, rerun schema-drift audit, and search-first `wiki-query` retrieval with qmd-rs-backed fallback handling
 - [Wiki Init Skill](specs/wiki-init-skill.spec.md) — Active — `wiki-init` wrapper over `llm-wiki init` with blueprint/pack selection and manifest-backed rerun defaults
-- [Wiki Query Skill](specs/wiki-query-skill.spec.md) — Active — `wiki-query` skill for querying the wiki with citations and save-back
+- [Wiki Query Skill](specs/wiki-query-skill.spec.md) — Active — `wiki-query` skill reads the index for orientation, always attempts `llm-wiki search --mode auto --format json` for registered-project queries, then answers from cited wiki pages with save-back
 - [Wiki Ingest Skill](specs/wiki-ingest-skill.spec.md) — Active — `wiki-ingest` skill for processing raw sources into wiki pages with 3-phase pipeline
 - [Wiki Lint Skill](specs/wiki-lint-skill.spec.md) — Active — `wiki-lint` skill for scanning and fixing wiki consistency issues
 - [Wiki Research Skill](specs/wiki-research-skill.spec.md) — Active — Guided research intake skill that writes bundles under `raw/research/` with manifest and summary
@@ -26,6 +26,7 @@ Updated: 2026-05-15
 - [Skill Projection Template Engine](decisions/skill-projection-template-engine.decision.md) — Accepted — Claude/Codex skill markdown and Codex runtime config render through shared Askama templates
 - [Code Pack And CLI Tool Blueprint](decisions/code-pack-cli-blueprint.decision.md) — Accepted — Move root code/deploy folders behind an explicit `code` pack and add `cli-tool` as a command-line product blueprint
 - [Semantic Hybrid Search Mode](decisions/semantic-hybrid-search-mode.decision.md) — Accepted — `auto` defaults to calibrated hybrid when LLM search, accepted licenses, fresh semantic indexes, and scoped thresholds are ready; `search-all` reports per-project readiness; lexical remains the exact fallback, semantic-only is diagnostic, and reranking stays opt-in pending its own calibrated profile
+- [Wiki Query Search-First Retrieval](decisions/wiki-query-search-first.decision.md) — Accepted — `wiki-query` reads `wiki/index.md` for orientation, then attempts `llm-wiki search --mode auto --format json` for every registered-project query before falling back to index navigation when search is unavailable or unhelpful
 
 ## Roadmaps
 
@@ -54,7 +55,9 @@ Updated: 2026-05-15
 - [Code Scaffolding As An Opt-In Pack](proposals/code-folders-opt-in.proposal.md) — Accepted — Promoted to code-pack/CLI blueprint decision and implementation plan
 - [Semantic and Hybrid Search for Natural-Language Queries](proposals/search-query-interpretation.proposal.md) — Accepted — Implemented through the completed semantic/hybrid search plan and promoted to the semantic-hybrid search-mode decision
 - [Always-On Crash Reports](proposals/crash-reports.proposal.md) — Proposed — Capture a crash report under `~/.llm_wiki/crashes/` for every panic (full origin backtrace) and every post-parse error-exit (anyhow error chain) of the binary, with no opt-in flag
+- [Sandbox-Safe Search Cache Reads](proposals/sandbox-safe-search-cache-reads.proposal.md) — Proposed — Makes search, doctor, and registry status checks inspect managed qmd-rs caches through one immutable completed-store read path, with checkpointed sqlite+metadata publication and per-project JSON access states, while preserving index/update as write owners
 - [Search Model Selection: Per-Project and Cross-Project Profiles](proposals/search-model-selection.proposal.md) — Proposed — Adds project and cross-project profile-bundle selection, pending state for uninstalled choices, install-owned materialization, `[project_default]` / `[global_search]` / `[project]` scope split, and a non-interactive `--model <id-or-profile>` sibling
+- [Non-Interactive LLM Search Install](proposals/noninteractive-llm-search-install.proposal.md) — Accepted — Implemented through the completed non-interactive install plan for explicit `install --non-interactive --enable-llm-search --profile balanced --confirm-model-downloads --accept-profile-licenses` automation
 - [Cross-Platform Release E2E And Windows Support](proposals/full-windows-support.proposal.md) — Proposed — Defines release-grade Windows support through an explicit Windows baseline, checksum-verified artifact acquisition, Known Folder managed paths, full PowerShell/rendered-command skill invocation, path-helper mapping, command coverage matrix, qmd-rs/search parity, black-box real-use release E2E with command/file verification, hosted/self-hosted runner flexibility, long-path/runnability gates, Defender/CRLF/JSON proof gates, source-capture prerequisite, and update sequencing
 
 ## Plans
@@ -72,6 +75,7 @@ Updated: 2026-05-15
 - [CLI Verbose Diagnostics](plans/cli-observability.plan.md) — Completed — Implemented global `-v/--verbose`, `CliContext`, tracing stderr diagnostics, search/search-all retrieval proof, and concise command-specific diagnostics across every remaining binary command
 - [Semantic and Hybrid Search](plans/semantic-hybrid-search.plan.md) — Completed — Delivered install-time LLM search profiles, semantic indexes, auto/lexical/semantic/hybrid modes, hybrid fusion, optional reranking, search-all rank merge with per-project readiness, wiki-query metadata consumption, model/profile-aware `eval run` / `eval calibrate`, scoped thresholds, redacted raw eval evidence, human label acceptance, post-completion readiness hardening, interactive default install search prompting, and a durable semantic/hybrid search-mode decision
 - [Idempotent Search Model Install](plans/idempotent-search-model-install.plan.md) — Completed — Implemented verified model reuse, license-only prompting, missing-only downloads, force-scoped replacement, disabled-search artifact preservation, targeted `uninstall --search-artifacts`, and full global runtime cleanup semantics
+- [Non-Interactive LLM Search Install](plans/noninteractive-llm-search-install.plan.md) — Completed — Implemented explicit non-interactive enabled-search install with named consent flags, early no-write runtime preflight, observability coverage, and one-off version proof
 - [Init Rerun Schema Drift](plans/init-rerun-pack-drift.plan.md) — Completed — Detects pack-set and resolved-folder composition drift on rerun, preserves orphan content, appends structured `wiki/log.md` evidence, refreshes or appends an init-owned schema-drift section in `wiki/index.md`, and records `resolved_folders` in init manifests
 
 ## Experiments

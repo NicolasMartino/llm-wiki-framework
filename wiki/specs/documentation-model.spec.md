@@ -5,7 +5,7 @@
 - Date: 2026-05-14
 - Category: Framework core
 - Scope: The validated documentation and execution model for projects using this framework.
-- Sources: raw/legacy/legacy-project-guidelines.md, raw/research/llm-wiki-pattern-research.md, raw/research/niharshrotri-llm-wiki-implementation.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/plans/cli-observability.plan.md, wiki/decisions/composable-project-init.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/plans/init-rerun-pack-drift.plan.md, wiki/evals/v1-proof-run.eval.md, wiki/evals/natural-language-search.eval.md
+- Sources: raw/legacy/legacy-project-guidelines.md, raw/research/llm-wiki-pattern-research.md, raw/research/niharshrotri-llm-wiki-implementation.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/plans/cli-observability.plan.md, wiki/decisions/composable-project-init.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/decisions/wiki-query-search-first.decision.md, wiki/plans/init-rerun-pack-drift.plan.md, wiki/evals/v1-proof-run.eval.md, wiki/evals/natural-language-search.eval.md
 - Related: wiki/decisions/three-layer-architecture.decision.md, wiki/decisions/agent-owns-wiki.decision.md, wiki/decisions/typed-documents.decision.md, wiki/references/qmd-rs-search-crate.reference.md, wiki/decisions/search-backend-selection.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/specs/wiki-init-skill.spec.md, wiki/specs/wiki-query-skill.spec.md, wiki/checklists/observability-contract.checklist.md
 
 ## Current State
@@ -66,16 +66,22 @@ Nine typed document roles, each with distinct truth relationship:
 - Experiment (investigation evidence), Eval (measured performance)
 - Checklist (repeatable procedure), Reference (external evidence)
 
-## Navigation: How Projects Answer Questions Once The Index Is Too Large
+## Navigation: How Projects Answer Questions
 
-- `wiki/index.md` is the sole agent entry point for small wikis (<100 pages)
+- `wiki/index.md` is the mandatory first-read orientation and catalog
 - `wiki/log.md` tracks all mutations chronologically
 - No distributed READMEs; the index is the catalog
-- At scale (>100 pages): `llm-wiki search` supplements `index.md` navigation
-  for project-local retrieval, and `llm-wiki search-all` performs explicit
-  cross-project retrieval across registered projects. The internal qmd-rs
-  backend owns rebuildable search stores under host-local cache state; markdown
-  files under `wiki/` remain canonical citations.
+- For query operations, `wiki-query` attempts `llm-wiki search --mode auto
+  --format json` for every query after reading the index when the current
+  project is registered. Search is the default project-local retrieval pass,
+  not only a large-wiki fallback.
+- If search is unavailable, unregistered, stale, not ready, or unhelpful, the
+  agent continues from index-based navigation instead of treating search
+  failure or zero results as the answer.
+- `llm-wiki search-all` performs explicit cross-project retrieval across
+  registered projects. The internal qmd-rs backend owns rebuildable search
+  stores under host-local cache state; markdown files under `wiki/` remain
+  canonical citations.
 
 Validated search behavior:
 
@@ -154,6 +160,9 @@ future CLI implementation plans and code reviews.
   implement the accepted semantic/hybrid mode decision, including readiness
   metadata, zero-result metadata, scoped thresholds, and exact-identifier
   preservation
+- `wiki-query` attempts `llm-wiki search --mode auto --format json` for every
+  registered-project query after index orientation, then reads and cites the
+  returned wiki pages directly
 - Semantic/hybrid runtime readiness includes accepted model-license records,
   fresh project-scoped semantic indexes, and compatible scoped thresholds;
   `search-all` reports these outcomes per project and skips unready projects

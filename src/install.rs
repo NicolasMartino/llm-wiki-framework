@@ -22,8 +22,8 @@ use crate::path_guidance;
 use crate::paths::Paths;
 use crate::search_models::{
     AcceptedLicenses, DEFAULT_PROFILE_ID, MaterializationOutcome, ModelArtifactClassification,
-    ModelArtifactRecord, ModelArtifacts, SearchModel, classify_model_artifact, materialize_model,
-    models_for_profile, profile_by_id,
+    ModelArtifactRecord, ModelArtifacts, ProfileBundle, SearchModel, classify_model_artifact,
+    materialize_model, models_for_profile, profile_by_id,
 };
 use crate::search_profile::{ExternalDependencies, SearchConfig, SearchProfile};
 use crate::skill_render::{apply_binary_context, managed_binary_invocation};
@@ -40,6 +40,24 @@ pub fn run(args: &InstallArgs, context: &CliContext) -> Result<()> {
         "configure search requested: {}",
         args.configure_search
     ));
+    context.diagnostic(format!("non-interactive: {}", args.non_interactive));
+    context.diagnostic(format!("enable llm search: {}", args.enable_llm_search));
+    context.diagnostic(format!("disable llm search: {}", args.disable_llm_search));
+    context.diagnostic(format!(
+        "search profile argument: {}",
+        args.profile
+            .map(|profile| profile.id())
+            .unwrap_or(DEFAULT_PROFILE_ID)
+    ));
+    context.diagnostic(format!(
+        "confirm model downloads: {}",
+        args.confirm_model_downloads
+    ));
+    context.diagnostic(format!(
+        "accept profile licenses: {}",
+        args.accept_profile_licenses
+    ));
+    validate_install_args(args)?;
     let paths = Paths::from_env()?;
     context.diagnostic(format!("managed home: {}", paths.managed_home().display()));
     context.diagnostic(format!(
@@ -68,6 +86,7 @@ pub fn run(args: &InstallArgs, context: &CliContext) -> Result<()> {
         paths.model_artifacts().display()
     ));
     ensure_search_prompt_available(args)?;
+    let enabled_search_preflight = preflight_noninteractive_enabled_search(args, &paths, context)?;
     let current_exe = env::current_exe().context("failed to resolve current executable")?;
     context.diagnostic(format!("current executable: {}", current_exe.display()));
     let current_exe_bytes = fs::read(&current_exe).with_context(|| {
@@ -144,34 +163,226 @@ pub fn run(args: &InstallArgs, context: &CliContext) -> Result<()> {
             )
         })?;
     }
-    configure_search(args, &paths, context)?;
+    configure_search(args, &paths, context, enabled_search_preflight)?;
     if !args.skip_path_guidance {
         path_guidance::print_guidance(&paths);
     }
     Ok(())
 }
 
-fn configure_search(args: &InstallArgs, paths: &Paths, context: &CliContext) -> Result<()> {
+fn validate_install_args(args: &InstallArgs) -> Result<()> {
+    if args.non_interactive && !args.enable_llm_search && !args.disable_llm_search {
+        bail!(
+            "non-interactive install requires either `--enable-llm-search --profile balanced` or `--disable-llm-search`"
+        );
+    }
+    Ok(())
+}
+
+fn configure_search(
+    args: &InstallArgs,
+    paths: &Paths,
+    context: &CliContext,
+    enabled_search_preflight: Option<EnabledSearchPreflight>,
+) -> Result<()> {
     context.diagnostic("search configuration action: start");
     if args.disable_llm_search {
+        context.diagnostic("search configuration selected posture: disabled");
+        if args.configure_search {
+            context.diagnostic(
+                "search configuration: --configure-search redundant beside explicit disabled posture",
+            );
+        }
         return configure_disabled_search(paths, context);
+    }
+    if args.enable_llm_search {
+        context.diagnostic("search configuration selected posture: enabled");
+        context.diagnostic("search configuration prompt skipped: non-interactive posture supplied");
+        if args.configure_search {
+            context.diagnostic(
+                "search configuration: --configure-search redundant beside explicit enabled posture",
+            );
+        }
+        return configure_enabled_search(args, paths, context, enabled_search_preflight);
     }
 
     let posture = current_search_posture(paths, context);
     let selected = prompt_search_posture(posture)?;
     if selected == SearchInstallPosture::SemanticHybrid {
-        return configure_enabled_search(args, paths, context);
+        return configure_enabled_search(args, paths, context, None);
     }
     configure_disabled_search(paths, context)
 }
 
 fn ensure_search_prompt_available(args: &InstallArgs) -> Result<()> {
-    if args.disable_llm_search || io::stdin().is_terminal() {
+    if args.disable_llm_search || args.enable_llm_search || io::stdin().is_terminal() {
         return Ok(());
     }
     bail!(
-        "interactive install requires a terminal for search setup; rerun with `--disable-llm-search` for lexical-only/no-LLM automation or run `llm-wiki install` from a terminal"
+        "interactive install requires a terminal for search setup; rerun with `--non-interactive --disable-llm-search` for lexical-only/no-LLM automation, rerun with `--non-interactive --enable-llm-search --profile balanced --confirm-model-downloads --accept-profile-licenses` for scripted LLM search, or run `llm-wiki install` from a terminal"
     )
+}
+
+#[derive(Clone, Debug)]
+struct EnabledSearchPreflight {
+    profile: ProfileBundle,
+    models: Vec<SearchModel>,
+    install_plan: EnabledSearchInstallPlan,
+}
+
+fn preflight_noninteractive_enabled_search(
+    args: &InstallArgs,
+    paths: &Paths,
+    context: &CliContext,
+) -> Result<Option<EnabledSearchPreflight>> {
+    if !args.enable_llm_search {
+        return Ok(None);
+    }
+
+    context.diagnostic("search non-interactive preflight: start");
+    let preflight = build_enabled_search_preflight(args, paths, context)?;
+    validate_noninteractive_enabled_search(args, &preflight.install_plan, context)?;
+    context.diagnostic("search non-interactive preflight: accepted");
+    Ok(Some(preflight))
+}
+
+fn build_enabled_search_preflight(
+    args: &InstallArgs,
+    paths: &Paths,
+    context: &CliContext,
+) -> Result<EnabledSearchPreflight> {
+    let profile_id = args
+        .profile
+        .map(|profile| profile.id())
+        .unwrap_or(DEFAULT_PROFILE_ID);
+    let profile = profile_by_id(profile_id)
+        .with_context(|| format!("LLM search profile `{profile_id}` is not available"))?;
+    let models = models_for_profile(profile, false)?;
+    context.diagnostic(format!(
+        "search profile selected: {} (source: {})",
+        profile.id,
+        if args.profile.is_some() {
+            "--profile"
+        } else {
+            "default"
+        }
+    ));
+    context.diagnostic(format!("search profile models: {}", models.len()));
+
+    let accepted_licenses = AcceptedLicenses::read(&paths.accepted_licenses())?;
+    let classifications = models
+        .iter()
+        .copied()
+        .map(|model| {
+            classify_model_artifact(model, profile, &paths.managed_model_root())
+                .map(|classification| (model, classification))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    diagnose_model_classifications(&classifications, context);
+    let install_plan = plan_enabled_search_install(
+        &models,
+        accepted_licenses.as_ref(),
+        classifications,
+        args.force,
+    )?;
+    diagnose_license_classifications(&models, &install_plan, context);
+
+    Ok(EnabledSearchPreflight {
+        profile,
+        models,
+        install_plan,
+    })
+}
+
+fn diagnose_model_classifications(
+    classifications: &[(SearchModel, ModelArtifactClassification)],
+    context: &CliContext,
+) {
+    let mut verified = 0;
+    let mut missing = 0;
+    let mut hash_mismatch = 0;
+    for (model, classification) in classifications {
+        match classification {
+            ModelArtifactClassification::Verified { .. } => {
+                verified += 1;
+                context.diagnostic(format!(
+                    "search artifact classification: {} verified",
+                    model.id
+                ));
+            }
+            ModelArtifactClassification::Missing { path } => {
+                missing += 1;
+                context.diagnostic(format!(
+                    "search artifact classification: {} missing at {}",
+                    model.id,
+                    path.display()
+                ));
+            }
+            ModelArtifactClassification::HashMismatch {
+                path,
+                observed_sha256,
+            } => {
+                hash_mismatch += 1;
+                context.diagnostic(format!(
+                    "search artifact classification: {} hash-mismatch at {} observed_sha256={}",
+                    model.id,
+                    path.display(),
+                    observed_sha256
+                ));
+            }
+        }
+    }
+    context.diagnostic(format!(
+        "search artifact classification summary: verified={verified}, missing={missing}, hash_mismatch={hash_mismatch}"
+    ));
+}
+
+fn diagnose_license_classifications(
+    models: &[SearchModel],
+    install_plan: &EnabledSearchInstallPlan,
+    context: &CliContext,
+) {
+    let missing_or_stale = install_plan.models_requiring_license_ack.len();
+    let current = models.len().saturating_sub(missing_or_stale);
+    context.diagnostic(format!(
+        "search license classification summary: current={current}, missing_or_stale={missing_or_stale}"
+    ));
+}
+
+fn validate_noninteractive_enabled_search(
+    args: &InstallArgs,
+    install_plan: &EnabledSearchInstallPlan,
+    context: &CliContext,
+) -> Result<()> {
+    let mut missing = Vec::new();
+    if install_plan.requires_download() && !args.confirm_model_downloads {
+        missing.push("--confirm-model-downloads");
+    }
+    if install_plan.license_prompt_required && !args.accept_profile_licenses {
+        missing.push("--accept-profile-licenses");
+    }
+    if !missing.is_empty() {
+        context.diagnostic(format!(
+            "search non-interactive missing runtime confirmation: {}",
+            missing.join(", ")
+        ));
+        context.diagnostic("search non-interactive refusal: no install state mutated");
+        bail!(
+            "non-interactive LLM search install requires {}; no install or search state was changed",
+            missing.join(" and ")
+        );
+    }
+    if args.confirm_model_downloads && !install_plan.requires_download() {
+        context.diagnostic(
+            "search non-interactive confirmation: --confirm-model-downloads accepted as no-op",
+        );
+    }
+    if args.accept_profile_licenses && !install_plan.license_prompt_required {
+        context.diagnostic(
+            "search non-interactive confirmation: --accept-profile-licenses accepted as no-op",
+        );
+    }
+    Ok(())
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -257,31 +468,65 @@ fn configure_disabled_search(paths: &Paths, context: &CliContext) -> Result<()> 
     Ok(())
 }
 
-fn configure_enabled_search(args: &InstallArgs, paths: &Paths, context: &CliContext) -> Result<()> {
-    let profile =
-        profile_by_id(DEFAULT_PROFILE_ID).context("default LLM search profile missing")?;
-    let models = models_for_profile(profile, false)?;
-    context.diagnostic(format!("search profile selected: {}", profile.id));
-    context.diagnostic(format!("search profile models: {}", models.len()));
-
-    let accepted_licenses = AcceptedLicenses::read(&paths.accepted_licenses())?;
-    let classifications = models
-        .iter()
-        .copied()
-        .map(|model| {
-            classify_model_artifact(model, profile, &paths.managed_model_root())
-                .map(|classification| (model, classification))
-        })
-        .collect::<Result<Vec<_>>>()?;
-    let install_plan = plan_enabled_search_install(
-        &models,
-        accepted_licenses.as_ref(),
-        classifications,
-        args.force,
-    )?;
+fn configure_enabled_search(
+    args: &InstallArgs,
+    paths: &Paths,
+    context: &CliContext,
+    preflight: Option<EnabledSearchPreflight>,
+) -> Result<()> {
+    let EnabledSearchPreflight {
+        profile,
+        models,
+        install_plan,
+    } = match preflight {
+        Some(preflight) => preflight,
+        None => build_enabled_search_preflight(args, paths, context)?,
+    };
 
     println!("LLM search profile: {}", profile.display_name);
-    if install_plan.requires_download() {
+    if args.enable_llm_search {
+        if install_plan.requires_download() {
+            println!("Models to download and verify:");
+            for model in install_plan.models_to_download() {
+                print_model_license_line(model, Some(model.expected_sha256));
+            }
+            for replacement in install_plan.models_to_replace() {
+                println!(
+                    "- {}: {} / {} ({}, sha256 {}, replacing local hash {}){}",
+                    replacement.model.role.label(),
+                    replacement.model.repository,
+                    replacement.model.file,
+                    license_label(replacement.model),
+                    replacement.model.expected_sha256,
+                    replacement.observed_sha256,
+                    terms_suffix(replacement.model)
+                );
+            }
+            let reused_unaccepted = install_plan.reused_models_requiring_license_ack();
+            if !reused_unaccepted.is_empty() {
+                println!(
+                    "Already installed and verified, but license/terms acknowledgement was also required:"
+                );
+                for model in reused_unaccepted {
+                    print_model_license_line(model, None);
+                }
+            }
+            println!(
+                "Model bytes are stored under {} and are not bundled with llm-wiki.",
+                paths.managed_model_root().display()
+            );
+        } else if install_plan.license_prompt_required {
+            println!("All required model artifacts are already installed and verified.");
+            println!("Model license/terms acknowledgement was required for this profile:");
+            for model in &models {
+                print_model_license_line(*model, None);
+            }
+        } else {
+            println!(
+                "All required model artifacts are already installed and verified; reusing managed copies."
+            );
+        }
+    } else if install_plan.requires_download() {
         println!("Models to download and verify:");
         for model in install_plan.models_to_download() {
             print_model_license_line(model, Some(model.expected_sha256));
@@ -1273,7 +1518,9 @@ mod tests {
 
     use super::{
         PlannedModelAction, SearchInstallPosture, backup_with_suffix, plan_enabled_search_install,
+        validate_noninteractive_enabled_search,
     };
+    use crate::cli::{InstallArgs, InstallSearchProfileArg};
     use crate::search_models::{
         ADAPTER_SCHEMA_VERSION, AcceptedLicenses, BALANCED_PROFILE, EMBEDDING_GEMMA_300M,
         ModelArtifactClassification, ModelArtifactRecord, QMD_QUERY_EXPANSION_17B, QMD_RS_VERSION,
@@ -1333,6 +1580,12 @@ mod tests {
 
         assert!(!plan.license_prompt_required);
         assert!(!plan.requires_download());
+        validate_noninteractive_enabled_search(
+            &install_args(false, false, false),
+            &plan,
+            context(),
+        )
+        .expect("no confirmations required");
         assert!(matches!(
             plan.actions[0],
             PlannedModelAction::Reuse {
@@ -1375,6 +1628,15 @@ mod tests {
 
         assert!(plan.license_prompt_required);
         assert!(!plan.requires_download());
+        let error = validate_noninteractive_enabled_search(
+            &install_args(false, false, false),
+            &plan,
+            context(),
+        )
+        .expect_err("license confirmation required");
+        assert!(format!("{error:#}").contains("--accept-profile-licenses"));
+        validate_noninteractive_enabled_search(&install_args(false, true, false), &plan, context())
+            .expect("license confirmation accepted");
     }
 
     #[test]
@@ -1404,6 +1666,15 @@ mod tests {
 
         assert!(!plan.license_prompt_required);
         assert!(plan.requires_download());
+        let error = validate_noninteractive_enabled_search(
+            &install_args(false, false, false),
+            &plan,
+            context(),
+        )
+        .expect_err("download confirmation required");
+        assert!(format!("{error:#}").contains("--confirm-model-downloads"));
+        validate_noninteractive_enabled_search(&install_args(true, false, false), &plan, context())
+            .expect("download confirmation accepted");
         assert_eq!(plan.models_to_download(), vec![QMD_QUERY_EXPANSION_17B]);
         assert!(matches!(
             plan.actions[0],
@@ -1447,6 +1718,22 @@ mod tests {
 
         assert!(plan.requires_download());
         assert!(plan.license_prompt_required);
+        let error = validate_noninteractive_enabled_search(
+            &install_args(true, false, false),
+            &plan,
+            context(),
+        )
+        .expect_err("profile license confirmation required");
+        assert!(format!("{error:#}").contains("--accept-profile-licenses"));
+        let error = validate_noninteractive_enabled_search(
+            &install_args(false, true, false),
+            &plan,
+            context(),
+        )
+        .expect_err("download confirmation required");
+        assert!(format!("{error:#}").contains("--confirm-model-downloads"));
+        validate_noninteractive_enabled_search(&install_args(true, true, false), &plan, context())
+            .expect("both confirmations accepted");
         assert_eq!(
             plan.reused_models_requiring_license_ack(),
             vec![EMBEDDING_GEMMA_300M]
@@ -1503,6 +1790,15 @@ mod tests {
 
         assert!(!plan.license_prompt_required);
         assert!(plan.requires_download());
+        let error = validate_noninteractive_enabled_search(
+            &install_args(false, false, true),
+            &plan,
+            context(),
+        )
+        .expect_err("forced replacement still needs download confirmation");
+        assert!(format!("{error:#}").contains("--confirm-model-downloads"));
+        validate_noninteractive_enabled_search(&install_args(true, false, true), &plan, context())
+            .expect("forced replacement download confirmed");
         assert!(matches!(
             plan.actions[0],
             PlannedModelAction::Reuse {
@@ -1518,6 +1814,58 @@ mod tests {
             }
         ));
         assert_eq!(plan.models_to_replace()[0].observed_sha256, "bad-sha");
+    }
+
+    #[test]
+    fn noninteractive_enabled_validator_accepts_extra_confirmations_when_current() {
+        let models = [EMBEDDING_GEMMA_300M, QMD_QUERY_EXPANSION_17B];
+        let accepted = AcceptedLicenses::from_models(&models);
+        let plan = plan_enabled_search_install(
+            &models,
+            Some(&accepted),
+            vec![
+                (
+                    EMBEDDING_GEMMA_300M,
+                    ModelArtifactClassification::Verified {
+                        record: Box::new(artifact_record(EMBEDDING_GEMMA_300M)),
+                    },
+                ),
+                (
+                    QMD_QUERY_EXPANSION_17B,
+                    ModelArtifactClassification::Verified {
+                        record: Box::new(artifact_record(QMD_QUERY_EXPANSION_17B)),
+                    },
+                ),
+            ],
+            false,
+        )
+        .expect("plan");
+
+        validate_noninteractive_enabled_search(&install_args(true, true, false), &plan, context())
+            .expect("extra confirmations are no-op scripted intent");
+    }
+
+    fn context() -> &'static crate::cli::CliContext {
+        const CONTEXT: crate::cli::CliContext = crate::cli::CliContext { verbose: false };
+        &CONTEXT
+    }
+
+    fn install_args(
+        confirm_model_downloads: bool,
+        accept_profile_licenses: bool,
+        force: bool,
+    ) -> InstallArgs {
+        InstallArgs {
+            force,
+            skip_path_guidance: false,
+            configure_search: false,
+            non_interactive: true,
+            enable_llm_search: true,
+            profile: Some(InstallSearchProfileArg::Balanced),
+            confirm_model_downloads,
+            accept_profile_licenses,
+            disable_llm_search: false,
+        }
     }
 
     fn artifact_record(model: SearchModel) -> ModelArtifactRecord {

@@ -91,25 +91,30 @@ The index must fit in a single context window. If it grows beyond ~50,000
 tokens, split into a root index with per-type sub-indexes.
 
 {% if include_qmd %}
-### qmd-rs Search (scale beyond index.md)
+### qmd-rs Search
 
-For wikis that grow beyond ~100 pages, supplement index.md navigation with
-`llm-wiki search`. The binary indexes wiki markdown into qmd-rs-backed stores
-under host-local cache state. Markdown remains canonical, and all search
-results still point back to wiki pages that must be read directly.
+After reading `wiki/index.md`, use `llm-wiki search --mode auto --format json`
+for every project query when the project is registered. Search is the default
+retrieval pass, not only a large-wiki fallback. The binary indexes wiki
+markdown into qmd-rs-backed stores under host-local cache state. Markdown
+remains canonical, and all search results still point back to wiki pages that
+must be read directly.
 
 Setup:
 
 ```bash
 llm-wiki register .
 llm-wiki index
-llm-wiki search "query"
+llm-wiki search --mode auto --format json "query"
 ```
 
-Navigation strategy becomes tiered:
+Navigation strategy:
 1. Read `wiki/index.md` first for orientation
-2. If the index does not surface the needed page, use `llm-wiki search`
-3. Read the identified pages
+2. Run `llm-wiki search --mode auto --format json "<question>"`
+3. Inspect mode, readiness, fallback, zero-result, and per-result metadata
+4. Read and cite the returned wiki pages directly
+5. If search is unavailable, stale, or unhelpful, continue from index-based
+   navigation
 
 Refresh the search index after ingest or lint:
 

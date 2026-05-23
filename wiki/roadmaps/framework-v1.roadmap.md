@@ -604,4 +604,5 @@ Promotion Target:
 
 Unlocks:
 - direct CLI search for realistic project questions
-- more reliable `wiki-query` fallback when index navigation is insufficient
+- search-first `wiki-query` retrieval for registered-project queries, with
+  index-based fallback when search is unavailable or unhelpful

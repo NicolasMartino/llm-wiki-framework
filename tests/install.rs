@@ -70,11 +70,177 @@ fn plain_noninteractive_install_requires_explicit_search_posture() {
 }
 
 #[test]
+fn explicit_noninteractive_install_requires_search_posture() {
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .args(["install", "--non-interactive"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "non-interactive install requires either",
+        ))
+        .stderr(predicate::str::contains("--enable-llm-search"))
+        .stderr(predicate::str::contains("--disable-llm-search"));
+
+    assert_no_install_or_search_writes(home.path());
+}
+
+#[test]
+fn install_enable_llm_search_requires_noninteractive_profile() {
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .args(["install", "--enable-llm-search", "--profile", "balanced"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("--non-interactive"));
+
+    assert_no_install_or_search_writes(home.path());
+}
+
+#[test]
+fn install_enable_llm_search_conflicts_with_disable() {
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .args([
+            "install",
+            "--non-interactive",
+            "--enable-llm-search",
+            "--profile",
+            "balanced",
+            "--disable-llm-search",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("--enable-llm-search"))
+        .stderr(predicate::str::contains("--disable-llm-search"));
+
+    assert_no_install_or_search_writes(home.path());
+}
+
+#[test]
+fn install_profile_and_consent_flags_require_enable_llm_search() {
+    for flag in [
+        &["--profile", "balanced"][..],
+        &["--confirm-model-downloads"][..],
+        &["--accept-profile-licenses"][..],
+    ] {
+        let home = TempDir::new().expect("home");
+        let mut args = vec!["install", "--non-interactive"];
+        args.extend_from_slice(flag);
+
+        llm_wiki(home.path())
+            .args(args)
+            .assert()
+            .failure()
+            .stderr(predicate::str::contains("--enable-llm-search"));
+
+        assert_no_install_or_search_writes(home.path());
+    }
+}
+
+#[test]
+fn noninteractive_enable_missing_download_confirmation_writes_no_state() {
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .args([
+            "install",
+            "--non-interactive",
+            "--enable-llm-search",
+            "--profile",
+            "balanced",
+            "--accept-profile-licenses",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("--confirm-model-downloads"))
+        .stderr(predicate::str::contains(
+            "no install or search state was changed",
+        ));
+
+    assert_no_install_or_search_writes(home.path());
+}
+
+#[test]
+fn noninteractive_enable_missing_license_confirmation_writes_no_state() {
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .args([
+            "install",
+            "--non-interactive",
+            "--enable-llm-search",
+            "--profile",
+            "balanced",
+            "--confirm-model-downloads",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("--accept-profile-licenses"))
+        .stderr(predicate::str::contains(
+            "no install or search state was changed",
+        ));
+
+    assert_no_install_or_search_writes(home.path());
+}
+
+#[test]
+fn noninteractive_enable_hash_mismatch_without_force_writes_no_install_state() {
+    let home = TempDir::new().expect("home");
+    let model_path = home
+        .path()
+        .join(".llm_wiki/models/embeddinggemma-300m-q8_0/embeddinggemma-300M-Q8_0.gguf");
+    fs::create_dir_all(model_path.parent().expect("model parent")).expect("model dir");
+    fs::write(&model_path, "corrupt model bytes").expect("model bytes");
+
+    llm_wiki(home.path())
+        .args([
+            "install",
+            "--non-interactive",
+            "--enable-llm-search",
+            "--profile",
+            "balanced",
+            "--confirm-model-downloads",
+            "--accept-profile-licenses",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("model artifact hash mismatch"))
+        .stderr(predicate::str::contains("--force"));
+
+    assert_no_install_or_search_writes(home.path());
+    assert_eq!(
+        fs::read_to_string(&model_path).expect("model remains"),
+        "corrupt model bytes"
+    );
+}
+
+#[test]
 fn install_disable_llm_search_writes_disabled_search_profile() {
     let home = TempDir::new().expect("home");
 
     llm_wiki(home.path())
         .args(["install", "--skip-path-guidance", "--disable-llm-search"])
+        .assert()
+        .success();
+
+    assert_disabled_search_profile(home.path());
+}
+
+#[test]
+fn noninteractive_disable_llm_search_writes_disabled_search_profile() {
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .args([
+            "install",
+            "--skip-path-guidance",
+            "--non-interactive",
+            "--disable-llm-search",
+        ])
         .assert()
         .success();
 
@@ -159,6 +325,64 @@ fn verbose_install_configure_search_emits_profile_diagnostics() {
         .stderr(predicate::str::contains("external dependencies:"))
         .stderr(predicate::str::contains(
             "search configuration action: wrote disabled LLM search profile",
+        ));
+}
+
+#[test]
+fn verbose_noninteractive_disabled_install_reports_redundant_configure_search() {
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .args([
+            "--verbose",
+            "install",
+            "--skip-path-guidance",
+            "--non-interactive",
+            "--disable-llm-search",
+            "--configure-search",
+        ])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("non-interactive: true"))
+        .stderr(predicate::str::contains(
+            "search configuration selected posture: disabled",
+        ))
+        .stderr(predicate::str::contains(
+            "redundant beside explicit disabled posture",
+        ));
+}
+
+#[test]
+fn verbose_noninteractive_enabled_refusal_reports_preflight_state() {
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .args([
+            "--verbose",
+            "install",
+            "--non-interactive",
+            "--enable-llm-search",
+            "--profile",
+            "balanced",
+            "--accept-profile-licenses",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("enable llm search: true"))
+        .stderr(predicate::str::contains(
+            "search profile selected: balanced",
+        ))
+        .stderr(predicate::str::contains(
+            "search artifact classification summary:",
+        ))
+        .stderr(predicate::str::contains(
+            "search license classification summary:",
+        ))
+        .stderr(predicate::str::contains(
+            "search non-interactive missing runtime confirmation: --confirm-model-downloads",
+        ))
+        .stderr(predicate::str::contains(
+            "search non-interactive refusal: no install state mutated",
         ));
 }
 
@@ -799,6 +1023,20 @@ fn assert_no_install_metadata(home: &Path) {
     assert!(!home.join(".llm_wiki/manifest.json").exists());
     assert!(!home.join(".llm_wiki/install.partial.json").exists());
     assert!(!home.join(".llm_wiki/backups").exists());
+}
+
+fn assert_no_install_or_search_writes(home: &Path) {
+    assert!(!home.join(".llm_wiki/manifest.json").exists());
+    assert!(!home.join(".llm_wiki/install.partial.json").exists());
+    assert!(!home.join(".llm_wiki/backups").exists());
+    assert!(!home.join(".llm_wiki/bin/llm-wiki").exists());
+    assert!(!home.join(".llm_wiki/accepted-licenses.toml").exists());
+    assert!(!home.join(".llm_wiki/models/artifacts.toml").exists());
+    assert!(!home.join(".llm_wiki/search.toml").exists());
+    assert!(!home.join(".llm_wiki/external-dependencies.toml").exists());
+    assert!(!home.join(".claude/skills/wiki-init/SKILL.md").exists());
+    assert!(!home.join(".codex/skills/wiki/SKILL.md").exists());
+    assert!(!home.join(".codex/skills/wiki/agents/openai.yaml").exists());
 }
 
 fn seed_search_artifacts(home: &Path) {

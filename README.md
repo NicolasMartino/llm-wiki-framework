@@ -25,6 +25,17 @@ llm-wiki install
 `~/.llm_wiki/bin/llm-wiki` and renders installed skills to call that managed
 path directly. Run `llm-wiki path` for optional shell `PATH` guidance.
 
+For automation, choose the search posture explicitly:
+
+```bash
+llm-wiki install --non-interactive --disable-llm-search
+llm-wiki install --non-interactive --enable-llm-search --profile balanced --confirm-model-downloads --accept-profile-licenses
+```
+
+The full enabled command is the portable form for scripts. Shorter enabled
+commands are only valid when the current local model and license state no
+longer needs the omitted confirmation.
+
 ## Create a Project
 
 ```bash

@@ -57,7 +57,9 @@ still verify that per-stage diagnostics exist before the hybrid path ships.
   semantic retrieval, relevance floors, rank fusion, and optional reranking.
 - Make `search-all` run retrieval per project and merge by rank rather than
   comparing raw semantic scores across projects.
-- Update `wiki-query` so it can use `auto` search for large or unclear queries
+- Update `wiki-query` so it can use `auto` search for wiki navigation; the
+  current post-completion policy is search-first for every registered-project
+  query per `wiki/decisions/wiki-query-search-first.decision.md`
   and interpret retrieval metadata before reading pages and citing answers.
 - Add `llm-wiki eval run` and `llm-wiki eval calibrate` so search quality can
   be measured, threshold proposals can be derived, and different verified
@@ -385,9 +387,11 @@ Progress 2026-05-11:
 4. Tag every `search-all` result with the project ID, requested mode, selected
    mode, and fallback/readiness reason so mixed-readiness result lists are
    obvious in text and JSON output.
-5. Update `wiki-query` so it reads `wiki/index.md` first, uses `auto` search
-   only when index navigation is insufficient, inspects retrieval metadata, then
-   reads returned pages before answering.
+5. Update `wiki-query` so it reads `wiki/index.md` first, uses `auto` search,
+   inspects retrieval metadata, then reads returned pages before answering. The
+   initial Stage 5 implementation used search only when index navigation was
+   insufficient; the current search-first query policy is recorded in
+   `wiki/decisions/wiki-query-search-first.decision.md`.
 
 Progress 2026-05-11:
 
@@ -397,9 +401,10 @@ Progress 2026-05-11:
   envelope also includes per-project requested mode, selected mode,
   selection/fallback/readiness reason, result count, and zero-result reason.
 - Updated the canonical `wiki-query` skill source and regenerated Claude/Codex
-  projections so large or complex queries use `search --mode auto --format
-  json`, inspect mode/readiness/fallback/zero-result metadata, and read returned
-  wiki pages before answering.
+  projections so queries use `search --mode auto --format json`, inspect
+  mode/readiness/fallback/zero-result metadata, and read returned wiki pages
+  before answering. The 2026-05-23 search-first decision later made this an
+  always-attempted retrieval pass for registered-project queries.
 
 ## Stage 6 - Verification, Promotion, And Docs
 
