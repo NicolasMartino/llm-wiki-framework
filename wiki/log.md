@@ -1,5 +1,17 @@
 # Wiki Log
 
+## [2026-05-23] update | sandbox-safe search cache dogfood evidence
+
+Recorded the local post-plan reproduction evidence in the sandbox-safe search
+cache reads plan. A fresh `llm-wiki index --force` completed for the current
+framework project, but immediate lexical search still returned forced-reindex
+guidance, `doctor` reported the qmd-rs FTS index as corrupt while semantic
+metadata/vectors existed, and `projects --format json` classified several
+registered stores as `index-unusable` with `qmd-rs store could not be opened`.
+
+Pages affected: wiki/plans/sandbox-safe-search-cache-reads.plan.md,
+wiki/log.md
+
 ## [2026-05-23] promote | sandbox-safe search cache reads plan
 
 Promoted the sandbox-safe search cache reads proposal to an active

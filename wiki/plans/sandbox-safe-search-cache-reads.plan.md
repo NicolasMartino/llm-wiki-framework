@@ -12,7 +12,8 @@
   wiki/decisions/semantic-hybrid-search-mode.decision.md,
   wiki/checklists/observability-contract.checklist.md, src/search/qmd_rs.rs,
   src/search/adapter.rs, src/search/commands.rs, src/doctor.rs,
-  src/registry/mod.rs, tests/search_commands.rs, tests/status_doctor.rs
+  src/registry/mod.rs, tests/search_commands.rs, tests/status_doctor.rs,
+  local command reproduction 2026-05-23 after `llm-wiki index --force`
 - Related: wiki/proposals/sandbox-safe-search-cache-reads.proposal.md,
   wiki/plans/qmd-rs-search-backend.plan.md,
   wiki/plans/project-registry-search-artifacts.plan.md,
@@ -42,6 +43,29 @@ inside the llm-wiki qmd-rs adapter. Continue to use qmd-rs as the writer and
 indexer. Do not wait for an upstream qmd read-only constructor before fixing
 the dogfooding failure. If qmd later exposes a verified no-write read API, a
 follow-up can replace the adapter-owned SQL path behind the same tests.
+
+## Dogfood Evidence 2026-05-23
+
+After this plan was created, the local managed binary reproduced the cache-read
+failure on the current framework project:
+
+- `/Users/nicolasmartino/.llm_wiki/bin/llm-wiki index --force` completed and
+  reported `Indexed project: llm-wiki-framework-semantic-search (72 files)`.
+- Immediately afterward,
+  `/Users/nicolasmartino/.llm_wiki/bin/llm-wiki search --mode lexical --format json "sandbox safe search cache reads"`
+  exited with `search index unusable for project
+  llm-wiki-framework-semantic-search` and forced-reindex guidance.
+- `llm-wiki doctor` reported the current qmd-rs FTS index as corrupt at
+  `/Users/nicolasmartino/.llm_wiki/indexes/llm-wiki-framework-semantic-search/qmd-rs.sqlite`
+  while semantic metadata and vectors existed for 411 chunks.
+- `llm-wiki projects --format json` reported several existing registered
+  projects, including the current project, as `index-unusable` with
+  `qmd-rs store could not be opened`.
+
+That evidence confirms the plan's implementation priority: the current read
+path collapses qmd-rs open failures into corruption/force-reindex guidance even
+after a fresh index run, so the first fix must separate immutable completed
+reads, permission/access classification, and real corruption.
 
 ## In Scope
 
