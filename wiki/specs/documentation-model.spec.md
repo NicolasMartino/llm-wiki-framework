@@ -98,6 +98,10 @@ Validated search behavior:
   dimensions, qmd-rs adapter, qmd-rs version, and chunking strategy. Any label,
   corpus, retrieval, model, qmd-rs, or chunking change requires fresh eval and
   calibration before threshold promotion.
+- Completed qmd-rs cache reads are sandbox-safe: read-only search, search-all,
+  doctor, and project status use immutable completed-store reads, report
+  `permission_denied` and `transient` distinctly from corruption, and keep JSON
+  output parseable on cache access failures.
 
 ## Promotion Flow: How Accepted Proposals Become Plans
 
@@ -160,6 +164,9 @@ future CLI implementation plans and code reviews.
   implement the accepted semantic/hybrid mode decision, including readiness
   metadata, zero-result metadata, scoped thresholds, and exact-identifier
   preservation
+- Completed qmd-rs stores are proved immutable-readable before live promotion;
+  read commands use `read_only_immutable` status paths and do not require cache
+  write permission.
 - `wiki-query` attempts `llm-wiki search --mode auto --format json` for every
   registered-project query after index orientation, then reads and cites the
   returned wiki pages directly

@@ -43,11 +43,10 @@ architecture notes because the issue was found while dogfooding
   an explicit writer-side completion proof and publication contract during
   implementation.
 
-This proposal is accepted for implementation because the dogfooding failure is
-blocking the framework's search-first query workflow. The active plan treats
-the implementation tests as the durable reproduction record. Before promotion
-to a durable decision, either capture the reproduction notes as a raw source or
-replace the conversational source with another durable evidence path.
+This proposal was accepted for implementation because the dogfooding failure
+blocked the framework's search-first query workflow. The completed plan and
+regression tests now act as the durable reproduction and implementation record
+for the validated behavior.
 
 ## Question
 

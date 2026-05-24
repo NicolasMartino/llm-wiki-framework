@@ -88,6 +88,25 @@ path toward the intended hybrid search capability.
 7. Model downloads must stay explicit or clearly reported. The binary must not
    embed multi-gigabyte GGUF model files.
 
+## Post-P2 Read Contract
+
+The P2 sandbox-safe cache implementation keeps qmd-rs as the writer/indexer
+but changes completed-store reads to an adapter-owned immutable SQLite path.
+Read-only commands do not call qmd-rs `Store::open` for query or status reads
+because that constructor initializes writable state in the current qmd-rs
+version.
+
+Validated read behavior:
+
+- completed qmd-rs stores are opened through `mode=ro&immutable=1` for lexical
+  and status reads
+- qmd-rs metadata is checked before a store is reported ready or stale
+- metadata project id is validated against caller intent
+- `permission_denied` and `transient` are explicit backend states, not
+  corruption
+- writer commands prove immutable readability before live promotion
+- adapter-owned SQL keeps accepted qmd-rs lexical query parity under tests
+
 ## Revisit When
 
 - qmd-rs integration exposes packaging or runtime issues that cannot be handled
@@ -96,3 +115,5 @@ path toward the intended hybrid search capability.
 - Direct SQLite FTS5 proves materially easier to maintain while meeting observed
   retrieval needs.
 - qmd-rs releases a materially new version.
+- qmd-rs exposes a verified no-write read API that can replace the
+  adapter-owned immutable SQL path behind the same tests.

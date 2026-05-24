@@ -220,6 +220,48 @@ fn doctor_reports_missing_search_index() {
 
 #[cfg(unix)]
 #[test]
+fn doctor_reports_search_cache_permission_denied_distinctly() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let home = TempDir::new().expect("home");
+    let project = wiki_project();
+    fs::write(
+        project.path().join("wiki/search.md"),
+        "# Search\n\nReadable content.",
+    )
+    .expect("search page");
+
+    llm_wiki(home.path())
+        .args(["register", "--id", "fixture"])
+        .arg(project.path())
+        .assert()
+        .success();
+    llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let store = home.path().join(".llm_wiki/indexes/fixture/qmd-rs.sqlite");
+    let original = fs::metadata(&store).expect("metadata").permissions();
+    let mut unreadable = original.clone();
+    unreadable.set_mode(0o000);
+    fs::set_permissions(&store, unreadable).expect("chmod unreadable");
+
+    let output = llm_wiki(home.path())
+        .current_dir(project.path())
+        .arg("doctor")
+        .output()
+        .expect("doctor output");
+    fs::set_permissions(&store, original).expect("restore permissions");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("qmd-rs FTS index permission denied"));
+    assert!(!stdout.contains("qmd-rs FTS index corrupt"));
+}
+
+#[cfg(unix)]
+#[test]
 fn doctor_reports_legacy_symlink() {
     use std::os::unix::fs::symlink;
 

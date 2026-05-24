@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
+use std::fmt;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -19,15 +20,16 @@ use crate::manifest::Manifest;
 use crate::paths::Paths;
 use crate::registry::{self, ProjectRegistry, RegisteredProject};
 use crate::search::adapter::{
-    BackendState, BackendStatus, Freshness, Score, SearchBackend, SearchFilters, SearchMode,
-    SearchResult,
+    BackendAccessError, BackendState, BackendStatus, Freshness, Score, SearchBackend,
+    SearchFilters, SearchMode, SearchResult,
 };
+use crate::search::gguf_runtime::{self, GgufRuntimeError, GgufRuntimeReport};
 use crate::search::project::discover_from_cwd;
 use crate::search::qmd_rs::QmdRsBackend;
 use crate::search::sanitize::sanitize_fts_query;
 use crate::search::semantic::{
-    SemanticIndexMetadata, SemanticSearchContext, SemanticVectorIndex, embed_query,
-    select_thresholds_for_index,
+    SemanticIndexMetadata, SemanticSearchContext, SemanticVectorIndex,
+    embed_query_with_runtime_report, select_thresholds_for_index,
 };
 use crate::search_models::{
     AcceptedLicenses, ModelArtifactRecord, ModelArtifacts, SearchThresholdStore, SearchThresholds,
@@ -548,10 +550,68 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
         filters: &filters,
         limit: args.limit,
     };
-    let search = perform_resolved_project_search(&search_input, &resolution, args.rerank, context)?;
+    let search =
+        match perform_resolved_project_search(&search_input, &resolution, args.rerank, context) {
+            Ok(search) => search,
+            Err(error) => {
+                if let Some(failure) = error.downcast_ref::<BackendReadinessFailure>() {
+                    context.diagnostic(format!("backend readiness failure: {}", failure.reason));
+                    context.diagnostic(format!(
+                        "index status: {}, open_mode={}, freshness={}, indexed_files={}",
+                        backend_state_label(&failure.status.state),
+                        failure.status.open_mode.label(),
+                        freshness_label(freshness_for_status(&failure.status)),
+                        failure.status.indexed_files
+                    ));
+                    if let Some(message) = &failure.status.message {
+                        context.diagnostic(format!("index message: {message}"));
+                    }
+                    if args.format == OutputFormat::Json {
+                        let mut mode_metadata =
+                            SearchModeJson::from_resolution(&resolution, args.rerank);
+                        mode_metadata.readiness_reason = Some(failure.reason.clone());
+                        print_search_json(
+                            &args.query,
+                            Some((&project.id, &project.name)),
+                            None,
+                            Some(&failure.status),
+                            &[],
+                            &[],
+                            &[],
+                            mode_metadata,
+                        );
+                    }
+                } else if let Some(failure) = error.downcast_ref::<GgufRuntimeError>() {
+                    context.diagnostic(format!(
+                        "GGUF runtime failure: role={}, stage={}, kind={}",
+                        failure.role().label(),
+                        failure.stage().label(),
+                        failure.kind().label()
+                    ));
+                    if args.format == OutputFormat::Json {
+                        let mut mode_metadata =
+                            SearchModeJson::from_resolution(&resolution, args.rerank);
+                        mode_metadata.apply_runtime_failure(failure);
+                        let status = backend.status(&project.id, &store_path, &wiki_root).ok();
+                        print_search_json(
+                            &args.query,
+                            Some((&project.id, &project.name)),
+                            None,
+                            status.as_ref(),
+                            &[],
+                            &[],
+                            &[],
+                            mode_metadata,
+                        );
+                    }
+                }
+                return Err(error);
+            }
+        };
     context.diagnostic(format!(
-        "index status: {}, freshness={}, indexed_files={}",
+        "index status: {}, open_mode={}, freshness={}, indexed_files={}",
         backend_state_label(&search.status.state),
+        search.status.open_mode.label(),
         freshness_label(freshness_for_status(&search.status)),
         search.status.indexed_files
     ));
@@ -562,6 +622,7 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
         &backend,
         &resolution,
         NoResultContext {
+            project_id: &project.id,
             store_path: &store_path,
             wiki_root: &wiki_root,
             query: &args.query,
@@ -587,6 +648,9 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
         .map(|warning| warning.message.as_str());
     let mut mode_metadata = SearchModeJson::from_resolution(&resolution, args.rerank);
     mode_metadata.zero_result_reason = no_result;
+    if let Some(report) = &search.runtime_report {
+        mode_metadata.apply_runtime_report(report);
+    }
 
     match args.format {
         OutputFormat::Text => print_search_text(&search.warnings, &results),
@@ -594,6 +658,7 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
             &args.query,
             Some((&project.id, &project.name)),
             warning,
+            Some(&search.status),
             &[],
             &[],
             &results,
@@ -706,6 +771,12 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
                     mode_selection_reason: None,
                     fallback_reason: None,
                     readiness_reason: Some(failure.reason),
+                    runtime_backend_requested: None,
+                    runtime_backend_used: None,
+                    runtime_backend_fallback: None,
+                    runtime_failure_stage: None,
+                    runtime_error_kind: None,
+                    backend_status: None,
                     result_count: 0,
                     no_result: None,
                     profile,
@@ -723,11 +794,82 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
             context.diagnostic(format!("fallback reason {}: {reason}", project.id));
         }
         let search =
-            perform_resolved_project_search(&search_input, &resolution, args.rerank, context)?;
+            match perform_resolved_project_search(&search_input, &resolution, args.rerank, context)
+            {
+                Ok(search) => search,
+                Err(error) => {
+                    if let Some(failure) = error.downcast_ref::<BackendReadinessFailure>() {
+                        context.diagnostic(format!(
+                            "per-project backend readiness {}: {}",
+                            project.id, failure.reason
+                        ));
+                        warnings.push(SearchWarning {
+                            project_id: project.id.clone(),
+                            message: format!("project skipped: {}", failure.guidance),
+                        });
+                        project_reports.push(ProjectSearchReport {
+                            project_id: project.id.clone(),
+                            requested_mode: resolution.requested_mode.label().to_string(),
+                            selected_mode: Some(resolution.selected_mode.label().to_string()),
+                            mode_selection_reason: Some(resolution.reason.clone()),
+                            fallback_reason: resolution.fallback_reason.clone(),
+                            readiness_reason: Some(failure.reason.clone()),
+                            runtime_backend_requested: None,
+                            runtime_backend_used: None,
+                            runtime_backend_fallback: None,
+                            runtime_failure_stage: None,
+                            runtime_error_kind: None,
+                            backend_status: Some(failure.status.clone()),
+                            result_count: 0,
+                            no_result: None,
+                            profile: resolution.profile.clone(),
+                        });
+                        continue;
+                    }
+                    if let Some(failure) = error.downcast_ref::<GgufRuntimeError>() {
+                        context.diagnostic(format!(
+                            "per-project GGUF runtime failure {}: role={}, stage={}, kind={}",
+                            project.id,
+                            failure.role().label(),
+                            failure.stage().label(),
+                            failure.kind().label()
+                        ));
+                        warnings.push(SearchWarning {
+                            project_id: project.id.clone(),
+                            message: format!(
+                                "project skipped: {}",
+                                runtime_failure_guidance(failure)
+                            ),
+                        });
+                        project_reports.push(ProjectSearchReport {
+                            project_id: project.id.clone(),
+                            requested_mode: resolution.requested_mode.label().to_string(),
+                            selected_mode: Some(resolution.selected_mode.label().to_string()),
+                            mode_selection_reason: Some(resolution.reason.clone()),
+                            fallback_reason: resolution.fallback_reason.clone(),
+                            readiness_reason: Some(failure.kind().readiness_reason().to_string()),
+                            runtime_backend_requested: Some("auto".to_string()),
+                            runtime_backend_used: None,
+                            runtime_backend_fallback: Some(false),
+                            runtime_failure_stage: Some(failure.stage().label().to_string()),
+                            runtime_error_kind: Some(failure.kind().label().to_string()),
+                            backend_status: backend
+                                .status(&project.id, &store_path, &wiki_root)
+                                .ok(),
+                            result_count: 0,
+                            no_result: None,
+                            profile: resolution.profile.clone(),
+                        });
+                        continue;
+                    }
+                    return Err(error);
+                }
+            };
         context.diagnostic(format!(
-            "index status {}: {}, freshness={}, indexed_files={}",
+            "index status {}: {}, open_mode={}, freshness={}, indexed_files={}",
             project.id,
             backend_state_label(&search.status.state),
+            search.status.open_mode.label(),
             freshness_label(freshness_for_status(&search.status)),
             search.status.indexed_files
         ));
@@ -739,6 +881,7 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
                 &backend,
                 &resolution,
                 NoResultContext {
+                    project_id: &project.id,
                     store_path: &store_path,
                     wiki_root: &wiki_root,
                     query: &args.query,
@@ -756,6 +899,21 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
             mode_selection_reason: Some(resolution.reason.clone()),
             fallback_reason: resolution.fallback_reason.clone(),
             readiness_reason: None,
+            runtime_backend_requested: search
+                .runtime_report
+                .as_ref()
+                .map(|report| report.requested_backend().label().to_string()),
+            runtime_backend_used: search
+                .runtime_report
+                .as_ref()
+                .map(|report| report.used_backend().label().to_string()),
+            runtime_backend_fallback: search
+                .runtime_report
+                .as_ref()
+                .map(GgufRuntimeReport::fallback),
+            runtime_failure_stage: None,
+            runtime_error_kind: None,
+            backend_status: Some(search.status.clone()),
             result_count: search.results.len(),
             no_result: no_result.flatten(),
             profile: resolution.profile.clone(),
@@ -825,6 +983,7 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
             }
             print_search_json(
                 &args.query,
+                None,
                 None,
                 None,
                 &warnings,
@@ -1204,6 +1363,14 @@ fn readiness(reason: &str) -> ReadinessFailure {
     }
 }
 
+fn runtime_failure_guidance(error: &GgufRuntimeError) -> String {
+    format!(
+        "GGUF runtime {} failed during {}; runtime backend failures are not model install failures",
+        error.role().label(),
+        error.stage().label()
+    )
+}
+
 fn handle_readiness_failure(
     query: &str,
     project: Option<(&str, &str)>,
@@ -1217,6 +1384,7 @@ fn handle_readiness_failure(
         print_search_json(
             query,
             project,
+            None,
             None,
             &[],
             &[],
@@ -1312,6 +1480,12 @@ struct ProjectSearchReport {
     mode_selection_reason: Option<String>,
     fallback_reason: Option<String>,
     readiness_reason: Option<String>,
+    runtime_backend_requested: Option<String>,
+    runtime_backend_used: Option<String>,
+    runtime_backend_fallback: Option<bool>,
+    runtime_failure_stage: Option<String>,
+    runtime_error_kind: Option<String>,
+    backend_status: Option<BackendStatus>,
     result_count: usize,
     no_result: Option<String>,
     profile: Option<SearchProfile>,
@@ -1328,14 +1502,45 @@ struct SearchExecution {
     results: Vec<SearchResult>,
     warnings: Vec<SearchWarning>,
     status: BackendStatus,
+    runtime_report: Option<GgufRuntimeReport>,
 }
 
 enum SearchAttempt {
     Success(SearchExecution),
     Missing,
+    PermissionDenied(BackendStatus),
     ForceReindex,
-    RetryableUnavailable,
+    RetryableUnavailable(BackendStatus),
 }
+
+#[derive(Debug)]
+struct BackendReadinessFailure {
+    reason: String,
+    guidance: String,
+    status: BackendStatus,
+}
+
+impl BackendReadinessFailure {
+    fn new(reason: &str, guidance: String, status: BackendStatus) -> Self {
+        Self {
+            reason: reason.to_string(),
+            guidance,
+            status,
+        }
+    }
+}
+
+impl fmt::Display for BackendReadinessFailure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "search readiness failure: {} ({})",
+            self.reason, self.guidance
+        )
+    }
+}
+
+impl std::error::Error for BackendReadinessFailure {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct ModeResolution {
@@ -1382,6 +1587,11 @@ struct SearchModeJson {
     query_expansion_model: Option<String>,
     reranker_model: Option<String>,
     rerank_requested: bool,
+    runtime_backend_requested: Option<String>,
+    runtime_backend_used: Option<String>,
+    runtime_backend_fallback: Option<bool>,
+    runtime_failure_stage: Option<String>,
+    runtime_error_kind: Option<String>,
 }
 
 impl SearchModeJson {
@@ -1410,6 +1620,11 @@ impl SearchModeJson {
                 .as_ref()
                 .and_then(|profile| profile.reranker_model.clone()),
             rerank_requested,
+            runtime_backend_requested: None,
+            runtime_backend_used: None,
+            runtime_backend_fallback: None,
+            runtime_failure_stage: None,
+            runtime_error_kind: None,
         }
     }
 
@@ -1480,6 +1695,43 @@ impl SearchModeJson {
                 )
                 .unwrap_or_else(|| "per_project_readiness_failure".to_string())
             });
+        let all_runtime_failures = !reports.is_empty()
+            && reports
+                .iter()
+                .all(|report| report.runtime_error_kind.is_some());
+        let runtime_backend_requested = common_report_value(
+            reports
+                .iter()
+                .filter_map(|report| report.runtime_backend_requested.as_deref()),
+        );
+        let runtime_backend_used = common_report_value(
+            reports
+                .iter()
+                .filter_map(|report| report.runtime_backend_used.as_deref()),
+        );
+        let runtime_backend_fallback = common_report_bool(
+            reports
+                .iter()
+                .filter_map(|report| report.runtime_backend_fallback),
+        );
+        let runtime_failure_stage = all_runtime_failures
+            .then(|| {
+                common_report_value(
+                    reports
+                        .iter()
+                        .filter_map(|report| report.runtime_failure_stage.as_deref()),
+                )
+            })
+            .flatten();
+        let runtime_error_kind = all_runtime_failures
+            .then(|| {
+                common_report_value(
+                    reports
+                        .iter()
+                        .filter_map(|report| report.runtime_error_kind.as_deref()),
+                )
+            })
+            .flatten();
         Self {
             requested_mode: requested_mode.label().to_string(),
             selected_mode,
@@ -1492,6 +1744,11 @@ impl SearchModeJson {
             query_expansion_model,
             reranker_model,
             rerank_requested,
+            runtime_backend_requested,
+            runtime_backend_used,
+            runtime_backend_fallback,
+            runtime_failure_stage,
+            runtime_error_kind,
         }
     }
 
@@ -1514,7 +1771,27 @@ impl SearchModeJson {
                 .and_then(|profile| profile.query_expansion_model.clone()),
             reranker_model: profile.and_then(|profile| profile.reranker_model.clone()),
             rerank_requested,
+            runtime_backend_requested: None,
+            runtime_backend_used: None,
+            runtime_backend_fallback: None,
+            runtime_failure_stage: None,
+            runtime_error_kind: None,
         }
+    }
+
+    fn apply_runtime_failure(&mut self, error: &GgufRuntimeError) {
+        self.readiness_reason = Some(error.kind().readiness_reason().to_string());
+        self.runtime_backend_requested = Some("auto".to_string());
+        self.runtime_backend_used = None;
+        self.runtime_backend_fallback = Some(false);
+        self.runtime_failure_stage = Some(error.stage().label().to_string());
+        self.runtime_error_kind = Some(error.kind().label().to_string());
+    }
+
+    fn apply_runtime_report(&mut self, report: &GgufRuntimeReport) {
+        self.runtime_backend_requested = Some(report.requested_backend().label().to_string());
+        self.runtime_backend_used = Some(report.used_backend().label().to_string());
+        self.runtime_backend_fallback = Some(report.fallback());
     }
 }
 
@@ -1525,6 +1802,11 @@ fn common_report_value<'a>(mut values: impl Iterator<Item = &'a str>) -> Option<
     } else {
         Some("mixed".to_string())
     }
+}
+
+fn common_report_bool(mut values: impl Iterator<Item = bool>) -> Option<bool> {
+    let first = values.next()?;
+    values.all(|value| value == first).then_some(first)
 }
 
 fn print_search_text(warnings: &[SearchWarning], results: &[SearchResult]) {
@@ -1597,8 +1879,37 @@ struct ProjectSearchReportJson {
     mode_selection_reason: Option<String>,
     fallback_reason: Option<String>,
     readiness_reason: Option<String>,
+    runtime_backend_requested: Option<String>,
+    runtime_backend_used: Option<String>,
+    runtime_backend_fallback: Option<bool>,
+    runtime_failure_stage: Option<String>,
+    runtime_error_kind: Option<String>,
+    backend_status: Option<BackendStatusJson>,
     result_count: usize,
     zero_result_reason: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct BackendStatusJson {
+    state: &'static str,
+    open_mode: &'static str,
+    store_path: String,
+    indexed_files: usize,
+    freshness: &'static str,
+    message: Option<String>,
+}
+
+impl BackendStatusJson {
+    fn from_status(status: &BackendStatus) -> Self {
+        Self {
+            state: backend_state_json_label(&status.state),
+            open_mode: status.open_mode.label(),
+            store_path: status.store_path.to_string_lossy().to_string(),
+            indexed_files: status.indexed_files,
+            freshness: freshness_label(freshness_for_status(status)),
+            message: status.message.clone(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -1617,8 +1928,14 @@ struct SearchEnvelopeJson {
     query_expansion_model: Option<String>,
     reranker_model: Option<String>,
     rerank_requested: bool,
+    runtime_backend_requested: Option<String>,
+    runtime_backend_used: Option<String>,
+    runtime_backend_fallback: Option<bool>,
+    runtime_failure_stage: Option<String>,
+    runtime_error_kind: Option<String>,
     warning: Option<String>,
     warnings: Vec<SearchWarningJson>,
+    backend_status: Option<BackendStatusJson>,
     projects: Vec<ProjectSearchReportJson>,
     results: Vec<SearchResultJson>,
 }
@@ -1628,6 +1945,7 @@ fn print_search_json(
     query: &str,
     project: Option<(&str, &str)>,
     warning: Option<&str>,
+    backend_status: Option<&BackendStatus>,
     warnings: &[SearchWarning],
     project_reports: &[ProjectSearchReport],
     results: &[SearchResult],
@@ -1669,6 +1987,15 @@ fn print_search_json(
             mode_selection_reason: report.mode_selection_reason.clone(),
             fallback_reason: report.fallback_reason.clone(),
             readiness_reason: report.readiness_reason.clone(),
+            runtime_backend_requested: report.runtime_backend_requested.clone(),
+            runtime_backend_used: report.runtime_backend_used.clone(),
+            runtime_backend_fallback: report.runtime_backend_fallback,
+            runtime_failure_stage: report.runtime_failure_stage.clone(),
+            runtime_error_kind: report.runtime_error_kind.clone(),
+            backend_status: report
+                .backend_status
+                .as_ref()
+                .map(BackendStatusJson::from_status),
             result_count: report.result_count,
             zero_result_reason: report.no_result.clone(),
         })
@@ -1690,8 +2017,14 @@ fn print_search_json(
             query_expansion_model: mode.query_expansion_model,
             reranker_model: mode.reranker_model,
             rerank_requested: mode.rerank_requested,
+            runtime_backend_requested: mode.runtime_backend_requested,
+            runtime_backend_used: mode.runtime_backend_used,
+            runtime_backend_fallback: mode.runtime_backend_fallback,
+            runtime_failure_stage: mode.runtime_failure_stage,
+            runtime_error_kind: mode.runtime_error_kind,
             warning: warning.map(ToString::to_string),
             warnings,
+            backend_status: backend_status.map(BackendStatusJson::from_status),
             projects,
             results,
         })
@@ -1711,9 +2044,11 @@ pub(crate) fn freshness_for_status(status: &BackendStatus) -> Freshness {
     match status.state {
         BackendState::Ready => Freshness::Fresh,
         BackendState::Stale => Freshness::Stale,
-        BackendState::Missing | BackendState::Corrupt | BackendState::SchemaMismatch => {
-            Freshness::Unknown
-        }
+        BackendState::Missing
+        | BackendState::Transient
+        | BackendState::PermissionDenied
+        | BackendState::Corrupt
+        | BackendState::SchemaMismatch => Freshness::Unknown,
     }
 }
 
@@ -1722,8 +2057,22 @@ fn backend_state_label(state: &BackendState) -> &'static str {
         BackendState::Ready => "ready",
         BackendState::Missing => "missing",
         BackendState::Stale => "stale",
+        BackendState::Transient => "transient",
+        BackendState::PermissionDenied => "permission-denied",
         BackendState::Corrupt => "corrupt",
         BackendState::SchemaMismatch => "schema-mismatch",
+    }
+}
+
+fn backend_state_json_label(state: &BackendState) -> &'static str {
+    match state {
+        BackendState::Ready => "ready",
+        BackendState::Missing => "missing",
+        BackendState::Stale => "stale",
+        BackendState::Transient => "transient",
+        BackendState::PermissionDenied => "permission_denied",
+        BackendState::Corrupt => "corrupt",
+        BackendState::SchemaMismatch => "schema_mismatch",
     }
 }
 
@@ -1741,6 +2090,7 @@ fn search_all_selection_label(include: &[String], exclude: &[String]) -> &'stati
 }
 
 struct NoResultContext<'a> {
+    project_id: &'a str,
     store_path: &'a Path,
     wiki_root: &'a Path,
     query: &'a str,
@@ -1809,9 +2159,11 @@ fn explain_lexical_no_results(
         let state = match context.status.state {
             BackendState::Ready => "ready",
             BackendState::Stale => "stale",
-            BackendState::Missing | BackendState::Corrupt | BackendState::SchemaMismatch => {
-                "unusable"
-            }
+            BackendState::Missing
+            | BackendState::Transient
+            | BackendState::PermissionDenied
+            | BackendState::Corrupt
+            | BackendState::SchemaMismatch => "unusable",
         };
         return Some(format!("{state} index has zero indexed files"));
     }
@@ -1819,6 +2171,7 @@ fn explain_lexical_no_results(
     if filters_active(context.filters) {
         let unfiltered_count = backend
             .search_project(
+                context.project_id,
                 context.store_path,
                 context.wiki_root,
                 context.query,
@@ -1902,7 +2255,7 @@ fn perform_semantic_project_search(
     )?;
     let state = load_semantic_runtime_state(input.paths, input.project, input.wiki_root, profile)?;
     ensure_profile_model_license(&state.accepted_licenses, profile.embedding_model.as_deref())?;
-    let query_embedding = embed_query(
+    let query_embedding = embed_query_with_runtime_report(
         input.query,
         &state.embedding_artifact,
         state.metadata.embedding_dimensions,
@@ -1913,7 +2266,7 @@ fn perform_semantic_project_search(
             project_id: &input.project.id,
             project_name: Some(&input.project.name),
             wiki_root: input.wiki_root,
-            query_embedding: &query_embedding,
+            query_embedding: &query_embedding.embedding,
             filters: input.filters,
             limit: input.limit,
             floor: state.thresholds.semantic_similarity_floor,
@@ -1925,6 +2278,7 @@ fn perform_semantic_project_search(
         results,
         warnings: stale_warning(input.project, &status).into_iter().collect(),
         status,
+        runtime_report: query_embedding.runtime_report,
     })
 }
 
@@ -1945,6 +2299,7 @@ fn perform_hybrid_project_search(
         profile.query_expansion_model.as_deref(),
     )?;
     let expanded = expand_hybrid_queries(input.query, profile, &state.artifacts)?;
+    let mut runtime_report = expanded.runtime_report.clone();
     context.diagnostic(format!(
         "hybrid query expansion: lexical={}, semantic={}",
         expanded.lexical.len(),
@@ -1989,18 +2344,19 @@ fn perform_hybrid_project_search(
 
     let mut semantic_results = Vec::new();
     for semantic_query in &expanded.semantic {
-        let query_embedding = embed_query(
+        let query_embedding = embed_query_with_runtime_report(
             semantic_query,
             &state.embedding_artifact,
             state.metadata.embedding_dimensions,
         )?;
+        merge_runtime_report(&mut runtime_report, query_embedding.runtime_report);
         semantic_results.extend(state.vectors.search(
             &state.metadata,
             SemanticSearchContext {
                 project_id: &input.project.id,
                 project_name: Some(&input.project.name),
                 wiki_root: input.wiki_root,
-                query_embedding: &query_embedding,
+                query_embedding: &query_embedding.embedding,
                 filters: input.filters,
                 limit: per_branch_limit,
                 floor: state.thresholds.hybrid_pre_fusion_semantic_floor,
@@ -2017,7 +2373,7 @@ fn perform_hybrid_project_search(
         semantic_results,
         input.limit,
     );
-    results = maybe_rerank_results(
+    let rerank_output = maybe_rerank_results(
         input.query,
         results,
         RerankInputs {
@@ -2029,12 +2385,28 @@ fn perform_hybrid_project_search(
             requested: rerank_requested,
         },
     )?;
+    results = rerank_output.results;
+    merge_runtime_report(&mut runtime_report, rerank_output.runtime_report);
 
     Ok(SearchExecution {
         results,
         warnings,
         status,
+        runtime_report,
     })
+}
+
+fn merge_runtime_report(
+    target: &mut Option<GgufRuntimeReport>,
+    incoming: Option<GgufRuntimeReport>,
+) {
+    let Some(incoming) = incoming else {
+        return;
+    };
+    *target = Some(match target.take() {
+        Some(existing) => existing.merged(&incoming),
+        None => incoming,
+    });
 }
 
 fn semantic_base_status(
@@ -2043,13 +2415,28 @@ fn semantic_base_status(
     store_path: &Path,
     wiki_root: &Path,
 ) -> Result<BackendStatus> {
-    let status = backend.status(store_path, wiki_root)?;
+    let status = backend.status(&project.id, store_path, wiki_root)?;
     match status.state {
         BackendState::Missing => bail!(
             "search index missing for project {}; run `llm-wiki index --project {}`",
             project.id,
             project.id
         ),
+        BackendState::Transient => Err(BackendReadinessFailure::new(
+            "transient",
+            format!(
+                "search index publication is in progress for project {}; retry the command",
+                project.id
+            ),
+            status,
+        )
+        .into()),
+        BackendState::PermissionDenied => Err(BackendReadinessFailure::new(
+            "permission_denied",
+            cache_access_guidance(project),
+            status,
+        )
+        .into()),
         BackendState::Corrupt | BackendState::SchemaMismatch => bail!(
             "search index unusable for project {}; run `llm-wiki index --project {} --force`",
             project.id,
@@ -2154,6 +2541,7 @@ fn ensure_profile_model_license(
 pub(crate) struct HybridQuerySet {
     pub(crate) lexical: Vec<String>,
     pub(crate) semantic: Vec<String>,
+    pub(crate) runtime_report: Option<GgufRuntimeReport>,
 }
 
 pub(crate) fn expand_hybrid_queries(
@@ -2168,6 +2556,7 @@ pub(crate) fn expand_hybrid_queries(
         return Ok(HybridQuerySet {
             lexical: vec![query.to_string()],
             semantic: vec![query.to_string()],
+            runtime_report: None,
         });
     }
 
@@ -2176,11 +2565,11 @@ pub(crate) fn expand_hybrid_queries(
     };
     let artifact = artifact_for_model(artifacts, model_id)
         .context("hybrid search requires a verified query expansion model artifact")?;
-    let engine = qmd::GenerationEngine::new(&artifact.path)?;
-    let expanded = engine.expand_query(query, true)?;
+    let mut engine = gguf_runtime::generation_engine(&artifact.path)?;
+    let expanded = gguf_runtime::expand_query(&mut engine, query)?;
     let mut lexical = vec![query.to_string()];
     let mut semantic = vec![query.to_string()];
-    for item in expanded {
+    for item in expanded.value {
         match item.query_type {
             qmd::QueryType::Lex => lexical.push(item.text),
             qmd::QueryType::Vec | qmd::QueryType::Hyde => semantic.push(item.text),
@@ -2188,7 +2577,11 @@ pub(crate) fn expand_hybrid_queries(
     }
     dedupe_strings_preserving_order(&mut lexical);
     dedupe_strings_preserving_order(&mut semantic);
-    Ok(HybridQuerySet { lexical, semantic })
+    Ok(HybridQuerySet {
+        lexical,
+        semantic,
+        runtime_report: Some(expanded.report),
+    })
 }
 
 fn dedupe_strings_preserving_order(values: &mut Vec<String>) {
@@ -2455,13 +2848,21 @@ pub(crate) struct RerankInputs<'a> {
     pub(crate) requested: bool,
 }
 
+pub(crate) struct RerankOutput {
+    pub(crate) results: Vec<SearchResult>,
+    pub(crate) runtime_report: Option<GgufRuntimeReport>,
+}
+
 pub(crate) fn maybe_rerank_results(
     query: &str,
     results: Vec<SearchResult>,
     inputs: RerankInputs<'_>,
-) -> Result<Vec<SearchResult>> {
+) -> Result<RerankOutput> {
     if !inputs.requested {
-        return Ok(results);
+        return Ok(RerankOutput {
+            results,
+            runtime_report: None,
+        });
     }
     let Some(model_id) = inputs.profile.reranker_model.as_deref() else {
         bail!("rerank requested but selected profile has no reranker model");
@@ -2473,7 +2874,10 @@ pub(crate) fn maybe_rerank_results(
         .ok()
         .is_some_and(|value| value == "deterministic")
     {
-        return Ok(deterministic_rerank_results(results));
+        return Ok(RerankOutput {
+            results: deterministic_rerank_results(results),
+            runtime_report: None,
+        });
     }
     let project_root = inputs.wiki_root.parent().unwrap_or(inputs.wiki_root);
     let documents = results
@@ -2488,10 +2892,10 @@ pub(crate) fn maybe_rerank_results(
             })
         })
         .collect::<Result<Vec<_>>>()?;
-    let mut engine = qmd::RerankEngine::new(&artifact.path)?;
-    let reranked = engine.rerank(query, &documents)?;
+    let mut engine = gguf_runtime::rerank_engine(&artifact.path)?;
+    let reranked = gguf_runtime::rerank(&mut engine, query, &documents)?;
     let mut results_by_rank = Vec::new();
-    for item in reranked.results {
+    for item in reranked.value.results {
         if f64::from(item.score) < inputs.thresholds.reranker_probability_floor {
             continue;
         }
@@ -2503,7 +2907,10 @@ pub(crate) fn maybe_rerank_results(
         result.backend = "qmd-rs-rerank".to_string();
         results_by_rank.push(result);
     }
-    Ok(results_by_rank)
+    Ok(RerankOutput {
+        results: results_by_rank,
+        runtime_report: Some(reranked.report),
+    })
 }
 
 fn deterministic_rerank_results(results: Vec<SearchResult>) -> Vec<SearchResult> {
@@ -2536,13 +2943,21 @@ fn perform_project_search(
         )? {
             SearchAttempt::Success(search) => return Ok(search),
             SearchAttempt::Missing if attempt == 0 => retry_search_delay(),
-            SearchAttempt::RetryableUnavailable if attempt == 0 => retry_search_delay(),
+            SearchAttempt::RetryableUnavailable(_) if attempt == 0 => retry_search_delay(),
             SearchAttempt::Missing => {
                 bail!(
                     "search index missing for project {}; run `llm-wiki index --project {}`",
                     project.id,
                     project.id
                 );
+            }
+            SearchAttempt::PermissionDenied(status) => {
+                return Err(BackendReadinessFailure::new(
+                    "permission_denied",
+                    cache_access_guidance(project),
+                    status,
+                )
+                .into());
             }
             SearchAttempt::ForceReindex => {
                 bail!(
@@ -2551,12 +2966,16 @@ fn perform_project_search(
                     project.id
                 );
             }
-            SearchAttempt::RetryableUnavailable => {
-                bail!(
-                    "search index unavailable for project {}; run `llm-wiki index --project {} --force`",
-                    project.id,
-                    project.id
-                );
+            SearchAttempt::RetryableUnavailable(status) => {
+                return Err(BackendReadinessFailure::new(
+                    "transient",
+                    format!(
+                        "search index publication is in progress for project {}; retry the command",
+                        project.id
+                    ),
+                    status,
+                )
+                .into());
             }
         }
     }
@@ -2572,27 +2991,52 @@ fn search_attempt(
     filters: &SearchFilters,
     limit: usize,
 ) -> Result<SearchAttempt> {
-    let status = backend.status(store_path, wiki_root)?;
+    let status = backend.status(&project.id, store_path, wiki_root)?;
     match status.state {
         BackendState::Missing => return Ok(SearchAttempt::Missing),
+        BackendState::Transient => return Ok(SearchAttempt::RetryableUnavailable(status)),
+        BackendState::PermissionDenied => return Ok(SearchAttempt::PermissionDenied(status)),
         BackendState::Corrupt | BackendState::SchemaMismatch => {
             return Ok(SearchAttempt::ForceReindex);
         }
         BackendState::Ready | BackendState::Stale => {}
     }
     maybe_sleep_for_test("LLM_WIKI_TEST_SEARCH_AFTER_STATUS_SLEEP_MS");
-    let results = match backend.search_project(store_path, wiki_root, query, filters, limit) {
-        Ok(results) => results,
-        Err(error) if is_retryable_search_open_error(&error) => {
-            return Ok(SearchAttempt::RetryableUnavailable);
-        }
-        Err(error) => return Err(error),
-    };
+    let results =
+        match backend.search_project(&project.id, store_path, wiki_root, query, filters, limit) {
+            Ok(results) => results,
+            Err(error) => {
+                if let Some(status) = backend_access_failure(&error) {
+                    return Ok(match status.state {
+                        BackendState::Transient | BackendState::Missing => {
+                            SearchAttempt::RetryableUnavailable(status)
+                        }
+                        BackendState::PermissionDenied => SearchAttempt::PermissionDenied(status),
+                        BackendState::Corrupt | BackendState::SchemaMismatch => {
+                            SearchAttempt::ForceReindex
+                        }
+                        BackendState::Ready | BackendState::Stale => return Err(error),
+                    });
+                }
+                if is_retryable_search_open_error(&error) {
+                    return Ok(SearchAttempt::RetryableUnavailable(status));
+                }
+                return Err(error);
+            }
+        };
     Ok(SearchAttempt::Success(SearchExecution {
         results,
         warnings: stale_warning(project, &status).into_iter().collect(),
         status,
+        runtime_report: None,
     }))
+}
+
+fn cache_access_guidance(project: &RegisteredProject) -> String {
+    format!(
+        "grant read access to the managed search cache for project {} and retry",
+        project.id
+    )
 }
 
 fn stale_warning(project: &RegisteredProject, status: &BackendStatus) -> Option<SearchWarning> {
@@ -2610,8 +3054,20 @@ fn retry_search_delay() {
 }
 
 fn is_retryable_search_open_error(error: &anyhow::Error) -> bool {
+    if let Some(status) = backend_access_failure(error) {
+        return matches!(
+            status.state,
+            BackendState::Transient | BackendState::Missing
+        );
+    }
     let message = error.to_string();
     message.contains("open qmd-rs store") || message.contains("qmd-rs store could not be opened")
+}
+
+fn backend_access_failure(error: &anyhow::Error) -> Option<BackendStatus> {
+    error
+        .downcast_ref::<BackendAccessError>()
+        .map(|error| error.status().clone())
 }
 
 fn maybe_sleep_for_test(var: &str) {
@@ -2646,9 +3102,13 @@ mod tests {
 
     use super::{
         FusedResult, ProjectIndexLock, RelatedStorePaths, StoreFileRole, fuse_hybrid_results,
-        hybrid_candidate_survives_final_gate, promote_qmd_rs_store_inner, query_anchor_terms,
+        hybrid_candidate_survives_final_gate, is_retryable_search_open_error,
+        promote_qmd_rs_store_inner, query_anchor_terms,
     };
-    use crate::search::adapter::{Freshness, Score, SearchMode, SearchResult};
+    use crate::search::adapter::{
+        BackendAccessError, BackendOpenMode, BackendState, BackendStatus, Freshness, Score,
+        SearchMode, SearchResult,
+    };
     use crate::search_models::SearchThresholds;
 
     #[test]
@@ -2794,6 +3254,22 @@ mod tests {
         );
     }
 
+    #[test]
+    fn retry_predicate_accepts_typed_transient_backend_access() {
+        let error: anyhow::Error =
+            BackendAccessError::new(backend_status(BackendState::Transient)).into();
+
+        assert!(is_retryable_search_open_error(&error));
+    }
+
+    #[test]
+    fn retry_predicate_rejects_typed_permission_denied_backend_access() {
+        let error: anyhow::Error =
+            BackendAccessError::new(backend_status(BackendState::PermissionDenied)).into();
+
+        assert!(!is_retryable_search_open_error(&error));
+    }
+
     fn fused_result(path: &str) -> FusedResult {
         FusedResult {
             result: search_result(path, 0.0),
@@ -2823,6 +3299,17 @@ mod tests {
             lexical_score: None,
             semantic_rank: None,
             semantic_score: None,
+        }
+    }
+
+    fn backend_status(state: BackendState) -> BackendStatus {
+        BackendStatus {
+            store_path: PathBuf::from("/tmp/qmd-rs.sqlite"),
+            state,
+            open_mode: BackendOpenMode::ReadOnlyImmutable,
+            indexed_files: 0,
+            stale: false,
+            message: Some("test backend access".to_string()),
         }
     }
 

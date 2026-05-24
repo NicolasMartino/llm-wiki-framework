@@ -609,13 +609,17 @@ Unlocks:
 
 ### P2 - Sandbox-Safe Search Cache Reads
 
-Status: Active
+Status: Completed
 Promise: Read-only search, search-all, doctor, and project-status checks can
 inspect completed managed qmd-rs caches from sandboxed agents without cache
 write permission and without misclassifying access failures as corruption.
 Depends On: P1, D9
 Execution Plan: wiki/plans/sandbox-safe-search-cache-reads.plan.md
 Proposal: wiki/proposals/sandbox-safe-search-cache-reads.proposal.md
+Completed: 2026-05-23. Validated outcome is recorded in
+wiki/plans/sandbox-safe-search-cache-reads.plan.md,
+wiki/decisions/search-backend-selection.decision.md, and
+wiki/decisions/semantic-hybrid-search-mode.decision.md.
 
 Included:
 - immutable completed-store read path for lexical/status reads

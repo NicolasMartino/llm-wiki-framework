@@ -1,5 +1,96 @@
 # Wiki Log
 
+## [2026-05-24] update | GGUF runtime CPU fallback implementation
+
+Recorded Stage 2 GGUF runtime portability progress. The runtime boundary now
+supports explicit CPU mode through `LLM_WIKI_GGUF_RUNTIME=cpu`, auto-to-CPU
+fallback after accelerator/context failures, and success-side runtime metadata
+for semantic, hybrid, and rerank paths. qmd 0.3.2 is patched locally under
+`vendor/qmd-0.3.2` to expose runtime options, CPU device selection, and engine
+reload methods. Redirected/headless dogfood now returns the project-update page
+for hybrid auto fallback and forced-CPU semantic search.
+
+Pages affected: wiki/plans/gguf-runtime-portability.plan.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-24] update | GGUF runtime boundary implementation
+
+Implemented the first Stage 0/1 slice of the GGUF runtime portability plan.
+The code now routes qmd embedding, query-expansion, and rerank calls through a
+typed runtime boundary, classifies runtime failures by role/stage/kind, and
+keeps semantic/hybrid runtime failures parseable in JSON command output. The
+real redirected hybrid dogfood failure now emits parseable JSON with
+`runtime_backend_failed`, `query_expansion`, and `context_creation_failed`
+metadata while the raw stderr still shows the underlying Metal command-queue
+failure. The plan remains active because CPU baseline execution and
+install/doctor smoke probes are still pending.
+
+Pages affected: wiki/plans/gguf-runtime-portability.plan.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-24] update | GGUF runtime dogfood evidence
+
+Recorded the post-qmd-metadata-v2 dogfood pass in the GGUF runtime portability
+plan. The current repository reindexed successfully with the real GGUF
+embedding model in a normal terminal, real-model hybrid returned
+`wiki/proposals/project-update-command.proposal.md` as the top result for
+`what is project update`, and a redirected stdout/stderr run reproduced a Metal
+command-queue failure with no JSON stdout.
+
+Pages affected: wiki/plans/gguf-runtime-portability.plan.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-24] lint | GGUF runtime plan bookkeeping
+
+Corrected the GGUF runtime plan creation log entry so it references the staged
+`wiki/plans/gguf-runtime-portability.plan.md` file instead of the superseded
+combined draft path.
+
+Pages affected: wiki/log.md
+
+## [2026-05-24] update | sandbox-safe search completed-store hardening
+
+Recorded follow-up review hardening for sandbox-safe qmd-rs cache reads:
+direct backend search now fails closed on non-searchable status, completed-store
+proof now compares active sqlite `(path, hash)` rows against metadata, and
+project cache size reporting distinguishes unavailable size from an empty cache.
+
+Pages affected: wiki/plans/sandbox-safe-search-cache-reads.plan.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-24] update | GGUF runtime portability plan review revision
+
+Revised the draft GGUF runtime plan after review. The plan is now scoped to
+runtime portability, typed runtime failures, CPU baseline probing, and
+install/doctor smoke checks. Hybrid-quality work is no longer a committed
+implementation track; it is gated on reproducing the deterministic dogfood miss
+under the real GGUF runtime, and schema-breaking page-level embeddings were
+removed from the plan scope.
+
+Pages affected: wiki/plans/gguf-runtime-portability.plan.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-24] create | GGUF runtime portability plan
+
+Created the initial draft execution plan for making GGUF-backed semantic/hybrid
+search portable through a CPU-safe runtime baseline, typed runtime readiness,
+install/doctor smoke probes, accelerator fallback reporting, and real-model
+triage before committing to any hybrid-quality redesign.
+
+Pages affected: wiki/plans/gguf-runtime-portability.plan.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-24] update | sandbox-safe search registry directory permissions
+
+Addressed review feedback on unreadable project cache directories. Registry
+project status now uses permission-preserving existence checks for selected
+qmd-rs store paths, routes unreadable cache directories through backend status
+labels as `index-permission-denied`, and treats permission errors during cache
+size collection as size-unavailable instead of failing `projects --format json`.
+
+Pages updated: wiki/plans/sandbox-safe-search-cache-reads.plan.md,
+wiki/index.md, wiki/log.md
+
 ## [2026-05-23] update | sandbox-safe search cache plan review fixes
 
 Incorporated review findings into the sandbox-safe search cache reads plan.
@@ -3387,6 +3478,43 @@ requirements, out-of-scope items, and promotion into a post-V1 roadmap item if
 accepted.
 
 Pages updated: wiki/proposals/full-windows-support.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-23] update | sandbox-safe search promotion retry hardening
+
+Addressed review findings on live qmd-rs promotion races. Immutable SQLite
+`SQLITE_CANTOPEN` now re-stats the related sqlite/metadata files before
+classification so missing or mixed files during promotion remain retryable
+`Transient` states rather than permission failures; readable present files are
+also retryable because promotion may have completed before re-stat, while true
+file-open permission failures remain `PermissionDenied`. Immutable-search open
+failures now travel through a typed backend-access error carrying
+`BackendStatus`, allowing the command retry path to branch on backend state
+instead of matching legacy qmd-rs open-error strings.
+
+Pages updated: wiki/plans/sandbox-safe-search-cache-reads.plan.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-23] update | sandbox-safe search cache reads completed
+
+Completed the P2 sandbox-safe search cache reads plan. The implementation adds
+project-aware qmd-rs status/search calls, backend `open_mode`, explicit
+`transient` and `permission_denied` states, immutable completed-store SQLite
+reads for query/status paths, writer-side immutable-read proof before live
+promotion, parseable single-project backend-status JSON on cache access
+failures, per-project backend-status JSON in `search-all`, and distinct
+doctor/projects labels for permission failures.
+
+Documentation now records the validated behavior in the roadmap, plan,
+documentation model spec, search backend decision, semantic/hybrid search-mode
+decision, and index.
+
+Pages updated: wiki/proposals/sandbox-safe-search-cache-reads.proposal.md,
+wiki/plans/sandbox-safe-search-cache-reads.plan.md,
+wiki/roadmaps/framework-v1.roadmap.md,
+wiki/specs/documentation-model.spec.md,
+wiki/decisions/search-backend-selection.decision.md,
+wiki/decisions/semantic-hybrid-search-mode.decision.md,
 wiki/index.md, wiki/log.md
 
 ## [2026-05-15] update | full Windows support command and path matrices

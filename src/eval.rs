@@ -934,6 +934,7 @@ fn run_case_mode(
 fn run_lexical(case: &EvalCase, context: &EvalExecutionContext<'_>) -> Result<EvalModeOutcome> {
     let search_started = Instant::now();
     let results = context.backend.search_project(
+        &context.project.id,
         context.store_path,
         context.wiki_root,
         &case.query,
@@ -967,9 +968,10 @@ fn run_semantic(
                 .unwrap_or("candidate_semantic_not_ready"),
         ));
     }
-    let status = context
-        .backend
-        .status(context.store_path, context.wiki_root)?;
+    let status =
+        context
+            .backend
+            .status(&context.project.id, context.store_path, context.wiki_root)?;
     let metadata = candidate
         .metadata
         .as_ref()
@@ -1027,9 +1029,10 @@ fn run_hybrid(
                 .unwrap_or("candidate_hybrid_not_ready"),
         ));
     }
-    let status = context
-        .backend
-        .status(context.store_path, context.wiki_root)?;
+    let status =
+        context
+            .backend
+            .status(&context.project.id, context.store_path, context.wiki_root)?;
     let metadata = candidate.metadata.as_ref().expect("hybrid_ready metadata");
     let vectors = candidate.vectors.as_ref().expect("hybrid_ready vectors");
     let thresholds = candidate
@@ -1056,6 +1059,7 @@ fn run_hybrid(
     let mut lexical_results = Vec::new();
     for query in &expanded.lexical {
         lexical_results.extend(context.backend.search_project(
+            &context.project.id,
             context.store_path,
             context.wiki_root,
             query,
@@ -1122,7 +1126,8 @@ fn run_hybrid(
                 wiki_root: context.wiki_root,
                 requested: true,
             },
-        )?;
+        )?
+        .results;
         rerank_ms = elapsed_ms(rerank_started);
         rerank_applied = true;
     }

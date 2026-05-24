@@ -1,7 +1,7 @@
 # Plan: Sandbox-Safe Search Cache Reads
 
 - Document Class: Plan
-- Status: Active
+- Status: Completed
 - Date: 2026-05-23
 - Category: Search infrastructure, sandboxed agents, qmd-rs adapter
 - Scope: Implement immutable completed-store reads for qmd-rs-backed search,
@@ -15,8 +15,11 @@
   src/registry/mod.rs, tests/search_commands.rs, tests/status_doctor.rs,
   local command reproduction 2026-05-23 after `llm-wiki index --force`,
   review findings 2026-05-23 on JSON failure envelopes, project-aware status,
-  semantic/hybrid status paths, permission-preserving path checks, and strict
-  candidate verification
+  semantic/hybrid status paths, permission-preserving path checks, strict
+  candidate verification, promotion-race `SQLITE_CANTOPEN` classification, and
+  immutable-open retry routing, plus review finding 2026-05-24 on unreadable
+  project cache directories in registry status, direct backend trait callers,
+  active sqlite-row metadata proof, and unavailable cache-size reporting
 - Related: wiki/proposals/sandbox-safe-search-cache-reads.proposal.md,
   wiki/plans/qmd-rs-search-backend.plan.md,
   wiki/plans/project-registry-search-artifacts.plan.md,
@@ -46,6 +49,95 @@ inside the llm-wiki qmd-rs adapter. Continue to use qmd-rs as the writer and
 indexer. Do not wait for an upstream qmd read-only constructor before fixing
 the dogfooding failure. If qmd later exposes a verified no-write read API, a
 follow-up can replace the adapter-owned SQL path behind the same tests.
+
+## Completion Evidence 2026-05-23
+
+Implemented through the qmd-rs adapter and CLI read surfaces:
+
+- `BackendStatus` now carries `open_mode`, and backend state distinguishes
+  `transient` and `permission_denied` from missing, stale, corrupt, and schema
+  mismatch.
+- qmd-rs read/status calls are project-aware and validate metadata
+  `project_id` against caller intent.
+- Completed-store reads use an adapter-owned immutable SQLite path
+  (`mode=ro&immutable=1`) for lexical/status reads; qmd-rs remains the
+  write/index path.
+- `index` builds a temp qmd-rs store, closes/checkpoints it, and proves
+  immutable readability before live promotion.
+- Mixed sqlite/metadata observations are reported as retryable `transient`.
+- Single-project `search --format json` emits a parseable backend-status
+  envelope for `permission_denied` and exhausted `transient` failures before
+  returning non-zero.
+- `search-all --format json` reports per-project backend status and keeps
+  ready project results when another selected project has cache access failure.
+- `doctor` and `projects` distinguish permission failures from corruption and
+  do not route permission failures to forced reindex guidance.
+
+Verification run:
+
+```text
+cargo fmt --check
+cargo test --test search_commands
+cargo test --test status_doctor
+cargo test --test registry
+cargo test --workspace
+```
+
+Additional adapter coverage verifies immutable reads on read-only cache
+directories, unreadable sqlite permission classification, transient
+sqlite/metadata publication states, malformed sqlite corruption, project-id
+metadata mismatch, and accepted qmd-rs lexical query parity.
+
+## Review Hardening 2026-05-23
+
+Follow-up review found two promotion-window gaps in the completed P2 patch:
+
+- SQLite can report `SQLITE_CANTOPEN` if promotion renames the live sqlite file
+  after a readiness check but before immutable open. The adapter now re-stats
+  the related sqlite/metadata files before classifying `CANTOPEN`; missing or
+  mixed files are `Transient`, readable present files remain retryable because
+  promotion may have completed before re-stat, and permission-denied stat or
+  plain file-open failures remain access failures.
+- Immutable-search open failures now return a typed backend-access error
+  carrying `BackendStatus`, so the command layer retries `Transient` access
+  failures by state instead of matching legacy qmd-rs open-error strings.
+- `projects --format json` now tolerates permission errors while measuring
+  cache size and routes unreadable project cache directories through
+  `index-permission-denied` status instead of failing the whole command.
+
+Verification run:
+
+```text
+cargo test qmd_rs
+cargo test search::commands
+cargo test --test search_commands
+cargo test --test registry
+```
+
+## Review Hardening 2026-05-24
+
+Follow-up review found three remaining completed-store hardening gaps:
+
+- Direct `SearchBackend::search_project` callers could bypass command-layer
+  status guards and search a qmd-rs store even when status was
+  `PermissionDenied`, `SchemaMismatch`, or `Corrupt`. The qmd-rs backend now
+  returns a typed `BackendAccessError` unless status is `Ready` or `Stale`.
+- Completed-store proof counted active sqlite rows but did not verify that the
+  rows matched the metadata snapshot. qmd-rs metadata schema version 2 now
+  records each file's qmd indexed-body hash, and immutable schema verification
+  compares active `(path, hash)` rows against metadata before reporting
+  `Ready`, `Stale`, or candidate-proof success.
+- Registry project status no longer reports unreadable cache-size collection
+  as `0` bytes. JSON now exposes `cache_size_bytes: null` with
+  `cache_size_status: unavailable`, and text output prints `unavailable`.
+
+Verification run:
+
+```text
+cargo fmt
+cargo test qmd_rs
+cargo test --test registry
+```
 
 ## Dogfood Evidence 2026-05-23
 

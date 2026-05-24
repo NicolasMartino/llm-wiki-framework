@@ -11,6 +11,7 @@ use sha2::{Digest, Sha256};
 use crate::search::adapter::{
     Freshness, MatchSpan, Score, SearchFilters, SearchMode, SearchResult,
 };
+use crate::search::gguf_runtime::{self, GgufRuntimeReport};
 use crate::search::index_text::mask_search_ignored_spans;
 use crate::search::metadata::parse_wiki_metadata;
 use crate::search_models::{
@@ -510,10 +511,23 @@ pub fn embed_query(
     embedding_artifact: &ModelArtifactRecord,
     dimensions: usize,
 ) -> Result<Vec<f32>> {
+    Ok(embed_query_with_runtime_report(query, embedding_artifact, dimensions)?.embedding)
+}
+
+pub struct SemanticQueryEmbedding {
+    pub embedding: Vec<f32>,
+    pub runtime_report: Option<GgufRuntimeReport>,
+}
+
+pub fn embed_query_with_runtime_report(
+    query: &str,
+    embedding_artifact: &ModelArtifactRecord,
+    dimensions: usize,
+) -> Result<SemanticQueryEmbedding> {
     let mut embedder = SemanticEmbedder::new(&embedding_artifact.path, dimensions)?;
-    let embedding = embedder.embed_query(query)?;
-    validate_embedding_dimensions(&embedding, dimensions)?;
-    Ok(embedding)
+    let result = embedder.embed_query(query)?;
+    validate_embedding_dimensions(&result.embedding, dimensions)?;
+    Ok(result)
 }
 
 pub fn thresholds_match_index_inputs(
@@ -564,7 +578,7 @@ pub fn select_thresholds_for_index<'a>(
 
 enum SemanticEmbedder {
     Deterministic { dimensions: usize },
-    Qmd(qmd::EmbeddingEngine),
+    Qmd(gguf_runtime::GgufEmbeddingEngine),
 }
 
 impl SemanticEmbedder {
@@ -575,7 +589,7 @@ impl SemanticEmbedder {
         {
             return Ok(Self::Deterministic { dimensions });
         }
-        Ok(Self::Qmd(qmd::EmbeddingEngine::new(model_path)?))
+        Ok(Self::Qmd(gguf_runtime::embedding_engine(model_path)?))
     }
 
     fn embed_document(&mut self, text: &str, title: Option<&str>) -> Result<Vec<f32>> {
@@ -584,14 +598,23 @@ impl SemanticEmbedder {
                 &format!("{} {text}", title.unwrap_or_default()),
                 *dimensions,
             )),
-            Self::Qmd(engine) => Ok(engine.embed_document(text, title)?.embedding),
+            Self::Qmd(engine) => Ok(gguf_runtime::embed_document(engine, text, title)?.value),
         }
     }
 
-    fn embed_query(&mut self, query: &str) -> Result<Vec<f32>> {
+    fn embed_query(&mut self, query: &str) -> Result<SemanticQueryEmbedding> {
         match self {
-            Self::Deterministic { dimensions } => Ok(deterministic_embedding(query, *dimensions)),
-            Self::Qmd(engine) => Ok(engine.embed_query(query)?.embedding),
+            Self::Deterministic { dimensions } => Ok(SemanticQueryEmbedding {
+                embedding: deterministic_embedding(query, *dimensions),
+                runtime_report: None,
+            }),
+            Self::Qmd(engine) => {
+                let embedding = gguf_runtime::embed_query(engine, query)?;
+                Ok(SemanticQueryEmbedding {
+                    embedding: embedding.value,
+                    runtime_report: Some(embedding.report),
+                })
+            }
         }
     }
 }

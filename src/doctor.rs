@@ -382,10 +382,14 @@ fn print_project_search_diagnostics(paths: &Paths, context: &crate::cli::CliCont
         legacy_store_path.display()
     ));
     let backend = QmdRsBackend::new();
-    let status = backend.doctor(&store_path, &wiki_root, SearchMode::Fts)?;
+    let status_project_id = registered
+        .map(|project| project.id.as_str())
+        .unwrap_or(discovered.project_key.as_str());
+    let status = backend.doctor(status_project_id, &store_path, &wiki_root, SearchMode::Fts)?;
     context.diagnostic(format!(
-        "search index status: {}, indexed_files={}",
+        "search index status: {}, open_mode={}, indexed_files={}",
         backend_state_label(&status.state),
+        status.open_mode.label(),
         status.indexed_files
     ));
 
@@ -408,6 +412,18 @@ fn print_project_search_diagnostics(paths: &Paths, context: &crate::cli::CliCont
         BackendState::Missing => {
             println!(
                 "qmd-rs FTS index missing: {} (build the search index)",
+                status.store_path.display()
+            );
+        }
+        BackendState::Transient => {
+            println!(
+                "qmd-rs FTS index transient: {} (index publication is in progress; retry)",
+                status.store_path.display()
+            );
+        }
+        BackendState::PermissionDenied => {
+            println!(
+                "qmd-rs FTS index permission denied: {} (grant read access to the managed search cache)",
                 status.store_path.display()
             );
         }
@@ -485,6 +501,8 @@ fn backend_state_label(state: &BackendState) -> &'static str {
         BackendState::Ready => "ready",
         BackendState::Missing => "missing",
         BackendState::Stale => "stale",
+        BackendState::Transient => "transient",
+        BackendState::PermissionDenied => "permission-denied",
         BackendState::Corrupt => "corrupt",
         BackendState::SchemaMismatch => "schema-mismatch",
     }

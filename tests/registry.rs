@@ -116,6 +116,100 @@ fn register_update_changes_existing_project_without_path_argument() {
     assert_eq!(projects[0]["root"], project.to_string_lossy().as_ref());
 }
 
+#[cfg(unix)]
+#[test]
+fn projects_reports_search_cache_permission_denied_distinctly() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project", true);
+
+    llm_wiki(home.path())
+        .args(["register", "--id", "fixture", "--name", "Fixture"])
+        .arg(&project)
+        .assert()
+        .success();
+    llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let store = home.path().join(".llm_wiki/indexes/fixture/qmd-rs.sqlite");
+    let original = fs::metadata(&store).expect("metadata").permissions();
+    let mut unreadable = original.clone();
+    unreadable.set_mode(0o000);
+    fs::set_permissions(&store, unreadable).expect("chmod unreadable");
+
+    let output = llm_wiki(home.path())
+        .args(["projects", "--format", "json"])
+        .output()
+        .expect("projects output");
+    fs::set_permissions(&store, original).expect("restore permissions");
+
+    assert!(output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("projects json");
+    let project = json["projects"]
+        .as_array()
+        .expect("projects")
+        .first()
+        .expect("project");
+    assert_eq!(project["index_status"], "index-permission-denied");
+    assert_eq!(project["freshness"], "unknown");
+    assert!(project["status_message"].as_str().is_some_and(|message| {
+        message.contains("cannot be read") || message.contains("open failed")
+    }));
+}
+
+#[cfg(unix)]
+#[test]
+fn projects_tolerates_unreadable_search_cache_directory() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project", true);
+
+    llm_wiki(home.path())
+        .args(["register", "--id", "fixture", "--name", "Fixture"])
+        .arg(&project)
+        .assert()
+        .success();
+    llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let cache_dir = home.path().join(".llm_wiki/indexes/fixture");
+    let original = fs::metadata(&cache_dir).expect("metadata").permissions();
+    let mut unreadable = original.clone();
+    unreadable.set_mode(0o000);
+    fs::set_permissions(&cache_dir, unreadable).expect("chmod unreadable");
+
+    let output = llm_wiki(home.path())
+        .args(["projects", "--format", "json"])
+        .output()
+        .expect("projects output");
+    fs::set_permissions(&cache_dir, original).expect("restore permissions");
+
+    assert!(output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("projects json");
+    let project = json["projects"]
+        .as_array()
+        .expect("projects")
+        .first()
+        .expect("project");
+    assert_eq!(project["index_status"], "index-permission-denied");
+    assert_eq!(project["freshness"], "unknown");
+    assert!(project["cache_size_bytes"].is_null());
+    assert_eq!(project["cache_size_status"], "unavailable");
+    assert!(
+        project["status_message"]
+            .as_str()
+            .is_some_and(|message| message.contains("cannot be inspected"))
+    );
+}
+
 #[test]
 fn verbose_registry_commands_emit_diagnostics() {
     let home = TempDir::new().expect("home");

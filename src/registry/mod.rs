@@ -1,5 +1,5 @@
 use std::fs::{self, File, OpenOptions};
-use std::io::Write;
+use std::io::{self, Write};
 use std::path::{Component, Path, PathBuf};
 use std::process;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -226,8 +226,12 @@ fn print_projects_text(view: &ProjectsView) {
 
     println!("id\tname\troot\troot_status\tindex_status\tfreshness\tbackend\tcache_size");
     for project in &view.projects {
+        let cache_size = project
+            .cache_size_bytes
+            .map(|bytes| format!("{bytes} bytes"))
+            .unwrap_or_else(|| "unavailable".to_string());
         println!(
-            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{} bytes",
+            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
             project.id,
             project.name,
             project.root,
@@ -235,7 +239,7 @@ fn print_projects_text(view: &ProjectsView) {
             project.index_status,
             project.freshness,
             project.backend,
-            project.cache_size_bytes
+            cache_size
         );
     }
 }
@@ -271,7 +275,8 @@ struct ProjectStatusView {
     freshness: &'static str,
     backend: String,
     index_schema_version: u32,
-    cache_size_bytes: u64,
+    cache_size_bytes: Option<u64>,
+    cache_size_status: &'static str,
     indexed_file_count: usize,
     last_indexed_at: Option<String>,
     last_indexed_wiki_max_mtime: Option<String>,
@@ -280,22 +285,29 @@ struct ProjectStatusView {
 
 impl ProjectStatusView {
     fn from_project(project: &RegisteredProject, paths: &Paths) -> Result<Self> {
-        let store_path = search_store_path(paths, &project.id);
+        let store_path = search_store_path(paths, &project.id)?;
         let root_exists = project.root.exists();
-        let (index_status, freshness, status_message) = if !store_path.exists() {
-            (
+        let store_presence = path_presence(&store_path)?;
+        let (index_status, freshness, status_message) = match (store_presence, root_exists) {
+            (PathPresence::Missing, _) => (
                 "index-missing",
                 "missing",
                 (!root_exists).then(|| "project root is missing".to_string()),
-            )
-        } else if !root_exists {
-            (
+            ),
+            (PathPresence::Exists, false) => (
                 "index-present",
                 "unknown",
                 Some("project root is missing".to_string()),
-            )
-        } else {
-            backend_status_labels(&store_path, &project.wiki_root())
+            ),
+            (PathPresence::Exists | PathPresence::PermissionDenied, _) => {
+                backend_status_labels(&project.id, &store_path, &project.wiki_root())
+            }
+        };
+        let managed_cache_size = dir_size(&paths.project_index_dir(&project.id))?;
+        let legacy_cache_size = dir_size(&paths.legacy_project_index_dir(&project.id))?;
+        let (cache_size_bytes, cache_size_status) = match (managed_cache_size, legacy_cache_size) {
+            (Some(managed), Some(legacy)) => (Some(managed.saturating_add(legacy)), "available"),
+            _ => (None, "unavailable"),
         };
 
         Ok(Self {
@@ -312,8 +324,8 @@ impl ProjectStatusView {
             freshness,
             backend: project.backend.clone(),
             index_schema_version: project.index_schema_version,
-            cache_size_bytes: dir_size(&paths.project_index_dir(&project.id))?
-                + dir_size(&paths.legacy_project_index_dir(&project.id))?,
+            cache_size_bytes,
+            cache_size_status,
             indexed_file_count: project.indexed_file_count,
             last_indexed_at: project.last_indexed_at.clone(),
             last_indexed_wiki_max_mtime: project.last_indexed_wiki_max_mtime.clone(),
@@ -322,29 +334,58 @@ impl ProjectStatusView {
     }
 }
 
-fn search_store_path(paths: &Paths, project_id: &str) -> PathBuf {
+fn search_store_path(paths: &Paths, project_id: &str) -> Result<PathBuf> {
     let managed = paths.qmd_rs_store_path(project_id);
-    if managed.exists() {
-        return managed;
+    if matches!(
+        path_presence(&managed)?,
+        PathPresence::Exists | PathPresence::PermissionDenied
+    ) {
+        return Ok(managed);
     }
     let legacy = paths.legacy_qmd_rs_store_path(project_id);
-    if legacy.exists() {
-        return legacy;
+    if matches!(
+        path_presence(&legacy)?,
+        PathPresence::Exists | PathPresence::PermissionDenied
+    ) {
+        return Ok(legacy);
     }
-    managed
+    Ok(managed)
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PathPresence {
+    Exists,
+    Missing,
+    PermissionDenied,
+}
+
+fn path_presence(path: &Path) -> Result<PathPresence> {
+    match path.try_exists() {
+        Ok(true) => Ok(PathPresence::Exists),
+        Ok(false) => Ok(PathPresence::Missing),
+        Err(error) if error.kind() == io::ErrorKind::PermissionDenied => {
+            Ok(PathPresence::PermissionDenied)
+        }
+        Err(error) => {
+            Err(error).with_context(|| format!("inspect path existence {}", path.display()))
+        }
+    }
 }
 
 fn backend_status_labels(
+    project_id: &str,
     store_path: &Path,
     wiki_root: &Path,
 ) -> (&'static str, &'static str, Option<String>) {
     let backend = QmdRsBackend::new();
-    match backend.status(store_path, wiki_root) {
+    match backend.status(project_id, store_path, wiki_root) {
         Ok(status) => {
             let (index_status, freshness) = match status.state {
                 BackendState::Ready => ("index-present", "fresh"),
                 BackendState::Stale => ("index-present", "stale"),
                 BackendState::Missing => ("index-missing", "missing"),
+                BackendState::Transient => ("index-transient", "unknown"),
+                BackendState::PermissionDenied => ("index-permission-denied", "unknown"),
                 BackendState::Corrupt | BackendState::SchemaMismatch => {
                     ("index-unusable", "unknown")
                 }
@@ -786,21 +827,47 @@ fn slugify(value: &str) -> String {
     }
 }
 
-fn dir_size(path: &Path) -> Result<u64> {
-    if !path.exists() {
-        return Ok(0);
+fn dir_size(path: &Path) -> Result<Option<u64>> {
+    match path.try_exists() {
+        Ok(true) => {}
+        Ok(false) => return Ok(Some(0)),
+        Err(error) if error.kind() == io::ErrorKind::PermissionDenied => return Ok(None),
+        Err(error) => {
+            return Err(error).with_context(|| format!("inspect cache dir {}", path.display()));
+        }
     }
     let mut total = 0;
-    for entry in fs::read_dir(path).with_context(|| format!("read dir {}", path.display()))? {
-        let entry = entry?;
-        let metadata = entry.metadata()?;
+    let entries = match fs::read_dir(path) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == io::ErrorKind::PermissionDenied => return Ok(None),
+        Err(error) => return Err(error).with_context(|| format!("read dir {}", path.display())),
+    };
+    for entry in entries {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(error) if error.kind() == io::ErrorKind::PermissionDenied => return Ok(None),
+            Err(error) => {
+                return Err(error).with_context(|| format!("read dir entry {}", path.display()));
+            }
+        };
+        let metadata = match entry.metadata() {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == io::ErrorKind::PermissionDenied => return Ok(None),
+            Err(error) => {
+                return Err(error)
+                    .with_context(|| format!("read metadata {}", entry.path().display()));
+            }
+        };
         if metadata.is_dir() {
-            total += dir_size(&entry.path())?;
+            let Some(size) = dir_size(&entry.path())? else {
+                return Ok(None);
+            };
+            total += size;
         } else {
             total += metadata.len();
         }
     }
-    Ok(total)
+    Ok(Some(total))
 }
 
 fn max_wiki_modified(wiki_root: &Path) -> Result<Option<String>> {

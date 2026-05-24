@@ -98,6 +98,11 @@ must rerun `eval run` and `eval calibrate` before threshold promotion.
   search changes readiness immediately but does not delete model files or
   semantic indexes; explicit cleanup is owned by `llm-wiki uninstall
   --search-artifacts` or full uninstall.
+- Backend cache access failures are reported as readiness/status metadata, not
+  as forced-reindex corruption. Single-project JSON search emits parseable
+  `backend_status` for `permission_denied` and exhausted `transient` failures;
+  `search-all` reports backend status per project while preserving results
+  from ready projects.
 - The v1 shipped baseline is calibrated hybrid/auto without a calibrated
   reranker profile. A future reranker profile needs its own artifact/license
   readiness, eval run, calibration report, and threshold scope.

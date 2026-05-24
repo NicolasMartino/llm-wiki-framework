@@ -1,5 +1,6 @@
 pub mod adapter;
 pub mod commands;
+pub mod gguf_runtime;
 pub mod index_text;
 pub mod metadata;
 pub mod project;
