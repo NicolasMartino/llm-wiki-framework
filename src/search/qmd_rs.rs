@@ -276,7 +276,7 @@ enum StatusPurpose {
     CandidateProof,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 struct StoreMetadata {
     schema_version: u32,
     backend: String,
@@ -583,14 +583,14 @@ fn verify_immutable_schema(
         )
         .map_err(|error| classify_sqlite_read_error(error, store_path))?;
     if active_count as usize != metadata.file_count {
-        return Err(StoreClassification {
-            state: BackendState::SchemaMismatch,
-            open_mode: BackendOpenMode::ReadOnlyImmutable,
-            message: format!(
+        return Err(classify_mismatch_after_metadata_reread(
+            store_path,
+            metadata,
+            format!(
                 "qmd-rs sqlite active document count {active_count} does not match metadata file count {}",
                 metadata.file_count
             ),
-        });
+        ));
     }
     let mut stmt = conn
         .prepare(
@@ -611,14 +611,39 @@ fn verify_immutable_schema(
         .collect::<Vec<_>>();
     expected_rows.sort_by(|left, right| left.0.cmp(&right.0));
     if active_rows != expected_rows {
-        return Err(StoreClassification {
-            state: BackendState::SchemaMismatch,
-            open_mode: BackendOpenMode::ReadOnlyImmutable,
-            message: "qmd-rs sqlite active document rows do not match metadata snapshot"
-                .to_string(),
-        });
+        return Err(classify_mismatch_after_metadata_reread(
+            store_path,
+            metadata,
+            "qmd-rs sqlite active document rows do not match metadata snapshot".to_string(),
+        ));
     }
     Ok(())
+}
+
+fn classify_mismatch_after_metadata_reread(
+    store_path: &Path,
+    original_metadata: &StoreMetadata,
+    mismatch_message: String,
+) -> StoreClassification {
+    match StoreMetadata::read(store_path) {
+        Ok(current_metadata) if current_metadata != *original_metadata => StoreClassification {
+            state: BackendState::Transient,
+            open_mode: BackendOpenMode::ReadOnlyImmutable,
+            message: "qmd-rs metadata changed while sqlite was being verified; retry the read"
+                .to_string(),
+        },
+        Err(_) => StoreClassification {
+            state: BackendState::Transient,
+            open_mode: BackendOpenMode::ReadOnlyImmutable,
+            message: "qmd-rs metadata could not be re-read while sqlite was being verified; retry the read"
+                .to_string(),
+        },
+        _ => StoreClassification {
+            state: BackendState::SchemaMismatch,
+            open_mode: BackendOpenMode::ReadOnlyImmutable,
+            message: mismatch_message,
+        },
+    }
 }
 
 fn immutable_search_fts(
@@ -920,8 +945,8 @@ fn remove_store_files(store_path: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::{
-        FileSnapshot, QmdRsBackend, WikiSnapshot, classify_cannot_open_state, find_match_span,
-        snippet,
+        FileSnapshot, QmdRsBackend, StoreMetadata, WikiSnapshot, classify_cannot_open_state,
+        find_match_span, snippet, verify_immutable_schema,
     };
     use crate::search::adapter::{
         BackendAccessError, BackendOpenMode, BackendState, Freshness, IndexOptions, SearchBackend,
@@ -1341,6 +1366,48 @@ mod tests {
                 .message
                 .as_deref()
                 .is_some_and(|message| message.contains("active document rows"))
+        );
+    }
+
+    #[test]
+    fn changed_metadata_during_sqlite_verification_reports_transient() {
+        let temp = tempfile::TempDir::new().expect("tempdir");
+        let wiki = temp.path().join("wiki");
+        fs::create_dir_all(wiki.join("decisions")).expect("mkdir");
+        fs::write(wiki.join("index.md"), "# Index\n\nOriginal metadata.").expect("index");
+        fs::write(wiki.join("log.md"), "# Log").expect("log");
+
+        let store = temp.path().join("indexes/project/qmd-rs.sqlite");
+        let backend = QmdRsBackend::new();
+        backend
+            .index_project("fixture", &wiki, &store, &IndexOptions { force: true })
+            .expect("index");
+        let old_metadata = StoreMetadata::read(&store).expect("old metadata");
+
+        fs::write(
+            wiki.join("decisions/new.decision.md"),
+            "# New Decision\n\n- Document Class: Decision\n- Status: Accepted\n\nNew publication.",
+        )
+        .expect("new decision");
+        let staging = temp.path().join("indexes/staging/qmd-rs.sqlite");
+        backend
+            .index_project("fixture", &wiki, &staging, &IndexOptions { force: true })
+            .expect("new index");
+        fs::copy(&staging, &store).expect("replace sqlite");
+        fs::copy(
+            staging.with_extension("llm-wiki.json"),
+            store.with_extension("llm-wiki.json"),
+        )
+        .expect("replace metadata");
+
+        let classification =
+            verify_immutable_schema(&store, &old_metadata).expect_err("mixed pair transient");
+
+        assert_eq!(classification.state, BackendState::Transient);
+        assert!(
+            classification
+                .message
+                .contains("metadata changed while sqlite was being verified")
         );
     }
 

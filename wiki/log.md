@@ -1,5 +1,16 @@
 # Wiki Log
 
+## [2026-05-25] update | search promotion race follow-up fixes
+
+Fixed follow-up review findings from the sandbox-safe cache and GGUF runtime
+work. The project index lock file is no longer unlinked on drop, mixed
+metadata/sqlite completed-store reads during promotion are classified as
+transient, `projects` reports metadata-only publication windows as
+`index-transient`, and forced CPU GGUF runtime failures preserve
+`runtime_backend_requested=cpu` in JSON.
+
+Pages affected: wiki/log.md
+
 ## [2026-05-24] update | GGUF runtime CPU fallback implementation
 
 Recorded Stage 2 GGUF runtime portability progress. The runtime boundary now

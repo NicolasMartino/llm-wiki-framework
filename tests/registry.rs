@@ -161,6 +161,46 @@ fn projects_reports_search_cache_permission_denied_distinctly() {
     }));
 }
 
+#[test]
+fn projects_reports_metadata_only_store_as_transient() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project", true);
+
+    llm_wiki(home.path())
+        .args(["register", "--id", "fixture", "--name", "Fixture"])
+        .arg(&project)
+        .assert()
+        .success();
+    llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let store = home.path().join(".llm_wiki/indexes/fixture/qmd-rs.sqlite");
+    fs::remove_file(&store).expect("remove sqlite");
+
+    let output = llm_wiki(home.path())
+        .args(["projects", "--format", "json"])
+        .output()
+        .expect("projects output");
+
+    assert!(output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("projects json");
+    let project = json["projects"]
+        .as_array()
+        .expect("projects")
+        .first()
+        .expect("project");
+    assert_eq!(project["index_status"], "index-transient");
+    assert_eq!(project["freshness"], "unknown");
+    assert!(
+        project["status_message"]
+            .as_str()
+            .is_some_and(|message| message.contains("publication is incomplete"))
+    );
+}
+
 #[cfg(unix)]
 #[test]
 fn projects_tolerates_unreadable_search_cache_directory() {

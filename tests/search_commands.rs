@@ -14,6 +14,7 @@ fn llm_wiki(home: &Path) -> Command {
     command
         .env("HOME", home)
         .env_remove("RUST_LOG")
+        .env_remove("LLM_WIKI_GGUF_RUNTIME")
         .env_remove("XDG_CACHE_HOME")
         .env_remove("XDG_DATA_HOME");
     command
@@ -593,6 +594,32 @@ fn semantic_runtime_failure_returns_parseable_json() {
     assert_eq!(json["runtime_failure_stage"], "context_create");
     assert_eq!(json["runtime_error_kind"], "backend_unavailable");
     assert_eq!(json["backend_status"]["state"], "ready");
+
+    let forced_cpu_output = llm_wiki(home.path())
+        .env("LLM_WIKI_GGUF_RUNTIME", "cpu")
+        .env(
+            "LLM_WIKI_TEST_GGUF_RUNTIME_FAILURE",
+            "embedding:context_create",
+        )
+        .args([
+            "search",
+            "battery roadmap",
+            "--project",
+            "fixture",
+            "--mode",
+            "semantic",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("forced cpu search output");
+
+    assert!(!forced_cpu_output.status.success());
+    let forced_cpu_json: Value =
+        serde_json::from_slice(&forced_cpu_output.stdout).expect("forced cpu runtime failure json");
+    assert_eq!(forced_cpu_json["runtime_backend_requested"], "cpu");
+    assert!(forced_cpu_json["runtime_backend_used"].is_null());
+    assert_eq!(forced_cpu_json["runtime_backend_fallback"], false);
 }
 
 #[test]
@@ -1213,6 +1240,43 @@ fn search_all_runtime_failure_reports_per_project_json() {
         assert_eq!(report["runtime_failure_stage"], "context_create");
         assert_eq!(report["runtime_error_kind"], "backend_unavailable");
         assert_eq!(report["backend_status"]["state"], "ready");
+    }
+
+    let forced_cpu_output = llm_wiki(home.path())
+        .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+        .env("LLM_WIKI_GGUF_RUNTIME", "cpu")
+        .env(
+            "LLM_WIKI_TEST_GGUF_RUNTIME_FAILURE",
+            "query_expansion:context_create",
+        )
+        .args([
+            "search-all",
+            "battery roadmap",
+            "--mode",
+            "hybrid",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("forced cpu search-all output");
+
+    assert!(forced_cpu_output.status.success());
+    let forced_cpu_json: Value = serde_json::from_slice(&forced_cpu_output.stdout)
+        .expect("forced cpu search-all runtime failure json");
+    assert_eq!(forced_cpu_json["runtime_backend_requested"], "cpu");
+    assert!(forced_cpu_json["runtime_backend_used"].is_null());
+    assert_eq!(forced_cpu_json["runtime_backend_fallback"], false);
+    let forced_cpu_projects = forced_cpu_json["projects"]
+        .as_array()
+        .expect("forced cpu project reports");
+    for project_id in ["alpha", "beta"] {
+        let report = forced_cpu_projects
+            .iter()
+            .find(|report| report["project_id"] == project_id)
+            .expect("forced cpu project report");
+        assert_eq!(report["runtime_backend_requested"], "cpu");
+        assert!(report["runtime_backend_used"].is_null());
+        assert_eq!(report["runtime_backend_fallback"], false);
     }
 }
 

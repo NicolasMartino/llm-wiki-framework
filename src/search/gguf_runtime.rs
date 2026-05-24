@@ -626,7 +626,7 @@ fn reload_rerank_engine_for_cpu(engine: &mut qmd::RerankEngine, model_path: &Pat
         })
 }
 
-fn requested_backend() -> GgufRuntimeBackend {
+pub fn requested_backend() -> GgufRuntimeBackend {
     env::var(RUNTIME_BACKEND_ENV)
         .ok()
         .map(|value| value.trim().to_ascii_lowercase())

@@ -287,7 +287,7 @@ impl ProjectStatusView {
     fn from_project(project: &RegisteredProject, paths: &Paths) -> Result<Self> {
         let store_path = search_store_path(paths, &project.id)?;
         let root_exists = project.root.exists();
-        let store_presence = path_presence(&store_path)?;
+        let store_presence = related_store_presence(&store_path)?;
         let (index_status, freshness, status_message) = match (store_presence, root_exists) {
             (PathPresence::Missing, _) => (
                 "index-missing",
@@ -337,14 +337,14 @@ impl ProjectStatusView {
 fn search_store_path(paths: &Paths, project_id: &str) -> Result<PathBuf> {
     let managed = paths.qmd_rs_store_path(project_id);
     if matches!(
-        path_presence(&managed)?,
+        related_store_presence(&managed)?,
         PathPresence::Exists | PathPresence::PermissionDenied
     ) {
         return Ok(managed);
     }
     let legacy = paths.legacy_qmd_rs_store_path(project_id);
     if matches!(
-        path_presence(&legacy)?,
+        related_store_presence(&legacy)?,
         PathPresence::Exists | PathPresence::PermissionDenied
     ) {
         return Ok(legacy);
@@ -370,6 +370,22 @@ fn path_presence(path: &Path) -> Result<PathPresence> {
             Err(error).with_context(|| format!("inspect path existence {}", path.display()))
         }
     }
+}
+
+fn related_store_presence(store_path: &Path) -> Result<PathPresence> {
+    for path in [
+        store_path.to_path_buf(),
+        store_path.with_extension("llm-wiki.json"),
+        store_path.with_extension("sqlite-wal"),
+        store_path.with_extension("sqlite-shm"),
+    ] {
+        match path_presence(&path)? {
+            PathPresence::Exists => return Ok(PathPresence::Exists),
+            PathPresence::PermissionDenied => return Ok(PathPresence::PermissionDenied),
+            PathPresence::Missing => {}
+        }
+    }
+    Ok(PathPresence::Missing)
 }
 
 fn backend_status_labels(

@@ -249,7 +249,6 @@ fn update_semantic_index_metadata(
 
 #[derive(Debug)]
 struct ProjectIndexLock {
-    path: PathBuf,
     _file: File,
 }
 
@@ -278,13 +277,7 @@ impl ProjectIndexLock {
             .with_context(|| format!("truncate project index lock {}", path.display()))?;
         writeln!(file, "pid={}", process::id())
             .with_context(|| format!("write project index lock {}", path.display()))?;
-        Ok(Self { path, _file: file })
-    }
-}
-
-impl Drop for ProjectIndexLock {
-    fn drop(&mut self) {
-        let _ = fs::remove_file(&self.path);
+        Ok(Self { _file: file })
     }
 }
 
@@ -848,7 +841,9 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
                             mode_selection_reason: Some(resolution.reason.clone()),
                             fallback_reason: resolution.fallback_reason.clone(),
                             readiness_reason: Some(failure.kind().readiness_reason().to_string()),
-                            runtime_backend_requested: Some("auto".to_string()),
+                            runtime_backend_requested: Some(
+                                gguf_runtime::requested_backend().label().to_string(),
+                            ),
                             runtime_backend_used: None,
                             runtime_backend_fallback: Some(false),
                             runtime_failure_stage: Some(failure.stage().label().to_string()),
@@ -1781,7 +1776,8 @@ impl SearchModeJson {
 
     fn apply_runtime_failure(&mut self, error: &GgufRuntimeError) {
         self.readiness_reason = Some(error.kind().readiness_reason().to_string());
-        self.runtime_backend_requested = Some("auto".to_string());
+        self.runtime_backend_requested =
+            Some(gguf_runtime::requested_backend().label().to_string());
         self.runtime_backend_used = None;
         self.runtime_backend_fallback = Some(false);
         self.runtime_failure_stage = Some(error.stage().label().to_string());
@@ -3124,7 +3120,7 @@ mod tests {
     }
 
     #[test]
-    fn project_index_lock_ignores_stale_lock_file() {
+    fn project_index_lock_preserves_stale_lock_file() {
         let temp = tempfile::TempDir::new().expect("tempdir");
         fs::write(temp.path().join("qmd-rs.lock"), "pid=999999").expect("stale lock");
 
@@ -3132,7 +3128,7 @@ mod tests {
 
         assert!(temp.path().join("qmd-rs.lock").exists());
         drop(lock);
-        assert!(!temp.path().join("qmd-rs.lock").exists());
+        assert!(temp.path().join("qmd-rs.lock").exists());
     }
 
     #[test]
