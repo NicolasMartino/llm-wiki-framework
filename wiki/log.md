@@ -1,5 +1,85 @@
 # Wiki Log
 
+## [2026-05-25] update | GGUF runtime doctor probe hardening
+
+Hardened the smoke-probe follow-up after review. `doctor` now verifies that
+artifact records point to existing files and that each file's SHA-256 still
+matches the recorded observed hash before invoking the current GGUF runtime
+probe. Missing, inaccessible, unreadable, or hash-mismatched files now produce a
+skipped current-probe diagnostic rather than reaching llama.cpp. Unit tests that
+set `LLM_WIKI_TEST_GGUF_RUNTIME_PROBE` now use a shared crate-level env guard
+to avoid parallel test races.
+
+Pages affected: wiki/plans/gguf-runtime-smoke-probes.plan.md, wiki/log.md
+
+## [2026-05-25] update | GGUF runtime smoke probe review follow-up
+
+Fixed review findings in the completed smoke-probe slice. Failed required
+runtime probes now disable any previously enabled LLM search profile with a
+runtime-probe failure reason. The fake model-download environment hook was
+removed from production paths, runtime probe messages truncate safely on
+character boundaries, probe records now mark required versus advisory roles,
+install and doctor share probe-target selection, and probe staleness uses
+Cargo's real target triple. Post-review isolated dogfood at
+`/private/tmp/llmwiki-probe-review.Pg1H7U` verified forced-CPU install probes,
+target-triple and required-role records, forced-CPU index/search/search-all,
+and the previously-enabled-config failure case disabling `search.toml`.
+
+Pages affected: wiki/plans/gguf-runtime-smoke-probes.plan.md, wiki/log.md
+
+## [2026-05-25] update | GGUF runtime smoke probes dogfood
+
+Closed the dedicated smoke-probe plan after an isolated real managed-model
+dogfood run. The run used copied managed GGUF artifacts under
+`/private/tmp/llmwiki-probe-dogfood.Z4VvGN`, forced CPU runtime for clean
+install/doctor/index/search proof, and verified enabled-search install probe
+ordering, recorded probe metadata, doctor current probes, fresh qmd-rs and
+semantic indexes, hybrid search, semantic search, and search-all returning the
+project-update proposal first. Auto mode also succeeded by falling back to CPU,
+but still emitted llama.cpp Metal failure logs on stderr before fallback; that
+is recorded as parent portability diagnostics work rather than a smoke-probe
+blocker.
+
+Pages affected: wiki/plans/gguf-runtime-smoke-probes.plan.md,
+wiki/plans/gguf-runtime-portability.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-25] update | GGUF runtime smoke probes implementation
+
+Implemented the Stage 3 GGUF runtime smoke-probe code path. The runtime probe
+module now owns versioned probe records, stale checks, deterministic test
+hooks, and embedding/query-expansion/rerank probe execution. Enabled-search
+install records licenses before materialization, artifacts after
+materialization, then writes probe records before enabling `search.toml`.
+Failed required probes leave reusable license/artifact state but do not promote
+LLM search. `doctor` reports last and current runtime probe status, and
+search-artifact cleanup removes the probe store.
+
+Pages affected: wiki/plans/gguf-runtime-smoke-probes.plan.md,
+wiki/plans/gguf-runtime-portability.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-25] update | GGUF runtime smoke probe plan review fixes
+
+Aligned the smoke-probe plan with the established install ordering: accepted
+licenses are recorded after consent and before model materialization, artifact
+records follow materialization, and runtime probes run before enabled
+`search.toml` is written. Updated the parent GGUF runtime portability plan to
+link back to the split-out smoke-probes plan and delegate Stage 3 details to it
+to avoid drift.
+
+Pages affected: wiki/plans/gguf-runtime-smoke-probes.plan.md,
+wiki/plans/gguf-runtime-portability.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-25] create | GGUF runtime smoke probes plan
+
+Created a dedicated Stage 3 plan for install and doctor GGUF runtime smoke
+probes. The plan scopes probe records, install gating, doctor reporting,
+forced-CPU diagnostics, deterministic test hooks, no-hidden-download
+constraints, and verification gates separately from the broader runtime
+portability plan.
+
+Pages affected: wiki/plans/gguf-runtime-smoke-probes.plan.md, wiki/index.md,
+wiki/log.md
+
 ## [2026-05-25] update | search promotion race follow-up fixes
 
 Fixed follow-up review findings from the sandbox-safe cache and GGUF runtime

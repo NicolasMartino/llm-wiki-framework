@@ -13,9 +13,13 @@ use crate::registry::{ProjectRegistry, RegisteredProject};
 use crate::search::adapter::{BackendState, SearchBackend, SearchMode};
 use crate::search::project::discover_from_cwd;
 use crate::search::qmd_rs::QmdRsBackend;
+use crate::search::runtime_probe::{
+    self, RuntimeProbeOutcome, RuntimeProbeRecord, RuntimeProbeStore, artifact_for_model,
+    identity_for_model, probe_targets_for_search_profile,
+};
 use crate::search::semantic::{SemanticIndexMetadata, SemanticVectorIndex};
-use crate::search_models::{AcceptedLicenses, ModelArtifacts, SearchThresholdStore};
-use crate::search_profile::{ExternalDependencies, SearchConfig};
+use crate::search_models::{AcceptedLicenses, ModelArtifacts, SearchThresholdStore, sha256_file};
+use crate::search_profile::{ExternalDependencies, SearchConfig, SearchProfile};
 use crate::skill_render::{BINARY_MARKER, managed_binary_invocation};
 
 pub fn run(context: &crate::cli::CliContext) -> Result<()> {
@@ -285,7 +289,242 @@ fn print_search_profile_diagnostics(paths: &Paths, context: &crate::cli::CliCont
         }
     }
 
+    print_runtime_probe_diagnostics(paths, context)?;
+
     Ok(())
+}
+
+fn print_runtime_probe_diagnostics(paths: &Paths, context: &crate::cli::CliContext) -> Result<()> {
+    let probe_path = paths.search_runtime_probes();
+    context.diagnostic(format!("runtime probes: {}", probe_path.display()));
+
+    println!();
+    println!("GGUF runtime:");
+
+    let Some(config) = SearchConfig::read(&paths.search_config())? else {
+        println!("Runtime probe skipped: LLM search profile missing.");
+        print_last_probe_summary(RuntimeProbeStore::read(&probe_path)?.as_ref(), &[]);
+        return Ok(());
+    };
+    let Some(profile) = active_llm_profile(&config) else {
+        println!("Runtime probe skipped: LLM search disabled.");
+        print_last_probe_summary(RuntimeProbeStore::read(&probe_path)?.as_ref(), &[]);
+        return Ok(());
+    };
+    let profile_id = profile.profile.as_deref().unwrap_or("<unknown>");
+    println!("Runtime profile: {profile_id}");
+
+    let targets = match probe_targets_for_search_profile(profile) {
+        Ok(targets) => targets,
+        Err(error) => {
+            println!("Current runtime probe skipped: {error:#}");
+            print_last_probe_summary(RuntimeProbeStore::read(&probe_path)?.as_ref(), &[]);
+            return Ok(());
+        }
+    };
+    let store = RuntimeProbeStore::read(&probe_path)?;
+    let artifacts = ModelArtifacts::read(&paths.model_artifacts())?;
+    let identities = artifacts
+        .as_ref()
+        .map(|artifacts| {
+            targets
+                .iter()
+                .copied()
+                .filter_map(|target| {
+                    artifact_for_model(artifacts, target.model.id)
+                        .map(|artifact| identity_for_model(profile_id, target.model, artifact))
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    print_last_probe_summary(store.as_ref(), &identities);
+
+    let Some(licenses) = AcceptedLicenses::read(&paths.accepted_licenses())? else {
+        println!("Current runtime probe skipped: accepted license records missing.");
+        return Ok(());
+    };
+    if let Some(target) = targets
+        .iter()
+        .copied()
+        .find(|target| !licenses.accepts_model(target.model))
+    {
+        println!(
+            "Current runtime probe skipped: accepted license record missing for {}.",
+            target.model.id
+        );
+        return Ok(());
+    }
+
+    let Some(artifacts) = artifacts else {
+        println!("Current runtime probe skipped: model artifact records missing.");
+        return Ok(());
+    };
+    if let Some(target) = targets
+        .iter()
+        .copied()
+        .find(|target| artifact_for_model(&artifacts, target.model.id).is_none())
+    {
+        println!(
+            "Current runtime probe skipped: model artifact record missing for {}.",
+            target.model.id
+        );
+        return Ok(());
+    }
+    for target in &targets {
+        let artifact = artifact_for_model(&artifacts, target.model.id)
+            .expect("artifact presence checked before runtime probe");
+        match artifact.path.try_exists() {
+            Ok(true) => {}
+            Ok(false) => {
+                println!(
+                    "Current runtime probe skipped: model artifact file missing for {} at {}.",
+                    target.model.id,
+                    artifact.path.display()
+                );
+                return Ok(());
+            }
+            Err(error) => {
+                println!(
+                    "Current runtime probe skipped: model artifact file inaccessible for {} at {} ({error}).",
+                    target.model.id,
+                    artifact.path.display()
+                );
+                return Ok(());
+            }
+        }
+        let observed = match sha256_file(&artifact.path) {
+            Ok(observed) => observed,
+            Err(error) => {
+                println!(
+                    "Current runtime probe skipped: model artifact file unreadable for {} at {} ({error:#}).",
+                    target.model.id,
+                    artifact.path.display()
+                );
+                return Ok(());
+            }
+        };
+        if observed != artifact.observed_sha256 {
+            println!(
+                "Current runtime probe skipped: model artifact hash mismatch for {} at {}; expected {}, observed {}.",
+                target.model.id,
+                artifact.path.display(),
+                artifact.observed_sha256,
+                observed
+            );
+            return Ok(());
+        }
+    }
+
+    let run = runtime_probe::probe_search_profile(profile, &artifacts)?;
+    for record in &run.records {
+        context.diagnostic(format!(
+            "runtime probe current: role={}, outcome={}, requested_backend={}, used_backend={}, fallback={}, duration_ms={}",
+            record.role,
+            record.outcome.label(),
+            record.requested_backend,
+            record.used_backend.as_deref().unwrap_or("<unknown>"),
+            record.fallback,
+            record.duration_ms
+        ));
+    }
+    if let Some(failure) = run.first_required_problem() {
+        println!(
+            "Current runtime probe: {} for {} during {} ({})",
+            failure.outcome.label(),
+            failure.role,
+            failure.failure_stage.as_deref().unwrap_or("runtime_probe"),
+            failure.failure_kind.as_deref().unwrap_or("unknown")
+        );
+    } else {
+        let fallback = run.records.iter().any(|record| record.fallback);
+        let used = common_used_backend(&run.records).unwrap_or("mixed");
+        println!("Current runtime probe: passed (backend_used={used}, fallback={fallback})");
+    }
+    Ok(())
+}
+
+fn active_llm_profile(config: &SearchConfig) -> Option<&SearchProfile> {
+    if config.project_default.llm_search_enabled {
+        Some(&config.project_default)
+    } else if config.global_search.llm_search_enabled {
+        Some(&config.global_search)
+    } else {
+        None
+    }
+}
+
+fn print_last_probe_summary(
+    store: Option<&RuntimeProbeStore>,
+    identities: &[runtime_probe::RuntimeProbeIdentity],
+) {
+    let Some(store) = store else {
+        println!("Last runtime probe: missing.");
+        return;
+    };
+    if store.records.is_empty() {
+        println!("Last runtime probe: empty.");
+        return;
+    }
+    if let Some(reason) = store.store_stale_reason() {
+        println!("Last runtime probe: stale ({reason}).");
+        return;
+    }
+    for identity in identities {
+        let Some(record) = store.newest_record_for(identity) else {
+            println!("Last runtime probe: stale (missing_record).");
+            return;
+        };
+        if let Some(reason) = store.record_stale_reason(record, identity) {
+            println!("Last runtime probe: stale ({reason}).");
+            return;
+        }
+    }
+    if let Some(record) = store
+        .records
+        .iter()
+        .find(|record| record.outcome == RuntimeProbeOutcome::Failed)
+    {
+        println!(
+            "Last runtime probe: failed for {} at {} (requested_backend={}, used_backend={})",
+            record.role,
+            record.probed_at,
+            record.requested_backend,
+            record.used_backend.as_deref().unwrap_or("<unknown>")
+        );
+        return;
+    }
+    if let Some(record) = store
+        .records
+        .iter()
+        .find(|record| record.outcome == RuntimeProbeOutcome::Skipped)
+    {
+        println!(
+            "Last runtime probe: skipped for {} at {} ({})",
+            record.role,
+            record.probed_at,
+            record.message.as_deref().unwrap_or("no reason recorded")
+        );
+        return;
+    }
+
+    let fallback = store.records.iter().any(|record| record.fallback);
+    let used = common_used_backend(&store.records).unwrap_or("mixed");
+    println!(
+        "Last runtime probe: passed at {} (backend_used={used}, fallback={fallback})",
+        store.updated_at
+    );
+}
+
+fn common_used_backend(records: &[RuntimeProbeRecord]) -> Option<&str> {
+    let mut used = records
+        .iter()
+        .filter_map(|record| record.used_backend.as_deref());
+    let first = used.next()?;
+    if used.all(|value| value == first) {
+        Some(first)
+    } else {
+        None
+    }
 }
 
 fn print_project_search_diagnostics(paths: &Paths, context: &crate::cli::CliContext) -> Result<()> {

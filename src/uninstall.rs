@@ -117,6 +117,7 @@ fn remove_search_artifacts(paths: &Paths, context: &CliContext) -> Result<()> {
     remove_dir_all_if_exists(&paths.managed_model_root(), context)?;
     remove_file_if_exists(&paths.accepted_licenses(), context)?;
     remove_file_if_exists(&paths.search_thresholds(), context)?;
+    remove_file_if_exists(&paths.search_runtime_probes(), context)?;
     let removed_sidecars = remove_semantic_sidecars(&paths.managed_index_root(), context)?;
     context.diagnostic(format!("semantic sidecars removed: {removed_sidecars}"));
     Ok(())

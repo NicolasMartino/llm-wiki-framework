@@ -12,6 +12,9 @@ const SKILLS: &[&str] = &[
 
 fn main() {
     let root = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").expect("manifest dir"));
+    if let Ok(target) = std::env::var("TARGET") {
+        println!("cargo:rustc-env=LLM_WIKI_BUILD_TARGET={target}");
+    }
     println!("cargo:rerun-if-changed=templates");
 
     for skill in SKILLS {

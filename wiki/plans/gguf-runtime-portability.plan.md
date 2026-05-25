@@ -5,8 +5,8 @@
 - Date: 2026-05-24
 - Category: Search runtime, semantic retrieval, cross-platform support
 - Scope: Make GGUF-backed semantic and hybrid search reliable across supported platforms by adding typed runtime failures, runtime smoke probes, and a CPU-safe execution baseline before any hybrid-quality redesign.
-- Sources: user request 2026-05-24 for a detailed plan; review feedback 2026-05-24 on the first GGUF runtime portability / hybrid quality draft; dogfood search pass 2026-05-24 against this repository; Stage 0/1 runtime-boundary implementation pass 2026-05-24; wiki/decisions/semantic-hybrid-search-mode.decision.md; wiki/evals/natural-language-search.eval.md; wiki/evals/natural-language-search-impact.md; wiki/references/llm-search-model-licensing.reference.md; wiki/proposals/full-windows-support.proposal.md; wiki/proposals/search-model-selection.proposal.md; src/search/gguf_runtime.rs; src/search/semantic.rs; src/search/commands.rs; tests/search_commands.rs; qmd 0.3.2 local crate source inspection
-- Related: wiki/plans/semantic-hybrid-search.plan.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/evals/natural-language-search.eval.md, wiki/evals/natural-language-search-impact.md, wiki/references/llm-search-model-licensing.reference.md, wiki/proposals/full-windows-support.proposal.md, wiki/proposals/search-model-selection.proposal.md, wiki/checklists/observability-contract.checklist.md
+- Sources: user request 2026-05-24 for a detailed plan; review feedback 2026-05-24 on the first GGUF runtime portability / hybrid quality draft; dogfood search pass 2026-05-24 against this repository; Stage 0/1 runtime-boundary implementation pass 2026-05-24; wiki/plans/gguf-runtime-smoke-probes.plan.md; wiki/decisions/semantic-hybrid-search-mode.decision.md; wiki/evals/natural-language-search.eval.md; wiki/evals/natural-language-search-impact.md; wiki/references/llm-search-model-licensing.reference.md; wiki/proposals/full-windows-support.proposal.md; wiki/proposals/search-model-selection.proposal.md; src/search/gguf_runtime.rs; src/search/semantic.rs; src/search/commands.rs; tests/search_commands.rs; qmd 0.3.2 local crate source inspection
+- Related: wiki/plans/gguf-runtime-smoke-probes.plan.md, wiki/plans/semantic-hybrid-search.plan.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/evals/natural-language-search.eval.md, wiki/evals/natural-language-search-impact.md, wiki/references/llm-search-model-licensing.reference.md, wiki/proposals/full-windows-support.proposal.md, wiki/proposals/search-model-selection.proposal.md, wiki/checklists/observability-contract.checklist.md
 
 ## Deliverable
 
@@ -213,7 +213,11 @@ Verified so far:
 
 Remaining work:
 
-- Install and doctor runtime smoke probes are not implemented yet.
+- Install and doctor runtime smoke probes are implemented and completed in
+  `wiki/plans/gguf-runtime-smoke-probes.plan.md`. The 2026-05-25 isolated
+  managed-model dogfood verified CPU install probes, doctor current probes,
+  forced-CPU indexing, hybrid search, semantic search, and search-all against
+  the copied managed GGUF artifacts.
 - Cross-platform CPU semantic/hybrid proof is still pending.
 - The current automated tests cover typed reporting and deterministic paths;
   real GGUF execution proof remains environment-dependent.
@@ -310,24 +314,21 @@ Gate:
 
 ### Stage 3 - Install and Doctor Runtime Probe
 
-1. Extend `install --configure-search` to run a runtime smoke probe after model
-   artifacts and accepted licenses are verified.
-2. Probe the embedding model with one short embedding call.
-3. Probe the query-expansion model with one short generation or expansion call.
-4. Record probe results under managed runtime state with a timestamp, binary
-   version, qmd-rs version, target triple, model ID, artifact hash, backend
-   requested, backend used, and failure stage if any.
-5. Treat recorded probe results as advisory only. Hardware, sandboxing, and
-   driver access can change between install and search.
-6. Extend `doctor` to report:
-   - model artifacts verified
-   - licenses accepted
-   - semantic index state
-   - current runtime smoke status
-   - advisory last probe status when present
-   - accelerator status when present
-7. Keep ordinary `search` and `index` lightweight, but make actual runtime
-   failures typed and parseable at execution time.
+Detailed execution now lives in
+`wiki/plans/gguf-runtime-smoke-probes.plan.md`. That plan is the source of
+truth for the install/doctor probe store, install ordering, doctor reporting,
+test hooks, and no-hidden-download gates.
+
+Parent-scope expectations remain:
+
+1. Install/configure-search records accepted licenses after consent and before
+   model materialization, writes artifact records after materialization, then
+   probes the runtime before writing an enabled `search.toml`.
+2. Probe records are advisory only. Hardware, sandboxing, and driver access can
+   change between install and search.
+3. Doctor distinguishes current probe results from historical probe records.
+4. Ordinary `search` and `index` stay lightweight, while actual runtime
+   failures remain typed and parseable at execution time.
 
 Gate:
 

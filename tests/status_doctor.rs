@@ -3,6 +3,7 @@ use std::path::Path;
 
 use assert_cmd::Command;
 use predicates::prelude::*;
+use sha2::{Digest, Sha256};
 use tempfile::TempDir;
 
 fn llm_wiki(home: &Path) -> Command {
@@ -66,6 +67,255 @@ fn verbose_path_status_and_doctor_emit_diagnostics() {
         .stderr(predicate::str::contains("registry:"))
         .stderr(predicate::str::contains("index root:"))
         .stderr(predicate::str::contains("model cache:"));
+}
+
+#[test]
+fn doctor_reports_last_and_current_runtime_probe_status() {
+    let home = TempDir::new().expect("home");
+    let cwd = TempDir::new().expect("cwd");
+
+    write_runtime_probe_fixture(home.path());
+
+    llm_wiki(home.path())
+        .current_dir(cwd.path())
+        .env("LLM_WIKI_TEST_GGUF_RUNTIME_PROBE", "pass")
+        .arg("doctor")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("GGUF runtime:"))
+        .stdout(predicate::str::contains("Last runtime probe: passed"))
+        .stdout(predicate::str::contains("Current runtime probe: passed"));
+}
+
+#[test]
+fn doctor_skips_current_runtime_probe_when_artifact_file_is_missing() {
+    let home = TempDir::new().expect("home");
+    let cwd = TempDir::new().expect("cwd");
+    write_runtime_probe_fixture(home.path());
+    fs::remove_file(fixture_embedding_path(home.path())).expect("remove embedding");
+
+    llm_wiki(home.path())
+        .current_dir(cwd.path())
+        .env("LLM_WIKI_TEST_GGUF_RUNTIME_PROBE", "pass")
+        .arg("doctor")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Current runtime probe skipped: model artifact file missing for embeddinggemma-300m-q8_0",
+        ));
+}
+
+#[test]
+fn doctor_skips_current_runtime_probe_when_artifact_hash_mismatches() {
+    let home = TempDir::new().expect("home");
+    let cwd = TempDir::new().expect("cwd");
+    write_runtime_probe_fixture(home.path());
+    fs::write(fixture_embedding_path(home.path()), "tampered").expect("tamper embedding");
+
+    llm_wiki(home.path())
+        .current_dir(cwd.path())
+        .env("LLM_WIKI_TEST_GGUF_RUNTIME_PROBE", "pass")
+        .arg("doctor")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Current runtime probe skipped: model artifact hash mismatch for embeddinggemma-300m-q8_0",
+        ));
+}
+
+fn write_runtime_probe_fixture(home: &Path) {
+    let managed = home.join(".llm_wiki");
+    let models = managed.join("models");
+    fs::create_dir_all(&models).expect("models dir");
+    let embedding_path = fixture_embedding_path(home);
+    let expansion_path = fixture_expansion_path(home);
+    fs::create_dir_all(embedding_path.parent().expect("embedding parent"))
+        .expect("embedding parent dir");
+    fs::create_dir_all(expansion_path.parent().expect("expansion parent"))
+        .expect("expansion parent dir");
+    let embedding_sha = write_fixture_artifact(&embedding_path, b"embedding fixture");
+    let expansion_sha = write_fixture_artifact(&expansion_path, b"query expansion fixture");
+
+    fs::write(
+        managed.join("search.toml"),
+        format!(
+            r#"schema_version = 1
+updated_at = "2026-05-25T00:00:00Z"
+
+[project_default]
+llm_search_enabled = true
+configured_at = "2026-05-25T00:00:00Z"
+configured_by_version = "{version}"
+profile = "balanced"
+embedding_model = "embeddinggemma-300m-q8_0"
+query_expansion_model = "qmd-query-expansion-1.7b-q4_k_m"
+
+[global_search]
+llm_search_enabled = true
+configured_at = "2026-05-25T00:00:00Z"
+configured_by_version = "{version}"
+profile = "balanced"
+embedding_model = "embeddinggemma-300m-q8_0"
+query_expansion_model = "qmd-query-expansion-1.7b-q4_k_m"
+"#,
+            version = env!("CARGO_PKG_VERSION")
+        ),
+    )
+    .expect("search config");
+    fs::write(
+        managed.join("accepted-licenses.toml"),
+        format!(
+            r#"schema_version = 1
+updated_at = "2026-05-25T00:00:00Z"
+
+[[licenses]]
+model_id = "embeddinggemma-300m-q8_0"
+license = "gemma"
+terms_url = "https://ai.google.dev/gemma/terms"
+accepted_at = "2026-05-25T00:00:00Z"
+accepted_by_version = "{version}"
+
+[[licenses]]
+model_id = "qmd-query-expansion-1.7b-q4_k_m"
+license = "mit"
+accepted_at = "2026-05-25T00:00:00Z"
+accepted_by_version = "{version}"
+"#,
+            version = env!("CARGO_PKG_VERSION")
+        ),
+    )
+    .expect("accepted licenses");
+    fs::write(
+        models.join("artifacts.toml"),
+        format!(
+            r#"schema_version = 1
+updated_at = "2026-05-25T00:00:00Z"
+
+[[artifacts]]
+model_id = "embeddinggemma-300m-q8_0"
+role = "embedding"
+profile = "balanced"
+repository = "ggml-org/embeddinggemma-300M-GGUF"
+revision = "0f741b5a6585bd53aeb15cd1372c56f2a0f65e12"
+file = "embeddinggemma-300M-Q8_0.gguf"
+download_url = "https://example.invalid/embedding"
+path = "{embedding_path}"
+expected_sha256 = "{embedding_sha}"
+observed_sha256 = "{embedding_sha}"
+size_bytes = 333590944
+license = "gemma"
+terms_url = "https://ai.google.dev/gemma/terms"
+dimensions = 768
+qmd_rs_version = "0.3.2"
+adapter_schema_version = 1
+verified_at = "2026-05-25T00:00:00Z"
+
+[[artifacts]]
+model_id = "qmd-query-expansion-1.7b-q4_k_m"
+role = "query-expansion"
+profile = "balanced"
+repository = "tobil/qmd-query-expansion-1.7B-gguf"
+revision = "7816de0b72572c6c860ca1eddf97ba9e7fb8cc65"
+file = "qmd-query-expansion-1.7B-q4_k_m.gguf"
+download_url = "https://example.invalid/query-expansion"
+path = "{expansion_path}"
+expected_sha256 = "{expansion_sha}"
+observed_sha256 = "{expansion_sha}"
+size_bytes = 1282438912
+license = "mit"
+qmd_rs_version = "0.3.2"
+adapter_schema_version = 1
+verified_at = "2026-05-25T00:00:00Z"
+"#,
+            embedding_path = toml_path(&embedding_path),
+            expansion_path = toml_path(&expansion_path),
+            embedding_sha = embedding_sha,
+            expansion_sha = expansion_sha
+        ),
+    )
+    .expect("artifacts");
+    fs::write(
+        managed.join("search-runtime-probes.toml"),
+        format!(
+            r#"schema_version = 1
+updated_at = "2026-05-25T00:00:00Z"
+binary_version = "{version}"
+target_triple = "{target}"
+qmd_rs_version = "0.3.2"
+adapter_schema_version = 1
+
+[[records]]
+profile = "balanced"
+role = "embedding"
+required = true
+model_id = "embeddinggemma-300m-q8_0"
+model_path = "{embedding_path}"
+artifact_sha256 = "{embedding_sha}"
+artifact_size_bytes = 333590944
+requested_backend = "auto"
+used_backend = "auto"
+fallback = false
+outcome = "passed"
+duration_ms = 1
+probed_at = "2026-05-25T00:00:00Z"
+
+[[records]]
+profile = "balanced"
+role = "query_expansion"
+required = true
+model_id = "qmd-query-expansion-1.7b-q4_k_m"
+model_path = "{expansion_path}"
+artifact_sha256 = "{expansion_sha}"
+artifact_size_bytes = 1282438912
+requested_backend = "auto"
+used_backend = "auto"
+fallback = false
+outcome = "passed"
+duration_ms = 1
+probed_at = "2026-05-25T00:00:00Z"
+"#,
+            version = env!("CARGO_PKG_VERSION"),
+            target = build_target(),
+            embedding_path = toml_path(&embedding_path),
+            expansion_path = toml_path(&expansion_path),
+            embedding_sha = embedding_sha,
+            expansion_sha = expansion_sha
+        ),
+    )
+    .expect("runtime probes");
+}
+
+fn fixture_embedding_path(home: &Path) -> std::path::PathBuf {
+    home.join(".llm_wiki/models/embeddinggemma-300m-q8_0/embeddinggemma-300M-Q8_0.gguf")
+}
+
+fn fixture_expansion_path(home: &Path) -> std::path::PathBuf {
+    home.join(
+        ".llm_wiki/models/qmd-query-expansion-1.7b-q4_k_m/qmd-query-expansion-1.7B-q4_k_m.gguf",
+    )
+}
+
+fn write_fixture_artifact(path: &Path, bytes: &[u8]) -> String {
+    fs::write(path, bytes).expect("fixture artifact");
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    format!("{:x}", hasher.finalize())
+}
+
+fn build_target() -> String {
+    option_env!("LLM_WIKI_BUILD_TARGET")
+        .map(ToString::to_string)
+        .unwrap_or_else(|| {
+            format!(
+                "{}-{}-unknown",
+                std::env::consts::ARCH,
+                std::env::consts::OS
+            )
+        })
+}
+
+fn toml_path(path: &Path) -> String {
+    path.to_string_lossy().replace('\\', "\\\\")
 }
 
 #[test]

@@ -50,6 +50,14 @@ impl GgufRuntimeReport {
         }
     }
 
+    pub(crate) fn new_for_probe(
+        requested_backend: GgufRuntimeBackend,
+        used_backend: GgufRuntimeBackend,
+        fallback: bool,
+    ) -> Self {
+        Self::new(requested_backend, used_backend, fallback)
+    }
+
     pub const fn requested_backend(&self) -> GgufRuntimeBackend {
         self.requested_backend
     }
@@ -216,6 +224,10 @@ impl GgufRuntimeError {
 
     pub const fn kind(&self) -> GgufRuntimeErrorKind {
         self.kind
+    }
+
+    pub fn message(&self) -> &str {
+        &self.message
     }
 }
 
@@ -452,7 +464,7 @@ pub fn rerank(
 }
 
 impl GgufEmbeddingEngine {
-    fn report(&self) -> GgufRuntimeReport {
+    pub fn report(&self) -> GgufRuntimeReport {
         GgufRuntimeReport::new(self.requested_backend, self.used_backend, self.fallback)
     }
 
@@ -471,7 +483,7 @@ impl GgufEmbeddingEngine {
 }
 
 impl GgufGenerationEngine {
-    fn report(&self) -> GgufRuntimeReport {
+    pub fn report(&self) -> GgufRuntimeReport {
         GgufRuntimeReport::new(self.requested_backend, self.used_backend, self.fallback)
     }
 
@@ -490,7 +502,7 @@ impl GgufGenerationEngine {
 }
 
 impl GgufRerankEngine {
-    fn report(&self) -> GgufRuntimeReport {
+    pub fn report(&self) -> GgufRuntimeReport {
         GgufRuntimeReport::new(self.requested_backend, self.used_backend, self.fallback)
     }
 

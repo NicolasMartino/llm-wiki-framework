@@ -502,20 +502,6 @@ pub fn model_by_id(id: &str) -> Option<SearchModel> {
     MODEL_CATALOG.iter().copied().find(|model| model.id == id)
 }
 
-pub fn models_for_profile(
-    profile: ProfileBundle,
-    include_reranker: bool,
-) -> Result<Vec<SearchModel>> {
-    let mut models = vec![
-        required_model(profile.embedding_model)?,
-        required_model(profile.query_expansion_model)?,
-    ];
-    if include_reranker && let Some(reranker_model) = profile.reranker_model {
-        models.push(required_model(reranker_model)?);
-    }
-    Ok(models)
-}
-
 pub fn materialize_model(
     model: SearchModel,
     profile: ProfileBundle,
@@ -596,10 +582,6 @@ fn download_and_verify_model(
         record: artifact_record(model, profile, path.to_path_buf(), observed)?,
         outcome: MaterializationOutcome::Downloaded,
     })
-}
-
-fn required_model(id: &str) -> Result<SearchModel> {
-    model_by_id(id).with_context(|| format!("unknown search model id {id}"))
 }
 
 fn artifact_record(
@@ -841,6 +823,27 @@ mod tests {
         .expect_err("mismatch should fail");
 
         assert!(format!("{error:#}").contains("model artifact hash mismatch"));
+    }
+
+    #[test]
+    fn materialize_rejects_downloader_that_writes_wrong_bytes() {
+        let temp = TempDir::new().expect("tempdir");
+
+        let error = materialize_model_with_downloader(
+            FIXTURE_MODEL,
+            FIXTURE_PROFILE,
+            temp.path(),
+            false,
+            |_, destination| {
+                fs::create_dir_all(destination.parent().expect("destination parent"))
+                    .expect("destination parent");
+                fs::write(destination, BAD_MODEL_BYTES).expect("bad download");
+                Ok(())
+            },
+        )
+        .expect_err("bad download hash should fail");
+
+        assert!(format!("{error:#}").contains("downloaded model artifact hash mismatch"));
     }
 
     #[test]

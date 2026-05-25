@@ -107,6 +107,10 @@ impl Paths {
         self.managed_home().join("search-thresholds.toml")
     }
 
+    pub fn search_runtime_probes(&self) -> PathBuf {
+        self.managed_home().join("search-runtime-probes.toml")
+    }
+
     pub fn external_dependencies(&self) -> PathBuf {
         self.managed_home().join("external-dependencies.toml")
     }

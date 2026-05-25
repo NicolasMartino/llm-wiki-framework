@@ -20,10 +20,11 @@ use crate::manifest::{
 };
 use crate::path_guidance;
 use crate::paths::Paths;
+use crate::search::runtime_probe::{self, RuntimeProbeStore};
 use crate::search_models::{
     AcceptedLicenses, DEFAULT_PROFILE_ID, MaterializationOutcome, ModelArtifactClassification,
     ModelArtifactRecord, ModelArtifacts, ProfileBundle, SearchModel, classify_model_artifact,
-    materialize_model, models_for_profile, profile_by_id,
+    materialize_model, profile_by_id,
 };
 use crate::search_profile::{ExternalDependencies, SearchConfig, SearchProfile};
 use crate::skill_render::{apply_binary_context, managed_binary_invocation};
@@ -84,6 +85,10 @@ pub fn run(args: &InstallArgs, context: &CliContext) -> Result<()> {
     context.diagnostic(format!(
         "model artifacts: {}",
         paths.model_artifacts().display()
+    ));
+    context.diagnostic(format!(
+        "runtime probes: {}",
+        paths.search_runtime_probes().display()
     ));
     ensure_search_prompt_available(args)?;
     let enabled_search_preflight = preflight_noninteractive_enabled_search(args, &paths, context)?;
@@ -257,7 +262,10 @@ fn build_enabled_search_preflight(
         .unwrap_or(DEFAULT_PROFILE_ID);
     let profile = profile_by_id(profile_id)
         .with_context(|| format!("LLM search profile `{profile_id}` is not available"))?;
-    let models = models_for_profile(profile, false)?;
+    let models = runtime_probe::probe_targets_for_profile(profile)?
+        .into_iter()
+        .map(|target| target.model)
+        .collect::<Vec<_>>();
     context.diagnostic(format!(
         "search profile selected: {} (source: {})",
         profile.id,
@@ -642,8 +650,44 @@ fn configure_enabled_search(
             }
         }
     }
-    ModelArtifacts::from_records(artifact_records).write_atomic(&paths.model_artifacts())?;
+    let artifacts = ModelArtifacts::from_records(artifact_records);
+    artifacts.write_atomic(&paths.model_artifacts())?;
     context.diagnostic("search configuration action: recorded model artifacts");
+
+    let probe_run = runtime_probe::probe_profile_bundle(profile, &artifacts)?;
+    let probe_store = RuntimeProbeStore::from_records(probe_run.records.clone());
+    probe_store.write_atomic(&paths.search_runtime_probes())?;
+    context.diagnostic(format!(
+        "search runtime probes: records={} all_passed={}",
+        probe_run.records.len(),
+        probe_run.all_passed()
+    ));
+    context.diagnostic(format!(
+        "runtime probes: {}",
+        paths.search_runtime_probes().display()
+    ));
+    if let Some(failure) = probe_run.first_required_problem() {
+        let reason = format!(
+            "runtime_probe_failed:{}:{}:{}",
+            failure.role,
+            failure.failure_stage.as_deref().unwrap_or("runtime_probe"),
+            failure.failure_kind.as_deref().unwrap_or("unknown")
+        );
+        SearchConfig::disabled_with_reason(reason).write_atomic(&paths.search_config())?;
+        ExternalDependencies::empty().write_atomic(&paths.external_dependencies())?;
+        context.diagnostic(
+            "search configuration action: wrote disabled LLM search profile after failed runtime probe",
+        );
+        bail!(
+            "GGUF runtime probe {} for {} during {} ({}); requested_backend={}, used_backend={}, LLM search profile was disabled and was not enabled",
+            failure.outcome.label(),
+            failure.role,
+            failure.failure_stage.as_deref().unwrap_or("runtime_probe"),
+            failure.failure_kind.as_deref().unwrap_or("unknown"),
+            failure.requested_backend,
+            failure.used_backend.as_deref().unwrap_or("<unknown>")
+        );
+    }
 
     let config = SearchConfig::enabled(SearchProfile::enabled(
         profile.id,
@@ -1517,15 +1561,19 @@ mod tests {
     use tempfile::TempDir;
 
     use super::{
-        PlannedModelAction, SearchInstallPosture, backup_with_suffix, plan_enabled_search_install,
+        EnabledSearchInstallPlan, EnabledSearchPreflight, PlannedModelAction, SearchInstallPosture,
+        backup_with_suffix, configure_enabled_search, plan_enabled_search_install,
         validate_noninteractive_enabled_search,
     };
     use crate::cli::{InstallArgs, InstallSearchProfileArg};
+    use crate::paths::Paths;
     use crate::search_models::{
         ADAPTER_SCHEMA_VERSION, AcceptedLicenses, BALANCED_PROFILE, EMBEDDING_GEMMA_300M,
         ModelArtifactClassification, ModelArtifactRecord, QMD_QUERY_EXPANSION_17B, QMD_RS_VERSION,
         SearchModel,
     };
+    use crate::search_profile::SearchConfig;
+    use crate::test_env::EnvVarGuard;
 
     #[test]
     fn backup_retries_when_first_candidate_exists() {
@@ -1845,9 +1893,117 @@ mod tests {
             .expect("extra confirmations are no-op scripted intent");
     }
 
+    #[test]
+    fn configure_enabled_search_records_runtime_probe_before_enabling_search() {
+        let temp = TempDir::new().expect("tempdir");
+        let paths = fixture_paths(temp.path());
+        let _guard = EnvVarGuard::set("LLM_WIKI_TEST_GGUF_RUNTIME_PROBE", "pass");
+
+        configure_enabled_search(
+            &install_args(true, true, false),
+            &paths,
+            context(),
+            Some(reuse_preflight()),
+        )
+        .expect("enabled search");
+
+        let search = SearchConfig::read(&paths.search_config())
+            .expect("read search")
+            .expect("search config");
+        assert!(search.project_default.llm_search_enabled);
+        assert!(search.global_search.llm_search_enabled);
+        let probes =
+            crate::search::runtime_probe::RuntimeProbeStore::read(&paths.search_runtime_probes())
+                .expect("read probes")
+                .expect("runtime probes");
+        assert_eq!(probes.records.len(), 2);
+        assert!(probes.records.iter().all(|record| record.required));
+        assert!(
+            probes.records.iter().all(|record| record.outcome
+                == crate::search::runtime_probe::RuntimeProbeOutcome::Passed)
+        );
+    }
+
+    #[test]
+    fn failed_runtime_probe_disables_previously_enabled_search_config() {
+        let temp = TempDir::new().expect("tempdir");
+        let paths = fixture_paths(temp.path());
+        let existing = SearchConfig::enabled(crate::search_profile::SearchProfile::enabled(
+            BALANCED_PROFILE.id,
+            EMBEDDING_GEMMA_300M.id,
+            Some(QMD_QUERY_EXPANSION_17B.id.to_string()),
+            None,
+        ));
+        existing
+            .write_atomic(&paths.search_config())
+            .expect("existing search config");
+        let _guard = EnvVarGuard::set("LLM_WIKI_TEST_GGUF_RUNTIME_PROBE", "fail:embedding");
+
+        let error = configure_enabled_search(
+            &install_args(true, true, false),
+            &paths,
+            context(),
+            Some(reuse_preflight()),
+        )
+        .expect_err("runtime probe should fail");
+
+        assert!(format!("{error:#}").contains("GGUF runtime probe failed"));
+        let search = SearchConfig::read(&paths.search_config())
+            .expect("read search")
+            .expect("search config");
+        assert!(!search.project_default.llm_search_enabled);
+        assert!(!search.global_search.llm_search_enabled);
+        assert!(
+            search
+                .project_default
+                .reason
+                .as_deref()
+                .is_some_and(|reason| reason.starts_with("runtime_probe_failed:embedding:"))
+        );
+        let probes =
+            crate::search::runtime_probe::RuntimeProbeStore::read(&paths.search_runtime_probes())
+                .expect("read probes")
+                .expect("runtime probes");
+        assert_eq!(
+            probes.records[0].outcome,
+            crate::search::runtime_probe::RuntimeProbeOutcome::Failed
+        );
+    }
+
     fn context() -> &'static crate::cli::CliContext {
         const CONTEXT: crate::cli::CliContext = crate::cli::CliContext { verbose: false };
         &CONTEXT
+    }
+
+    fn fixture_paths(root: &Path) -> Paths {
+        Paths {
+            home: root.to_path_buf(),
+            cache_home: root.join(".cache/llm-wiki"),
+            data_home: root.join(".local/share/llm-wiki"),
+            managed_home: root.join(".llm_wiki"),
+        }
+    }
+
+    fn reuse_preflight() -> EnabledSearchPreflight {
+        let models = vec![EMBEDDING_GEMMA_300M, QMD_QUERY_EXPANSION_17B];
+        EnabledSearchPreflight {
+            profile: BALANCED_PROFILE,
+            models,
+            install_plan: EnabledSearchInstallPlan {
+                actions: vec![
+                    PlannedModelAction::Reuse {
+                        model: EMBEDDING_GEMMA_300M,
+                        record: Box::new(artifact_record(EMBEDDING_GEMMA_300M)),
+                    },
+                    PlannedModelAction::Reuse {
+                        model: QMD_QUERY_EXPANSION_17B,
+                        record: Box::new(artifact_record(QMD_QUERY_EXPANSION_17B)),
+                    },
+                ],
+                license_prompt_required: false,
+                models_requiring_license_ack: Vec::new(),
+            },
+        }
     }
 
     fn install_args(

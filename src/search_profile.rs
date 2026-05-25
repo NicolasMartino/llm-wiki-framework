@@ -66,12 +66,17 @@ pub struct ExternalDependency {
 
 impl SearchConfig {
     pub fn disabled() -> Self {
+        Self::disabled_with_reason("llm_search_disabled")
+    }
+
+    pub fn disabled_with_reason(reason: impl Into<String>) -> Self {
         let updated_at = timestamp();
+        let reason = reason.into();
         Self {
             schema_version: SEARCH_CONFIG_SCHEMA_VERSION,
             updated_at: updated_at.clone(),
-            project_default: SearchProfile::disabled(&updated_at),
-            global_search: SearchProfile::disabled(&updated_at),
+            project_default: SearchProfile::disabled(&updated_at, reason.clone()),
+            global_search: SearchProfile::disabled(&updated_at, reason),
         }
     }
 
@@ -110,12 +115,12 @@ impl SearchConfig {
 }
 
 impl SearchProfile {
-    fn disabled(configured_at: &str) -> Self {
+    fn disabled(configured_at: &str, reason: String) -> Self {
         Self {
             llm_search_enabled: false,
             configured_at: configured_at.to_string(),
             configured_by_version: env!("CARGO_PKG_VERSION").to_string(),
-            reason: Some("llm_search_disabled".to_string()),
+            reason: Some(reason),
             profile: None,
             embedding_model: None,
             query_expansion_model: None,

@@ -15,6 +15,8 @@ mod search_models;
 mod search_profile;
 mod skill_render;
 mod status;
+#[cfg(test)]
+mod test_env;
 mod uninstall;
 
 use std::env;

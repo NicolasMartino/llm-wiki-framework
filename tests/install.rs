@@ -817,6 +817,12 @@ fn forced_search_artifact_cleanup_deletes_artifacts_without_rewriting_search_con
     assert!(
         !home
             .path()
+            .join(".llm_wiki/search-runtime-probes.toml")
+            .exists()
+    );
+    assert!(
+        !home
+            .path()
             .join(".llm_wiki/indexes/fixture/semantic-index.json")
             .exists()
     );
@@ -881,6 +887,12 @@ fn search_artifact_cleanup_preserves_install_registry_and_lexical_indexes() {
             .join(".llm_wiki/accepted-licenses.toml")
             .exists()
     );
+    assert!(
+        !home
+            .path()
+            .join(".llm_wiki/search-runtime-probes.toml")
+            .exists()
+    );
 }
 
 #[test]
@@ -907,6 +919,12 @@ fn full_uninstall_removes_global_runtime_state_but_keeps_project_local_state() {
         !home
             .path()
             .join(".llm_wiki/accepted-licenses.toml")
+            .exists()
+    );
+    assert!(
+        !home
+            .path()
+            .join(".llm_wiki/search-runtime-probes.toml")
             .exists()
     );
     assert!(
@@ -1067,6 +1085,19 @@ accepted_by_version = "test"
         "schema_version = 2\nupdated_at = \"2026-05-14T00:00:00Z\"\nthresholds = []\n",
     )
     .expect("thresholds");
+    fs::write(
+        home.join(".llm_wiki/search-runtime-probes.toml"),
+        r#"
+schema_version = 1
+updated_at = "2026-05-14T00:00:00Z"
+binary_version = "test"
+target_triple = "test"
+qmd_rs_version = "0.3.2"
+adapter_schema_version = 1
+records = []
+"#,
+    )
+    .expect("runtime probes");
     let index = home.join(".llm_wiki/indexes/fixture");
     fs::create_dir_all(&index).expect("index dir");
     fs::write(index.join("semantic-index.json"), "{}").expect("semantic metadata");
