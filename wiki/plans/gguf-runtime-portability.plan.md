@@ -5,8 +5,8 @@
 - Date: 2026-05-24
 - Category: Search runtime, semantic retrieval, cross-platform support
 - Scope: Make GGUF-backed semantic and hybrid search reliable across supported platforms by adding typed runtime failures, runtime smoke probes, and a CPU-safe execution baseline before any hybrid-quality redesign.
-- Sources: user request 2026-05-24 for a detailed plan; review feedback 2026-05-24 on the first GGUF runtime portability / hybrid quality draft; dogfood search pass 2026-05-24 against this repository; Stage 0/1 runtime-boundary implementation pass 2026-05-24; wiki/plans/gguf-runtime-smoke-probes.plan.md; wiki/decisions/semantic-hybrid-search-mode.decision.md; wiki/evals/natural-language-search.eval.md; wiki/evals/natural-language-search-impact.md; wiki/references/llm-search-model-licensing.reference.md; wiki/proposals/full-windows-support.proposal.md; wiki/proposals/search-model-selection.proposal.md; src/search/gguf_runtime.rs; src/search/semantic.rs; src/search/commands.rs; tests/search_commands.rs; qmd 0.3.2 local crate source inspection
-- Related: wiki/plans/gguf-runtime-smoke-probes.plan.md, wiki/plans/semantic-hybrid-search.plan.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/evals/natural-language-search.eval.md, wiki/evals/natural-language-search-impact.md, wiki/references/llm-search-model-licensing.reference.md, wiki/proposals/full-windows-support.proposal.md, wiki/proposals/search-model-selection.proposal.md, wiki/checklists/observability-contract.checklist.md
+- Sources: user request 2026-05-24 for a detailed plan; review feedback 2026-05-24 on the first GGUF runtime portability / hybrid quality draft; dogfood search pass 2026-05-24 against this repository; Stage 0/1 runtime-boundary implementation pass 2026-05-24; Stage 4 local CPU fixture proof 2026-05-25; managed-binary review follow-up and proof 2026-05-26; wiki/plans/gguf-runtime-smoke-probes.plan.md; wiki/plans/cross-platform-release-e2e-harness.plan.md; wiki/decisions/semantic-hybrid-search-mode.decision.md; wiki/evals/natural-language-search.eval.md; wiki/evals/natural-language-search-impact.md; wiki/references/llm-search-model-licensing.reference.md; wiki/proposals/full-windows-support.proposal.md; wiki/proposals/search-model-selection.proposal.md; src/search/gguf_runtime.rs; src/search/semantic.rs; src/search/commands.rs; tests/search_commands.rs; tests/gguf_cpu_smoke.rs; qmd 0.3.2 local crate source inspection
+- Related: wiki/plans/gguf-runtime-smoke-probes.plan.md, wiki/plans/cross-platform-release-e2e-harness.plan.md, wiki/plans/semantic-hybrid-search.plan.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/evals/natural-language-search.eval.md, wiki/evals/natural-language-search-impact.md, wiki/references/llm-search-model-licensing.reference.md, wiki/proposals/full-windows-support.proposal.md, wiki/proposals/search-model-selection.proposal.md, wiki/checklists/observability-contract.checklist.md
 
 ## Deliverable
 
@@ -111,9 +111,9 @@ occur in non-interactive execution shapes, and the command path let raw
 llama.cpp output replace the parseable JSON contract.
 
 After Stage 2, redirected/headless hybrid search with the real managed models
-now succeeds. The auto path first attempts the accelerator, observes the Metal
-command-queue/context failure, reloads the qmd generation and embedding engines
-with CPU runtime options, and returns
+now succeeds in the current code path. The auto path first attempts the
+accelerator, observes the Metal command-queue/context failure, reloads the qmd
+generation and embedding engines with CPU runtime options, and returns
 `wiki/proposals/project-update-command.proposal.md` as the top result. JSON
 reports `runtime_backend_requested=auto`, `runtime_backend_used=cpu`, and
 `runtime_backend_fallback=true`. Forced CPU mode via
@@ -121,6 +121,63 @@ reports `runtime_backend_requested=auto`, `runtime_backend_used=cpu`, and
 assigns model layers to the CPU device, and reports
 `runtime_backend_requested=cpu`, `runtime_backend_used=cpu`, and
 `runtime_backend_fallback=false`.
+
+On 2026-05-25 the repository dogfood index was refreshed under forced CPU with
+the current code, indexing 74 files. Follow-up semantic, hybrid, and
+`search-all` hybrid JSON smoke checks all returned
+`wiki/proposals/project-update-command.proposal.md` first with
+`runtime_backend_requested=cpu`, `runtime_backend_used=cpu`, and
+`runtime_backend_fallback=false`. Search stderr showed CPU layer assignment and
+`offloaded 0/... layers to GPU`.
+
+The forced-CPU proof should assert runtime metadata, CPU layer assignment, and
+zero GPU offload rather than a blanket absence of every llama.cpp backend log.
+In this environment, full indexing can still emit Metal backend/device
+initialization lines before assigning the model to CPU and offloading zero
+layers, while the redirected forced-CPU search run produced no `ggml_metal`
+stderr lines. Release E2E reports should preserve stdout/stderr separately and
+record which signal was used for each claim.
+
+Stage 4 now has a repeatable tiny-fixture proof in `tests/gguf_cpu_smoke.rs`.
+The ignored test creates a temporary wiki project, reuses existing managed GGUF
+artifact records by absolute path without downloading or mutating the real
+managed home, forces CPU runtime, indexes only that small project, and verifies
+semantic, hybrid, and `search-all` hybrid JSON all return the project-update
+fixture page first. A 2026-05-26 review follow-up hardened the test so the real
+GGUF proof clears deterministic/failure test hooks:
+`LLM_WIKI_TEST_EMBEDDINGS`, `LLM_WIKI_TEST_QUERY_EXPANSION`, and
+`LLM_WIKI_TEST_GGUF_RUNTIME_FAILURE`. The local macOS arm64 run passed with:
+
+```text
+cargo test --test gguf_cpu_smoke -- --ignored --nocapture
+```
+
+This proves the CPU execution path on this macOS arm64 environment with a
+small corpus. It is not Linux or Windows proof.
+
+The managed binary used by installed `wiki-query` skills must be proven
+separately from `Command::cargo_bin` tests. A 2026-05-26 review reproduced that
+the previously installed `~/.llm_wiki/bin/llm-wiki` was stale: both auto and
+forced-CPU managed searches exited 1 with raw Metal/context errors and no JSON
+stdout. The managed install was refreshed through the explicit non-interactive
+LLM-search path, the managed binary was verified byte-identical to
+`target/debug/llm-wiki`, and the managed index was rebuilt under
+`LLM_WIKI_GGUF_RUNTIME=cpu`.
+
+After that refresh, the managed binary passed the dogfood path:
+
+```text
+/Users/nicolasmartino/.llm_wiki/bin/llm-wiki search --mode auto --format json "what is project update"
+LLM_WIKI_GGUF_RUNTIME=cpu /Users/nicolasmartino/.llm_wiki/bin/llm-wiki search --mode auto --format json "what is project update"
+```
+
+The first command returned hybrid results with
+`runtime_backend_requested=auto`, `runtime_backend_used=cpu`,
+`runtime_backend_fallback=true`, `backend_status.freshness=fresh`, and
+`wiki/proposals/project-update-command.proposal.md` first. The forced-CPU
+command returned hybrid results with `runtime_backend_requested=cpu`,
+`runtime_backend_used=cpu`, `runtime_backend_fallback=false`,
+`backend_status.freshness=fresh`, and the same top result.
 
 ## Implementation Progress 2026-05-24
 
@@ -204,12 +261,16 @@ Verified so far:
 - `cargo test --test search_commands runtime_failure_returns_parseable_json`
 - `cargo test --test search_commands`
 - `cargo test --test natural_language_search_eval`
+- `cargo test --test gguf_cpu_smoke`
+- `cargo test --test gguf_cpu_smoke -- --ignored --nocapture`
 - `cargo test`
 - `git diff --check`
 - `git diff --cached --check`
 - real redirected/headless hybrid dogfood after `cargo run -- index --force`
 - real redirected/headless hybrid auto-to-CPU fallback dogfood
 - real forced-CPU semantic dogfood
+- real forced-CPU full-repository index, semantic, hybrid, and `search-all`
+  dogfood on macOS arm64
 
 Remaining work:
 
@@ -218,9 +279,12 @@ Remaining work:
   managed-model dogfood verified CPU install probes, doctor current probes,
   forced-CPU indexing, hybrid search, semantic search, and search-all against
   the copied managed GGUF artifacts.
-- Cross-platform CPU semantic/hybrid proof is still pending.
+- Cross-platform CPU semantic/hybrid proof outside macOS arm64 is still
+  pending. Linux x86_64 is the next proof row; Windows remains tied to the
+  separate Windows support proposal.
 - The current automated tests cover typed reporting and deterministic paths;
-  real GGUF execution proof remains environment-dependent.
+  real GGUF execution proof remains environment-dependent and is represented by
+  ignored/manual checks.
 
 ## Execution Plan
 
@@ -340,13 +404,19 @@ Gate:
 ### Stage 4 - Cross-Platform Runtime Proof
 
 1. Add a CPU semantic/hybrid smoke fixture that can run without a large real
-   user project.
-2. Separate aspirational platform proof from current automated gates:
-   - macOS arm64 CPU semantic search
-   - Linux x86_64 CPU semantic search
+   user project. Completed locally by `tests/gguf_cpu_smoke.rs`; it is ignored
+   because it requires managed GGUF artifacts.
+2. Promote cross-platform proof through
+   `wiki/plans/cross-platform-release-e2e-harness.plan.md`, not through ad hoc
+   local commands. Docker/Pulumi lanes can prove Linux/container behavior, but
+   Windows support requires a Windows host, VM, or CI runner.
+3. Separate aspirational platform proof from current automated gates:
+   - macOS arm64 CPU semantic search: local tiny-fixture proof passed on
+     2026-05-25
+   - Linux x86_64 CPU semantic search: pending
    - Windows x86_64 CPU semantic search when Windows support is promoted
-3. Treat accelerator checks as optional proof rows, not support blockers.
-4. Update the Windows support proposal or future roadmap only after the CPU
+4. Treat accelerator checks as optional proof rows, not support blockers.
+5. Update the Windows support proposal or future roadmap only after the CPU
    runtime path passes on Windows.
 
 Gate:
@@ -413,6 +483,7 @@ that the query table is well formed. It does not prove real retrieval quality.
 Manual or environment-dependent real-model checks:
 
 ```text
+cargo test --test gguf_cpu_smoke -- --ignored --nocapture
 cargo test --test natural_language_search_eval -- --ignored --nocapture
 llm-wiki index --project dogfood --force
 llm-wiki search --project dogfood --mode semantic --format json "what is project update"
@@ -445,7 +516,8 @@ Expected hybrid-triage outcome:
   accelerator initialization.
 - Any qmd-rs upstream patch, fork, or direct `llama-cpp-2` prototype result.
 - Runtime probe records from install and doctor.
-- Cross-platform CPU semantic smoke output when platform proof is attempted.
+- Tiny-fixture and cross-platform CPU semantic smoke output when platform proof
+  is attempted.
 - Real-model hybrid triage output for `what is project update`.
 
 ## Wiki Updates On Completion

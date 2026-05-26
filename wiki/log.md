@@ -1,5 +1,68 @@
 # Wiki Log
 
+## [2026-05-26] update | review follow-up for managed GGUF proof and CQRS sourcing
+
+Fixed review findings on the GGUF runtime and release-E2E planning work. The
+ignored GGUF CPU smoke now clears deterministic and runtime-failure test-hook
+environment variables before proving real GGUF execution. The CQRS
+Pulumi/test-runner precedent is captured under
+`raw/research/2026-05-26-cqrs-release-e2e-source-capture/` with copied source
+snapshots and SHA-256 hashes, and the wiki plan and proposal now cite that raw
+bundle instead of external absolute paths. The previously stale managed binary
+at `~/.llm_wiki/bin/llm-wiki` was refreshed via the non-interactive LLM-search
+install path, verified byte-identical to the current build, reindexed under
+forced CPU, and then proved through managed auto and forced-CPU hybrid searches
+returning the project-update page first with parseable JSON. Updated the wiki
+index date to 2026-05-26.
+
+Pages affected: tests/gguf_cpu_smoke.rs,
+raw/research/2026-05-26-cqrs-release-e2e-source-capture/manifest.md,
+raw/research/2026-05-26-cqrs-release-e2e-source-capture/research-summary.md,
+wiki/plans/cross-platform-release-e2e-harness.plan.md,
+wiki/proposals/full-windows-support.proposal.md,
+wiki/plans/gguf-runtime-portability.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-26] update | associate release E2E plan with Windows proposal
+
+Made the cross-platform release E2E harness plan explicitly associated with
+the Windows support proposal. The proposal now has an Associated Tactical Plan
+section, the plan metadata names the parent proposal, and the index summary
+calls out the relationship.
+
+Pages affected: wiki/plans/cross-platform-release-e2e-harness.plan.md,
+wiki/proposals/full-windows-support.proposal.md, wiki/index.md, wiki/log.md
+
+## [2026-05-25] create | cross-platform release E2E harness plan
+
+Created a CQRS-informed tactical plan for cross-platform release E2E. The plan
+keeps the useful Pulumi/Docker pattern for Linux/container lanes while making
+host/VM/CI runners the required proof for macOS and Windows support claims. It
+specifies a Rust release-E2E runner, profile and required-key validation,
+isolated homes, checksum-verified artifact acquisition, command/file
+verification, JUnit/report output, no-download readiness checks, and a separate
+real-model GGUF CPU lane. Updated the Windows proposal and GGUF portability
+plan to point at this harness and to avoid overstating what Docker proves.
+
+Pages affected: wiki/plans/cross-platform-release-e2e-harness.plan.md,
+wiki/proposals/full-windows-support.proposal.md,
+wiki/plans/gguf-runtime-portability.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-25] update | GGUF runtime Stage 4 local CPU proof
+
+Added the Stage 4 tiny-fixture GGUF CPU smoke proof. The new ignored
+`tests/gguf_cpu_smoke.rs` integration test creates a temporary wiki project,
+reuses existing managed GGUF artifact records by absolute path without
+downloading or mutating the real managed home, forces
+`LLM_WIKI_GGUF_RUNTIME=cpu`, indexes only the small fixture, and verifies
+semantic, hybrid, and `search-all` hybrid JSON all return the project-update
+fixture page first with CPU runtime metadata. Local macOS arm64 dogfood also
+refreshed the full repository index under forced CPU and verified semantic,
+hybrid, and `search-all` against the current repo. Linux and Windows CPU proof
+remain pending.
+
+Pages affected: wiki/plans/gguf-runtime-portability.plan.md, wiki/index.md,
+wiki/log.md
+
 ## [2026-05-25] update | GGUF runtime doctor probe hardening
 
 Hardened the smoke-probe follow-up after review. `doctor` now verifies that
