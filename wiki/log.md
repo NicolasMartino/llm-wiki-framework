@@ -1,5 +1,17 @@
 # Wiki Log
 
+## [2026-06-04] update | include release E2E helper in just test
+
+Updated the top-level `just test` recipe so it runs both the main workspace
+test suite and the independent `tools/release-e2e` helper crate tests. This
+keeps the release E2E runner covered by the normal pre-commit test command even
+though the helper crate intentionally remains outside the Cargo workspace and
+release package.
+
+Verification: `just test`.
+
+Pages affected: justfile, wiki/log.md
+
 ## [2026-06-04] update | release E2E checksum guard review follow-up
 
 Fixed the release E2E runner review finding where a provided checksum mismatch

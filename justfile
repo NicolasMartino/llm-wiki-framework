@@ -11,6 +11,7 @@ fmt-fix:
 
 test:
     cargo test --workspace
+    cargo test --manifest-path tools/release-e2e/Cargo.toml
 
 clippy:
     cargo clippy --workspace --all-targets --all-features -- -D warnings
