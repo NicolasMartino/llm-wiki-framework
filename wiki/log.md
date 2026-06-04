@@ -1,3 +1,34 @@
+## [2026-06-04] update | deterministic E2E versioned update intent
+
+Extended the deterministic workspace E2E proposal with a future versioned
+`llm-wiki update` lane. The proposal now records the intent to use git-managed
+release or compatibility tags to create simulated old-version workspaces, run
+the current release artifact's update command against them, and verify current
+generated artifacts, preserved wiki/raw content, update archives, stable
+registry identity, search behavior, and canonical tree manifests.
+
+The proposal also records that old-version snapshots may be used only as a
+labeled fallback when an old tagged binary cannot be built or acquired on the
+current platform.
+
+Pages affected: wiki/proposals/deterministic-e2e-backbone.proposal.md,
+wiki/log.md
+
+## [2026-06-04] create | deterministic workspace E2E proposal
+
+Created a proposal to make deterministic fixture-backed workspaces the backbone
+of routine multi-platform release E2E. The proposed scenario creates isolated
+home/workspace state, installs the release artifact, initializes a project with
+committed raw fixtures through `--initial-sources`, verifies copied raw
+provenance, registers/indexes/searches the project, writes a canonical tree
+manifest, compares against expected fixture state, and asserts cleanup.
+
+The proposal keeps LLM/agent ingest characterization as future non-deterministic
+work with structural invariants instead of byte-for-byte prose snapshots.
+
+Pages affected: wiki/proposals/deterministic-e2e-backbone.proposal.md,
+wiki/index.md, wiki/log.md
+
 # Wiki Log
 
 ## [2026-06-04] update | include release E2E helper in just test
