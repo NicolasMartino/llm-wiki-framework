@@ -22,7 +22,7 @@ dirs.workspace = true
 fuzzy-matcher.workspace = true
 glob.workspace = true
 indicatif.workspace = true
-llama-cpp-2.workspace = true
+llama-cpp-2 = { workspace = true, default-features = false }
 regex.workspace = true
 reqwest.workspace = true
 rusqlite.workspace = true

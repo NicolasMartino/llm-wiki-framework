@@ -1,7 +1,7 @@
 # Plan: Cross-Platform Release E2E Harness
 
 - Document Class: Plan
-- Status: Proposed
+- Status: Active
 - Date: 2026-05-25
 - Category: Release engineering, E2E, platform support
 - Scope: Build a release-artifact E2E harness that proves supported
@@ -11,7 +11,10 @@
   wiki/plans/gguf-runtime-portability.plan.md;
   wiki/plans/gguf-runtime-smoke-probes.plan.md;
   raw/research/2026-05-26-cqrs-release-e2e-source-capture/manifest.md;
-  raw/research/2026-05-26-cqrs-release-e2e-source-capture/research-summary.md
+  raw/research/2026-05-26-cqrs-release-e2e-source-capture/research-summary.md;
+  justfile; tools/release-e2e/Cargo.toml; tools/release-e2e/src/main.rs;
+  infra/release-e2e/Pulumi.yaml; infra/release-e2e/index.ts;
+  infra/release-e2e/linux-builder.Dockerfile; vendor/qmd-0.3.2/Cargo.toml
 - Related: wiki/proposals/full-windows-support.proposal.md,
   wiki/plans/gguf-runtime-portability.plan.md,
   wiki/plans/gguf-runtime-smoke-probes.plan.md,
@@ -208,6 +211,153 @@ Gate:
 - The wiki distinguishes Docker/Linux proof from Windows/macOS host proof.
 - Existing GGUF and Windows pages link to this plan instead of duplicating
   harness details.
+
+## Implementation Progress 2026-05-26
+
+Stage 1 has started. The repository now has a dedicated
+`llm-wiki-release-e2e` tool crate at `tools/release-e2e/`, invoked through
+`cargo run --manifest-path tools/release-e2e/Cargo.toml` so normal release
+archives continue to ship only the product binary. The first implemented lane
+is `smoke`, which accepts a supplied `--artifact`, optional `--checksum`,
+`--target-triple`, `--output-dir`, `--skip-infra`, `--keep-infra`, `--verbose`,
+and `--stdout`.
+
+The smoke lane remains black-box: it invokes the supplied `llm-wiki` artifact
+through the platform shell, sets an isolated temporary `HOME`, redirects XDG
+cache/data roots under that home, removes LLM Wiki test-hook environment
+variables, runs `llm-wiki --version`, and writes report artifacts under
+`target/release-e2e/smoke/`:
+
+```text
+report.json
+junit.xml
+state-manifest.json
+stdout/version.out
+stderr/version.err
+```
+
+The top-level `justfile` now exposes:
+
+```text
+just release-e2e smoke
+just release-e2e-skip-infra smoke
+```
+
+The local Stage 1 gate passed with `target/debug/llm-wiki` as the artifact:
+
+```text
+cargo test --manifest-path tools/release-e2e/Cargo.toml
+cargo check --manifest-path tools/release-e2e/Cargo.toml
+just release-e2e smoke
+just release-plan
+```
+
+This completes the runner skeleton and artifact `--version` smoke. It does not
+yet implement Linux, Windows, or real-model GGUF lanes. The release-plan gate
+confirms the helper tool stays out of dist archives; each archive still lists
+only `[bin] llm-wiki`.
+
+Stage 2 now has a first local-host implementation in the `search` lane. Against
+`target/debug/llm-wiki`, `just release-e2e search` runs 19 black-box commands
+from an isolated HOME/XDG environment and a scratch path containing a space:
+
+```text
+version
+install --non-interactive --disable-llm-search --skip-path-guidance
+managed-version
+install-second
+path
+status
+doctor
+build --out <tmp>
+init --no-register --non-interactive
+register
+projects --format json
+index --project release-e2e-probe
+search --mode lexical --format json
+search-all --mode lexical --format json
+search --mode semantic --format json
+search --mode hybrid --format json
+forget --delete-cache
+projects --format json
+uninstall --include-binary
+```
+
+The lane records stdout/stderr for every command, writes JSON/JUnit/state
+reports under `target/release-e2e/search/`, and currently records 60 passing
+assertions. It verifies managed binary install, disabled no-model search
+configuration, skill files, path/status/doctor output, build output, init
+files, registry JSON, qmd-rs lexical indexing/search, lexical search-all,
+semantic/hybrid fail-closed readiness with `llm_search_disabled`, cache
+deletion, empty registry after forget, and uninstall cleanup.
+
+This satisfies the local built-artifact no-model gate. It still does not
+acquire or unpack release archives; Stage 3+ must run the same product story
+against packaged release artifacts on Linux/macOS/Windows runners.
+
+Stage 3 now has its first implementation slice. The runner exposes a `linux`
+lane that reuses the Stage 2 product-story assertions through Docker instead of
+copying a separate shell script. It mounts an unpacked Linux `llm-wiki` ELF
+artifact at `/artifact/llm-wiki`, maps the isolated HOME and scratch run
+directory into the container, executes each product command with `/bin/sh`, and
+keeps all JSON/JUnit/state/stdout/stderr reports in the host
+`target/release-e2e/linux/` tree. The lane records execution metadata in each
+report:
+
+```text
+execution.kind = docker
+execution.docker_image
+execution.docker_platform
+execution.docker_network
+execution.architecture_native
+execution.proof_kind
+```
+
+The proof kind distinguishes native Linux containers from architecture-native
+virtualized containers and emulated packaging smoke. The lane refuses non-ELF
+host artifacts up front, so running it with the macOS `target/debug/llm-wiki`
+does not create a false Linux result. New just recipes expose the Docker lane:
+
+```text
+just release-e2e-linux-build
+just release-e2e-linux-build-and-test
+just release-e2e-linux <linux-elf-artifact>
+just release-e2e-linux-skip-infra <linux-elf-artifact> network=<existing-network-or-none>
+just release-e2e-linux-infra-up
+just release-e2e-linux-infra-down
+```
+
+A minimal Pulumi stack now lives under `infra/release-e2e/`. It follows the
+CQRS-derived pattern by creating a stack-specific internal Docker network and
+exporting the image/platform/mount profile used by the runner. The runner can
+also create and tear down an internal Docker network directly when Pulumi is
+not in use.
+
+The Linux arm64 Docker proof now has a real Linux ELF artifact path without
+macOS cross-compilation. `infra/release-e2e/linux-builder.Dockerfile` creates a
+small Rust/Debian builder image with the Linux native dependencies needed by
+`llama-cpp-sys` (`libclang`, CMake, compiler toolchain, and pkg-config).
+`just release-e2e-linux-build` builds the binary inside that container as the
+host UID and writes it under
+`target/release-e2e-linux-aarch64/release/llm-wiki`; `just
+release-e2e-linux-build-and-test` then runs the same artifact through the
+Docker Linux lane.
+
+The first minimal-Debian runtime attempt exposed a real portability dependency:
+the default `llama-cpp-2` feature set enabled OpenMP and produced a Linux
+binary requiring `libgomp.so.1`. The vendored qmd dependency now disables
+`llama-cpp-2` default features so the Linux artifact does not depend on
+`libgomp`; the rebuilt artifact runs in `debian:bookworm-slim` with only the
+standard C/C++ runtime libraries present.
+
+On 2026-05-26, `just release-e2e-linux
+target/release-e2e-linux-aarch64/release/llm-wiki` passed the full no-model
+product story in Docker: 19 commands, 60 assertions, no failed assertions, and
+`execution.proof_kind = virtualized_linux_container` with
+`execution.architecture_native = true`. This closes the local Linux arm64
+container proof for an unpacked ELF artifact. It still does not close release
+archive acquisition/unpacking, Linux amd64, native Linux host proof, macOS host
+proof, Windows host/VM proof, or real GGUF release proof.
 
 ### Stage 1 - Runner Skeleton
 

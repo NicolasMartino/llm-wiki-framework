@@ -1,5 +1,155 @@
 # Wiki Log
 
+## [2026-06-04] update | release E2E checksum guard review follow-up
+
+Fixed the release E2E runner review finding where a provided checksum mismatch
+was recorded as a failed assertion but the artifact was still executed. The
+`smoke`, `search`, and Docker-backed `linux` product-story paths now reject a
+mismatched `--checksum` immediately after hashing the artifact and before
+creating the isolated execution environment or running the binary. Added a
+focused unit test using a bogus artifact to prove the checksum guard fails
+before command execution.
+
+Verification: `cargo fmt --manifest-path tools/release-e2e/Cargo.toml`;
+`cargo test --manifest-path tools/release-e2e/Cargo.toml`.
+
+Pages affected: tools/release-e2e/src/main.rs, wiki/log.md
+
+## [2026-05-26] update | release E2E Linux artifact proof
+
+Reworked the Linux release E2E path to build the Linux artifact inside Docker
+instead of relying on macOS cross-compilation through Zig. Added
+`infra/release-e2e/linux-builder.Dockerfile` as a reusable ARM64 Linux builder
+image based on `rust:1-bookworm` with the native Linux build prerequisites
+needed by `llama-cpp-sys`: compiler toolchain, CMake, pkg-config, clang, and
+libclang. Added `just release-e2e-linux-build` and `just
+release-e2e-linux-build-and-test`; the build recipe writes the artifact to
+`target/release-e2e-linux-aarch64/release/llm-wiki` and keeps Docker Cargo
+state under `target/`.
+
+The first run against `debian:bookworm-slim` exposed a real Linux portability
+issue: the default `llama-cpp-2` feature set enabled OpenMP, causing the built
+binary to require `libgomp.so.1`, which is absent from a minimal Debian runtime
+image. Patched the vendored qmd dependency to disable `llama-cpp-2` default
+features, removing the OpenMP/libgomp dynamic dependency. The rebuilt binary now
+runs in `debian:bookworm-slim`, and `ldd` shows only standard C/C++ runtime
+libraries.
+
+The Linux Docker lane now passes end to end against the built ARM64 Linux ELF:
+`just release-e2e-linux target/release-e2e-linux-aarch64/release/llm-wiki`
+reported 19 commands, 60 assertions, and no failed assertions under
+`target/release-e2e/linux/report.json`. The report records
+`execution.proof_kind = virtualized_linux_container`,
+`execution.architecture_native = true`, and `execution.docker_platform =
+linux/arm64`.
+
+Verification: `just --dry-run release-e2e-linux-build`; `cargo tree -e
+features -i llama-cpp-2`; `just release-e2e-linux-build`; `docker run --rm
+--platform linux/arm64 -v
+/Users/nicolasmartino/Documents/local_llm_wiki/llm_wiki_framework/target/release-e2e-linux-aarch64/release/llm-wiki:/artifact/llm-wiki:ro
+debian:bookworm-slim sh -lc 'ldd /artifact/llm-wiki &&
+/artifact/llm-wiki --version'`; `just release-e2e-linux
+target/release-e2e-linux-aarch64/release/llm-wiki`; `cargo fmt --check`;
+`cargo fmt --manifest-path tools/release-e2e/Cargo.toml --check`; `git diff
+--check`; `cargo test --workspace`; `cargo check --manifest-path
+tools/release-e2e/Cargo.toml`; `cargo test --manifest-path
+tools/release-e2e/Cargo.toml`; `just release-e2e search`; `just
+release-plan`.
+
+Pages affected: justfile, infra/release-e2e/linux-builder.Dockerfile,
+vendor/qmd-0.3.2/Cargo.toml, vendor/qmd-0.3.2/Cargo.toml.orig,
+wiki/plans/cross-platform-release-e2e-harness.plan.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-26] update | release E2E Linux container lane
+
+Extended the release E2E harness with the first Stage 3 Linux/container slice.
+The runner now has a `linux` lane that reuses the same no-model product story
+as the host `search` lane, but runs each command through Docker with the Linux
+artifact mounted at `/artifact/llm-wiki`, an isolated HOME mounted at
+`/home/e2e`, and the scratch project/build directory mounted at `/work/run`.
+Reports now include execution metadata (`kind`, `proof_kind`, Docker image,
+platform, network, and architecture-native status) so native Linux containers,
+architecture-native virtualized containers, and emulated packaging smoke are
+labeled distinctly. The lane refuses non-ELF artifacts before starting Docker,
+which prevents the host macOS debug binary from being misreported as Linux
+proof.
+
+Added `release-e2e-linux`, `release-e2e-linux-skip-infra`,
+`release-e2e-linux-infra-up`, and `release-e2e-linux-infra-down` just recipes.
+Added `infra/release-e2e/` as a minimal Pulumi stack that creates a
+stack-specific internal Docker network and exports the image/platform/mount
+profile for the runner. Docker is available locally, but the actual Linux lane
+was not completed end-to-end because `dist build --artifacts=local --target
+aarch64-unknown-linux-gnu` requires missing `cargo-zigbuild`.
+
+Verification: `cargo fmt --manifest-path tools/release-e2e/Cargo.toml
+--check`; `cargo check --manifest-path tools/release-e2e/Cargo.toml`; `cargo
+test --manifest-path tools/release-e2e/Cargo.toml`; `cargo run --manifest-path
+tools/release-e2e/Cargo.toml -- linux --help`; `just release-e2e smoke`; `just
+release-e2e search`; `docker ps`; expected guard failure for `cargo run
+--manifest-path tools/release-e2e/Cargo.toml -- linux --artifact
+target/debug/llm-wiki`; expected artifact-build blocker from `dist build
+--artifacts=local --target aarch64-unknown-linux-gnu`.
+
+Pages affected: justfile, infra/release-e2e/Pulumi.yaml,
+infra/release-e2e/Pulumi.e2e.yaml, infra/release-e2e/package.json,
+infra/release-e2e/tsconfig.json, infra/release-e2e/index.ts,
+tools/release-e2e/src/main.rs,
+wiki/plans/cross-platform-release-e2e-harness.plan.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-26] update | release E2E no-model search lane
+
+Extended the cross-platform release E2E harness with a Stage 2 local no-model
+`search` lane. The lane runs the supplied `llm-wiki` artifact through 19
+black-box commands from an isolated HOME/XDG environment and a scratch project
+path containing a space. It verifies disabled no-model install, managed binary
+execution, stable second install, path/status/doctor output, build output,
+init/register/projects JSON, qmd-rs lexical index/search/search-all,
+semantic/hybrid fail-closed JSON with `llm_search_disabled`, forget
+`--delete-cache`, empty registry after forget, and uninstall cleanup. The report
+records every command status and stdout/stderr path plus 60 filesystem/JSON
+assertions under `target/release-e2e/search/`.
+
+Verification: `cargo fmt --manifest-path tools/release-e2e/Cargo.toml`;
+`cargo check --manifest-path tools/release-e2e/Cargo.toml`; `cargo test
+--manifest-path tools/release-e2e/Cargo.toml`; `just release-e2e smoke`;
+`just release-e2e search`; `just release-plan`; `cargo test --workspace`;
+`git diff --check`.
+
+Pages affected: tools/release-e2e/src/main.rs,
+wiki/plans/cross-platform-release-e2e-harness.plan.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-26] update | release E2E runner Stage 1 skeleton
+
+Implemented the first Stage 1 slice of the cross-platform release E2E harness.
+The repo now exposes an independent helper tool crate, `llm-wiki-release-e2e`,
+under `tools/release-e2e/`. Its initial `smoke` lane accepts a supplied
+`llm-wiki` artifact, optional checksum, target triple, output directory, and
+debug/lifecycle flags; invokes the artifact through the platform shell with an
+isolated `HOME`; runs `--version`; and writes `report.json`, `junit.xml`,
+`state-manifest.json`, stdout logs, and stderr logs under
+`target/release-e2e/smoke/`. Added `just release-e2e smoke` and
+`just release-e2e-skip-infra smoke`, recorded the passing local smoke against
+`target/debug/llm-wiki`, and kept the helper out of the product package so
+default release archives do not ship the harness binary. Verification with
+`just release-plan` confirmed each release archive still lists only `[bin]
+llm-wiki`.
+
+Verification: `cargo fmt --check`; `cargo fmt --manifest-path
+tools/release-e2e/Cargo.toml --check`; `cargo test --workspace`; `cargo test
+--manifest-path tools/release-e2e/Cargo.toml`; `cargo check --manifest-path
+tools/release-e2e/Cargo.toml`; `just release-e2e smoke`; `just
+release-e2e-skip-infra smoke`; `just release-plan`; `git diff --check`.
+
+Pages affected: justfile, tools/release-e2e/.gitignore,
+tools/release-e2e/Cargo.lock, tools/release-e2e/Cargo.toml,
+tools/release-e2e/src/main.rs,
+wiki/plans/cross-platform-release-e2e-harness.plan.md, wiki/index.md,
+wiki/log.md
+
 ## [2026-05-26] update | review follow-up for managed GGUF proof and CQRS sourcing
 
 Fixed review findings on the GGUF runtime and release-E2E planning work. The

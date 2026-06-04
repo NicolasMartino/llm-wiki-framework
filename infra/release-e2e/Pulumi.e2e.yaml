@@ -1,0 +1,4 @@
+config:
+  llm-wiki-release-e2e:dockerImage: debian:bookworm-slim
+  llm-wiki-release-e2e:dockerPlatform: linux/arm64
+  llm-wiki-release-e2e:networkName: llm-wiki-release-e2e-e2e

@@ -1,0 +1,4 @@
+name: llm-wiki-release-e2e
+runtime:
+  name: nodejs
+description: Isolated Docker network profile for llm-wiki Linux release E2E lanes.
