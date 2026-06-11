@@ -8,18 +8,22 @@
   `llm-wiki` binaries behave like the documented product on their target
   platforms, while using Docker/Pulumi only where it gives honest coverage.
 - Sources: user request 2026-05-25; wiki/proposals/full-windows-support.proposal.md;
+  wiki/roadmaps/cross-platform-release-e2e.roadmap.md;
   wiki/plans/gguf-runtime-portability.plan.md;
   wiki/plans/gguf-runtime-smoke-probes.plan.md;
   raw/research/2026-05-26-cqrs-release-e2e-source-capture/manifest.md;
   raw/research/2026-05-26-cqrs-release-e2e-source-capture/research-summary.md;
-  justfile; tools/release-e2e/Cargo.toml; tools/release-e2e/src/main.rs;
+  justfile; .github/workflows/release-e2e-linux-amd64.yml;
+  tools/release-e2e/Cargo.toml; tools/release-e2e/src/main.rs;
   infra/release-e2e/Pulumi.yaml; infra/release-e2e/index.ts;
   infra/release-e2e/linux-builder.Dockerfile; vendor/qmd-0.3.2/Cargo.toml
 - Related: wiki/proposals/full-windows-support.proposal.md,
+  wiki/roadmaps/cross-platform-release-e2e.roadmap.md,
   wiki/plans/gguf-runtime-portability.plan.md,
   wiki/plans/gguf-runtime-smoke-probes.plan.md,
   wiki/checklists/observability-contract.checklist.md
 - Parent Proposal: wiki/proposals/full-windows-support.proposal.md
+- Parent Roadmap: wiki/roadmaps/cross-platform-release-e2e.roadmap.md
 
 ## Deliverable
 
@@ -200,17 +204,20 @@ a wiki eval or checklist.
 
 1. Keep this plan separate from the Windows proposal. The proposal defines what
    support means; this plan defines how release E2E proves it.
-2. Update the Windows proposal to reference this plan as the tactical harness.
-3. Update the GGUF portability plan so Linux/Windows CPU proof is promoted
+2. Keep the cross-platform release E2E roadmap as the deliverable ordering
+   layer. The roadmap defines sequence, dependencies, proof type boundaries,
+   and promotion targets; this plan defines the tactical harness work.
+3. Update the Windows proposal to reference this plan as the tactical harness.
+4. Update the GGUF portability plan so Linux/Windows CPU proof is promoted
    through this harness instead of ad hoc manual commands.
-4. Capture the CQRS source material under `raw/` before marking this plan
+5. Capture the CQRS source material under `raw/` before marking this plan
    accepted.
 
 Gate:
 
 - The wiki distinguishes Docker/Linux proof from Windows/macOS host proof.
-- Existing GGUF and Windows pages link to this plan instead of duplicating
-  harness details.
+- Existing GGUF and Windows pages link to this plan and the associated roadmap
+  instead of duplicating harness details.
 
 ## Implementation Progress 2026-05-26
 
@@ -321,11 +328,21 @@ does not create a false Linux result. New just recipes expose the Docker lane:
 ```text
 just release-e2e-linux-build
 just release-e2e-linux-build-and-test
+just release-e2e-linux-archive <release-archive> <sha256-file>
+just release-e2e-linux-dist-build
+just release-e2e-linux-dist-build-and-test
 just release-e2e-linux <linux-elf-artifact>
 just release-e2e-linux-skip-infra <linux-elf-artifact> network=<existing-network-or-none>
 just release-e2e-linux-infra-up
 just release-e2e-linux-infra-down
+just release-e2e-native-linux-archive <release-archive> <sha256-file>
+just release-e2e-native-linux-dist-build
+just release-e2e-native-linux-dist-build-and-test
 ```
+
+The Linux artifact and archive recipes accept an optional `output_dir` so
+arm64, amd64, native, and emulated reports can be kept in separate report
+trees instead of overwriting the default `target/release-e2e/linux/report.json`.
 
 A minimal Pulumi stack now lives under `infra/release-e2e/`. It follows the
 CQRS-derived pattern by creating a stack-specific internal Docker network and
@@ -341,7 +358,12 @@ small Rust/Debian builder image with the Linux native dependencies needed by
 host UID and writes it under
 `target/release-e2e-linux-aarch64/release/llm-wiki`; `just
 release-e2e-linux-build-and-test` then runs the same artifact through the
-Docker Linux lane.
+Docker Linux lane. The Docker builder also installs `cargo-dist`, so `just
+release-e2e-linux-dist-build` can build the actual
+`llm-wiki-rs-aarch64-unknown-linux-gnu.tar.xz` release archive and checksum
+inside Linux rather than cross-compiling from macOS. `just
+release-e2e-linux-dist-build-and-test` builds that archive and immediately
+passes it to the Linux lane through `--archive` and `--checksum`.
 
 The first minimal-Debian runtime attempt exposed a real portability dependency:
 the default `llama-cpp-2` feature set enabled OpenMP and produced a Linux
@@ -354,10 +376,64 @@ On 2026-05-26, `just release-e2e-linux
 target/release-e2e-linux-aarch64/release/llm-wiki` passed the full no-model
 product story in Docker: 19 commands, 60 assertions, no failed assertions, and
 `execution.proof_kind = virtualized_linux_container` with
-`execution.architecture_native = true`. This closes the local Linux arm64
-container proof for an unpacked ELF artifact. It still does not close release
-archive acquisition/unpacking, Linux amd64, native Linux host proof, macOS host
-proof, Windows host/VM proof, or real GGUF release proof.
+`execution.architecture_native = true`. That closed the local Linux arm64
+container proof for an unpacked ELF artifact.
+
+On 2026-06-04, `just release-e2e-linux-dist-build-and-test` closed the local
+Linux arm64 release-archive slice. The recipe built
+`target/release-e2e-linux-dist-aarch64/distrib/llm-wiki-rs-aarch64-unknown-linux-gnu.tar.xz`
+and its `.sha256` file inside the Linux Docker builder, verified the archive
+checksum before extraction, unpacked the archive, located the packaged
+`llm-wiki` ELF, and ran the same Docker product story in `debian:bookworm-slim`.
+The report recorded 19 commands, 63 assertions, no failed assertions,
+`package_sha256 =
+739d9ab3d7587638ebda6a6592d95198d526089d28bc9c52787a22ca59a5b169`,
+`execution.proof_kind = virtualized_linux_container`, and
+`execution.architecture_native = true`. Report schema version 2 now records
+both package archive metadata and the extracted artifact metadata.
+
+This closes local Linux arm64 container proof for both an unpacked ELF artifact
+and a checksum-verified cargo-dist archive.
+
+Also on 2026-06-04, the same archive path ran for
+`x86_64-unknown-linux-gnu` under Docker Desktop amd64 emulation:
+
+```text
+just release-e2e-linux-dist-build-and-test \
+  linux/amd64 \
+  llm-wiki-release-e2e-linux-builder:bookworm-amd64 \
+  x86_64-unknown-linux-gnu \
+  target/release-e2e-linux-dist-x86_64 \
+  debian:bookworm-slim \
+  target/release-e2e-linux-amd64
+```
+
+That run built
+`target/release-e2e-linux-dist-x86_64/distrib/llm-wiki-rs-x86_64-unknown-linux-gnu.tar.xz`,
+verified its `.sha256`, unpacked the archive, and passed the same no-model
+product story in `debian:bookworm-slim`. The report recorded 19 commands, 63
+assertions, no failed assertions, `package_sha256 =
+ad8b1536453e224b1dc96dc796051516d0d4c6f3d0fc8ec6e3d0b0c48b5d2f56`,
+`execution.proof_kind = emulated_linux_container_packaging_smoke`, and
+`execution.architecture_native = false`. A follow-up `ldd` check showed only
+the standard C/C++ runtime libraries and no `libgomp` dependency.
+
+This closes Linux amd64 release-archive packaging smoke on this macOS arm64
+machine. It still does not close native Linux amd64 proof, native Linux host
+proof, macOS host proof, Windows host/VM proof, or real GGUF release proof.
+
+The native Linux amd64 proof path is wired but not yet counted as proof.
+`.github/workflows/release-e2e-linux-amd64.yml` runs on `ubuntu-24.04`,
+asserts `uname -s = Linux` and `uname -m = x86_64`, installs native build
+dependencies plus `cargo-dist`, builds the
+`llm-wiki-rs-x86_64-unknown-linux-gnu.tar.xz` archive on the native host, then
+runs `just release-e2e-native-linux-dist-build-and-test`. That recipe executes
+the host `search` product story from the checksum-verified release archive and
+uploads `target/release-e2e-native-linux-amd64/` plus the built archive and
+checksum as workflow artifacts. Because this local checkout is macOS arm64 and
+has no configured git remote, the workflow could not be triggered from here;
+native Linux amd64 proof remains pending until that workflow passes on a real
+x86_64 Linux runner.
 
 ### Stage 1 - Runner Skeleton
 

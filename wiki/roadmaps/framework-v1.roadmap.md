@@ -660,3 +660,44 @@ Unlocks:
 - reliable search-first `wiki-query` in sandboxed Codex sessions
 - safer project-update `--reindex` follow-on
 - cleaner Windows/E2E proof later because read/write cache scopes are explicit
+
+### P3 - Cross-Platform Release E2E And Windows Support
+
+Status: Active
+Promise: Supported release artifacts prove the documented `llm-wiki` product
+story on their target platforms, with Linux Docker simulation, native host
+proof, Windows host proof, and GGUF CPU proof separated by evidence type.
+Depends On: P1, P2, D8-D11
+Execution Roadmap: wiki/roadmaps/cross-platform-release-e2e.roadmap.md
+Execution Plan: wiki/plans/cross-platform-release-e2e-harness.plan.md
+Proposal: wiki/proposals/full-windows-support.proposal.md
+
+Included:
+- release E2E runner and report contract
+- Linux Docker archive simulation and native Linux proof
+- native macOS archive proof
+- Windows runtime path, PowerShell, artifact, and host E2E proof
+- real GGUF CPU release proof where semantic/hybrid support is claimed
+
+Excluded:
+- treating Docker as macOS or Windows proof
+- claiming Windows support before Windows-specific path and host gates pass
+- claiming semantic/hybrid platform support from deterministic hooks or
+  no-model readiness checks
+
+Proof:
+- target-platform release E2E reports exist for each supported artifact
+- report metadata distinguishes native, virtualized, and emulated proof
+- Windows reports cover Known Folder paths, path with spaces, PowerShell
+  invocation, `.exe` runnability, JSON path escaping, search, and uninstall
+- GGUF reports prove forced-CPU semantic, hybrid, and `search-all` from
+  managed models
+
+Promotion Target:
+- wiki/specs/documentation-model.spec.md
+- future release E2E checklist or eval
+- Windows support decision/spec after validation
+
+Unlocks:
+- honest platform support claims
+- release-gate evidence for future artifacts

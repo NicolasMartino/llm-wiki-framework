@@ -83,11 +83,26 @@ release-e2e-skip-infra category="smoke":
     cargo build --bin llm-wiki
     cargo run --manifest-path tools/release-e2e/Cargo.toml -- {{category}} --artifact target/debug/llm-wiki --skip-infra
 
-release-e2e-linux artifact target_triple="aarch64-unknown-linux-gnu" platform="linux/arm64" image="debian:bookworm-slim":
-    cargo run --manifest-path tools/release-e2e/Cargo.toml -- linux --artifact "{{artifact}}" --target-triple "{{target_triple}}" --docker-platform "{{platform}}" --docker-image "{{image}}"
+release-e2e-native-linux-archive archive checksum target_triple="x86_64-unknown-linux-gnu" output_dir="target/release-e2e-native-linux-amd64":
+    cargo run --manifest-path tools/release-e2e/Cargo.toml -- search --archive "{{archive}}" --checksum "{{checksum}}" --target-triple "{{target_triple}}" --output-dir "{{output_dir}}"
 
-release-e2e-linux-skip-infra artifact target_triple="aarch64-unknown-linux-gnu" platform="linux/arm64" image="debian:bookworm-slim" network="none":
-    cargo run --manifest-path tools/release-e2e/Cargo.toml -- linux --artifact "{{artifact}}" --target-triple "{{target_triple}}" --docker-platform "{{platform}}" --docker-image "{{image}}" --docker-network "{{network}}" --skip-infra
+release-e2e-native-linux-dist-build target_triple="x86_64-unknown-linux-gnu" target_dir="target/release-e2e-native-linux-amd64-dist":
+    mkdir -p "{{target_dir}}"
+    env CARGO_TARGET_DIR="{{target_dir}}" dist build --artifacts=local --target "{{target_triple}}" --output-format=json > "{{target_dir}}/dist-manifest.json"
+    file "{{target_dir}}/distrib/llm-wiki-rs-{{target_triple}}.tar.xz"
+
+release-e2e-native-linux-dist-build-and-test target_triple="x86_64-unknown-linux-gnu" target_dir="target/release-e2e-native-linux-amd64-dist" output_dir="target/release-e2e-native-linux-amd64":
+    just release-e2e-native-linux-dist-build "{{target_triple}}" "{{target_dir}}"
+    just release-e2e-native-linux-archive "{{target_dir}}/distrib/llm-wiki-rs-{{target_triple}}.tar.xz" "{{target_dir}}/distrib/llm-wiki-rs-{{target_triple}}.tar.xz.sha256" "{{target_triple}}" "{{output_dir}}"
+
+release-e2e-linux artifact target_triple="aarch64-unknown-linux-gnu" platform="linux/arm64" image="debian:bookworm-slim" output_dir="target/release-e2e":
+    cargo run --manifest-path tools/release-e2e/Cargo.toml -- linux --artifact "{{artifact}}" --target-triple "{{target_triple}}" --docker-platform "{{platform}}" --docker-image "{{image}}" --output-dir "{{output_dir}}"
+
+release-e2e-linux-archive archive checksum target_triple="aarch64-unknown-linux-gnu" platform="linux/arm64" image="debian:bookworm-slim" output_dir="target/release-e2e":
+    cargo run --manifest-path tools/release-e2e/Cargo.toml -- linux --archive "{{archive}}" --checksum "{{checksum}}" --target-triple "{{target_triple}}" --docker-platform "{{platform}}" --docker-image "{{image}}" --output-dir "{{output_dir}}"
+
+release-e2e-linux-skip-infra artifact target_triple="aarch64-unknown-linux-gnu" platform="linux/arm64" image="debian:bookworm-slim" network="none" output_dir="target/release-e2e":
+    cargo run --manifest-path tools/release-e2e/Cargo.toml -- linux --artifact "{{artifact}}" --target-triple "{{target_triple}}" --docker-platform "{{platform}}" --docker-image "{{image}}" --docker-network "{{network}}" --skip-infra --output-dir "{{output_dir}}"
 
 release-e2e-linux-build platform="linux/arm64" image="llm-wiki-release-e2e-linux-builder:bookworm" target_dir="target/release-e2e-linux-aarch64":
     mkdir -p target/release-e2e-docker-home target/release-e2e-cargo-home "{{target_dir}}"
@@ -95,9 +110,19 @@ release-e2e-linux-build platform="linux/arm64" image="llm-wiki-release-e2e-linux
     docker run --rm --platform "{{platform}}" --user "$(id -u):$(id -g)" -e HOME=/work/target/release-e2e-docker-home -e CARGO_HOME=/work/target/release-e2e-cargo-home -e CARGO_TARGET_DIR=/work/{{target_dir}} -v "{{justfile_directory()}}:/work" -w /work "{{image}}" cargo build --bin llm-wiki --release
     file "{{target_dir}}/release/llm-wiki"
 
-release-e2e-linux-build-and-test platform="linux/arm64" image="llm-wiki-release-e2e-linux-builder:bookworm" target_dir="target/release-e2e-linux-aarch64" artifact_image="debian:bookworm-slim":
-    just release-e2e-linux-build platform="{{platform}}" image="{{image}}" target_dir="{{target_dir}}"
-    just release-e2e-linux "{{target_dir}}/release/llm-wiki" platform="{{platform}}" image="{{artifact_image}}"
+release-e2e-linux-build-and-test platform="linux/arm64" image="llm-wiki-release-e2e-linux-builder:bookworm" target_dir="target/release-e2e-linux-aarch64" artifact_image="debian:bookworm-slim" target_triple="aarch64-unknown-linux-gnu" output_dir="target/release-e2e":
+    just release-e2e-linux-build "{{platform}}" "{{image}}" "{{target_dir}}"
+    just release-e2e-linux "{{target_dir}}/release/llm-wiki" "{{target_triple}}" "{{platform}}" "{{artifact_image}}" "{{output_dir}}"
+
+release-e2e-linux-dist-build platform="linux/arm64" image="llm-wiki-release-e2e-linux-builder:bookworm" target_triple="aarch64-unknown-linux-gnu" target_dir="target/release-e2e-linux-dist-aarch64":
+    mkdir -p target/release-e2e-docker-home target/release-e2e-cargo-home "{{target_dir}}"
+    docker build --platform "{{platform}}" -t "{{image}}" -f infra/release-e2e/linux-builder.Dockerfile infra/release-e2e
+    docker run --rm --platform "{{platform}}" --user "$(id -u):$(id -g)" -e HOME=/work/target/release-e2e-docker-home -e CARGO_HOME=/work/target/release-e2e-cargo-home -e CARGO_TARGET_DIR=/work/{{target_dir}} -v "{{justfile_directory()}}:/work" -w /work "{{image}}" sh -c "PATH=/usr/local/cargo/bin:/usr/local/bin:/usr/bin:/bin dist build --artifacts=local --target '{{target_triple}}' --output-format=json > '/work/{{target_dir}}/dist-manifest.json'"
+    file "{{target_dir}}/distrib/llm-wiki-rs-{{target_triple}}.tar.xz"
+
+release-e2e-linux-dist-build-and-test platform="linux/arm64" image="llm-wiki-release-e2e-linux-builder:bookworm" target_triple="aarch64-unknown-linux-gnu" target_dir="target/release-e2e-linux-dist-aarch64" artifact_image="debian:bookworm-slim" output_dir="target/release-e2e":
+    just release-e2e-linux-dist-build "{{platform}}" "{{image}}" "{{target_triple}}" "{{target_dir}}"
+    just release-e2e-linux-archive "{{target_dir}}/distrib/llm-wiki-rs-{{target_triple}}.tar.xz" "{{target_dir}}/distrib/llm-wiki-rs-{{target_triple}}.tar.xz.sha256" "{{target_triple}}" "{{platform}}" "{{artifact_image}}" "{{output_dir}}"
 
 release-e2e-linux-infra-up stack="e2e":
     cd infra/release-e2e && pulumi stack select "{{stack}}" --create && pulumi up --yes --parallel 1

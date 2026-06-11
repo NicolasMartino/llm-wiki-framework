@@ -10,6 +10,7 @@
   artifacts, managed runtime paths, search parity, and install/doctor/uninstall
   behavior.
 - Sources: conversational request 2026-05-15; wiki/roadmaps/framework-v1.roadmap.md;
+  wiki/roadmaps/cross-platform-release-e2e.roadmap.md;
   wiki/decisions/llm-wiki-binary-distribution.decision.md;
   wiki/plans/llm-wiki-binary.plan.md;
   wiki/decisions/binary-path-bootstrap.decision.md;
@@ -26,6 +27,7 @@
   wiki/specs/wiki-init-skill.spec.md,
   wiki/checklists/observability-contract.checklist.md,
   wiki/proposals/project-update-command.proposal.md,
+  wiki/roadmaps/cross-platform-release-e2e.roadmap.md,
   wiki/plans/cross-platform-release-e2e-harness.plan.md
 
 ## Source Capture
@@ -33,10 +35,12 @@
 This proposal currently cites conversational input and review feedback because
 the direction was developed in chat. The CQRS Pulumi/test-runner precedent has
 now been captured under
-`raw/research/2026-05-26-cqrs-release-e2e-source-capture/`. Before acceptance,
-promotion to a roadmap item, or conversion into an implementation plan, capture
-the remaining conversation and review basis as raw sources under `raw/` or
-replace those references with durable project-owned source paths.
+`raw/research/2026-05-26-cqrs-release-e2e-source-capture/`. The associated
+roadmap and tactical plan now exist because release E2E execution is already
+underway. Before accepting this proposal as a durable support baseline or
+promoting its outcomes into validated specs/decisions, capture the remaining
+conversation and review basis as raw sources under `raw/` or replace those
+references with durable project-owned source paths.
 
 ## Question
 
@@ -53,22 +57,29 @@ The support target is: a Windows user can install `llm-wiki`, run
 use init, registry, indexing, search, status, doctor, and uninstall without WSL,
 without a Rust toolchain, and without hand-editing shell profiles.
 
-The work should be promoted into the roadmap as the next release/platform
-deliverable after the currently completed V1 and P1 search work. A tactical
-plan should then implement it in narrow phases with Windows CI and a
-cross-platform release E2E matrix as the proof gate.
+The work is coordinated by
+`wiki/roadmaps/cross-platform-release-e2e.roadmap.md` as the next
+release/platform workstream after the completed V1 and P1/P2 search work. The
+tactical harness plan implements it in narrow phases with Docker/Linux proof,
+native host proof, Windows CI/host proof, and a cross-platform release E2E
+matrix as the proof gate.
 
-## Associated Tactical Plan
+## Associated Roadmap And Tactical Plan
+
+`wiki/roadmaps/cross-platform-release-e2e.roadmap.md` is the roadmap associated
+with this proposal. It owns deliverable ordering, dependencies, proof gates,
+promotion targets, and the distinction between Linux Docker simulation, native
+host proof, Windows host proof, and GGUF CPU release proof.
 
 `wiki/plans/cross-platform-release-e2e-harness.plan.md` is the tactical plan
 associated with this proposal's release-E2E harness. It owns the runner,
 profile, Pulumi/Linux-lane, native macOS/Windows lane, report, no-download
 readiness, and real-model GGUF CPU proof design.
 
-That plan does not by itself accept or complete full Windows support. This
-proposal remains the parent support definition for Windows managed paths,
-PowerShell skill invocation, qmd-rs/search parity, Defender/long-path gates,
-and release target claims.
+The roadmap and plan do not by themselves accept or complete full Windows
+support. This proposal remains the parent support definition for Windows
+managed paths, PowerShell skill invocation, qmd-rs/search parity,
+Defender/long-path gates, and release target claims.
 
 ## Current Baseline
 
@@ -589,17 +600,19 @@ called out in release notes if signing remains out of scope.
 8. Codex skill discovery on Windows may expose runtime-specific behavior that
    the current repo cannot fully validate without a runtime smoke.
 
-## Proposed Promotion Path
+## Promotion Status
 
-If accepted:
+Roadmap and tactical-plan bookkeeping now exists:
+`wiki/roadmaps/cross-platform-release-e2e.roadmap.md` coordinates deliverables,
+and `wiki/plans/cross-platform-release-e2e-harness.plan.md` owns the current
+harness implementation.
 
-1. Add a post-V1 roadmap item, tentatively
-   `P2 - Cross-Platform Release E2E And Windows Support`.
-2. Write a tactical plan that owns the implementation phases and proof gates.
-3. Apply the Observability Contract checklist to every changed command path.
-4. Add or update a repeatable release E2E checklist/eval so future releases can
+Remaining promotion tasks:
+
+1. Apply the Observability Contract checklist to every changed command path.
+2. Add or update a repeatable release E2E checklist/eval so future releases can
    prove every supported platform artifact still satisfies the command and file
    verification contract.
-5. Replace the current forward-looking Windows sentence in
+3. Replace the current forward-looking Windows sentence in
    `wiki/specs/documentation-model.spec.md` with validated target-specific
    support language only after Windows CI and release smoke pass.

@@ -1,3 +1,84 @@
+# Wiki Log
+
+## [2026-06-04] create | cross-platform release E2E roadmap
+
+Created `wiki/roadmaps/cross-platform-release-e2e.roadmap.md` to fix the
+missing roadmap layer between the cross-platform release E2E / Windows support
+proposal and the active harness plan. The roadmap now coordinates deliverables
+for the completed runner and Linux Docker archive simulation, active native
+Linux amd64 host proof, draft native macOS archive proof, draft Windows
+runtime/artifact and host E2E proof, draft GGUF CPU release proof, and a future
+release evidence gate.
+
+Updated the parent proposal to reference both the roadmap and tactical plan
+without claiming Windows support is complete. Updated the tactical plan to name
+the roadmap as its parent deliverable-ordering layer, added a P3 pointer in the
+Framework V1 roadmap, and refreshed the index catalog.
+
+Pages affected: wiki/roadmaps/cross-platform-release-e2e.roadmap.md,
+wiki/proposals/full-windows-support.proposal.md,
+wiki/plans/cross-platform-release-e2e-harness.plan.md,
+wiki/plans/gguf-runtime-portability.plan.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
+
+## [2026-06-04] update | native Linux amd64 release E2E workflow
+
+Added a native Linux amd64 release-E2E workflow and host recipes. The new
+`release-e2e-native-linux-dist-build-and-test` just recipe builds the
+`x86_64-unknown-linux-gnu` cargo-dist archive on the current host, verifies the
+archive checksum through the release E2E runner's `search` lane, and runs the
+no-model product story from the extracted packaged binary. The new
+`.github/workflows/release-e2e-linux-amd64.yml` workflow runs this recipe on
+`ubuntu-24.04`, asserts `Linux/x86_64`, installs native qmd/llama build
+dependencies plus `cargo-dist`, inspects the report and `ldd`, and uploads the
+report tree plus built archive/checksum as evidence.
+
+This does not close native Linux amd64 proof yet. The current local checkout is
+macOS arm64 and has no configured git remote, so the workflow could not be
+triggered from here. Native Linux amd64 proof remains pending until this
+workflow passes on a real x86_64 Linux runner.
+
+Verification: `just --dry-run release-e2e-native-linux-dist-build-and-test`;
+Ruby YAML parse of `.github/workflows/release-e2e-linux-amd64.yml`.
+
+Pages affected: .github/workflows/release-e2e-linux-amd64.yml, justfile,
+wiki/plans/cross-platform-release-e2e-harness.plan.md, wiki/index.md,
+wiki/log.md
+
+## [2026-06-04] update | release E2E Linux amd64 archive smoke
+
+Ran the Linux release E2E archive path for `x86_64-unknown-linux-gnu` through
+Docker Desktop amd64 emulation on this macOS arm64 machine. The run built
+`target/release-e2e-linux-dist-x86_64/distrib/llm-wiki-rs-x86_64-unknown-linux-gnu.tar.xz`
+inside the Linux Docker builder, verified its `.sha256`, unpacked the archive,
+and passed the no-model product story in `debian:bookworm-slim` with 19
+commands, 63 assertions, and no failed assertions. The report is deliberately
+labeled `execution.proof_kind = emulated_linux_container_packaging_smoke` and
+`execution.architecture_native = false`; this is packaging smoke, not native
+Linux amd64 support proof.
+
+Added an optional `output_dir` argument to the Linux just recipes so arm64,
+amd64, native, and emulated evidence can be kept in separate report trees. A
+follow-up `ldd` check on the extracted amd64 binary showed only standard C/C++
+runtime libraries and no `libgomp` dependency.
+
+Verification: `just --dry-run release-e2e-linux-dist-build-and-test
+linux/amd64 llm-wiki-release-e2e-linux-builder:bookworm-amd64
+x86_64-unknown-linux-gnu target/release-e2e-linux-dist-x86_64
+debian:bookworm-slim target/release-e2e-linux-amd64`; `just
+release-e2e-linux-dist-build-and-test linux/amd64
+llm-wiki-release-e2e-linux-builder:bookworm-amd64
+x86_64-unknown-linux-gnu target/release-e2e-linux-dist-x86_64
+debian:bookworm-slim target/release-e2e-linux-amd64`; `docker run --rm
+--platform linux/amd64 -v
+/Users/nicolasmartino/Documents/local_llm_wiki/llm_wiki_framework/target/release-e2e-linux-amd64/linux/state/artifact/llm-wiki-rs-x86_64-unknown-linux-gnu/llm-wiki:/artifact/llm-wiki:ro
+debian:bookworm-slim sh -lc 'ldd /artifact/llm-wiki && /artifact/llm-wiki
+--version'`.
+
+Pages affected: justfile,
+wiki/plans/cross-platform-release-e2e-harness.plan.md, wiki/index.md,
+wiki/log.md
+
 ## [2026-06-04] update | deterministic E2E versioned update intent
 
 Extended the deterministic workspace E2E proposal with a future versioned
@@ -29,7 +110,34 @@ work with structural invariants instead of byte-for-byte prose snapshots.
 Pages affected: wiki/proposals/deterministic-e2e-backbone.proposal.md,
 wiki/index.md, wiki/log.md
 
-# Wiki Log
+## [2026-06-04] update | release E2E cargo-dist archive proof
+
+Extended the release E2E runner so `smoke`, `search`, and Docker-backed
+`linux` lanes accept either `--artifact` or `--archive`. Archive inputs are
+checksum-verified before extraction, checked for unsafe member paths, unpacked
+under the lane state directory, and resolved to the packaged `llm-wiki`
+binary. Report schema version 2 now records both package archive metadata and
+the extracted artifact metadata.
+
+Added Docker-builder support for `cargo-dist` and top-level just recipes for
+building and testing a Linux release archive inside the Linux container:
+`release-e2e-linux-archive`, `release-e2e-linux-dist-build`, and
+`release-e2e-linux-dist-build-and-test`. The successful Linux arm64 run built
+`target/release-e2e-linux-dist-aarch64/distrib/llm-wiki-rs-aarch64-unknown-linux-gnu.tar.xz`,
+verified its `.sha256`, unpacked the archive, and passed the Docker product
+story in `debian:bookworm-slim` with 19 commands, 63 assertions, and no failed
+assertions.
+
+Verification: `just release-e2e-linux-dist-build-and-test`; `docker run --rm
+--platform linux/arm64 -v
+/Users/nicolasmartino/Documents/local_llm_wiki/llm_wiki_framework/target/release-e2e/linux/state/artifact/llm-wiki-rs-aarch64-unknown-linux-gnu/llm-wiki:/artifact/llm-wiki:ro
+debian:bookworm-slim sh -lc 'ldd /artifact/llm-wiki && /artifact/llm-wiki
+--version'`.
+
+Pages affected: tools/release-e2e/src/main.rs, justfile,
+infra/release-e2e/linux-builder.Dockerfile,
+wiki/plans/cross-platform-release-e2e-harness.plan.md, wiki/index.md,
+wiki/log.md
 
 ## [2026-06-04] update | include release E2E helper in just test
 

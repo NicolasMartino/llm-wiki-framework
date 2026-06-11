@@ -1,5 +1,6 @@
 use std::ffi::OsString;
 use std::fs;
+use std::path::Component;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -33,8 +34,14 @@ enum Lane {
 
 #[derive(Clone, Debug, Args)]
 struct RunArgs {
-    #[arg(long)]
-    artifact: PathBuf,
+    #[arg(long, conflicts_with = "archive", required_unless_present = "archive")]
+    artifact: Option<PathBuf>,
+    #[arg(
+        long,
+        conflicts_with = "artifact",
+        required_unless_present = "artifact"
+    )]
+    archive: Option<PathBuf>,
     #[arg(long)]
     checksum: Option<PathBuf>,
     #[arg(long)]
@@ -95,17 +102,10 @@ fn run_smoke(args: RunArgs) -> Result<RunReport> {
     let lane_dir = absolute_path(&args.output_dir)?.join(lane);
     prepare_lane_dir(&lane_dir)?;
 
-    let artifact = args
-        .artifact
-        .canonicalize()
-        .with_context(|| format!("resolve artifact path {}", args.artifact.display()))?;
-    if !artifact.is_file() {
-        bail!("artifact is not a file: {}", artifact.display());
-    }
-
-    let artifact_sha256 = sha256_file(&artifact)?;
-    let checksum = verify_checksum(args.checksum.as_deref(), &artifact_sha256)?;
-    require_checksum_match(&checksum, &artifact_sha256)?;
+    let resolved = resolve_artifact_input(&args, &lane_dir, ArtifactRequirement::Any)?;
+    let artifact = resolved.artifact_path;
+    let artifact_sha256 = resolved.artifact_sha256;
+    let checksum = resolved.checksum;
     let temp_home = TempHome::create(&lane_dir, args.keep_infra)?;
     let stdout_dir = lane_dir.join("stdout");
     let stderr_dir = lane_dir.join("stderr");
@@ -136,13 +136,15 @@ fn run_smoke(args: RunArgs) -> Result<RunReport> {
     }
 
     let mut report = RunReport {
-        schema_version: 1,
+        schema_version: 2,
         lane: lane.to_string(),
         success: assertions.iter().all(|assertion| assertion.passed),
         started_at,
         finished_at: Utc::now().to_rfc3339(),
         artifact_path: artifact,
         artifact_sha256,
+        package_path: resolved.package_path,
+        package_sha256: resolved.package_sha256,
         checksum,
         target_triple: args.target_triple.unwrap_or_else(host_target_label),
         host_os: std::env::consts::OS.to_string(),
@@ -347,11 +349,15 @@ impl ProductStory {
 }
 
 fn run_search(args: RunArgs) -> Result<RunReport> {
-    run_product_story(args, "search", ProductExecutionConfig::Host)
+    run_product_story(
+        args,
+        "search",
+        ProductExecutionConfig::Host,
+        ArtifactRequirement::Any,
+    )
 }
 
 fn run_linux(args: LinuxArgs) -> Result<RunReport> {
-    ensure_linux_artifact(&args.run.artifact)?;
     let platform = args
         .docker_platform
         .clone()
@@ -379,29 +385,30 @@ fn run_linux(args: LinuxArgs) -> Result<RunReport> {
         architecture_native,
         proof_kind,
     };
-    run_product_story(args.run, "linux", ProductExecutionConfig::Docker(docker))
+    run_product_story(
+        args.run,
+        "linux",
+        ProductExecutionConfig::Docker(docker),
+        ArtifactRequirement::LinuxElf,
+    )
 }
 
 fn run_product_story(
     args: RunArgs,
     lane: &'static str,
     execution_config: ProductExecutionConfig,
+    artifact_requirement: ArtifactRequirement,
 ) -> Result<RunReport> {
     let started_at = Utc::now().to_rfc3339();
     let lane_dir = absolute_path(&args.output_dir)?.join(lane);
     prepare_lane_dir(&lane_dir)?;
 
-    let artifact = args
-        .artifact
-        .canonicalize()
-        .with_context(|| format!("resolve artifact path {}", args.artifact.display()))?;
-    if !artifact.is_file() {
-        bail!("artifact is not a file: {}", artifact.display());
-    }
-
-    let artifact_sha256 = sha256_file(&artifact)?;
-    let checksum = verify_checksum(args.checksum.as_deref(), &artifact_sha256)?;
-    require_checksum_match(&checksum, &artifact_sha256)?;
+    let resolved = resolve_artifact_input(&args, &lane_dir, artifact_requirement)?;
+    let artifact = resolved.artifact_path;
+    let artifact_sha256 = resolved.artifact_sha256;
+    let package_path = resolved.package_path;
+    let package_sha256 = resolved.package_sha256;
+    let checksum = resolved.checksum;
     let temp_home = TempHome::create(&lane_dir, args.keep_infra)?;
     let state_dir = lane_dir.join("state");
     let run_dir = state_dir.join("run");
@@ -461,6 +468,15 @@ fn run_product_story(
         AssertionReport::passed("artifact exists"),
         AssertionReport::passed("artifact sha256 computed"),
     ];
+    if package_path.is_some() {
+        assertions.push(AssertionReport::passed("release archive exists"));
+        assertions.push(AssertionReport::passed("release archive sha256 computed"));
+        assertions.push(AssertionReport::passed(
+            "artifact extracted from release archive",
+        ));
+    } else {
+        assertions.push(AssertionReport::passed("raw artifact input used"));
+    }
     if let Some(checksum) = &checksum {
         assertions.push(AssertionReport::new("checksum matches", checksum.matches));
     } else {
@@ -827,13 +843,15 @@ fn run_product_story(
     commands.push(uninstall);
 
     let mut report = RunReport {
-        schema_version: 1,
+        schema_version: 2,
         lane: lane.to_string(),
         success: assertions.iter().all(|assertion| assertion.passed),
         started_at,
         finished_at: Utc::now().to_rfc3339(),
         artifact_path: artifact,
         artifact_sha256,
+        package_path,
+        package_sha256,
         checksum,
         target_triple: args
             .target_triple
@@ -875,6 +893,183 @@ fn run_product_story(
     Ok(report)
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ArtifactRequirement {
+    Any,
+    LinuxElf,
+}
+
+struct ResolvedArtifact {
+    artifact_path: PathBuf,
+    artifact_sha256: String,
+    package_path: Option<PathBuf>,
+    package_sha256: Option<String>,
+    checksum: Option<ChecksumReport>,
+}
+
+fn resolve_artifact_input(
+    args: &RunArgs,
+    lane_dir: &Path,
+    requirement: ArtifactRequirement,
+) -> Result<ResolvedArtifact> {
+    match (&args.artifact, &args.archive) {
+        (Some(path), None) => resolve_raw_artifact(path, args.checksum.as_deref(), requirement),
+        (None, Some(path)) => {
+            resolve_archive_artifact(path, args.checksum.as_deref(), lane_dir, requirement)
+        }
+        (Some(_), Some(_)) => bail!("--artifact and --archive cannot be used together"),
+        (None, None) => bail!("one of --artifact or --archive is required"),
+    }
+}
+
+fn resolve_raw_artifact(
+    path: &Path,
+    checksum_path: Option<&Path>,
+    requirement: ArtifactRequirement,
+) -> Result<ResolvedArtifact> {
+    let artifact = path
+        .canonicalize()
+        .with_context(|| format!("resolve artifact path {}", path.display()))?;
+    if !artifact.is_file() {
+        bail!("artifact is not a file: {}", artifact.display());
+    }
+    ensure_artifact_requirement(&artifact, requirement)?;
+
+    let artifact_sha256 = sha256_file(&artifact)?;
+    let checksum = verify_checksum(checksum_path, &artifact_sha256)?;
+    require_checksum_match(&checksum, &artifact_sha256)?;
+    Ok(ResolvedArtifact {
+        artifact_path: artifact,
+        artifact_sha256,
+        package_path: None,
+        package_sha256: None,
+        checksum,
+    })
+}
+
+fn resolve_archive_artifact(
+    path: &Path,
+    checksum_path: Option<&Path>,
+    lane_dir: &Path,
+    requirement: ArtifactRequirement,
+) -> Result<ResolvedArtifact> {
+    let package = path
+        .canonicalize()
+        .with_context(|| format!("resolve archive path {}", path.display()))?;
+    if !package.is_file() {
+        bail!("archive is not a file: {}", package.display());
+    }
+
+    let package_sha256 = sha256_file(&package)?;
+    let checksum = verify_checksum(checksum_path, &package_sha256)?;
+    require_checksum_match(&checksum, &package_sha256)?;
+
+    let unpack_dir = lane_dir.join("state").join("artifact");
+    fs::create_dir_all(&unpack_dir)
+        .with_context(|| format!("create artifact unpack dir {}", unpack_dir.display()))?;
+    extract_release_archive(&package, &unpack_dir)?;
+    let artifact = find_release_binary(&unpack_dir, requirement)?;
+    ensure_artifact_requirement(&artifact, requirement)?;
+    let artifact_sha256 = sha256_file(&artifact)?;
+
+    Ok(ResolvedArtifact {
+        artifact_path: artifact,
+        artifact_sha256,
+        package_path: Some(package),
+        package_sha256: Some(package_sha256),
+        checksum,
+    })
+}
+
+fn extract_release_archive(archive: &Path, destination: &Path) -> Result<()> {
+    let listing = Command::new("tar")
+        .arg("-tf")
+        .arg(archive)
+        .output()
+        .with_context(|| format!("list release archive {}", archive.display()))?;
+    if !listing.status.success() {
+        bail!(
+            "tar could not list {}: {}",
+            archive.display(),
+            String::from_utf8_lossy(&listing.stderr).trim()
+        );
+    }
+    for member in String::from_utf8_lossy(&listing.stdout).lines() {
+        if !archive_member_path_is_safe(member) {
+            bail!(
+                "release archive {} contains unsafe member path {}",
+                archive.display(),
+                member
+            );
+        }
+    }
+
+    let status = Command::new("tar")
+        .arg("-xf")
+        .arg(archive)
+        .arg("-C")
+        .arg(destination)
+        .status()
+        .with_context(|| format!("extract release archive {}", archive.display()))?;
+    if !status.success() {
+        bail!(
+            "tar could not extract {} with exit code {}",
+            archive.display(),
+            status.code().unwrap_or(-1)
+        );
+    }
+    Ok(())
+}
+
+fn archive_member_path_is_safe(member: &str) -> bool {
+    let path = Path::new(member);
+    !path.is_absolute()
+        && path
+            .components()
+            .all(|component| matches!(component, Component::CurDir | Component::Normal(_)))
+}
+
+fn find_release_binary(root: &Path, requirement: ArtifactRequirement) -> Result<PathBuf> {
+    let binary_name = match requirement {
+        ArtifactRequirement::Any => llm_wiki_exe_name(),
+        ArtifactRequirement::LinuxElf => "llm-wiki",
+    };
+    let mut candidates = Vec::new();
+    collect_release_binary_candidates(root, binary_name, &mut candidates)?;
+    candidates.sort();
+    for candidate in candidates {
+        if ensure_artifact_requirement(&candidate, requirement).is_ok() {
+            return Ok(candidate);
+        }
+    }
+    bail!(
+        "release archive did not contain a usable {binary_name} binary under {}",
+        root.display()
+    )
+}
+
+fn collect_release_binary_candidates(
+    dir: &Path,
+    binary_name: &str,
+    candidates: &mut Vec<PathBuf>,
+) -> Result<()> {
+    for entry in fs::read_dir(dir).with_context(|| format!("read dir {}", dir.display()))? {
+        let entry = entry.with_context(|| format!("read entry in {}", dir.display()))?;
+        let path = entry.path();
+        let metadata = entry
+            .metadata()
+            .with_context(|| format!("stat {}", path.display()))?;
+        if metadata.is_dir() {
+            collect_release_binary_candidates(&path, binary_name, candidates)?;
+        } else if metadata.is_file()
+            && path.file_name().and_then(|name| name.to_str()) == Some(binary_name)
+        {
+            candidates.push(path);
+        }
+    }
+    Ok(())
+}
+
 fn prepare_lane_dir(path: &Path) -> Result<()> {
     if path.exists() {
         fs::remove_dir_all(path)
@@ -893,19 +1088,22 @@ fn absolute_path(path: &Path) -> Result<PathBuf> {
     }
 }
 
-fn ensure_linux_artifact(path: &Path) -> Result<()> {
-    if !path.exists() {
-        return Ok(());
+fn ensure_artifact_requirement(path: &Path, requirement: ArtifactRequirement) -> Result<()> {
+    match requirement {
+        ArtifactRequirement::Any => Ok(()),
+        ArtifactRequirement::LinuxElf => ensure_linux_artifact(path),
     }
+}
+
+fn ensure_linux_artifact(path: &Path) -> Result<()> {
     let bytes = fs::read(path).with_context(|| format!("read {}", path.display()))?;
     if bytes.starts_with(b"\x7fELF") {
-        Ok(())
-    } else {
-        bail!(
-            "linux lane requires an unpacked Linux ELF llm-wiki artifact, got {}",
-            path.display()
-        )
+        return Ok(());
     }
+    bail!(
+        "linux lane requires a Linux ELF llm-wiki artifact, got {}",
+        path.display()
+    )
 }
 
 fn llm_wiki_exe_name() -> &'static str {
@@ -1460,6 +1658,8 @@ struct RunReport {
     finished_at: String,
     artifact_path: PathBuf,
     artifact_sha256: String,
+    package_path: Option<PathBuf>,
+    package_sha256: Option<String>,
     checksum: Option<ChecksumReport>,
     target_triple: String,
     host_os: String,
@@ -1482,6 +1682,8 @@ struct RunReport {
 struct StateManifest<'a> {
     artifact_path: &'a Path,
     artifact_sha256: &'a str,
+    package_path: Option<&'a Path>,
+    package_sha256: Option<&'a str>,
     target_triple: &'a str,
     host_os: &'a str,
     host_arch: &'a str,
@@ -1497,6 +1699,8 @@ impl<'a> StateManifest<'a> {
         Self {
             artifact_path: &report.artifact_path,
             artifact_sha256: &report.artifact_sha256,
+            package_path: report.package_path.as_deref(),
+            package_sha256: report.package_sha256.as_deref(),
             target_triple: &report.target_triple,
             host_os: &report.host_os,
             host_arch: &report.host_arch,
@@ -1586,7 +1790,8 @@ mod tests {
         let output_dir = dir.path().join("reports");
 
         let err = run_smoke(RunArgs {
-            artifact,
+            artifact: Some(artifact),
+            archive: None,
             checksum: Some(checksum),
             target_triple: None,
             output_dir: output_dir.clone(),
@@ -1604,13 +1809,15 @@ mod tests {
     #[test]
     fn state_manifest_serializes_command_and_assertion_data() {
         let report = RunReport {
-            schema_version: 1,
+            schema_version: 2,
             lane: "smoke".to_string(),
             success: true,
             started_at: "2026-05-26T00:00:00Z".to_string(),
             finished_at: "2026-05-26T00:00:01Z".to_string(),
             artifact_path: PathBuf::from("/tmp/llm-wiki"),
             artifact_sha256: "a".repeat(64),
+            package_path: None,
+            package_sha256: None,
             checksum: None,
             target_triple: "aarch64-apple-darwin".to_string(),
             host_os: "macos".to_string(),
@@ -1638,6 +1845,7 @@ mod tests {
 
         let json = serde_json::to_value(StateManifest::from_report(&report)).expect("json");
         assert_eq!(json["artifact_sha256"], "a".repeat(64));
+        assert!(json["package_path"].is_null());
         assert_eq!(json["execution"]["kind"], "host");
         assert_eq!(json["commands"][0]["name"], "version");
         assert_eq!(json["assertions"][0]["passed"], true);
@@ -1652,6 +1860,17 @@ mod tests {
 
         home.cleanup().expect("cleanup");
         assert!(!path.exists());
+    }
+
+    #[test]
+    fn archive_member_safety_rejects_absolute_and_parent_paths() {
+        assert!(archive_member_path_is_safe(
+            "llm-wiki-rs-aarch64-unknown-linux-gnu/llm-wiki"
+        ));
+        assert!(archive_member_path_is_safe("./README.md"));
+        assert!(!archive_member_path_is_safe("../llm-wiki"));
+        assert!(!archive_member_path_is_safe("/tmp/llm-wiki"));
+        assert!(!archive_member_path_is_safe("payload/../../llm-wiki"));
     }
 
     #[cfg(not(windows))]
