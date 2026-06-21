@@ -1,5 +1,294 @@
 # Wiki Log
 
+## [2026-06-20] promote | headroom runtime companion proposal to draft plan
+
+Promoted `wiki/proposals/headroom-runtime-companion.proposal.md` from
+Proposed to Accepted and authored
+`wiki/plans/headroom-runtime-companion.plan.md` as the seven-phase
+tactical plan against the proposal's ten Acceptance Criteria. The plan
+sequences (1) wiki-side documentation foundation — new reference page,
+AGENTS.MD and `templates/base/project_guidelines.md` updates for the
+Read-only access contract and the `headroom_read` ban; (2) the embedded
+profile asset under `assets/headroom/llm-wiki.profile.env`; (3) three
+upstream-pinning fixture tests covering the Headroom proxy CLI,
+`DEFAULT_EXCLUDE_TOOLS`, and the Codex tool names; (4) the
+`llm-wiki install --with-headroom` install flag with the install-time
+Headroom release-pin check against `sources/17`; (5) the minimal
+`llm-wiki doctor` advisory for `ANTHROPIC_BASE_URL=http://127.0.0.1:8787`;
+(6) a conditional dogfood research bundle that promotes a
+`wiki/references/headroom-dogfood-evidence.reference.md` page only if
+measurements warrant it; and (7) decision promotion to
+`wiki/decisions/headroom-runtime-companion.decision.md`.
+
+In-scope and out-of-scope items mirror the proposal exactly: no SDK
+adoption, no Headroom vendoring, no default-bootstrap Headroom, no
+`headroom_stats` capture into framework-owned wiki files. The plan
+identifies `src/install.rs`, `src/doctor.rs`, and `src/embed.rs` as the
+load-bearing implementation touchpoints, plus `src/cli.rs` and
+`src/uninstall.rs` as supporting sites. Each phase has its own
+verification gate; the plan completion criteria require workspace
+tests, clippy, audit-legacy, insta, `git diff --check`, and a clean
+wiki lint pass.
+
+Bookkeeping: proposal Status changed Proposed → Accepted with a
+`Promoted:` line pointing at the plan; the proposal's index summary
+updated to read "Accepted — Promoted to draft implementation plan…";
+new plan added to the Plans section of `wiki/index.md` immediately
+after `Init Rerun Schema Drift`.
+
+Pages affected: wiki/proposals/headroom-runtime-companion.proposal.md,
+wiki/plans/headroom-runtime-companion.plan.md (new),
+wiki/index.md, wiki/log.md.
+
+## [2026-06-20] resolve | headroom runtime companion open questions
+
+Closed the two Open Questions in
+`wiki/proposals/headroom-runtime-companion.proposal.md`.
+
+Q1 (observability signal from proxy back into wiki) was resolved as a
+scope refusal. `headroom_stats` capture into `wiki/log.md` or any other
+framework-owned wiki file is now explicitly out of scope; measurement of
+Headroom's real wins is deferred to a dogfood research bundle under
+`raw/research/`, and only if those measurements justify durable
+documentation does the work promote to a
+`wiki/references/headroom-dogfood-evidence.reference.md` page. The
+rationale recorded in Out Of Scope is that the dependency direction must
+stay one-way: wiki content does not assume Headroom is installed or
+running.
+
+Q2 (doctor advisory on `ANTHROPIC_BASE_URL` pointing at the Headroom
+proxy without the vetted profile sourced) was resolved as a minimal
+detection plus pointer. The new Acceptance Criterion 9 specifies that
+`llm-wiki doctor` emits one advisory line only when `ANTHROPIC_BASE_URL`
+points at the exact documented Mode C address `http://127.0.0.1:8787`,
+references the reference page, and tells the user to source
+`~/.llm_wiki/headroom/llm-wiki.profile.env`. It does not read or validate
+`HEADROOM_*` env vars (a user may set a superset of the vetted profile
+and still be safe; validating would be brittle), does not fail `doctor`,
+and does not require Headroom to be installed. The previous Codex-names
+AC was renumbered from 9 to 10; two cross-references inside the proposal
+were updated to match. The Open Questions section was removed (both items
+now resolved).
+
+Pages affected: wiki/proposals/headroom-runtime-companion.proposal.md,
+wiki/log.md.
+
+## [2026-06-20] revise | headroom runtime companion codex source capture and exclude-list correction
+
+Captured a new raw research bundle at
+`raw/research/2026-06-20-codex-tool-surface/` to evidence the OpenAI Codex
+CLI tool names that `wiki/proposals/headroom-runtime-companion.proposal.md`
+needs in its Part 2 exclude list, then revised the proposal to match what
+the captures actually show. The trigger was a claim-by-claim review of the
+proposal's previous Codex revision (the entry immediately below this one):
+it cited `codex-rs/core/src/openai_tools.rs` — a file that does not exist
+at `openai/codex` `main`-tip on 2026-06-20 — and listed two Codex tool
+names (`shell`, `local_shell`) that could not be located in the actual
+handler files.
+
+The new bundle includes verbatim captures of
+`codex-rs/core/src/tools/handlers/shell_spec.rs`,
+`apply_patch_spec.rs`, the relevant portion of `mod.rs`, and
+`request_permissions.rs`. It also records what was checked and not found
+(`shell` and `local_shell` are absent from `shell_spec.rs`, `shell.rs`,
+`hosted_spec.rs`, `unified_exec.rs`, `registry.rs`, and `function_tool.rs`
+on the capture date) and notes that `local_shell` would be a dead exclude
+entry under the captured Headroom router anyway, because that router only
+extracts the routing key from `tool_call.function.name` and `block.name`
+(`raw/research/2026-06-11-headroom-llm-wiki-comparison/sources/10-headroom-source-content-router.py:1828, :1838`),
+not from OpenAI Responses-API tool `type` fields.
+
+Proposal revisions, in order:
+
+1. Sources list extended with the new raw bundle's manifest, summary, and
+   four captured source files.
+2. New Source Capture paragraph documents the second bundle and the broken
+   `openai_tools.rs` citation it replaces.
+3. Failure-modes Codex paragraph now cites the captured handler files at
+   their upstream line numbers, lists only the verified five Codex function
+   tool names (`shell_command`, `exec_command`, `write_stdin`,
+   `apply_patch`, `request_permissions`), and corrects the skill projection
+   path from `.codex/skills/` to `.codex/<skill>/`.
+4. Part 1's Codex contract paragraph drops the unverified `shell` and
+   `local_shell` mentions and cites the captured Rust files for the
+   remaining Codex tool names.
+5. Part 2's `HEADROOM_EXCLUDE_TOOLS` value drops `shell` and `local_shell`,
+   adds `request_permissions`, and the surrounding comment block explains
+   what was dropped and why (with a forward-compatibility note that the
+   install-time pin in Acceptance Criterion 9 catches future renames).
+6. Part 3's Mode C paragraph rewords to match the new Codex name list.
+7. The Configuration Reference's "Harness-neutral tool naming" bullet now
+   cites the captured Codex sources instead of the broken path.
+8. Acceptance Criterion 9 reshaped: the Codex-name fixture test now pins
+   against the raw captures (catches upstream Codex renames), not only
+   against the bundled profile (which would catch only local edits). The
+   broader install-time Codex verification is named as a follow-up rather
+   than a first-promotion requirement.
+
+The immediately-prior log entry's content stands as the historical record
+of the previous (uncorrected) revision; this entry supersedes it for the
+parts identified above. No design moves beyond what that earlier extension
+intended; substance is unchanged except for the two dropped names and the
+added `request_permissions`.
+
+Pages affected: wiki/proposals/headroom-runtime-companion.proposal.md,
+wiki/log.md, wiki/index.md (date),
+raw/research/2026-06-20-codex-tool-surface/manifest.md (new),
+raw/research/2026-06-20-codex-tool-surface/research-summary.md (new),
+raw/research/2026-06-20-codex-tool-surface/sources/01-codex-handlers-shell-spec.rs (new),
+raw/research/2026-06-20-codex-tool-surface/sources/02-codex-handlers-apply-patch-spec.rs (new),
+raw/research/2026-06-20-codex-tool-surface/sources/03-codex-handlers-mod.rs (new),
+raw/research/2026-06-20-codex-tool-surface/sources/04-codex-handlers-request-permissions.rs (new).
+
+## [2026-06-20] revise | headroom runtime companion Codex tool-name carve-out
+
+Closed a Claude-Code-centric gap in
+`wiki/proposals/headroom-runtime-companion.proposal.md`. The exclude-by-tool-name
+carve-out was written entirely in Claude Code's tool vocabulary (`Read`,
+`Glob`, `Grep`, `Bash`), but the framework ships its search skill identically
+to both harnesses as `llm-wiki search --mode auto --format json` via shell-out
+(`assets/skills/wiki-query/SKILL.md` → `.claude/skills/`, `.codex/skills/`).
+On Claude that rides the excluded `Bash` tool; on the OpenAI Codex CLI it
+rides the unexcluded `shell` tool. Codex also has no native `Read` tool, so
+wiki and raw reads likewise flow through `shell` — meaning the carve-out
+protected none of read, raw, or search on Codex. Codex tool names verified
+against `openai/codex` (`codex-rs/core/src/openai_tools.rs`,
+`tools/handlers/shell_spec.rs`), reviewed 2026-06-20.
+
+Revisions: (1) Observed Problem now notes the failure modes were framed in
+Claude vocabulary and are reachable on Codex through ordinary read/search;
+(2) Part 1 replaces "Codex skills must adopt the same rule" with the real
+asymmetry (no native Read tool → profile-level shell/patch exclusion + Mode
+D/B, MCP migration as the durable harness-independent fix); (3) Part 2 adds
+`shell,local_shell,shell_command,exec_command,write_stdin,apply_patch` to
+`HEADROOM_EXCLUDE_TOOLS` with a note that excluding shell neuters compression
+on Codex broadly; (4) Part 3 documents Mode B as the safest harness-neutral
+opt-in, the Codex caveat on Mode C, and Mode D as the recommended Codex
+default; (5) Configuration Reference adds a "harness-neutral tool naming"
+non-feature; (6) Acceptance Criteria #2 now requires the Codex formulation
+and new #9 pins the Codex names via fixture test. Design move: extends the
+carve-out to a second harness; does not change framework ownership or the
+single-binary invariant.
+
+Pages affected: wiki/proposals/headroom-runtime-companion.proposal.md,
+wiki/log.md.
+
+## [2026-06-20] fix | headroom runtime companion citation off-by-one
+
+Corrected the `sources/03-headroom-docs-architecture.mdx` line cite in the
+Configuration Reference's "What Headroom does not provide" bullet for the
+system-prompts protection. Line 127 of that source is "User messages: Never
+compressed"; the System prompts protection is line 128. The system-prompts
+claim now cites `:128`, and `:127` is noted separately as the independent
+basis for the `HEADROOM_COMPRESS_USER_MESSAGES=0` pin in Part 2. No design
+moves.
+
+Pages affected: wiki/proposals/headroom-runtime-companion.proposal.md,
+wiki/log.md.
+
+## [2026-06-15] clarify | headroom runtime companion proposal follow-up nits
+
+Three clarifications to `wiki/proposals/headroom-runtime-companion.proposal.md`
+after a follow-up review pass: (1) Acceptance Criterion 5 now states that
+`DEFAULT_TOOL_PROFILES` values are intentionally not pinned because the
+captured excerpt represents them as paraphrased placeholders rather than
+verbatim `PROFILE_PRESETS` references; (2) the inline comment on the
+`HEADROOM_TOOL_PROFILES` line in Part 2 now flags `WebFetch:conservative`
+as a deliberate downgrade from the upstream default of `WebFetch:aggressive`
+(`sources/17` DEFAULT_TOOL_PROFILES) for ingest-heavy workloads; (3) the
+Source Capture section now notes that `sources/17` is contemporaneous with
+the proposal date (both 2026-06-15) and is therefore a snapshot, with the
+install-time release pin in Acceptance Criterion 6 carrying the actual
+defense against upstream drift. No design moves; clarifications only.
+
+Pages affected: wiki/proposals/headroom-runtime-companion.proposal.md,
+wiki/log.md.
+
+## [2026-06-15] revise | headroom runtime companion proposal after source-verification review
+
+Revised `wiki/proposals/headroom-runtime-companion.proposal.md` after a
+claim-by-claim cross-check against the captured Headroom sources surfaced ten
+load-bearing inaccuracies in the first draft. The revisions, in order:
+
+1. Captured `sources/17-headroom-config-excerpt.py` to evidence the literal
+   `DEFAULT_EXCLUDE_TOOLS` and `DEFAULT_TOOL_PROFILES` values (the original
+   `raw/` bundle only had circumstantial evidence). The captured set as of
+   `chopratejas/headroom` main-tip on 2026-06-15 is
+   `{Read, Glob, Grep, Write, Edit, Bash}` (plus lowercase variants), which
+   is broader than the earlier "Read/Glob only" assumption.
+2. Documented an upstream consistency bug: `headroom/config.py:210` says
+   "Bash is NOT excluded" but `:211-227` includes `"Bash"` in the literal.
+   Runtime behavior follows the literal. The proposal now defensively
+   re-adds the full default set into `HEADROOM_EXCLUDE_TOOLS` so the
+   framework's guarantee survives upstream reconciling the comment.
+3. Re-targeted failure mode #2 from "JSON contract corruption at `--format
+   json` boundaries consumed by `src/eval.rs`" to "agent reasoning over
+   compressed Bash tool_result." The proxy is an HTTP interceptor between
+   model and agent; it does not sit in the Rust binary's
+   `std::process::Command` path.
+4. Softened failure mode #3 from "silent context hole" to "recoverable
+   stale-retrieval error mid-task," citing the explicit error strings
+   returned at `sources/12:96-107`.
+5. Added a normative `headroom_read` ban for Modes B and C, citing
+   `sources/13:72, :76-78, :557, :758, :850`. Without that ban Part 1's
+   Read-only contract is bypassable via a single env var.
+6. Replaced Mode C "if and only if" with "only if" and promoted pinned-
+   release verification from Open Question to a hard prerequisite (now
+   Acceptance Criterion 6).
+7. Replaced the cosmetic `unset HEADROOM_COMPRESS_USER_MESSAGES` with
+   `export HEADROOM_COMPRESS_USER_MESSAGES=0` and dropped the overstated
+   "pins against upstream flip" framing.
+8. Added a footnote that the 500-token `HEADROOM_MIN_TOKENS` floor is a
+   proxy-layer default and is not load-bearing if the SDK is used directly;
+   SmartCrusher's underlying default is 200 (`sources/11:121`).
+9. Marked Mode D's "observability without compression" claim as documented
+   but not source-verified by the captured bundle, since the per-request
+   handler that invokes the pipeline is not in the bundle.
+10. Recommended Mode D unconditionally for ingest, without dependency on a
+    future lint capability, because it is the only mode robust to future
+    framework-added tools that are not yet on the exclude list.
+
+Also: the framework-owned tool names `llm_wiki_search` and
+`llm_wiki_search_all` were moved from a passing mention to an explicit
+Out-Of-Scope reservation. The "no path-based exclusion" claim was qualified
+as upstream behavior at review-time, not a permanent invariant.
+
+The reviewer's evidence-grade for the original 10 claims was upheld
+end-to-end: every claim was verified against the captured sources before
+edits were applied.
+
+Pages affected: wiki/proposals/headroom-runtime-companion.proposal.md,
+wiki/log.md (this entry),
+raw/research/2026-06-11-headroom-llm-wiki-comparison/manifest.md (added
+sources/17 to the source inventory),
+raw/research/2026-06-11-headroom-llm-wiki-comparison/sources/17-headroom-config-excerpt.py
+(new capture).
+
+## [2026-06-15] create | headroom runtime companion proposal
+
+Created `wiki/proposals/headroom-runtime-companion.proposal.md` from the
+existing `raw/research/2026-06-11-headroom-llm-wiki-comparison/` bundle. The
+proposal makes Headroom an opt-in agent-runtime companion and pins a vetted
+configuration that keeps `wiki/` and `raw/` content out of the compression
+pipeline. Headroom routes by tool name, not by filesystem path, so the carve-
+out is achieved by combining Headroom's existing `DEFAULT_EXCLUDE_TOOLS` (which
+already excludes `Read` and `Glob`, per
+`sources/10-headroom-source-content-router.py:2242`) with a Read-only access
+contract for wiki and raw paths, an extended `HEADROOM_EXCLUDE_TOOLS` list, a
+conservative `HEADROOM_TOOL_PROFILES` bias for `Bash` and `Grep`, a 7200-second
+`HEADROOM_CCR_TTL_SECONDS`, and a recommended `HEADROOM_OPTIMIZE=false`
+passthrough mode for `wiki-ingest` sessions. The proposal explicitly refuses
+adopting the Headroom TypeScript or Python SDK so the single-binary
+distribution invariant from `wiki/decisions/llm-wiki-binary-distribution.decision.md`
+and `wiki/decisions/binary-path-bootstrap.decision.md` holds.
+
+The supporting `wiki/references/headroom-context-compression.reference.md`
+described in the research summary follow-up is named as a completion criterion
+for the future plan but is not authored by this ingest pass.
+
+Pages affected: wiki/proposals/headroom-runtime-companion.proposal.md,
+wiki/index.md, wiki/log.md.
+
 ## [2026-06-04] create | cross-platform release E2E roadmap
 
 Created `wiki/roadmaps/cross-platform-release-e2e.roadmap.md` to fix the
@@ -3932,8 +4221,20 @@ qmd-rs/search parity, Windows CI and release-smoke proof gates, documentation
 requirements, out-of-scope items, and promotion into a post-V1 roadmap item if
 accepted.
 
-Pages updated: wiki/proposals/full-windows-support.proposal.md,
-wiki/index.md, wiki/log.md
+ Pages updated: wiki/proposals/full-windows-support.proposal.md,
+ wiki/index.md, wiki/log.md
+
+## [2026-06-21] lint | headroom runtime companion plan
+
+Reworked the draft Headroom Runtime Companion plan after deep review. Tightened Codex Mode C claims into a Mode D/B recommendation, made managed profile paths platform-aware, required explicit non-skill managed-asset manifest handling, distinguished `headroom-ai` 0.24.0 package/source-surface pinning from a release-tarball claim, specified no-Headroom regression tests, clarified `doctor` advisory and parseable-output behavior, added uninstall flag conflicts, strengthened fixture hash drift checks, made dogfood measurement thresholds explicit, and removed stale proposal re-acceptance bookkeeping.
+
+Pages updated: wiki/plans/headroom-runtime-companion.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-06-21] update | headroom runtime companion container E2E gate
+
+Added a gated containerized Headroom proxy E2E phase to the draft plan. The new phase requires a minimal Linux container with `headroom-ai==0.24.0`, isolated `llm-wiki install --with-headroom`, sourced materialized profile, real `headroom proxy` startup, synthetic proxy smoke that captures `headroom_stats`, exact-once `doctor` advisory assertion, captured package/profile/container metadata, and default-test isolation from Docker, Python packaging, and network dependencies.
+
+Pages updated: wiki/plans/headroom-runtime-companion.plan.md, wiki/index.md, wiki/log.md
 
 ## [2026-05-23] update | sandbox-safe search promotion retry hardening
 
