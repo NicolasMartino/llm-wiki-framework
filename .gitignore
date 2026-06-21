@@ -4,3 +4,4 @@
 # and .codex/skills are committed intentionally.
 /.claude/settings.local.json
 /.codex/settings.local.json
+/.serena/
