@@ -14,6 +14,7 @@ fn llm_wiki(home: &Path) -> Command {
     command
         .env("HOME", home)
         .env_remove("RUST_LOG")
+        .env_remove("LLM_WIKI_GGUF_RUNTIME")
         .env_remove("XDG_CACHE_HOME")
         .env_remove("XDG_DATA_HOME");
     command
@@ -65,7 +66,7 @@ fn search_refuses_missing_index() {
         .args(["search", "reciprocal rank", "--project", "fixture"])
         .assert()
         .failure()
-        .stderr(predicate::str::contains("search index missing"))
+        .stderr(predicate::str::contains("index_missing"))
         .stderr(predicate::str::contains("llm-wiki index --project fixture"));
 }
 
@@ -109,12 +110,94 @@ fn search_all_refuses_missing_project_root() {
         .success();
     fs::remove_dir_all(&beta).expect("remove beta root");
 
+    let output = llm_wiki(home.path())
+        .args(["search-all", "shared retrieval token", "--format", "json"])
+        .output()
+        .expect("search-all output");
+    assert!(output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("search-all json");
+    let warnings = json["warnings"].as_array().expect("warnings");
+    assert!(warnings.iter().any(|warning| {
+        warning["project_id"] == "beta"
+            && warning["message"]
+                .as_str()
+                .is_some_and(|message| message.contains("project root missing for beta"))
+            && warning["message"]
+                .as_str()
+                .is_some_and(|message| message.contains("llm-wiki forget beta"))
+    }));
+    assert!(
+        json["results"]
+            .as_array()
+            .expect("results")
+            .iter()
+            .any(|result| result["project_id"] == "alpha")
+    );
+    let beta_report = json["projects"]
+        .as_array()
+        .expect("project reports")
+        .iter()
+        .find(|report| report["project_id"] == "beta")
+        .expect("beta report");
+    assert_eq!(beta_report["readiness_reason"], "project_root_missing");
+    assert_eq!(beta_report["result_count"], 0);
+}
+
+#[test]
+fn search_all_reports_missing_wiki_root_per_project() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let alpha = fixture_project_with_decision(
+        workspace.path(),
+        "Alpha Project",
+        "Alpha Decision",
+        "Shared retrieval token appears in alpha project.",
+    );
+    let beta = fixture_project_with_decision(
+        workspace.path(),
+        "Beta Project",
+        "Beta Decision",
+        "Shared retrieval token appears in beta project.",
+    );
+    register_project_with_id(home.path(), &alpha, "alpha");
+    register_project_with_id(home.path(), &beta, "beta");
     llm_wiki(home.path())
-        .args(["search-all", "shared retrieval token"])
+        .args(["index-all", "--force"])
         .assert()
-        .failure()
-        .stderr(predicate::str::contains("project root missing for beta"))
-        .stderr(predicate::str::contains("llm-wiki forget beta"));
+        .success();
+    fs::remove_dir_all(beta.join("wiki")).expect("remove beta wiki root");
+
+    let output = llm_wiki(home.path())
+        .args(["search-all", "shared retrieval token", "--format", "json"])
+        .output()
+        .expect("search-all output");
+    assert!(output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("search-all json");
+    let warnings = json["warnings"].as_array().expect("warnings");
+    assert!(warnings.iter().any(|warning| {
+        warning["project_id"] == "beta"
+            && warning["message"]
+                .as_str()
+                .is_some_and(|message| message.contains("wiki root missing for beta"))
+            && warning["message"]
+                .as_str()
+                .is_some_and(|message| message.contains("llm-wiki forget beta"))
+    }));
+    assert!(
+        json["results"]
+            .as_array()
+            .expect("results")
+            .iter()
+            .any(|result| result["project_id"] == "alpha")
+    );
+    let beta_report = json["projects"]
+        .as_array()
+        .expect("project reports")
+        .iter()
+        .find(|report| report["project_id"] == "beta")
+        .expect("beta report");
+    assert_eq!(beta_report["readiness_reason"], "wiki_root_missing");
+    assert_eq!(beta_report["result_count"], 0);
 }
 
 #[test]
@@ -150,6 +233,72 @@ fn index_and_search_registered_project_with_filters() {
             "\"path\": \"wiki/decisions/search.decision.md\"",
         ))
         .stdout(predicate::str::contains("\"freshness\": \"fresh\""));
+}
+
+#[cfg(unix)]
+#[test]
+fn index_does_not_follow_symlinks_escaping_the_wiki_root() {
+    use std::os::unix::fs::symlink;
+
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+
+    // Secret markdown that lives OUTSIDE the project's wiki/ tree.
+    let outside = workspace.path().join("outside");
+    fs::create_dir_all(&outside).expect("outside dir");
+    fs::write(
+        outside.join("secret.md"),
+        "# Secret\n\n- Document Class: Decision\n- Status: Accepted\n\n## Secret\nescapedsecrettoken must never be indexed.",
+    )
+    .expect("secret");
+
+    // Both a symlinked file and a symlinked directory inside wiki/ that resolve
+    // outside the wiki root. The indexer must refuse to follow either.
+    symlink(
+        outside.join("secret.md"),
+        project.join("wiki/decisions/leak.decision.md"),
+    )
+    .expect("file symlink");
+    symlink(&outside, project.join("wiki/leaked")).expect("dir symlink");
+
+    // Indexing succeeds — escaping symlinks are skipped, not fatal.
+    llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    // The escaped content is not searchable: neither the symlinked file nor the
+    // symlinked directory's target may appear in results.
+    llm_wiki(home.path())
+        .args([
+            "search",
+            "escapedsecrettoken",
+            "--project",
+            "fixture",
+            "--format",
+            "json",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("leak.decision.md").not())
+        .stdout(predicate::str::contains("leaked").not())
+        .stdout(predicate::str::contains("secret.md").not());
+
+    // Positive control: genuine in-wiki content is still indexed and searchable.
+    llm_wiki(home.path())
+        .args([
+            "search",
+            "reciprocal rank fusion",
+            "--project",
+            "fixture",
+            "--format",
+            "json",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("search.decision.md"));
 }
 
 #[test]
@@ -435,7 +584,63 @@ fn enabled_profile_without_thresholds_fails_closed() {
         .expect("search output");
     assert!(!output.status.success());
     let json: Value = serde_json::from_slice(&output.stdout).expect("readiness json");
-    assert_eq!(json["readiness_reason"], "thresholds_unconfigured");
+    assert_eq!(json["readiness_reason"], "semantic_index_missing");
+}
+
+#[test]
+fn auto_mode_uses_hybrid_defaults_when_thresholds_unconfigured() {
+    // Fresh projects no longer need hand-authored calibration before hybrid can
+    // run. Built-in defaults should make a freshly indexed project searchable.
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project_with_decision(
+        workspace.path(),
+        "Fixture Project",
+        "Battery Decision",
+        "Battery chemistry roadmap retrieval belongs in semantic search.",
+    );
+    register_project(home.path(), &project);
+    write_enabled_search_profile_with_fake_artifacts(home.path());
+    // Intentionally NO write_search_thresholds: the project stays uncalibrated.
+
+    llm_wiki(home.path())
+        .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let output = llm_wiki(home.path())
+        .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+        .env("LLM_WIKI_TEST_QUERY_EXPANSION", "deterministic")
+        .args([
+            "search",
+            "battery roadmap",
+            "--project",
+            "fixture",
+            "--mode",
+            "auto",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("search output");
+
+    assert!(
+        output.status.success(),
+        "auto must not hard-fail on uncalibrated thresholds"
+    );
+    let json: Value = serde_json::from_slice(&output.stdout).expect("search json");
+    assert_eq!(json["selected_mode"], "hybrid");
+    assert_eq!(json["mode_selection_reason"], "enabled_profile");
+    assert_eq!(json["thresholds_source"], "default");
+    assert!(json["fallback_reason"].is_null());
+    assert!(json["readiness_reason"].is_null());
+    assert!(
+        json["results"]
+            .as_array()
+            .is_some_and(|results| !results.is_empty()),
+        "default-threshold hybrid search should return results"
+    );
 }
 
 #[test]
@@ -546,6 +751,79 @@ fn semantic_mode_uses_vector_index_when_thresholds_are_configured() {
     assert_eq!(result["mode"], "semantic");
     assert_eq!(result["backend"], "qmd-rs-semantic");
     assert_eq!(result["path"], "wiki/decisions/search.decision.md");
+}
+
+#[test]
+fn semantic_runtime_failure_returns_parseable_json() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project_with_decision(
+        workspace.path(),
+        "Fixture Project",
+        "Battery Decision",
+        "Battery chemistry roadmap retrieval belongs in semantic search.",
+    );
+    register_project(home.path(), &project);
+    write_enabled_search_profile_with_fake_artifacts(home.path());
+    write_search_thresholds(home.path());
+
+    llm_wiki(home.path())
+        .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let output = llm_wiki(home.path())
+        .env(
+            "LLM_WIKI_TEST_GGUF_RUNTIME_FAILURE",
+            "embedding:context_create",
+        )
+        .args([
+            "search",
+            "battery roadmap",
+            "--project",
+            "fixture",
+            "--mode",
+            "semantic",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("search output");
+
+    assert!(!output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("runtime failure json");
+    assert_eq!(json["selected_mode"], "semantic");
+    assert_eq!(json["readiness_reason"], "runtime_backend_unavailable");
+    assert_eq!(json["runtime_failure_stage"], "context_create");
+    assert_eq!(json["runtime_error_kind"], "backend_unavailable");
+    assert_eq!(json["backend_status"]["state"], "ready");
+
+    let forced_cpu_output = llm_wiki(home.path())
+        .env("LLM_WIKI_GGUF_RUNTIME", "cpu")
+        .env(
+            "LLM_WIKI_TEST_GGUF_RUNTIME_FAILURE",
+            "embedding:context_create",
+        )
+        .args([
+            "search",
+            "battery roadmap",
+            "--project",
+            "fixture",
+            "--mode",
+            "semantic",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("forced cpu search output");
+
+    assert!(!forced_cpu_output.status.success());
+    let forced_cpu_json: Value =
+        serde_json::from_slice(&forced_cpu_output.stdout).expect("forced cpu runtime failure json");
+    assert_eq!(forced_cpu_json["runtime_backend_requested"], "cpu");
+    assert!(forced_cpu_json["runtime_backend_used"].is_null());
+    assert_eq!(forced_cpu_json["runtime_backend_fallback"], false);
 }
 
 #[test]
@@ -674,6 +952,176 @@ fn hybrid_mode_fuses_lexical_and_semantic_results() {
     assert!(result["lexical_score"].as_f64().is_some());
     assert!(result["semantic_rank"].as_u64().is_some());
     assert!(result["semantic_score"].as_f64().is_some());
+}
+
+#[test]
+fn hybrid_runtime_failure_returns_parseable_json() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project_with_decision(
+        workspace.path(),
+        "Fixture Project",
+        "Battery Decision",
+        "Battery chemistry roadmap",
+    );
+    register_project(home.path(), &project);
+    write_enabled_search_profile_with_fake_artifacts(home.path());
+    write_search_thresholds(home.path());
+
+    llm_wiki(home.path())
+        .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let output = llm_wiki(home.path())
+        .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+        .env(
+            "LLM_WIKI_TEST_GGUF_RUNTIME_FAILURE",
+            "query_expansion:context_create",
+        )
+        .args([
+            "search",
+            "battery roadmap",
+            "--project",
+            "fixture",
+            "--mode",
+            "hybrid",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("search output");
+
+    assert!(!output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("runtime failure json");
+    assert_eq!(json["requested_mode"], "hybrid");
+    assert_eq!(json["selected_mode"], "hybrid");
+    assert_eq!(json["readiness_reason"], "runtime_backend_unavailable");
+    assert_eq!(json["runtime_backend_requested"], "auto");
+    assert!(json["runtime_backend_used"].is_null());
+    assert_eq!(json["runtime_backend_fallback"], false);
+    assert_eq!(json["runtime_failure_stage"], "context_create");
+    assert_eq!(json["runtime_error_kind"], "backend_unavailable");
+    assert_eq!(json["backend_status"]["state"], "ready");
+}
+
+#[test]
+fn compact_search_json_returns_essential_paged_hits() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+
+    llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let output = llm_wiki(home.path())
+        .args([
+            "search",
+            "reciprocal rank fusion",
+            "--project",
+            "fixture",
+            "--format",
+            "json",
+            "--compact",
+            "--page-size",
+            "1",
+        ])
+        .output()
+        .expect("compact search output");
+    assert!(output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("compact search json");
+    assert_eq!(json["project_id"], "fixture");
+    assert_eq!(json["result_count"], 1);
+    assert_eq!(json["offset"], 0);
+    assert_eq!(json["page_size"], 1);
+    assert!(json["next_offset"].is_null());
+
+    let results = json["results"].as_array().expect("results");
+    assert_eq!(results.len(), 1);
+    let hit = &results[0];
+    assert_eq!(hit["title"], "Search Decision");
+    assert!(hit.get("snippet").is_none());
+    assert!(hit.get("backend").is_none());
+    assert!(hit.get("freshness").is_none());
+}
+
+#[test]
+fn compact_search_all_json_pages_fused_hits_and_reports_projects() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let alpha = fixture_project_with_decision(
+        workspace.path(),
+        "Alpha Project",
+        "Alpha Decision",
+        "Shared retrieval token appears in alpha project.",
+    );
+    let beta = fixture_project_with_decision(
+        workspace.path(),
+        "Beta Project",
+        "Beta Decision",
+        "Shared retrieval token appears in beta project.",
+    );
+    register_project_with_id(home.path(), &alpha, "alpha");
+    register_project_with_id(home.path(), &beta, "beta");
+
+    llm_wiki(home.path())
+        .args(["index-all", "--force"])
+        .assert()
+        .success();
+
+    let output = llm_wiki(home.path())
+        .args([
+            "search-all",
+            "shared retrieval token",
+            "--format",
+            "json",
+            "--compact",
+            "--page-size",
+            "1",
+        ])
+        .output()
+        .expect("compact search-all output");
+    assert!(output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("compact search-all json");
+    assert_eq!(json["result_count"], 2);
+    assert_eq!(json["offset"], 0);
+    assert_eq!(json["page_size"], 1);
+    assert_eq!(json["next_offset"], 1);
+    assert_eq!(json["results"].as_array().expect("results").len(), 1);
+    assert_eq!(json["projects"].as_array().expect("projects").len(), 2);
+    assert!(json["results"][0].get("snippet").is_none());
+    assert!(json["results"][0].get("backend").is_none());
+
+    let second = llm_wiki(home.path())
+        .args([
+            "search-all",
+            "shared retrieval token",
+            "--format",
+            "json",
+            "--compact",
+            "--page-size",
+            "1",
+            "--offset",
+            "1",
+        ])
+        .output()
+        .expect("compact search-all second page");
+    assert!(second.status.success());
+    let second_json: Value =
+        serde_json::from_slice(&second.stdout).expect("compact search-all page json");
+    assert_eq!(second_json["offset"], 1);
+    assert!(second_json["next_offset"].is_null());
+    assert_eq!(
+        second_json["results"]
+            .as_array()
+            .expect("second results")
+            .len(),
+        1
+    );
 }
 
 #[test]
@@ -1047,6 +1495,168 @@ fn search_all_reports_per_project_readiness_and_skips_unready_projects() {
 }
 
 #[test]
+fn search_all_lexical_reports_missing_index_per_project() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let alpha = fixture_project_with_decision(
+        workspace.path(),
+        "Alpha Project",
+        "Alpha Decision",
+        "Battery roadmap shared token appears in alpha project.",
+    );
+    let beta = fixture_project_with_decision(
+        workspace.path(),
+        "Beta Project",
+        "Beta Decision",
+        "Battery roadmap shared token appears in beta project.",
+    );
+    register_project_with_id(home.path(), &alpha, "alpha");
+    register_project_with_id(home.path(), &beta, "beta");
+
+    llm_wiki(home.path())
+        .args(["index", "--project", "alpha", "--force"])
+        .assert()
+        .success();
+
+    let output = llm_wiki(home.path())
+        .args([
+            "search-all",
+            "battery roadmap",
+            "--mode",
+            "lexical",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("search-all output");
+    assert!(output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("search-all json");
+    assert_eq!(json["selected_mode"], "lexical");
+    assert_eq!(
+        json["results"][0]["project_id"],
+        Value::String("alpha".to_string())
+    );
+
+    let projects = json["projects"].as_array().expect("project reports");
+    let beta_report = projects
+        .iter()
+        .find(|report| report["project_id"] == "beta")
+        .expect("beta report");
+    assert_eq!(beta_report["selected_mode"], "lexical");
+    assert_eq!(beta_report["readiness_reason"], "index_missing");
+    assert_eq!(beta_report["backend_status"]["state"], "missing");
+    assert_eq!(beta_report["result_count"], 0);
+}
+
+#[test]
+fn search_all_runtime_failure_reports_per_project_json() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let alpha = fixture_project_with_decision(
+        workspace.path(),
+        "Alpha Project",
+        "Alpha Decision",
+        "Battery roadmap shared token appears in alpha project.",
+    );
+    let beta = fixture_project_with_decision(
+        workspace.path(),
+        "Beta Project",
+        "Beta Decision",
+        "Battery roadmap shared token appears in beta project.",
+    );
+    register_project_with_id(home.path(), &alpha, "alpha");
+    register_project_with_id(home.path(), &beta, "beta");
+    write_enabled_search_profile_with_fake_artifacts(home.path());
+    write_search_thresholds(home.path());
+
+    llm_wiki(home.path())
+        .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+        .args(["index-all", "--force"])
+        .assert()
+        .success();
+
+    let output = llm_wiki(home.path())
+        .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+        .env(
+            "LLM_WIKI_TEST_GGUF_RUNTIME_FAILURE",
+            "query_expansion:context_create",
+        )
+        .args([
+            "search-all",
+            "battery roadmap",
+            "--mode",
+            "hybrid",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("search-all output");
+
+    assert!(output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("runtime failure json");
+    assert_eq!(json["readiness_reason"], "runtime_backend_unavailable");
+    assert_eq!(json["runtime_backend_requested"], "auto");
+    assert!(json["runtime_backend_used"].is_null());
+    assert_eq!(json["runtime_backend_fallback"], false);
+    assert_eq!(json["runtime_failure_stage"], "context_create");
+    assert_eq!(json["runtime_error_kind"], "backend_unavailable");
+    assert!(json["results"].as_array().expect("results").is_empty());
+
+    let projects = json["projects"].as_array().expect("project reports");
+    for project_id in ["alpha", "beta"] {
+        let report = projects
+            .iter()
+            .find(|report| report["project_id"] == project_id)
+            .expect("project report");
+        assert_eq!(report["selected_mode"], "hybrid");
+        assert_eq!(report["readiness_reason"], "runtime_backend_unavailable");
+        assert_eq!(report["runtime_backend_requested"], "auto");
+        assert!(report["runtime_backend_used"].is_null());
+        assert_eq!(report["runtime_backend_fallback"], false);
+        assert_eq!(report["runtime_failure_stage"], "context_create");
+        assert_eq!(report["runtime_error_kind"], "backend_unavailable");
+        assert_eq!(report["backend_status"]["state"], "ready");
+    }
+
+    let forced_cpu_output = llm_wiki(home.path())
+        .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+        .env("LLM_WIKI_GGUF_RUNTIME", "cpu")
+        .env(
+            "LLM_WIKI_TEST_GGUF_RUNTIME_FAILURE",
+            "query_expansion:context_create",
+        )
+        .args([
+            "search-all",
+            "battery roadmap",
+            "--mode",
+            "hybrid",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("forced cpu search-all output");
+
+    assert!(forced_cpu_output.status.success());
+    let forced_cpu_json: Value = serde_json::from_slice(&forced_cpu_output.stdout)
+        .expect("forced cpu search-all runtime failure json");
+    assert_eq!(forced_cpu_json["runtime_backend_requested"], "cpu");
+    assert!(forced_cpu_json["runtime_backend_used"].is_null());
+    assert_eq!(forced_cpu_json["runtime_backend_fallback"], false);
+    let forced_cpu_projects = forced_cpu_json["projects"]
+        .as_array()
+        .expect("forced cpu project reports");
+    for project_id in ["alpha", "beta"] {
+        let report = forced_cpu_projects
+            .iter()
+            .find(|report| report["project_id"] == project_id)
+            .expect("forced cpu project report");
+        assert_eq!(report["runtime_backend_requested"], "cpu");
+        assert!(report["runtime_backend_used"].is_null());
+        assert_eq!(report["runtime_backend_fallback"], false);
+    }
+}
+
+#[test]
 fn verbose_search_all_reports_project_diagnostics() {
     let home = TempDir::new().expect("home");
     let workspace = TempDir::new().expect("workspace");
@@ -1159,6 +1769,8 @@ fn search_json_envelope_has_all_contract_fields() {
     assert_eq!(json["project_name"], "fixture");
     assert_eq!(json["requested_mode"], "auto");
     assert_eq!(json["selected_mode"], "lexical");
+    assert_eq!(json["backend_status"]["state"], "ready");
+    assert_eq!(json["backend_status"]["open_mode"], "read_only_immutable");
     assert!(json.get("warning").is_some());
     assert!(json.get("warnings").is_some());
     assert!(json.get("projects").is_some());
@@ -1186,6 +1798,148 @@ fn search_json_envelope_has_all_contract_fields() {
     ] {
         assert!(result.get(field).is_some(), "missing result field {field}");
     }
+}
+
+#[cfg(unix)]
+#[test]
+fn search_json_reports_permission_denied_without_force_reindex_guidance() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+
+    llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let store = home.path().join(".llm_wiki/indexes/fixture/qmd-rs.sqlite");
+    let original = fs::metadata(&store).expect("metadata").permissions();
+    let mut unreadable = original.clone();
+    unreadable.set_mode(0o000);
+    fs::set_permissions(&store, unreadable).expect("chmod unreadable");
+
+    let output = llm_wiki(home.path())
+        .args([
+            "search",
+            "reciprocal rank fusion",
+            "--project",
+            "fixture",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("search output");
+    fs::set_permissions(&store, original).expect("restore permissions");
+
+    assert!(!output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("permission json");
+    assert_eq!(json["readiness_reason"], "permission_denied");
+    assert_eq!(json["backend_status"]["state"], "permission_denied");
+    assert_eq!(json["backend_status"]["open_mode"], "read_only_immutable");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("grant read access"));
+    assert!(!stderr.contains("--force"));
+}
+
+#[test]
+fn search_json_reports_transient_backend_status() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+
+    llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+    fs::remove_file(
+        home.path()
+            .join(".llm_wiki/indexes/fixture/qmd-rs.llm-wiki.json"),
+    )
+    .expect("remove metadata");
+
+    let output = llm_wiki(home.path())
+        .args([
+            "search",
+            "reciprocal rank fusion",
+            "--project",
+            "fixture",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("search output");
+
+    assert!(!output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("transient json");
+    assert_eq!(json["readiness_reason"], "transient");
+    assert_eq!(json["backend_status"]["state"], "transient");
+    assert_eq!(json["backend_status"]["open_mode"], "not_opened");
+}
+
+#[cfg(unix)]
+#[test]
+fn search_all_json_keeps_ready_results_with_one_inaccessible_project() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let alpha = fixture_project_with_decision(
+        workspace.path(),
+        "Alpha Project",
+        "Alpha Decision",
+        "Shared retrieval token appears in alpha project.",
+    );
+    let beta = fixture_project_with_decision(
+        workspace.path(),
+        "Beta Project",
+        "Beta Decision",
+        "Shared retrieval token appears in beta project.",
+    );
+    register_project_with_id(home.path(), &alpha, "alpha");
+    register_project_with_id(home.path(), &beta, "beta");
+
+    llm_wiki(home.path())
+        .args(["index-all", "--force"])
+        .assert()
+        .success();
+
+    let beta_store = home.path().join(".llm_wiki/indexes/beta/qmd-rs.sqlite");
+    let original = fs::metadata(&beta_store).expect("metadata").permissions();
+    let mut unreadable = original.clone();
+    unreadable.set_mode(0o000);
+    fs::set_permissions(&beta_store, unreadable).expect("chmod unreadable");
+
+    let output = llm_wiki(home.path())
+        .args(["search-all", "shared retrieval token", "--format", "json"])
+        .output()
+        .expect("search-all output");
+    fs::set_permissions(&beta_store, original).expect("restore permissions");
+
+    assert!(output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("search-all json");
+    assert!(
+        json["results"]
+            .as_array()
+            .expect("results")
+            .iter()
+            .any(|result| result["project_id"] == "alpha")
+    );
+    let beta_report = json["projects"]
+        .as_array()
+        .expect("project reports")
+        .iter()
+        .find(|report| report["project_id"] == "beta")
+        .expect("beta report");
+    assert_eq!(beta_report["readiness_reason"], "permission_denied");
+    assert_eq!(beta_report["backend_status"]["state"], "permission_denied");
+    assert_eq!(
+        beta_report["backend_status"]["open_mode"],
+        "read_only_immutable"
+    );
 }
 
 #[test]

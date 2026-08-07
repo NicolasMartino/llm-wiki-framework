@@ -1380,20 +1380,21 @@ dependencies = [
 
 [[package]]
 name = "llm-wiki-rs"
-version = "0.2.0"
+version = "0.2.15"
 dependencies = [
  "anyhow",
  "askama",
  "assert_cmd",
  "chrono",
  "clap",
+ "dirs",
  "inquire",
  "insta",
- "llm-wiki-schema",
  "predicates",
  "proptest",
  "qmd",
  "reqwest",
+ "rusqlite",
  "serde",
  "serde_json",
  "sha2",
@@ -1401,17 +1402,6 @@ dependencies = [
  "toml",
  "tracing",
  "tracing-subscriber",
-]
-
-[[package]]
-name = "llm-wiki-schema"
-version = "0.2.0"
-dependencies = [
- "askama",
- "insta",
- "serde",
- "serde_yaml",
- "thiserror",
 ]
 
 [[package]]
@@ -1668,8 +1658,6 @@ dependencies = [
 [[package]]
 name = "qmd"
 version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "63b71274916ea005f0ded217d8e53a984af65735fe0af157df91329f57c08467"
 dependencies = [
  "anyhow",
  "chrono",

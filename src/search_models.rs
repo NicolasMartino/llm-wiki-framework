@@ -357,6 +357,59 @@ impl SearchThresholds {
         }
     }
 
+    pub fn default_for_model(
+        profile: impl Into<String>,
+        embedding_model: impl Into<String>,
+        embedding_artifact_sha256: impl Into<String>,
+        embedding_dimensions: usize,
+        chunking_strategy: impl Into<String>,
+    ) -> Option<Self> {
+        let embedding_model = embedding_model.into();
+        let model = model_by_id(&embedding_model)?;
+        if model.dimensions != Some(embedding_dimensions) {
+            return None;
+        }
+
+        let (
+            semantic_similarity_floor,
+            hybrid_pre_fusion_semantic_floor,
+            hybrid_final_semantic_floor,
+            hybrid_semantic_only_floor,
+            hybrid_strong_lexical_score_floor,
+            reranker_probability_floor,
+        ) = match embedding_model.as_str() {
+            "embeddinggemma-300m-q8_0" => (
+                0.0,
+                0.0,
+                default_hybrid_final_semantic_floor(),
+                default_hybrid_semantic_only_floor(),
+                default_hybrid_strong_lexical_score_floor(),
+                0.50,
+            ),
+            _ => return None,
+        };
+
+        Some(Self {
+            schema_version: SEARCH_THRESHOLDS_SCHEMA_VERSION,
+            updated_at: timestamp(),
+            project_id: None,
+            profile: profile.into(),
+            semantic_similarity_floor,
+            hybrid_pre_fusion_semantic_floor,
+            hybrid_final_semantic_floor,
+            hybrid_semantic_only_floor,
+            hybrid_strong_lexical_score_floor,
+            reranker_probability_floor,
+            lexical_exact_identifier_guard: "preserve_lexical_top_3".to_string(),
+            qmd_rs_version: QMD_RS_VERSION.to_string(),
+            adapter_schema_version: ADAPTER_SCHEMA_VERSION,
+            chunking_strategy: chunking_strategy.into(),
+            embedding_model,
+            embedding_artifact_sha256: embedding_artifact_sha256.into(),
+            embedding_dimensions,
+        })
+    }
+
     pub fn measurement(
         profile: impl Into<String>,
         embedding_model: impl Into<String>,
@@ -502,20 +555,6 @@ pub fn model_by_id(id: &str) -> Option<SearchModel> {
     MODEL_CATALOG.iter().copied().find(|model| model.id == id)
 }
 
-pub fn models_for_profile(
-    profile: ProfileBundle,
-    include_reranker: bool,
-) -> Result<Vec<SearchModel>> {
-    let mut models = vec![
-        required_model(profile.embedding_model)?,
-        required_model(profile.query_expansion_model)?,
-    ];
-    if include_reranker && let Some(reranker_model) = profile.reranker_model {
-        models.push(required_model(reranker_model)?);
-    }
-    Ok(models)
-}
-
 pub fn materialize_model(
     model: SearchModel,
     profile: ProfileBundle,
@@ -598,10 +637,6 @@ fn download_and_verify_model(
     })
 }
 
-fn required_model(id: &str) -> Result<SearchModel> {
-    model_by_id(id).with_context(|| format!("unknown search model id {id}"))
-}
-
 fn artifact_record(
     model: SearchModel,
     profile: ProfileBundle,
@@ -633,6 +668,29 @@ fn artifact_record(
 }
 
 fn download_model(model: SearchModel, destination: &Path) -> Result<()> {
+    // Retry transient download failures a bounded number of times. Each attempt is
+    // a clean retry-from-zero (no resume-from-offset); the temp-file + atomic
+    // persist below keep partial downloads from leaking, and SHA-256 verification
+    // at the call site still guards integrity.
+    const MAX_ATTEMPTS: u32 = 3;
+    let mut attempt = 1;
+    loop {
+        match download_model_once(model, destination) {
+            Ok(()) => return Ok(()),
+            Err(err) if attempt < MAX_ATTEMPTS => {
+                eprintln!(
+                    "warning: model download attempt {attempt}/{MAX_ATTEMPTS} for {} failed: {err:#}; retrying",
+                    model.id
+                );
+                std::thread::sleep(Duration::from_secs(u64::from(attempt)));
+                attempt += 1;
+            }
+            Err(err) => return Err(err),
+        }
+    }
+}
+
+fn download_model_once(model: SearchModel, destination: &Path) -> Result<()> {
     let parent = destination.parent().with_context(|| {
         format!(
             "model artifact path has no parent: {}",
@@ -844,6 +902,27 @@ mod tests {
     }
 
     #[test]
+    fn materialize_rejects_downloader_that_writes_wrong_bytes() {
+        let temp = TempDir::new().expect("tempdir");
+
+        let error = materialize_model_with_downloader(
+            FIXTURE_MODEL,
+            FIXTURE_PROFILE,
+            temp.path(),
+            false,
+            |_, destination| {
+                fs::create_dir_all(destination.parent().expect("destination parent"))
+                    .expect("destination parent");
+                fs::write(destination, BAD_MODEL_BYTES).expect("bad download");
+                Ok(())
+            },
+        )
+        .expect_err("bad download hash should fail");
+
+        assert!(format!("{error:#}").contains("downloaded model artifact hash mismatch"));
+    }
+
+    #[test]
     fn materialize_force_replaces_hash_mismatch_only() {
         let temp = TempDir::new().expect("tempdir");
         let path = FIXTURE_MODEL.managed_path(temp.path());
@@ -882,6 +961,25 @@ mod tests {
 
         assert_eq!(thresholds.semantic_similarity_floor, 0.328);
         assert_eq!(thresholds.hybrid_pre_fusion_semantic_floor, 0.027);
+        assert_eq!(thresholds.hybrid_final_semantic_floor, 0.39);
+        assert_eq!(thresholds.hybrid_semantic_only_floor, 0.50);
+        assert_eq!(thresholds.hybrid_strong_lexical_score_floor, 10.0);
+        assert_eq!(thresholds.reranker_probability_floor, 0.50);
+    }
+
+    #[test]
+    fn default_thresholds_keep_hybrid_floor_gates() {
+        let thresholds = SearchThresholds::default_for_model(
+            "balanced",
+            EMBEDDING_GEMMA_300M.id,
+            "artifact-sha",
+            768,
+            "qmd-rs-character-v1:3200:480",
+        )
+        .expect("default thresholds");
+
+        assert_eq!(thresholds.semantic_similarity_floor, 0.0);
+        assert_eq!(thresholds.hybrid_pre_fusion_semantic_floor, 0.0);
         assert_eq!(thresholds.hybrid_final_semantic_floor, 0.39);
         assert_eq!(thresholds.hybrid_semantic_only_floor, 0.50);
         assert_eq!(thresholds.hybrid_strong_lexical_score_floor, 10.0);

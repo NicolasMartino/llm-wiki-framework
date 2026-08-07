@@ -23,8 +23,8 @@ use crate::search::commands::{
 use crate::search::project::discover_from_cwd;
 use crate::search::qmd_rs::QmdRsBackend;
 use crate::search::semantic::{
-    SemanticCorpusSnapshot, SemanticIndexMetadata, SemanticSearchContext, SemanticVectorIndex,
-    embed_query,
+    CHUNKING_STRATEGY, SemanticCorpusSnapshot, SemanticIndexMetadata, SemanticSearchContext,
+    SemanticVectorIndex, embed_query,
 };
 use crate::search_models::{
     AcceptedLicenses, ModelArtifactRecord, ModelArtifacts, SearchThresholdStore, SearchThresholds,
@@ -165,9 +165,24 @@ fn run_eval(args: &EvalRunArgs, context: &CliContext) -> Result<EvalRunReport> {
         let mut report = prepared.report.clone();
         let mut cases_out = Vec::new();
         for case in &cases {
-            let mut modes = BTreeMap::new();
+            let mut modes: BTreeMap<String, EvalModeOutcome> = BTreeMap::new();
             for mode in MODES {
-                let outcome = run_case_mode(mode, case, &eval_context, &prepared);
+                // `auto` resolves to hybrid with identical inputs when the case
+                // applies to both modes and the candidate is hybrid-ready, so
+                // reuse the hybrid outcome already computed for this case rather
+                // than paying for a second model inference.
+                let outcome = if mode == "auto"
+                    && case.applies_to_mode("auto")
+                    && case.applies_to_mode("hybrid")
+                    && prepared.hybrid_ready()
+                    && modes.contains_key("hybrid")
+                {
+                    let mut reused = modes["hybrid"].clone();
+                    reused.selected_mode = Some("hybrid".to_string());
+                    reused
+                } else {
+                    run_case_mode(mode, case, &eval_context, &prepared)
+                };
                 warn_mode_time_budget(
                     args.time_budget_warn_ms,
                     &prepared.spec.name,
@@ -200,7 +215,7 @@ fn run_eval(args: &EvalRunArgs, context: &CliContext) -> Result<EvalRunReport> {
 
     let report_path = output_dir.join("eval-run.json");
     let summary_path = output_dir.join("eval-run-summary.md");
-    let mut report = EvalRunReport {
+    let report = EvalRunReport {
         schema_version: EVAL_REPORT_SCHEMA_VERSION,
         run_id,
         generated_at: timestamp(),
@@ -220,8 +235,6 @@ fn run_eval(args: &EvalRunArgs, context: &CliContext) -> Result<EvalRunReport> {
     write_json(&report_path, &report)?;
     fs::write(&summary_path, render_run_summary(&report))
         .with_context(|| format!("write eval summary {}", summary_path.display()))?;
-    report.report_path = report_path;
-    report.summary_path = summary_path;
     Ok(report)
 }
 
@@ -308,7 +321,7 @@ fn calibrate(args: &EvalCalibrateArgs, context: &CliContext) -> Result<EvalCalib
     }
     write_json(&report.report_path, &report)?;
     if args.export_raw_data {
-        export_raw_eval_data(args, &run_report, &report, context)?;
+        export_raw_eval_data(&run_report, &report, context)?;
     }
     Ok(report)
 }
@@ -733,10 +746,16 @@ impl PreparedCandidate {
                     Ok((built_metadata, built_vectors, measurement_thresholds))
                 }) {
                 Ok((built_metadata, built_vectors, measurement_thresholds)) => {
-                    let _ = built_metadata
-                        .write_atomic(&candidate_index_dir.join("semantic-index.json"));
-                    let _ = built_vectors
-                        .write_atomic(&candidate_index_dir.join("semantic-vectors.json"));
+                    if let Err(error) = built_metadata
+                        .write_atomic(&candidate_index_dir.join("semantic-index.json"))
+                    {
+                        readiness.push(format!("candidate_index_write_failed:{error}"));
+                    }
+                    if let Err(error) = built_vectors
+                        .write_atomic(&candidate_index_dir.join("semantic-vectors.json"))
+                    {
+                        readiness.push(format!("candidate_index_write_failed:{error}"));
+                    }
                     index_fingerprint = Some(built_metadata.source_fingerprint());
                     vector_count = built_vectors.vectors.len();
                     metadata = Some(built_metadata);
@@ -934,6 +953,7 @@ fn run_case_mode(
 fn run_lexical(case: &EvalCase, context: &EvalExecutionContext<'_>) -> Result<EvalModeOutcome> {
     let search_started = Instant::now();
     let results = context.backend.search_project(
+        &context.project.id,
         context.store_path,
         context.wiki_root,
         &case.query,
@@ -967,9 +987,10 @@ fn run_semantic(
                 .unwrap_or("candidate_semantic_not_ready"),
         ));
     }
-    let status = context
-        .backend
-        .status(context.store_path, context.wiki_root)?;
+    let status =
+        context
+            .backend
+            .status(&context.project.id, context.store_path, context.wiki_root)?;
     let metadata = candidate
         .metadata
         .as_ref()
@@ -1027,9 +1048,10 @@ fn run_hybrid(
                 .unwrap_or("candidate_hybrid_not_ready"),
         ));
     }
-    let status = context
-        .backend
-        .status(context.store_path, context.wiki_root)?;
+    let status =
+        context
+            .backend
+            .status(&context.project.id, context.store_path, context.wiki_root)?;
     let metadata = candidate.metadata.as_ref().expect("hybrid_ready metadata");
     let vectors = candidate.vectors.as_ref().expect("hybrid_ready vectors");
     let thresholds = candidate
@@ -1056,6 +1078,7 @@ fn run_hybrid(
     let mut lexical_results = Vec::new();
     for query in &expanded.lexical {
         lexical_results.extend(context.backend.search_project(
+            &context.project.id,
             context.store_path,
             context.wiki_root,
             query,
@@ -1122,7 +1145,8 @@ fn run_hybrid(
                 wiki_root: context.wiki_root,
                 requested: true,
             },
-        )?;
+        )?
+        .results;
         rerank_ms = elapsed_ms(rerank_started);
         rerank_applied = true;
     }
@@ -1455,11 +1479,17 @@ fn active_project_profile(
 fn parse_eval_page(path: &Path) -> Result<Vec<EvalCase>> {
     let input =
         fs::read_to_string(path).with_context(|| format!("read eval page {}", path.display()))?;
-    let cases = input
-        .lines()
-        .filter(|line| line.starts_with("| C") || line.starts_with("| H"))
-        .filter_map(parse_eval_row)
-        .collect::<Vec<_>>();
+    let mut cases = Vec::new();
+    for line in input.lines() {
+        if !(line.starts_with("| C") || line.starts_with("| H")) {
+            continue;
+        }
+        if let Some(case) =
+            parse_eval_row(line).with_context(|| format!("parse eval row in {}", path.display()))?
+        {
+            cases.push(case);
+        }
+    }
     if cases.is_empty() {
         bail!(
             "eval page {} did not contain any C*/H* query rows",
@@ -1469,43 +1499,58 @@ fn parse_eval_page(path: &Path) -> Result<Vec<EvalCase>> {
     Ok(cases)
 }
 
-fn parse_eval_row(line: &str) -> Option<EvalCase> {
+fn parse_eval_row(line: &str) -> Result<Option<EvalCase>> {
     let columns = line
         .trim()
         .trim_matches('|')
         .split('|')
         .map(str::trim)
         .collect::<Vec<_>>();
-    if columns.len() < 5 {
-        return None;
-    }
-    let id = columns[0];
+    let id = columns.first().copied().unwrap_or_default();
     if !(id.starts_with('C') || id.starts_with('H')) {
-        return None;
+        return Ok(None);
     }
-    let (applicable_modes, expected_column) = if columns.len() >= 6 {
-        (parse_mode_list(columns[4]), columns[5])
+    if columns.len() != 5 && columns.len() != 6 {
+        bail!(
+            "eval row `{id}` has {} columns; expected 5 (id, split, query, purpose, expected) or 6 (id, split, query, purpose, modes, expected)",
+            columns.len()
+        );
+    }
+    let split = normalize_split(columns[1]).with_context(|| format!("eval row `{id}`"))?;
+    let (applicable_modes, expected_column) = if columns.len() == 6 {
+        (
+            parse_mode_list(columns[4]).with_context(|| format!("eval row `{id}`"))?,
+            columns[5],
+        )
     } else {
-        (parse_mode_list("all"), columns[4])
+        (parse_mode_list("all")?, columns[4])
     };
     let expected_pages = if expected_column.eq_ignore_ascii_case("none") {
         Vec::new()
     } else {
         backtick_values(expected_column)
     };
-    Some(EvalCase {
+    Ok(Some(EvalCase {
         id: id.to_string(),
-        split: columns[1].to_string(),
+        split: split.to_string(),
         query: columns[2].trim_matches('`').to_string(),
         purpose: columns[3].to_string(),
         applicable_modes,
         expected_pages,
-    })
+    }))
 }
 
-fn parse_mode_list(input: &str) -> BTreeSet<String> {
+fn normalize_split(raw: &str) -> Result<&'static str> {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "calibration" => Ok("Calibration"),
+        "hold-out" | "holdout" => Ok("Hold-out"),
+        other => bail!("unrecognized eval split `{other}`; expected `Calibration` or `Hold-out`"),
+    }
+}
+
+fn parse_mode_list(input: &str) -> Result<BTreeSet<String>> {
     if input.eq_ignore_ascii_case("all") {
-        return MODES.iter().map(|mode| (*mode).to_string()).collect();
+        return Ok(MODES.iter().map(|mode| (*mode).to_string()).collect());
     }
 
     let backticked = backtick_values(input);
@@ -1519,16 +1564,21 @@ fn parse_mode_list(input: &str) -> BTreeSet<String> {
     } else {
         backticked
     };
-    let modes = values
-        .into_iter()
-        .map(|value| value.to_ascii_lowercase())
-        .filter(|value| MODES.contains(&value.as_str()))
-        .collect::<BTreeSet<_>>();
-    if modes.is_empty() {
-        MODES.iter().map(|mode| (*mode).to_string()).collect()
-    } else {
-        modes
+    // An empty mode cell keeps the historical "applies to every mode" meaning.
+    if values.is_empty() {
+        return Ok(MODES.iter().map(|mode| (*mode).to_string()).collect());
     }
+    let mut modes = BTreeSet::new();
+    for value in values {
+        let normalized = value.to_ascii_lowercase();
+        if !MODES.contains(&normalized.as_str()) {
+            bail!(
+                "unknown eval mode `{value}`; expected one of lexical, semantic, hybrid, auto, or all"
+            );
+        }
+        modes.insert(normalized);
+    }
+    Ok(modes)
 }
 
 fn backtick_values(input: &str) -> Vec<String> {
@@ -1594,12 +1644,15 @@ fn calibrate_candidate(candidate: &EvalCandidateRun) -> CandidateCalibrationProp
         .collect::<Vec<_>>();
     let promotable = calibration_no_match_queries > 0
         && missing_expected_targets.is_empty()
+        && semantic.promotable
         && diagnostics.proposed_calibration_pass
         && diagnostics.holdout_pass;
     let status = if calibration_no_match_queries == 0 {
         "blocked_no_calibration_no_match".to_string()
     } else if !missing_expected_targets.is_empty() {
         "blocked_missing_expected_targets".to_string()
+    } else if !semantic.promotable {
+        "blocked_semantic_no_match_floor".to_string()
     } else if !diagnostics.proposed_calibration_pass {
         "blocked_proposed_regression".to_string()
     } else if !diagnostics.holdout_pass {
@@ -1707,7 +1760,7 @@ fn proposal_thresholds(
         embedding_model,
         embedding_artifact,
         embedding_dimensions,
-        "qmd-rs-character-v1:3200:480",
+        CHUNKING_STRATEGY,
         semantic_floor?,
         hybrid_floor?,
     );
@@ -2211,7 +2264,11 @@ fn outcome_score_at(
 }
 
 fn round_floor(value: f64) -> f64 {
-    (value * 1_000_000.0).floor() / 1_000_000.0
+    // Expected scores are stored round-half-up to 6 dp, so a stored value can
+    // sit up to 5e-7 above the true unrounded score. Subtract that half-ULP
+    // before flooring so the recorded floor is guaranteed `<=` the true
+    // expected score and never filters out the very hit that justified it.
+    (value * 1_000_000.0 - 0.5).floor() / 1_000_000.0
 }
 
 fn calibration_no_match_count(candidate: &EvalCandidateRun) -> usize {
@@ -2249,7 +2306,7 @@ fn apply_thresholds(
         proposal
             .embedding_dimensions
             .context("candidate embedding dimensions missing")?,
-        "qmd-rs-character-v1:3200:480",
+        CHUNKING_STRATEGY,
         proposal
             .semantic_similarity_floor
             .context("semantic floor missing from proposal")?,
@@ -2265,10 +2322,14 @@ fn apply_thresholds(
     let mut store = SearchThresholdStore::read(&path)?.unwrap_or_else(SearchThresholdStore::empty);
     store.upsert(thresholds);
     if path.exists() {
-        let backup = path.with_file_name(format!(
-            "search-thresholds.toml.backup-{}",
-            slugify(&timestamp())
-        ));
+        let stamp = slugify(&timestamp());
+        let mut backup = path.with_file_name(format!("search-thresholds.toml.backup-{stamp}"));
+        let mut counter = 2;
+        while backup.exists() {
+            backup =
+                path.with_file_name(format!("search-thresholds.toml.backup-{stamp}-{counter}"));
+            counter += 1;
+        }
         fs::copy(&path, &backup).with_context(|| {
             format!(
                 "backup previous search thresholds {} to {}",
@@ -2415,7 +2476,6 @@ fn corpus_slug(run_report: &EvalRunReport) -> String {
 }
 
 fn export_raw_eval_data(
-    _args: &EvalCalibrateArgs,
     run_report: &EvalRunReport,
     report: &EvalCalibrationReport,
     context: &CliContext,
@@ -2635,7 +2695,7 @@ fn render_run_summary(report: &EvalRunReport) -> String {
 fn read_run_report(path: &Path) -> Result<EvalRunReport> {
     let input = fs::read_to_string(path)
         .with_context(|| format!("read eval run report {}", path.display()))?;
-    let report: EvalRunReport =
+    let mut report: EvalRunReport =
         serde_json::from_str(&input).with_context(|| format!("parse {}", path.display()))?;
     if report.schema_version != EVAL_REPORT_SCHEMA_VERSION {
         bail!(
@@ -2644,7 +2704,46 @@ fn read_run_report(path: &Path) -> Result<EvalRunReport> {
             EVAL_REPORT_SCHEMA_VERSION
         );
     }
+    // Paths are serialized in a lossy, redacted form (`~/…`, `./…`). Rehydrate
+    // them so consumers (`record_calibration`, `calibration_report_path`,
+    // `dir_size_bytes`, …) resolve against the right location instead of the
+    // caller's current working directory, which may differ from where the run
+    // report was produced.
+    let base = path.parent().unwrap_or_else(|| Path::new("."));
+    report.eval_page = rehydrate_report_path(&report.eval_page, base);
+    report.project_root = rehydrate_report_path(&report.project_root, base);
+    report.wiki_root = rehydrate_report_path(&report.wiki_root, base);
+    report.output_dir = rehydrate_report_path(&report.output_dir, base);
+    report.report_path = rehydrate_report_path(&report.report_path, base);
+    report.summary_path = rehydrate_report_path(&report.summary_path, base);
+    for candidate in &mut report.candidates {
+        candidate.candidate_index_dir = rehydrate_report_path(&candidate.candidate_index_dir, base);
+    }
     Ok(report)
+}
+
+/// Reconstruct an absolute path from a redacted serialized path.
+///
+/// A leading `~` is expanded to `$HOME` (an exact round-trip), and other
+/// relative paths are resolved against `base` (the run report's own directory)
+/// rather than the process working directory.
+fn rehydrate_report_path(raw: &Path, base: &Path) -> PathBuf {
+    let text = raw.to_string_lossy();
+    if text == "~"
+        && let Some(home) = env::var_os("HOME").map(PathBuf::from)
+    {
+        return home;
+    }
+    if let Some(rest) = text.strip_prefix("~/")
+        && let Some(home) = env::var_os("HOME").map(PathBuf::from)
+    {
+        return home.join(rest);
+    }
+    if raw.is_absolute() {
+        return raw.to_path_buf();
+    }
+    let relative = text.strip_prefix("./").map(Path::new).unwrap_or(raw);
+    base.join(relative)
 }
 
 fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<()> {
@@ -2793,6 +2892,11 @@ fn warn_mode_time_budget(
         &format!("candidate={candidate} case={case_id} mode={mode} stage=lexical_search"),
         outcome.lexical_search_ms,
     );
+    warn_time_budget(
+        budget_ms,
+        &format!("candidate={candidate} case={case_id} mode={mode} stage=rerank"),
+        outcome.rerank_ms,
+    );
 }
 
 fn candidate_timing_summary(report: &EvalCandidateRun) -> String {
@@ -2870,32 +2974,20 @@ fn redacted_path_string(path: &Path) -> String {
             return format!("{replacement}/{rest}");
         }
     }
-    if path.is_absolute() {
-        let components = path
-            .components()
-            .filter_map(|component| component.as_os_str().to_str())
-            .collect::<Vec<_>>();
-        if let Some(index) = components.iter().position(|component| *component == "wiki") {
-            return format!("./{}", components[index..].join("/"));
-        }
-        if let Some(file_name) = path.file_name().and_then(|value| value.to_str()) {
-            return format!("./{}", file_name);
-        }
-        return ".".to_string();
-    }
+    // No home-relative anchor matched. Keep the path verbatim — absolute paths
+    // stay absolute so they reconstruct exactly on read. A lossy `./…` form here
+    // would silently resolve against the wrong base when a run report is consumed
+    // from a different working directory (e.g. `eval calibrate --run-report`
+    // pointed at a report produced elsewhere), corrupting the wrong project.
     normalized
 }
 
 fn path_redaction_prefixes() -> Vec<(PathBuf, &'static str)> {
     let mut prefixes = Vec::new();
-    if let Ok(cwd) = env::current_dir() {
-        prefixes.push((cwd.clone(), "."));
-        if let Ok(canonical) = fs::canonicalize(&cwd)
-            && canonical != cwd
-        {
-            prefixes.push((canonical, "."));
-        }
-    }
+    // Only redact against $HOME: it is the single anchor that reconstructs
+    // exactly on read (via `~` expansion). The working directory at write time
+    // is not recorded in the report, so a cwd-relative form could not be
+    // resolved correctly when the report is read from elsewhere.
     if let Some(home) = env::var_os("HOME").map(PathBuf::from) {
         prefixes.push((home.clone(), "~"));
         if let Ok(canonical) = fs::canonicalize(&home)
@@ -2979,7 +3071,7 @@ mod tests {
     #[test]
     fn parse_eval_row_extracts_expected_pages() {
         let row = "| C1 | Calibration | `what happens` | Purpose | `wiki/a.md`, `wiki/b.md` |";
-        let case = parse_eval_row(row).expect("case");
+        let case = parse_eval_row(row).expect("row").expect("case");
 
         assert_eq!(case.id, "C1");
         assert_eq!(case.split, "Calibration");
@@ -2991,7 +3083,7 @@ mod tests {
     #[test]
     fn parse_eval_row_extracts_mode_applicability() {
         let row = "| C1 | Calibration | `what happens` | Purpose | `lexical`, `hybrid`, `auto` | `wiki/a.md` |";
-        let case = parse_eval_row(row).expect("case");
+        let case = parse_eval_row(row).expect("row").expect("case");
 
         assert!(case.applies_to_mode("lexical"));
         assert!(!case.applies_to_mode("semantic"));
@@ -3000,26 +3092,65 @@ mod tests {
     }
 
     #[test]
+    fn parse_eval_row_rejects_extra_columns() {
+        let row = "| C1 | Calibration | `what happens` | Purpose | all | `wiki/a.md` | notes |";
+        let error = parse_eval_row(row).expect_err("extra column must fail");
+        assert!(
+            error.to_string().contains("7 columns"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn parse_eval_row_rejects_unknown_mode_token() {
+        let row = "| C1 | Calibration | `what happens` | Purpose | `semnatic` | `wiki/a.md` |";
+        let error = parse_eval_row(row).expect_err("unknown mode must fail");
+        assert!(
+            format!("{error:#}").contains("unknown eval mode"),
+            "unexpected error: {error:#}"
+        );
+    }
+
+    #[test]
+    fn parse_eval_row_normalizes_split_label_case() {
+        let row = "| H1 | holdout | `what happens` | Purpose | all | `wiki/a.md` |";
+        let case = parse_eval_row(row).expect("row").expect("case");
+        assert_eq!(case.split, "Hold-out");
+    }
+
+    #[test]
+    fn parse_eval_row_rejects_unknown_split_label() {
+        let row = "| C1 | Bogus | `what happens` | Purpose | all | `wiki/a.md` |";
+        let error = parse_eval_row(row).expect_err("unknown split must fail");
+        assert!(
+            format!("{error:#}").contains("split"),
+            "unexpected error: {error:#}"
+        );
+    }
+
+    #[test]
     fn eval_report_serialization_redacts_absolute_path_prefixes() {
-        let cwd = env::current_dir().expect("cwd");
         let home = env::var_os("HOME")
             .map(PathBuf::from)
-            .unwrap_or_else(|| cwd.clone());
+            .unwrap_or_else(|| PathBuf::from("/tmp"));
+        // Anchor the project under $HOME so redaction is deterministic regardless
+        // of where the test runs from.
+        let project = home.join("proj");
         let report = EvalRunReport {
             schema_version: EVAL_REPORT_SCHEMA_VERSION,
             run_id: "run".to_string(),
             generated_at: "2026-05-12T00:00:00Z".to_string(),
-            eval_page: cwd.join("wiki/evals/test.eval.md"),
+            eval_page: project.join("wiki/evals/test.eval.md"),
             project_id: "project".to_string(),
             project_name: "Project".to_string(),
-            project_root: cwd.clone(),
-            wiki_root: cwd.join("wiki"),
+            project_root: project.clone(),
+            wiki_root: project.join("wiki"),
             query_count: 0,
             limit: 10,
             rerank_requested: false,
-            output_dir: cwd.join("target/evals/run"),
-            report_path: cwd.join("target/evals/run/eval-run.json"),
-            summary_path: cwd.join("target/evals/run/eval-run-summary.md"),
+            output_dir: project.join("target/evals/run"),
+            report_path: project.join("target/evals/run/eval-run.json"),
+            summary_path: project.join("target/evals/run/eval-run-summary.md"),
             candidates: vec![EvalCandidateRun {
                 name: "balanced".to_string(),
                 source: "catalog_profile".to_string(),
@@ -3042,7 +3173,7 @@ mod tests {
                 readiness_reason: None,
                 index_fingerprint: Some("fingerprint".to_string()),
                 vector_count: 1,
-                candidate_index_dir: cwd.join("target/evals/run/indexes/balanced"),
+                candidate_index_dir: project.join("target/evals/run/indexes/balanced"),
                 candidate_index_size_bytes: 1,
                 index_build_ms: 0,
                 lexical_index_ms: 0,
@@ -3056,11 +3187,27 @@ mod tests {
 
         let json = serde_json::to_string(&report).expect("report json");
 
-        assert!(!json.contains(&path_string(&cwd)));
+        // Home-anchored paths redact to `~/…` and no absolute home path leaks.
         assert!(!json.contains("/Users/"));
         assert!(!json.contains("/home/"));
-        assert!(json.contains("./wiki/evals/test.eval.md"));
+        assert!(json.contains("~/proj/wiki/evals/test.eval.md"));
         assert!(json.contains("~/.llm_wiki/models/model.gguf"));
+    }
+
+    #[test]
+    fn out_of_home_absolute_paths_round_trip_through_redaction() {
+        // A report produced from a project outside $HOME must serialize paths
+        // verbatim (not a lossy `./…` form) so `eval calibrate --run-report`
+        // reconstructs the exact eval page rather than a wrong sibling path.
+        let outside = PathBuf::from("/opt/data/example-project/wiki/evals/x.eval.md");
+        let redacted = redacted_path_string(&outside);
+        assert_eq!(redacted, path_string(&outside));
+
+        let unrelated_report_dir = PathBuf::from("/var/reports/run");
+        assert_eq!(
+            rehydrate_report_path(Path::new(&redacted), &unrelated_report_dir),
+            outside
+        );
     }
 
     #[test]
@@ -3151,7 +3298,9 @@ mod tests {
 
         assert_eq!(proposal.status, "blocked_no_calibration_no_match");
         assert!(!proposal.promotable);
-        assert_eq!(proposal.semantic_similarity_floor, Some(0.82));
+        // `round_floor` subtracts a half-ULP guard so the recorded floor never
+        // exceeds the true (unrounded) expected score of 0.82.
+        assert_eq!(proposal.semantic_similarity_floor, Some(0.819999));
         assert_eq!(proposal.semantic_min_expected_score, Some(0.82));
     }
 

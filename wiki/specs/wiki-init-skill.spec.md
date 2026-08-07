@@ -5,7 +5,7 @@
 - Date: 2026-05-14
 - Category: Tooling
 - Scope: The `wiki-init` agent skill as a thin conversational wrapper over the `llm-wiki init` binary command.
-- Sources: assets/skills/wiki-init/SKILL.md, src/init/mod.rs, src/init/blueprints.rs, src/init/packs.rs, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/decisions/composable-project-init.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/plans/init-rerun-pack-drift.plan.md
+- Sources: .claude/skills/wiki-init/SKILL.md, src/init/mod.rs, src/init/blueprints.rs, src/init/packs.rs, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/decisions/composable-project-init.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/plans/init-rerun-pack-drift.plan.md
 - Related: wiki/specs/documentation-model.spec.md, wiki/specs/wiki-ingest-skill.spec.md, wiki/decisions/composable-project-init.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/plans/composable-project-init.plan.md
 
 ## Contract
@@ -42,24 +42,15 @@ blueprint defaults with that explicit pack set.
 Each explicit pack becomes one `--pack <pack>` flag.
 Each initial source becomes one `--initial-sources <path>` flag.
 
-## Runtime Projection
+## Skill Source
 
-Canonical source: `assets/skills/wiki-init/SKILL.md`.
-Rendered runtime outputs are produced by:
-
-```bash
-llm-wiki build --out .
-```
-
-Global installation is produced by:
-
-```bash
-llm-wiki install
-```
-
-Installed global skills render the binary invocation through the managed
-runtime path (`~/.llm_wiki/bin/llm-wiki` on Unix-like systems) so the wrapper
-does not require `llm-wiki` to be discoverable on shell `PATH`.
+Authored source: `.claude/skills/wiki-init/SKILL.md`, a repo-local Claude Code
+skill. The MCP-first surface no longer renders or globally installs generated
+runtime skill variants; `llm-wiki install` materializes the MCP configs
+(merged Codex `config.toml`, staged Claude `claude-project.mcp.json`) instead.
+The skill invokes `llm-wiki init` by command name; `llm-wiki path` prints the
+managed-bin (`~/.llm_wiki/bin/llm-wiki` on Unix-like systems) `PATH` guidance
+when the binary is not already discoverable on shell `PATH`.
 
 ## Blueprint and Pack Flow
 
@@ -127,5 +118,5 @@ directory timestamps.
   `resolved_folders` are upgraded without false same-pack drift.
 - Registry rerun tests assert project rename updates the existing same-root
   registry entry without changing its id or creating a duplicate.
-- The `wiki-init` canonical is embedded at compile time and projection snapshots lock both runtime variants.
-- Post-install integration tests assert installed skills contain the managed binary path and that the managed binary executes under a sanitized `PATH`.
+- Post-install integration tests assert `llm-wiki install` materializes the MCP
+  configs and that the managed binary executes under a sanitized `PATH`.

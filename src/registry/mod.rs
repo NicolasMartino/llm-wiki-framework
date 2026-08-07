@@ -1,5 +1,5 @@
 use std::fs::{self, File, OpenOptions};
-use std::io::Write;
+use std::io::{self, Write};
 use std::path::{Component, Path, PathBuf};
 use std::process;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -9,6 +9,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::cli::{CliContext, ForgetArgs, OutputFormat, ProjectsArgs, RegisterArgs};
+use crate::instance;
+use crate::mcp_wiring;
 use crate::paths::Paths;
 use crate::search::adapter::{BackendState, SearchBackend};
 use crate::search::qmd_rs::QmdRsBackend;
@@ -79,12 +81,66 @@ pub fn register(args: &RegisterArgs, context: &CliContext) -> Result<()> {
     )?;
     context.diagnostic(format!("registry outcome: {}", outcome_id(&outcome)));
 
-    match outcome {
+    let project_id = outcome_id(&outcome).to_string();
+    match &outcome {
         RegisterOutcome::Created(id) => println!("Registered project: {id}"),
         RegisterOutcome::Updated(id) => println!("Updated project: {id}"),
         RegisterOutcome::Unchanged(id) => println!("Project already registered: {id}"),
     }
+    wire_registered_project_mcp(&project_id, args.no_mcp, context);
     Ok(())
+}
+
+/// Wire the MCP host config for a just-registered project, printing the side
+/// effects. Shared by `register` and `init` so the two commands cannot drift.
+///
+/// Never fails the command: the project is already registered and printed as
+/// such, so *every* problem here — a failed merge, or even reading back the
+/// registry — is surfaced as a warning with a recovery hint rather than a
+/// nonzero exit that would obscure the successful registration. `--no-mcp` skips
+/// wiring entirely and points at the fallback template path install can
+/// materialize.
+pub fn wire_registered_project_mcp(project_id: &str, no_mcp: bool, context: &CliContext) {
+    let bin = instance::binary_stem();
+    let paths = match Paths::from_env() {
+        Ok(paths) => paths,
+        Err(error) => {
+            context.diagnostic(format!("mcp wiring: paths unavailable: {error:#}"));
+            eprintln!("Warning: MCP wiring skipped ({error:#}); run `{bin} doctor` to check.");
+            return;
+        }
+    };
+    if no_mcp {
+        context.diagnostic("mcp wiring: skipped (--no-mcp)");
+        println!("{}", mcp_wiring::staged_template_pointer(&paths));
+        return;
+    }
+    let registry = match ProjectRegistry::read(&paths.project_registry()) {
+        Ok(registry) => registry,
+        Err(error) => {
+            context.diagnostic(format!("mcp wiring: registry read failed: {error:#}"));
+            eprintln!("Warning: MCP wiring skipped ({error:#}); run `{bin} doctor` to check.");
+            return;
+        }
+    };
+    let Some(project) = registry.project_by_id(project_id) else {
+        context.diagnostic(format!(
+            "mcp wiring: project {project_id} not found after registration; skipped"
+        ));
+        return;
+    };
+    let binary = paths.managed_binary();
+    match mcp_wiring::wire_project_mcp(&project.root, &paths, &binary, context) {
+        Ok(summary) => mcp_wiring::print_summary(&summary),
+        Err(error) => {
+            context.diagnostic(format!("mcp wiring: failed: {error:#}"));
+            eprintln!("Warning: MCP wiring failed: {error:#}");
+            eprintln!(
+                "Run `{bin} doctor` to check wiring, or run `{bin} install` to materialize the fallback Claude template for manual wiring at {}/.mcp.json.",
+                project.root.display()
+            );
+        }
+    }
 }
 
 pub fn register_project_with_context(
@@ -226,18 +282,28 @@ fn print_projects_text(view: &ProjectsView) {
 
     println!("id\tname\troot\troot_status\tindex_status\tfreshness\tbackend\tcache_size");
     for project in &view.projects {
+        let cache_size = project
+            .cache_size_bytes
+            .map(|bytes| format!("{bytes} bytes"))
+            .unwrap_or_else(|| "unavailable".to_string());
         println!(
-            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{} bytes",
-            project.id,
-            project.name,
-            project.root,
+            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+            escape_cell(&project.id),
+            escape_cell(&project.name),
+            escape_cell(&project.root),
             project.root_status,
             project.index_status,
             project.freshness,
-            project.backend,
-            project.cache_size_bytes
+            escape_cell(&project.backend),
+            cache_size
         );
     }
+}
+
+/// Neutralize `\t`/`\r`/`\n` in free-form cells so a project name or root cannot
+/// forge extra columns or rows in the `\t`-separated `projects` output.
+fn escape_cell(value: &str) -> String {
+    value.replace(['\t', '\r', '\n'], " ")
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -271,7 +337,8 @@ struct ProjectStatusView {
     freshness: &'static str,
     backend: String,
     index_schema_version: u32,
-    cache_size_bytes: u64,
+    cache_size_bytes: Option<u64>,
+    cache_size_status: &'static str,
     indexed_file_count: usize,
     last_indexed_at: Option<String>,
     last_indexed_wiki_max_mtime: Option<String>,
@@ -280,22 +347,29 @@ struct ProjectStatusView {
 
 impl ProjectStatusView {
     fn from_project(project: &RegisteredProject, paths: &Paths) -> Result<Self> {
-        let store_path = search_store_path(paths, &project.id);
+        let store_path = search_store_path(paths, &project.id)?;
         let root_exists = project.root.exists();
-        let (index_status, freshness, status_message) = if !store_path.exists() {
-            (
+        let store_presence = related_store_presence(&store_path)?;
+        let (index_status, freshness, status_message) = match (store_presence, root_exists) {
+            (PathPresence::Missing, _) => (
                 "index-missing",
                 "missing",
                 (!root_exists).then(|| "project root is missing".to_string()),
-            )
-        } else if !root_exists {
-            (
+            ),
+            (PathPresence::Exists, false) => (
                 "index-present",
                 "unknown",
                 Some("project root is missing".to_string()),
-            )
-        } else {
-            backend_status_labels(&store_path, &project.wiki_root())
+            ),
+            (PathPresence::Exists | PathPresence::PermissionDenied, _) => {
+                backend_status_labels(&project.id, &store_path, &project.wiki_root())
+            }
+        };
+        let managed_cache_size = dir_size(&paths.project_index_dir(&project.id))?;
+        let legacy_cache_size = dir_size(&paths.legacy_project_index_dir(&project.id))?;
+        let (cache_size_bytes, cache_size_status) = match (managed_cache_size, legacy_cache_size) {
+            (Some(managed), Some(legacy)) => (Some(managed.saturating_add(legacy)), "available"),
+            _ => (None, "unavailable"),
         };
 
         Ok(Self {
@@ -312,8 +386,8 @@ impl ProjectStatusView {
             freshness,
             backend: project.backend.clone(),
             index_schema_version: project.index_schema_version,
-            cache_size_bytes: dir_size(&paths.project_index_dir(&project.id))?
-                + dir_size(&paths.legacy_project_index_dir(&project.id))?,
+            cache_size_bytes,
+            cache_size_status,
             indexed_file_count: project.indexed_file_count,
             last_indexed_at: project.last_indexed_at.clone(),
             last_indexed_wiki_max_mtime: project.last_indexed_wiki_max_mtime.clone(),
@@ -322,29 +396,74 @@ impl ProjectStatusView {
     }
 }
 
-fn search_store_path(paths: &Paths, project_id: &str) -> PathBuf {
+fn search_store_path(paths: &Paths, project_id: &str) -> Result<PathBuf> {
     let managed = paths.qmd_rs_store_path(project_id);
-    if managed.exists() {
-        return managed;
+    if matches!(
+        related_store_presence(&managed)?,
+        PathPresence::Exists | PathPresence::PermissionDenied
+    ) {
+        return Ok(managed);
     }
     let legacy = paths.legacy_qmd_rs_store_path(project_id);
-    if legacy.exists() {
-        return legacy;
+    if matches!(
+        related_store_presence(&legacy)?,
+        PathPresence::Exists | PathPresence::PermissionDenied
+    ) {
+        return Ok(legacy);
     }
-    managed
+    Ok(managed)
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PathPresence {
+    Exists,
+    Missing,
+    PermissionDenied,
+}
+
+fn path_presence(path: &Path) -> Result<PathPresence> {
+    match path.try_exists() {
+        Ok(true) => Ok(PathPresence::Exists),
+        Ok(false) => Ok(PathPresence::Missing),
+        Err(error) if error.kind() == io::ErrorKind::PermissionDenied => {
+            Ok(PathPresence::PermissionDenied)
+        }
+        Err(error) => {
+            Err(error).with_context(|| format!("inspect path existence {}", path.display()))
+        }
+    }
+}
+
+fn related_store_presence(store_path: &Path) -> Result<PathPresence> {
+    for path in [
+        store_path.to_path_buf(),
+        store_path.with_extension("llm-wiki.json"),
+        store_path.with_extension("sqlite-wal"),
+        store_path.with_extension("sqlite-shm"),
+    ] {
+        match path_presence(&path)? {
+            PathPresence::Exists => return Ok(PathPresence::Exists),
+            PathPresence::PermissionDenied => return Ok(PathPresence::PermissionDenied),
+            PathPresence::Missing => {}
+        }
+    }
+    Ok(PathPresence::Missing)
 }
 
 fn backend_status_labels(
+    project_id: &str,
     store_path: &Path,
     wiki_root: &Path,
 ) -> (&'static str, &'static str, Option<String>) {
     let backend = QmdRsBackend::new();
-    match backend.status(store_path, wiki_root) {
+    match backend.status(project_id, store_path, wiki_root) {
         Ok(status) => {
             let (index_status, freshness) = match status.state {
                 BackendState::Ready => ("index-present", "fresh"),
                 BackendState::Stale => ("index-present", "stale"),
                 BackendState::Missing => ("index-missing", "missing"),
+                BackendState::Transient => ("index-transient", "unknown"),
+                BackendState::PermissionDenied => ("index-permission-denied", "unknown"),
                 BackendState::Corrupt | BackendState::SchemaMismatch => {
                     ("index-unusable", "unknown")
                 }
@@ -370,7 +489,7 @@ impl ProjectRegistry {
         }
         let raw = fs::read_to_string(path)
             .with_context(|| format!("read project registry {}", path.display()))?;
-        let registry: Self = serde_json::from_str(&raw)
+        let mut registry: Self = serde_json::from_str(&raw)
             .with_context(|| format!("parse project registry {}", path.display()))?;
         if registry.version != REGISTRY_VERSION {
             bail!(
@@ -379,13 +498,17 @@ impl ProjectRegistry {
                 path.display()
             );
         }
-        for project in &registry.projects {
+        for project in &mut registry.projects {
             validate_project_id(&project.id)
                 .with_context(|| format!("invalid project id in {}", path.display()))?;
-            validate_registered_root(&project.root)
-                .with_context(|| format!("invalid project root in {}", path.display()))?;
             validate_registered_wiki_path(&project.wiki_path)
                 .with_context(|| format!("invalid wiki path in {}", path.display()))?;
+            // Re-canonicalize a stale root in place rather than bailing the whole
+            // read: a single non-canonical entry must not brick register/forget/
+            // projects/doctor (including the `register` the error would recommend).
+            if let Some(canonical) = repair_registered_root(&project.root) {
+                project.root = canonical;
+            }
         }
         Ok(registry)
     }
@@ -396,15 +519,25 @@ impl ProjectRegistry {
                 .with_context(|| format!("create registry dir {}", parent.display()))?;
         }
         let tmp = unique_temp_path(path, "json.tmp");
-        fs::write(&tmp, serde_json::to_string_pretty(self)?)
-            .with_context(|| format!("write registry temp {}", tmp.display()))?;
-        fs::rename(&tmp, path).with_context(|| {
-            format!(
-                "replace project registry {} with {}",
-                path.display(),
-                tmp.display()
-            )
-        })?;
+        let data = serde_json::to_string_pretty(self)?;
+        if let Err(error) = write_file_synced(&tmp, data.as_bytes()) {
+            let _ = fs::remove_file(&tmp);
+            return Err(error).with_context(|| format!("write registry temp {}", tmp.display()));
+        }
+        if let Err(error) = fs::rename(&tmp, path) {
+            let _ = fs::remove_file(&tmp);
+            return Err(error).with_context(|| {
+                format!(
+                    "replace project registry {} with {}",
+                    path.display(),
+                    tmp.display()
+                )
+            });
+        }
+        if let Some(parent) = path.parent() {
+            // Best effort: durably record the rename in the directory entry.
+            let _ = File::open(parent).and_then(|dir| dir.sync_all());
+        }
         Ok(())
     }
 
@@ -451,7 +584,8 @@ impl ProjectRegistry {
             if let Some(id) = &request.id
                 && id != &existing.id
             {
-                validate_project_id(id)?;
+                // Report the actual root conflict first; the explicit id is moot
+                // here because the root already owns a different id.
                 bail!(
                     "project root {} is already registered as {}",
                     request.root.display(),
@@ -597,21 +731,17 @@ fn validate_project_root(path: &Path) -> Result<PathBuf> {
     Ok(root)
 }
 
-fn validate_registered_root(root: &Path) -> Result<()> {
+/// Lazily re-canonicalize a stored root when it is safe to do so. Returns the
+/// repaired path only when the stored root is an existing absolute path whose
+/// canonical form differs; otherwise `None`, leaving the entry untouched so one
+/// bad root cannot brick every registry command. Register/forget still rewrite
+/// roots through `validate_project_root`, persisting the repair on next mutation.
+fn repair_registered_root(root: &Path) -> Option<PathBuf> {
     if !root.is_absolute() {
-        bail!("registered root {} must be absolute", root.display());
+        return None;
     }
-    if root.exists() {
-        let canonical = fs::canonicalize(root)
-            .with_context(|| format!("canonicalize registered root {}", root.display()))?;
-        if canonical != root {
-            bail!(
-                "registered root {} is not canonical; re-register the project to repair the registry",
-                root.display()
-            );
-        }
-    }
-    Ok(())
+    let canonical = fs::canonicalize(root).ok()?;
+    (canonical != *root).then_some(canonical)
 }
 
 fn validate_registered_wiki_path(path: &Path) -> Result<()> {
@@ -676,6 +806,15 @@ fn unique_temp_path(path: &Path, suffix: &str) -> PathBuf {
     ))
 }
 
+/// Write `bytes` to `path`, fsyncing the file before returning so a crash after
+/// the caller's rename cannot leave a zero-length or torn registry.
+fn write_file_synced(path: &Path, bytes: &[u8]) -> io::Result<()> {
+    let mut file = File::create(path)?;
+    file.write_all(bytes)?;
+    file.sync_all()?;
+    Ok(())
+}
+
 fn registry_lock_path(path: &Path) -> PathBuf {
     let file_name = path
         .file_name()
@@ -694,7 +833,6 @@ fn maybe_sleep_for_test(var: &str) {
 }
 
 struct RegistryMutationLock {
-    path: PathBuf,
     _file: File,
 }
 
@@ -718,13 +856,12 @@ impl RegistryMutationLock {
             .with_context(|| format!("truncate registry lock {}", path.display()))?;
         writeln!(file, "pid={}", process::id())
             .with_context(|| format!("write registry lock {}", path.display()))?;
-        Ok(Self { path, _file: file })
-    }
-}
-
-impl Drop for RegistryMutationLock {
-    fn drop(&mut self) {
-        let _ = fs::remove_file(&self.path);
+        // Intentionally do NOT delete the lock file on drop. The advisory lock is
+        // released when this fd closes (or the process dies); keeping the file as a
+        // stable inode preserves mutual exclusion under 3+ way contention, where
+        // unlinking would let a waiter hold a since-recreated inode while a third
+        // process re-creates the lock and also enters the critical section.
+        Ok(Self { _file: file })
     }
 }
 
@@ -786,21 +923,47 @@ fn slugify(value: &str) -> String {
     }
 }
 
-fn dir_size(path: &Path) -> Result<u64> {
-    if !path.exists() {
-        return Ok(0);
+fn dir_size(path: &Path) -> Result<Option<u64>> {
+    match path.try_exists() {
+        Ok(true) => {}
+        Ok(false) => return Ok(Some(0)),
+        Err(error) if error.kind() == io::ErrorKind::PermissionDenied => return Ok(None),
+        Err(error) => {
+            return Err(error).with_context(|| format!("inspect cache dir {}", path.display()));
+        }
     }
     let mut total = 0;
-    for entry in fs::read_dir(path).with_context(|| format!("read dir {}", path.display()))? {
-        let entry = entry?;
-        let metadata = entry.metadata()?;
+    let entries = match fs::read_dir(path) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == io::ErrorKind::PermissionDenied => return Ok(None),
+        Err(error) => return Err(error).with_context(|| format!("read dir {}", path.display())),
+    };
+    for entry in entries {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(error) if error.kind() == io::ErrorKind::PermissionDenied => return Ok(None),
+            Err(error) => {
+                return Err(error).with_context(|| format!("read dir entry {}", path.display()));
+            }
+        };
+        let metadata = match entry.metadata() {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == io::ErrorKind::PermissionDenied => return Ok(None),
+            Err(error) => {
+                return Err(error)
+                    .with_context(|| format!("read metadata {}", entry.path().display()));
+            }
+        };
         if metadata.is_dir() {
-            total += dir_size(&entry.path())?;
+            let Some(size) = dir_size(&entry.path())? else {
+                return Ok(None);
+            };
+            total += size;
         } else {
             total += metadata.len();
         }
     }
-    Ok(total)
+    Ok(Some(total))
 }
 
 fn max_wiki_modified(wiki_root: &Path) -> Result<Option<String>> {
@@ -818,8 +981,15 @@ fn collect_max_modified(
     }
     for entry in fs::read_dir(path).with_context(|| format!("read dir {}", path.display()))? {
         let entry = entry?;
+        // Use the directory entry's own type (not `is_dir()`, which follows
+        // symlinks): skipping symlinks prevents unbounded recursion / stack
+        // overflow on a directory-symlink cycle under wiki/.
+        let file_type = entry.file_type()?;
+        if file_type.is_symlink() {
+            continue;
+        }
         let path = entry.path();
-        if path.is_dir() {
+        if file_type.is_dir() {
             collect_max_modified(&path, max_modified)?;
         } else if path.extension().and_then(|value| value.to_str()) == Some("md") {
             let modified = entry.metadata()?.modified().unwrap_or(UNIX_EPOCH);
@@ -977,7 +1147,7 @@ mod tests {
     }
 
     #[test]
-    fn registry_read_rejects_non_absolute_roots() {
+    fn registry_read_keeps_non_absolute_roots_without_bricking() {
         let temp = tempfile::TempDir::new().expect("tempdir");
         let path = temp.path().join("projects.json");
         fs::write(
@@ -1001,13 +1171,15 @@ mod tests {
         )
         .expect("write");
 
-        let error = ProjectRegistry::read(&path).expect_err("relative root");
-
-        assert!(error.to_string().contains("invalid project root"));
+        // A non-canonicalizable root is left untouched rather than bailing the
+        // whole read, so register/forget stay usable to repair the entry.
+        let registry = ProjectRegistry::read(&path).expect("read");
+        assert_eq!(registry.projects.len(), 1);
+        assert_eq!(registry.projects[0].root, PathBuf::from("relative/root"));
     }
 
     #[test]
-    fn registry_read_rejects_noncanonical_existing_roots() {
+    fn registry_read_recanonicalizes_noncanonical_existing_roots() {
         let temp = tempfile::TempDir::new().expect("tempdir");
         let project = fixture_project(temp.path(), "fixture");
         let path = temp.path().join("projects.json");
@@ -1033,9 +1205,9 @@ mod tests {
         )
         .expect("write");
 
-        let error = ProjectRegistry::read(&path).expect_err("noncanonical root");
-
-        assert!(error.to_string().contains("invalid project root"));
+        // An existing but non-canonical root is repaired in place on read.
+        let registry = ProjectRegistry::read(&path).expect("read");
+        assert_eq!(registry.projects[0].root, project);
     }
 
     #[test]

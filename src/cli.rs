@@ -1,11 +1,16 @@
+use std::ffi::OsString;
 use std::path::PathBuf;
 
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 
 pub const DIAGNOSTIC_TARGET: &str = "llm_wiki_cli";
 
 #[derive(Debug, Parser)]
-#[command(name = "llm-wiki", version, about = "LLM Wiki framework tooling")]
+#[command(
+    name = env!("LLM_WIKI_COMPILED_BINARY_STEM"),
+    version,
+    about = "LLM Wiki framework tooling"
+)]
 pub struct Cli {
     #[arg(short = 'v', long = "verbose", global = true)]
     pub verbose: bool,
@@ -32,21 +37,87 @@ impl CliContext {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    Build(BuildArgs),
+    /// Install or refresh the managed binary, skills, and MCP config.
     Install(InstallArgs),
+    /// Scaffold or update an LLM Wiki project in a directory.
     Init(InitArgs),
+    /// Run Headroom with LLM Wiki MCP tools excluded from compression.
+    Headroom(HeadroomArgs),
+    /// Run MCP server subcommands (e.g. serve over stdio).
+    Mcp(McpArgs),
+    /// Read a wiki file with provenance-aware resolution.
+    Read(ReadArgs),
+    /// Run or calibrate natural-language search evaluations.
     Eval(EvalArgs),
+    /// Register a project directory with the search registry.
     Register(RegisterArgs),
+    /// Remove a project from the registry (optionally its cache).
     Forget(ForgetArgs),
+    /// List registered projects and their index status.
     Projects(ProjectsArgs),
+    /// Build or refresh the search index for one project.
     Index(IndexArgs),
+    /// Build or refresh the search index for every project.
     IndexAll(IndexAllArgs),
+    /// Search the current or a named project's wiki.
     Search(SearchArgs),
+    /// Search across all registered projects.
     SearchAll(SearchAllArgs),
+    /// Print the managed install and cache paths.
     Path,
+    /// Show install status and managed-file integrity.
     Status,
-    Doctor,
+    /// Diagnose the install, search profile, and indexes.
+    Doctor(DoctorArgs),
+    /// Remove the managed install (optionally the binary/caches).
     Uninstall(UninstallArgs),
+}
+
+#[derive(Debug, clap::Args)]
+#[command(
+    about = "Run the Headroom binary with llm-wiki MCP tools excluded from compression",
+    long_about = "Export HEADROOM_EXCLUDE_TOOLS (*llm_wiki* plus all llm-wiki MCP tools in both namespaces) and HEADROOM_MCP_READ=off, then exec the Headroom binary with forwarded Headroom args untouched. Example: llm-wiki headroom -- wrap codex"
+)]
+pub struct HeadroomArgs {
+    #[arg(
+        long,
+        value_name = "PATH",
+        help = "Path to the headroom binary (default: search $PATH)"
+    )]
+    pub headroom_bin: Option<PathBuf>,
+    #[arg(
+        long,
+        help = "Remove HEADROOM_MCP_READ instead of forcing it off",
+        long_help = "Do not force HEADROOM_MCP_READ=off; remove it from the Headroom environment even if the parent set it. This is unsafe for wiki/raw provenance unless the session routes reads through llm-wiki MCP tools and avoids headroom_read."
+    )]
+    pub unsafe_mcp_read: bool,
+    #[arg(
+        required = true,
+        trailing_var_arg = true,
+        allow_hyphen_values = true,
+        num_args = 1..,
+        value_name = "HEADROOM_ARGS",
+        help = "Arguments forwarded to the headroom binary (recommended form: `-- wrap codex`)"
+    )]
+    pub args: Vec<OsString>,
+}
+
+#[derive(Debug, clap::Args)]
+pub struct McpArgs {
+    #[command(subcommand)]
+    pub command: McpCommand,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum McpCommand {
+    Serve,
+}
+
+#[derive(Debug, clap::Args)]
+pub struct ReadArgs {
+    pub path: PathBuf,
+    #[arg(long)]
+    pub project: Option<String>,
 }
 
 #[derive(Debug, clap::Args)]
@@ -112,21 +183,10 @@ pub struct EvalCalibrateArgs {
 }
 
 #[derive(Debug, clap::Args)]
-pub struct BuildArgs {
-    #[arg(long, value_enum, default_value_t = BuildTarget::Both)]
-    pub target: BuildTarget,
-    #[arg(long, default_value = "./build")]
-    pub out: PathBuf,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
-pub enum BuildTarget {
-    Claude,
-    Codex,
-    Both,
-}
-
-#[derive(Debug, clap::Args)]
+#[command(group(
+    clap::ArgGroup::new("search_posture")
+        .args(["enable_llm_search", "disable_llm_search"])
+))]
 pub struct InstallArgs {
     #[arg(long)]
     pub force: bool,
@@ -135,7 +195,34 @@ pub struct InstallArgs {
     #[arg(long)]
     pub configure_search: bool,
     #[arg(long)]
+    pub non_interactive: bool,
+    #[arg(
+        long,
+        conflicts_with = "disable_llm_search",
+        requires_all = ["non_interactive", "profile"]
+    )]
+    pub enable_llm_search: bool,
+    #[arg(long, value_enum, requires = "enable_llm_search")]
+    pub profile: Option<InstallSearchProfileArg>,
+    #[arg(long, requires = "enable_llm_search")]
+    pub confirm_model_downloads: bool,
+    #[arg(long, requires = "enable_llm_search")]
+    pub accept_profile_licenses: bool,
+    #[arg(long)]
     pub disable_llm_search: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub enum InstallSearchProfileArg {
+    Balanced,
+}
+
+impl InstallSearchProfileArg {
+    pub const fn id(self) -> &'static str {
+        match self {
+            Self::Balanced => "balanced",
+        }
+    }
 }
 
 #[derive(Debug, clap::Args)]
@@ -144,9 +231,14 @@ pub struct UninstallArgs {
     pub include_binary: bool,
     #[arg(long, conflicts_with = "include_binary")]
     pub search_artifacts: bool,
-    #[arg(long, requires = "search_artifacts", conflicts_with = "include_binary")]
+    /// Only meaningful with `--search-artifacts`; permits removing absent or
+    /// drifted search artifacts.
+    #[arg(long, conflicts_with = "include_binary")]
     pub force: bool,
 }
+
+#[derive(Args, Debug)]
+pub struct DoctorArgs {}
 
 #[derive(Debug, clap::Args)]
 pub struct RegisterArgs {
@@ -157,6 +249,9 @@ pub struct RegisterArgs {
     pub name: Option<String>,
     #[arg(long)]
     pub id: Option<String>,
+    /// Skip wiring the project's host MCP config (`.mcp.json` / Codex).
+    #[arg(long)]
+    pub no_mcp: bool,
 }
 
 #[derive(Debug, clap::Args)]
@@ -205,6 +300,12 @@ pub struct SearchArgs {
     pub allow_lexical_fallback: bool,
     #[arg(long)]
     pub rerank: bool,
+    #[arg(long)]
+    pub compact: bool,
+    #[arg(long)]
+    pub page_size: Option<usize>,
+    #[arg(long, default_value_t = 0)]
+    pub offset: usize,
 }
 
 #[derive(Debug, clap::Args)]
@@ -228,6 +329,12 @@ pub struct SearchAllArgs {
     pub allow_lexical_fallback: bool,
     #[arg(long)]
     pub rerank: bool,
+    #[arg(long)]
+    pub compact: bool,
+    #[arg(long)]
+    pub page_size: Option<usize>,
+    #[arg(long, default_value_t = 0)]
+    pub offset: usize,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
@@ -260,6 +367,9 @@ pub struct InitArgs {
     pub path: PathBuf,
     #[arg(long)]
     pub no_register: bool,
+    /// Skip wiring the project's host MCP config (`.mcp.json` / Codex).
+    #[arg(long)]
+    pub no_mcp: bool,
     #[arg(long)]
     pub non_interactive: bool,
     #[arg(long)]

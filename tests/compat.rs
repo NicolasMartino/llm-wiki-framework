@@ -34,7 +34,7 @@ fn v1_fixture_metadata_matches_expected() {
 }
 
 #[test]
-fn v1_fixture_index_references_current_skills() {
+fn v1_fixture_index_references_operation_specs() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/wikis/v1");
     let index = fs::read_to_string(root.join("index.md")).expect("index");
     for section in [
@@ -50,19 +50,17 @@ fn v1_fixture_index_references_current_skills() {
         assert!(index.contains(&format!("## {section}")));
     }
 
-    for skill in [
-        "wiki-init",
-        "wiki-query",
-        "wiki-ingest",
-        "wiki-research",
-        "wiki-lint",
-        "wiki",
+    for spec in [
+        "wiki-init-skill.spec.md",
+        "wiki-query-skill.spec.md",
+        "wiki-ingest-skill.spec.md",
+        "wiki-research-skill.spec.md",
+        "wiki-lint-skill.spec.md",
     ] {
         assert!(
             Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("assets/skills")
-                .join(skill)
-                .join("SKILL.md")
+                .join("wiki/specs")
+                .join(spec)
                 .exists()
         );
     }

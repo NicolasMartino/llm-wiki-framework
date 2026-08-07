@@ -5,7 +5,7 @@
 - Date: 2026-05-14
 - Category: Framework core
 - Scope: The validated documentation and execution model for projects using this framework.
-- Sources: raw/legacy/legacy-project-guidelines.md, raw/research/llm-wiki-pattern-research.md, raw/research/niharshrotri-llm-wiki-implementation.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/plans/cli-observability.plan.md, wiki/decisions/composable-project-init.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/plans/init-rerun-pack-drift.plan.md, wiki/evals/v1-proof-run.eval.md, wiki/evals/natural-language-search.eval.md
+- Sources: raw/legacy/legacy-project-guidelines.md, raw/research/llm-wiki-pattern-research.md, raw/research/niharshrotri-llm-wiki-implementation.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/plans/cli-observability.plan.md, wiki/decisions/composable-project-init.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/decisions/wiki-query-search-first.decision.md, wiki/plans/init-rerun-pack-drift.plan.md, wiki/evals/v1-proof-run.eval.md, wiki/evals/natural-language-search.eval.md
 - Related: wiki/decisions/three-layer-architecture.decision.md, wiki/decisions/agent-owns-wiki.decision.md, wiki/decisions/typed-documents.decision.md, wiki/references/qmd-rs-search-crate.reference.md, wiki/decisions/search-backend-selection.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/specs/wiki-init-skill.spec.md, wiki/specs/wiki-query-skill.spec.md, wiki/checklists/observability-contract.checklist.md
 
 ## Current State
@@ -28,18 +28,21 @@ blueprints, including `cli-tool`, default to `code`; `generic`, `research`, and
 answers needed for reruns: project name, project description, blueprint,
 resolved packs, resolved folders, and framework version.
 
-Framework distribution is binary-owned. The `llm-wiki` Rust binary embeds the
-canonical skill sources and templates, renders runtime skill variants, installs
-global skills with a manifest, and scaffolds new projects deterministically.
-`llm-wiki install` manages runtime state under `~/.llm_wiki/`: the executable is
-copied or verified at `~/.llm_wiki/bin/llm-wiki`, install ownership is recorded
-in `~/.llm_wiki/manifest.json`, interrupted installs use
+Framework distribution is binary-owned and MCP-first. The `llm-wiki` Rust binary
+embeds the canonical templates, scaffolds new projects deterministically, and
+serves wiki operations to hosts over the Model Context Protocol. It no longer
+renders or installs generated runtime skills. `llm-wiki install` manages runtime
+state under `~/.llm_wiki/`: the executable is copied or verified at
+`~/.llm_wiki/bin/llm-wiki`, install ownership is recorded in
+`~/.llm_wiki/manifest.json`, interrupted installs use
 `~/.llm_wiki/install.partial.json`, and scoped backup snapshots live under
-`~/.llm_wiki/backups/`. Backup snapshots include changed framework skill
-targets and any displaced unmanaged binary at the managed binary path.
-Installed skills call the managed binary by absolute path; shell `PATH` setup
-is terminal convenience only. Spawned projects do not need project-local
-framework skill copies.
+`~/.llm_wiki/backups/`. Install also materializes the MCP surface: it merges the
+active instance into Codex `~/.codex/config.toml` and writes a staged Claude
+project config at `~/.llm_wiki/mcp/claude-project.mcp.json`. Hosts spawn
+`llm-wiki mcp serve` over stdio on demand; no background daemon is installed. The
+MCP configs invoke the managed binary by absolute path; shell `PATH` setup is
+terminal convenience only. Repo-local `.claude/skills/` sources remain the
+authored skill material; they are not projected into a global runtime by install.
 
 ## Operations
 
@@ -49,8 +52,9 @@ Three core operations:
 2. **Query** - answer questions using the wiki, file durable answers back
 3. **Lint** - scan for contradictions, stale content, orphans; fix directly
 
-In Codex, lint can be exposed through a dedicated skill (`wiki-lint`) or
-through the dispatcher alias `$wiki lint`.
+Lint is an agent-owned operation. Its authored guidance lives in the repo-local
+`.claude/skills/wiki-lint/` source; hosts read and search the wiki through the
+`llm_wiki_*` MCP tools while performing it.
 
 Research is a supporting acquisition step, not a fourth core mutation
 operation. Research gathers candidate material into `raw/`, then ingest
@@ -66,16 +70,24 @@ Nine typed document roles, each with distinct truth relationship:
 - Experiment (investigation evidence), Eval (measured performance)
 - Checklist (repeatable procedure), Reference (external evidence)
 
-## Navigation: How Projects Answer Questions Once The Index Is Too Large
+## Navigation: How Projects Answer Questions
 
-- `wiki/index.md` is the sole agent entry point for small wikis (<100 pages)
+- `wiki/index.md` is the mandatory first-read orientation and catalog
 - `wiki/log.md` tracks all mutations chronologically
 - No distributed READMEs; the index is the catalog
-- At scale (>100 pages): `llm-wiki search` supplements `index.md` navigation
-  for project-local retrieval, and `llm-wiki search-all` performs explicit
-  cross-project retrieval across registered projects. The internal qmd-rs
-  backend owns rebuildable search stores under host-local cache state; markdown
-  files under `wiki/` remain canonical citations.
+- For query operations, `wiki-query` uses `llm_wiki_search` for every query
+  after reading the index when the MCP server is exposed and the current
+  project is registered. Shell `llm-wiki search --mode auto --format json` is
+  fallback only when MCP is unavailable. Search is the default project-local
+  retrieval pass, not only a large-wiki fallback.
+- If search is unavailable, unregistered, stale, not ready, or unhelpful, the
+  agent continues from index-based navigation instead of treating search
+  failure or zero results as the answer.
+- `llm_wiki_search_all` performs explicit cross-project retrieval across
+  registered projects when MCP is exposed; shell `llm-wiki search-all` is the
+  fallback. The internal qmd-rs backend owns rebuildable search stores under
+  host-local cache state; markdown files under `wiki/` remain canonical
+  citations.
 
 Validated search behavior:
 
@@ -83,7 +95,10 @@ Validated search behavior:
 - `auto` selects lexical when LLM search is disabled or no completed
   LLM-search profile exists.
 - `auto` selects hybrid when LLM search is enabled and the project has a fresh
-  compatible semantic index plus a matching scoped threshold record.
+  compatible semantic index. Hybrid works out of the box: the balanced profile
+  ships DEFAULT thresholds, so no calibration is required first. Calibration is
+  an optional per-corpus override that replaces the shipped defaults with a
+  matching scoped threshold record; it is not a gate hybrid waits on.
 - Explicit `semantic` and `hybrid` modes fail closed on missing readiness unless
   the caller uses `--allow-lexical-fallback`.
 - Hybrid is the promoted natural-language path; semantic-only mode is
@@ -92,6 +107,10 @@ Validated search behavior:
   dimensions, qmd-rs adapter, qmd-rs version, and chunking strategy. Any label,
   corpus, retrieval, model, qmd-rs, or chunking change requires fresh eval and
   calibration before threshold promotion.
+- Completed qmd-rs cache reads are sandbox-safe: read-only search, search-all,
+  doctor, and project status use immutable completed-store reads, report
+  `permission_denied` and `transient` distinctly from corruption, and keep JSON
+  output parseable on cache access failures.
 
 ## Promotion Flow: How Accepted Proposals Become Plans
 
@@ -141,19 +160,33 @@ future CLI implementation plans and code reviews.
 - `CLAUDE.md` and `AGENTS.md` exist and define agent workflows for this repo
 - `wiki/index.md` exists and catalogs all wiki content
 - `wiki/log.md` records mutations
-- `llm-wiki install` writes global runtime skills with managed-binary manifest
-  ownership, scoped backup snapshots, and uninstall symmetry
-- `llm-wiki path` prints managed-bin PATH guidance without reinstalling skills
+- `llm-wiki install` materializes the MCP surface (merged Codex
+  `config.toml`, staged Claude `claude-project.mcp.json`) with managed-binary
+  manifest ownership, scoped backup snapshots, and uninstall symmetry; it writes
+  zero runtime skills
+- `llm-wiki path` prints managed-bin PATH guidance
+- `llm-wiki mcp serve` runs the stdio MCP server that hosts spawn on demand,
+  exposing `llm_wiki_read`, `llm_wiki_search`, `llm_wiki_search_all`,
+  `llm_wiki_index`, `llm_wiki_register`, and `llm_wiki_status`
+- `llm-wiki read` reads a scoped `wiki/`/`raw/` file through the framework
 - `llm-wiki init` produces project scaffolds from embedded templates with
   blueprint/pack golden tests
-- `llm-wiki register`, `forget`, and `projects` manage host-local project
-  registry state without writing to project files
+- `llm-wiki register` manages host-local project registry state and, unless
+  `--no-mcp` is set, wires project-local host config by merging the active
+  server into `<project>/.mcp.json`; `forget` and `projects` remain registry-only
+  and do not write project files
 - `llm-wiki index`, `index-all`, `search`, and `search-all` provide default-on
   qmd-rs-backed search over registered project wiki pages
 - `llm-wiki search --mode auto` and explicit lexical/semantic/hybrid modes
   implement the accepted semantic/hybrid mode decision, including readiness
   metadata, zero-result metadata, scoped thresholds, and exact-identifier
   preservation
+- Completed qmd-rs stores are proved immutable-readable before live promotion;
+  read commands use `read_only_immutable` status paths and do not require cache
+  write permission.
+- `wiki-query` uses `llm_wiki_search` for every registered-project query after
+  index orientation when MCP is exposed, falls back to shell search only when
+  MCP is unavailable, then reads and cites the returned wiki pages directly
 - Semantic/hybrid runtime readiness includes accepted model-license records,
   fresh project-scoped semantic indexes, and compatible scoped thresholds;
   `search-all` reports these outcomes per project and skips unready projects
@@ -171,14 +204,12 @@ future CLI implementation plans and code reviews.
   set or resolved folder composition changes, rerun appends structured
   schema-drift evidence to `wiki/log.md` and refreshes only the generated
   schema-drift section in `wiki/index.md`
-- `llm-wiki build --out .` regenerates this repo's committed runtime skill
-  outputs from canonical skill markdown
 - This project uses the framework to manage itself
 
 ## Limitations
 
 - Multi-agent coordination is not yet addressed.
-- The committed test suite covers deterministic scaffolding, projection,
+- The committed test suite covers deterministic scaffolding, MCP serving,
   registry, indexing, and search; proof projects for end-to-end agent
   bootstrap currently live under `/private/tmp` rather than as committed
   fixtures.

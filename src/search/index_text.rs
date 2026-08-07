@@ -46,7 +46,14 @@ pub(crate) fn mask_search_ignored_spans(input: &str) -> String {
 
 fn push_masked(output: &mut String, input: &str) {
     for ch in input.chars() {
-        output.push(mask_char(ch));
+        // A 4-byte character has no same-width whitespace codepoint (U+10000
+        // renders as a visible letter), so emit four ASCII spaces. This keeps every
+        // source byte offset aligned without leaking a glyph.
+        if ch.len_utf8() == 4 {
+            output.push_str("    ");
+        } else {
+            output.push(mask_char(ch));
+        }
     }
 }
 
@@ -57,8 +64,7 @@ fn mask_char(ch: char) -> char {
             1 => ' ',
             2 => '\u{00a0}',
             3 => '\u{2003}',
-            4 => '\u{10000}',
-            _ => unreachable!("UTF-8 characters are 1 to 4 bytes"),
+            _ => unreachable!("4-byte characters are masked as spaces in push_masked"),
         },
     }
 }

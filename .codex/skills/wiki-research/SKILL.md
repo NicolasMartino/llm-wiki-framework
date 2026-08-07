@@ -11,6 +11,17 @@ Gather source material into `raw/research/` so it can be ingested later. This
 skill is the framework's guided intake surface for pre-ingest research. It
 does research and source acquisition; it does not update `wiki/` directly.
 
+## MCP Routing
+
+When the host exposes the LLM Wiki MCP server, use the framework-owned MCP
+tools for wiki/raw orientation: `llm_wiki_read` for full `wiki/` or `raw/`
+files, `llm_wiki_search` for current-project retrieval, and
+`llm_wiki_search_all` only for cross-project retrieval. If a follow-up ingest or
+lint mutation changes wiki content, refresh with `llm_wiki_index`. Shell
+`llm-wiki ...` commands and direct wiki/raw file reads are fallback only when
+MCP is unavailable. Research acquisition itself may still use web, URL, or
+local path tools because there is no deterministic `llm_wiki_research` MCP tool.
+
 ## Behavior
 
 1. Require `wiki/index.md` and `raw/` in the current working directory. If
@@ -18,9 +29,11 @@ does research and source acquisition; it does not update `wiki/` directly.
 2. If the request is broad or the source mode is unclear, ask one short intake
    exchange to determine the research question, goal, source constraints, and
    whether to shortlist or auto-select sources.
-3. Before gathering sources, read `wiki/index.md`,
-   `project_guidelines.md` if needed, and the one to three most relevant wiki
-   pages when the request is topical enough to identify them.
+3. Before gathering sources, read `wiki/index.md` and the one to three most
+   relevant wiki pages via `llm_wiki_read` when MCP is exposed. Use
+   `llm_wiki_search` to identify relevant pages when the request is topical
+   enough and the project is registered. Read `project_guidelines.md` from an
+   MCP resource if exposed, otherwise directly.
 4. Create or extend one bundle at `raw/research/YYYY-MM-DD-topic-slug/` with
    `manifest.md`, `research-summary.md`, and numbered files under `sources/`.
 5. Path mode: copy the provided file or directory into `sources/`, record the

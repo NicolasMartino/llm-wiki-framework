@@ -1,26 +1,51 @@
-use std::collections::HashSet;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 
-use crate::embed;
+use crate::instance;
+use crate::legacy_skills;
 use crate::manifest::Manifest;
 use crate::manifest::hash::sha256_hex;
+use crate::mcp_config;
+use crate::mcp_config::ServerWiring;
 use crate::paths::{Paths, managed_binary_name};
 use crate::registry::{ProjectRegistry, RegisteredProject};
 use crate::search::adapter::{BackendState, SearchBackend, SearchMode};
 use crate::search::project::discover_from_cwd;
 use crate::search::qmd_rs::QmdRsBackend;
+use crate::search::runtime_probe::{
+    self, RuntimeProbeOutcome, RuntimeProbeRecord, RuntimeProbeStore, artifact_for_model,
+    identity_for_model, probe_targets_for_search_profile,
+};
 use crate::search::semantic::{SemanticIndexMetadata, SemanticVectorIndex};
-use crate::search_models::{AcceptedLicenses, ModelArtifacts, SearchThresholdStore};
-use crate::search_profile::{ExternalDependencies, SearchConfig};
-use crate::skill_render::{BINARY_MARKER, managed_binary_invocation};
+use crate::search_models::{AcceptedLicenses, ModelArtifacts, SearchThresholdStore, sha256_file};
+use crate::search_profile::{ExternalDependencies, SearchConfig, SearchProfile};
 
-pub fn run(context: &crate::cli::CliContext) -> Result<()> {
+/// Hash a manifest-managed file for drift detection. A read failure (e.g. a
+/// permission-denied file) is reported as a diagnostic finding rather than
+/// aborting the whole `doctor` run via `?`.
+fn hash_managed_file(path: &Path, role: &str) -> std::result::Result<String, String> {
+    match fs::read(path) {
+        Ok(bytes) => Ok(sha256_hex(&bytes)),
+        Err(error) => Err(format!("Unreadable {role}: {} ({error})", path.display())),
+    }
+}
+
+pub fn run(_args: &crate::cli::DoctorArgs, context: &crate::cli::CliContext) -> Result<()> {
     context.diagnostic("command: doctor");
     let paths = Paths::from_env()?;
+    let bin = instance::binary_stem();
+    println!("Instance: {bin}");
+    if instance::is_test() {
+        println!(
+            "Caveat: the `{bin}` instance isolates the *install* (managed home, skills, \
+             registry, caches, manifest) from production, but NOT the *project tree*. A \
+             mutating skill run against a project writes that project's wiki/ and raw/ \
+             exactly as production would."
+        );
+    }
     context.diagnostic(format!("managed home: {}", paths.managed_home().display()));
     context.diagnostic(format!(
         "managed binary: {}",
@@ -31,7 +56,16 @@ pub fn run(context: &crate::cli::CliContext) -> Result<()> {
         "partial marker: {}",
         paths.partial_install().display()
     ));
-    let manifest = Manifest::read(&paths.manifest())?;
+    let mut findings = Vec::new();
+    // A corrupt manifest is exactly what `doctor` should report, so surface the
+    // parse failure as a finding instead of aborting the whole run via `?`.
+    let manifest = match Manifest::read(&paths.manifest()) {
+        Ok(manifest) => manifest,
+        Err(error) => {
+            findings.push(format!("manifest.json failed to parse: {error:#}"));
+            None
+        }
+    };
     context.diagnostic(format!(
         "manifest state: {}",
         if manifest.is_some() {
@@ -40,18 +74,6 @@ pub fn run(context: &crate::cli::CliContext) -> Result<()> {
             "missing"
         }
     ));
-    let manifest_paths: HashSet<PathBuf> = manifest
-        .as_ref()
-        .map(|manifest| {
-            manifest
-                .skills
-                .iter()
-                .map(|entry| entry.path.clone())
-                .collect()
-        })
-        .unwrap_or_default();
-
-    let mut findings = Vec::new();
     if let Some(manifest) = &manifest {
         if !manifest.binary.path.exists() {
             findings.push(format!(
@@ -59,49 +81,54 @@ pub fn run(context: &crate::cli::CliContext) -> Result<()> {
                 manifest.binary.path.display()
             ));
         } else {
-            let current = sha256_hex(&fs::read(&manifest.binary.path)?);
-            if current != manifest.binary.hash {
-                findings.push(format!(
-                    "Drifted managed binary: {} (run `llm-wiki install` to refresh)",
+            match hash_managed_file(&manifest.binary.path, "managed binary") {
+                Ok(current) if current != manifest.binary.hash => findings.push(format!(
+                    "Drifted managed binary: {} (run `{bin} install` to refresh)",
                     manifest.binary.path.display()
-                ));
+                )),
+                Ok(_) => {}
+                Err(finding) => findings.push(finding),
             }
         }
         if let Some(path_binary) = find_on_path(managed_binary_name())
             && !same_path(&path_binary, &manifest.binary.path)
-            && path_binary.exists()
             && manifest.binary.path.exists()
         {
             context.diagnostic(format!("PATH binary: {}", path_binary.display()));
-            let path_hash = sha256_hex(&fs::read(&path_binary)?);
-            if path_hash != manifest.binary.hash {
-                findings.push(format!(
-                    "PATH llm-wiki differs from managed binary: {} (rerun `llm-wiki install` after upgrading)",
+            match hash_managed_file(&path_binary, "PATH binary") {
+                Ok(path_hash) if path_hash != manifest.binary.hash => findings.push(format!(
+                    "PATH {bin} differs from managed binary: {} (rerun `{bin} install` after upgrading)",
                     path_binary.display()
-                ));
+                )),
+                Ok(_) => {}
+                Err(finding) => findings.push(finding),
             }
         }
-        let expected_binary = managed_binary_invocation(&manifest.binary.path);
         for entry in &manifest.skills {
             if !entry.path.exists() {
                 findings.push(format!("Missing manifest file: {}", entry.path.display()));
             } else {
-                let bytes = fs::read(&entry.path)?;
-                let current = sha256_hex(&bytes);
-                if current != entry.hash {
-                    findings.push(format!(
-                        "Drifted manifest file: {} (run `llm-wiki install --force` to replace)",
+                match hash_managed_file(&entry.path, "manifest file") {
+                    Ok(current) if current != entry.hash => findings.push(format!(
+                        "Drifted manifest file: {} (run `{bin} install --force` to replace)",
                         entry.path.display()
-                    ));
+                    )),
+                    Ok(_) => {}
+                    Err(finding) => findings.push(finding),
                 }
-                let contents = String::from_utf8_lossy(&bytes);
-                if contents.contains(BINARY_MARKER)
-                    || (contents.contains("llm-wiki") && !contents.contains(&expected_binary))
-                {
-                    findings.push(format!(
-                        "Installed skill does not use managed binary path: {} (run `llm-wiki install --force` to replace)",
-                        entry.path.display()
-                    ));
+            }
+        }
+        for asset in &manifest.assets {
+            if !asset.path.exists() {
+                findings.push(format!("Missing manifest asset: {}", asset.path.display()));
+            } else {
+                match hash_managed_file(&asset.path, "manifest asset") {
+                    Ok(current) if current != asset.hash => findings.push(format!(
+                        "Drifted manifest asset: {} (run `{bin} install --force` to replace)",
+                        asset.path.display()
+                    )),
+                    Ok(_) => {}
+                    Err(finding) => findings.push(finding),
                 }
             }
         }
@@ -115,29 +142,19 @@ pub fn run(context: &crate::cli::CliContext) -> Result<()> {
         ));
     }
 
-    for asset in embed::SKILLS {
-        for path in [
-            paths.claude_skill(asset.name),
-            paths.codex_skill(asset.name),
-            paths.codex_config(asset.name),
-        ] {
-            if is_legacy_symlink(&path)? {
-                findings.push(format!(
-                    "Legacy symlink residue: {} (remove it or run `llm-wiki install --force`)",
-                    path.display()
-                ));
-            } else if path.exists() && !manifest_paths.contains(&path) {
-                findings.push(format!(
-                    "Unknown framework-shaped file: {} (run `llm-wiki install --force` to own it)",
-                    path.display()
-                ));
-            }
-        }
-    }
-
+    findings.extend(
+        legacy_skills::existing_legacy_skill_dirs(&paths)
+            .into_iter()
+            .map(|dir| {
+                format!(
+                    "Legacy generated skill directory remains: {}",
+                    dir.display()
+                )
+            }),
+    );
     println!("Install:");
     if findings.is_empty() {
-        println!("No llm-wiki install issues found.");
+        println!("No {bin} install issues found.");
     } else {
         for finding in findings {
             println!("{finding}");
@@ -191,8 +208,9 @@ fn print_search_profile_diagnostics(paths: &Paths, context: &crate::cli::CliCont
         None => {
             context.diagnostic("search config state: missing");
             println!(
-                "LLM search profile missing: {} (run `llm-wiki install --configure-search`)",
-                search_config.display()
+                "LLM search profile missing: {} (run `{} install --configure-search`)",
+                search_config.display(),
+                instance::binary_stem()
             );
         }
     }
@@ -285,7 +303,242 @@ fn print_search_profile_diagnostics(paths: &Paths, context: &crate::cli::CliCont
         }
     }
 
+    print_runtime_probe_diagnostics(paths, context)?;
+
     Ok(())
+}
+
+fn print_runtime_probe_diagnostics(paths: &Paths, context: &crate::cli::CliContext) -> Result<()> {
+    let probe_path = paths.search_runtime_probes();
+    context.diagnostic(format!("runtime probes: {}", probe_path.display()));
+
+    println!();
+    println!("GGUF runtime:");
+
+    let Some(config) = SearchConfig::read(&paths.search_config())? else {
+        println!("Runtime probe skipped: LLM search profile missing.");
+        print_last_probe_summary(RuntimeProbeStore::read(&probe_path)?.as_ref(), &[]);
+        return Ok(());
+    };
+    let Some(profile) = active_llm_profile(&config) else {
+        println!("Runtime probe skipped: LLM search disabled.");
+        print_last_probe_summary(RuntimeProbeStore::read(&probe_path)?.as_ref(), &[]);
+        return Ok(());
+    };
+    let profile_id = profile.profile.as_deref().unwrap_or("<unknown>");
+    println!("Runtime profile: {profile_id}");
+
+    let targets = match probe_targets_for_search_profile(profile) {
+        Ok(targets) => targets,
+        Err(error) => {
+            println!("Current runtime probe skipped: {error:#}");
+            print_last_probe_summary(RuntimeProbeStore::read(&probe_path)?.as_ref(), &[]);
+            return Ok(());
+        }
+    };
+    let store = RuntimeProbeStore::read(&probe_path)?;
+    let artifacts = ModelArtifacts::read(&paths.model_artifacts())?;
+    let identities = artifacts
+        .as_ref()
+        .map(|artifacts| {
+            targets
+                .iter()
+                .copied()
+                .filter_map(|target| {
+                    artifact_for_model(artifacts, target.model.id)
+                        .map(|artifact| identity_for_model(profile_id, target.model, artifact))
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    print_last_probe_summary(store.as_ref(), &identities);
+
+    let Some(licenses) = AcceptedLicenses::read(&paths.accepted_licenses())? else {
+        println!("Current runtime probe skipped: accepted license records missing.");
+        return Ok(());
+    };
+    if let Some(target) = targets
+        .iter()
+        .copied()
+        .find(|target| !licenses.accepts_model(target.model))
+    {
+        println!(
+            "Current runtime probe skipped: accepted license record missing for {}.",
+            target.model.id
+        );
+        return Ok(());
+    }
+
+    let Some(artifacts) = artifacts else {
+        println!("Current runtime probe skipped: model artifact records missing.");
+        return Ok(());
+    };
+    if let Some(target) = targets
+        .iter()
+        .copied()
+        .find(|target| artifact_for_model(&artifacts, target.model.id).is_none())
+    {
+        println!(
+            "Current runtime probe skipped: model artifact record missing for {}.",
+            target.model.id
+        );
+        return Ok(());
+    }
+    for target in &targets {
+        let artifact = artifact_for_model(&artifacts, target.model.id)
+            .expect("artifact presence checked before runtime probe");
+        match artifact.path.try_exists() {
+            Ok(true) => {}
+            Ok(false) => {
+                println!(
+                    "Current runtime probe skipped: model artifact file missing for {} at {}.",
+                    target.model.id,
+                    artifact.path.display()
+                );
+                return Ok(());
+            }
+            Err(error) => {
+                println!(
+                    "Current runtime probe skipped: model artifact file inaccessible for {} at {} ({error}).",
+                    target.model.id,
+                    artifact.path.display()
+                );
+                return Ok(());
+            }
+        }
+        let observed = match sha256_file(&artifact.path) {
+            Ok(observed) => observed,
+            Err(error) => {
+                println!(
+                    "Current runtime probe skipped: model artifact file unreadable for {} at {} ({error:#}).",
+                    target.model.id,
+                    artifact.path.display()
+                );
+                return Ok(());
+            }
+        };
+        if observed != artifact.observed_sha256 {
+            println!(
+                "Current runtime probe skipped: model artifact hash mismatch for {} at {}; expected {}, observed {}.",
+                target.model.id,
+                artifact.path.display(),
+                artifact.observed_sha256,
+                observed
+            );
+            return Ok(());
+        }
+    }
+
+    let run = runtime_probe::probe_search_profile(profile, &artifacts)?;
+    for record in &run.records {
+        context.diagnostic(format!(
+            "runtime probe current: role={}, outcome={}, requested_backend={}, used_backend={}, fallback={}, duration_ms={}",
+            record.role,
+            record.outcome.label(),
+            record.requested_backend,
+            record.used_backend.as_deref().unwrap_or("<unknown>"),
+            record.fallback,
+            record.duration_ms
+        ));
+    }
+    if let Some(failure) = run.first_required_problem() {
+        println!(
+            "Current runtime probe: {} for {} during {} ({})",
+            failure.outcome.label(),
+            failure.role,
+            failure.failure_stage.as_deref().unwrap_or("runtime_probe"),
+            failure.failure_kind.as_deref().unwrap_or("unknown")
+        );
+    } else {
+        let fallback = run.records.iter().any(|record| record.fallback);
+        let used = common_used_backend(&run.records).unwrap_or("mixed");
+        println!("Current runtime probe: passed (backend_used={used}, fallback={fallback})");
+    }
+    Ok(())
+}
+
+fn active_llm_profile(config: &SearchConfig) -> Option<&SearchProfile> {
+    if config.project_default.llm_search_enabled {
+        Some(&config.project_default)
+    } else if config.global_search.llm_search_enabled {
+        Some(&config.global_search)
+    } else {
+        None
+    }
+}
+
+fn print_last_probe_summary(
+    store: Option<&RuntimeProbeStore>,
+    identities: &[runtime_probe::RuntimeProbeIdentity],
+) {
+    let Some(store) = store else {
+        println!("Last runtime probe: missing.");
+        return;
+    };
+    if store.records.is_empty() {
+        println!("Last runtime probe: empty.");
+        return;
+    }
+    if let Some(reason) = store.store_stale_reason() {
+        println!("Last runtime probe: stale ({reason}).");
+        return;
+    }
+    for identity in identities {
+        let Some(record) = store.newest_record_for(identity) else {
+            println!("Last runtime probe: stale (missing_record).");
+            return;
+        };
+        if let Some(reason) = store.record_stale_reason(record, identity) {
+            println!("Last runtime probe: stale ({reason}).");
+            return;
+        }
+    }
+    if let Some(record) = store
+        .records
+        .iter()
+        .find(|record| record.outcome == RuntimeProbeOutcome::Failed)
+    {
+        println!(
+            "Last runtime probe: failed for {} at {} (requested_backend={}, used_backend={})",
+            record.role,
+            record.probed_at,
+            record.requested_backend,
+            record.used_backend.as_deref().unwrap_or("<unknown>")
+        );
+        return;
+    }
+    if let Some(record) = store
+        .records
+        .iter()
+        .find(|record| record.outcome == RuntimeProbeOutcome::Skipped)
+    {
+        println!(
+            "Last runtime probe: skipped for {} at {} ({})",
+            record.role,
+            record.probed_at,
+            record.message.as_deref().unwrap_or("no reason recorded")
+        );
+        return;
+    }
+
+    let fallback = store.records.iter().any(|record| record.fallback);
+    let used = common_used_backend(&store.records).unwrap_or("mixed");
+    println!(
+        "Last runtime probe: passed at {} (backend_used={used}, fallback={fallback})",
+        store.updated_at
+    );
+}
+
+fn common_used_backend(records: &[RuntimeProbeRecord]) -> Option<&str> {
+    let mut used = records
+        .iter()
+        .filter_map(|record| record.used_backend.as_deref());
+    let first = used.next()?;
+    if used.all(|value| value == first) {
+        Some(first)
+    } else {
+        None
+    }
 }
 
 fn print_project_search_diagnostics(paths: &Paths, context: &crate::cli::CliContext) -> Result<()> {
@@ -305,20 +558,33 @@ fn print_project_search_diagnostics(paths: &Paths, context: &crate::cli::CliCont
         "managed model root: {}",
         paths.managed_model_root().display()
     ));
-    let registry = ProjectRegistry::read(&registry_path)?;
-    context.diagnostic(format!("registered projects: {}", registry.projects.len()));
-
     println!();
     println!("Registry:");
-    if registry_path.exists() {
-        println!(
-            "Project registry: {} ({} projects)",
-            registry_path.display(),
-            registry.projects.len()
-        );
-    } else {
-        println!("Project registry missing: {}", registry_path.display());
-    }
+    // A corrupt registry is a diagnosis, not a reason to abort the whole run:
+    // report it and continue with an empty registry for the remaining checks.
+    let registry = match ProjectRegistry::read(&registry_path) {
+        Ok(registry) => {
+            context.diagnostic(format!("registered projects: {}", registry.projects.len()));
+            if registry_path.exists() {
+                println!(
+                    "Project registry: {} ({} projects)",
+                    registry_path.display(),
+                    registry.projects.len()
+                );
+            } else {
+                println!("Project registry missing: {}", registry_path.display());
+            }
+            registry
+        }
+        Err(error) => {
+            context.diagnostic(format!("registry parse failed: {error:#}"));
+            println!(
+                "projects.json failed to parse: {} ({error:#})",
+                registry_path.display()
+            );
+            ProjectRegistry::default()
+        }
+    };
     let missing_roots = registry
         .projects
         .iter()
@@ -333,6 +599,8 @@ fn print_project_search_diagnostics(paths: &Paths, context: &crate::cli::CliCont
             );
         }
     }
+
+    print_mcp_wiring_diagnostics(paths, &registry, context);
 
     println!();
     println!("Current project:");
@@ -355,7 +623,8 @@ fn print_project_search_diagnostics(paths: &Paths, context: &crate::cli::CliCont
         println!("Registered project ID: {}", project.id);
     } else {
         println!(
-            "Current project is not registered; run `llm-wiki register {}`",
+            "Current project is not registered; run `{} register {}`",
+            instance::binary_stem(),
             discovered.project_root.display()
         );
     }
@@ -382,10 +651,14 @@ fn print_project_search_diagnostics(paths: &Paths, context: &crate::cli::CliCont
         legacy_store_path.display()
     ));
     let backend = QmdRsBackend::new();
-    let status = backend.doctor(&store_path, &wiki_root, SearchMode::Fts)?;
+    let status_project_id = registered
+        .map(|project| project.id.as_str())
+        .unwrap_or(discovered.project_key.as_str());
+    let status = backend.doctor(status_project_id, &store_path, &wiki_root, SearchMode::Fts)?;
     context.diagnostic(format!(
-        "search index status: {}, indexed_files={}",
+        "search index status: {}, open_mode={}, indexed_files={}",
         backend_state_label(&status.state),
+        status.open_mode.label(),
         status.indexed_files
     ));
 
@@ -411,6 +684,18 @@ fn print_project_search_diagnostics(paths: &Paths, context: &crate::cli::CliCont
                 status.store_path.display()
             );
         }
+        BackendState::Transient => {
+            println!(
+                "qmd-rs FTS index transient: {} (index publication is in progress; retry)",
+                status.store_path.display()
+            );
+        }
+        BackendState::PermissionDenied => {
+            println!(
+                "qmd-rs FTS index permission denied: {} (grant read access to the managed search cache)",
+                status.store_path.display()
+            );
+        }
         BackendState::Corrupt => {
             println!(
                 "qmd-rs FTS index corrupt: {} (rebuild the search index)",
@@ -426,8 +711,9 @@ fn print_project_search_diagnostics(paths: &Paths, context: &crate::cli::CliCont
     }
     if legacy_store_path.exists() {
         println!(
-            "Legacy qmd-rs cache present: {} (run `llm-wiki index` to migrate into {})",
+            "Legacy qmd-rs cache present: {} (run `{} index` to migrate into {})",
             legacy_store_path.display(),
+            instance::binary_stem(),
             paths.managed_index_root().display()
         );
     }
@@ -480,28 +766,189 @@ fn print_project_search_diagnostics(paths: &Paths, context: &crate::cli::CliCont
     Ok(())
 }
 
+/// Surface whether each host actually references the managed MCP server, turning
+/// the otherwise-silent "server never connected" failure into a warning with a
+/// fix hint. This never changes `doctor`'s exit status: a user may intentionally
+/// run unwired, so every problem here is informational, and even an unreadable
+/// config degrades to a printed line rather than aborting the run.
+fn print_mcp_wiring_diagnostics(
+    paths: &Paths,
+    registry: &ProjectRegistry,
+    context: &crate::cli::CliContext,
+) {
+    let bin = instance::binary_stem();
+    let binary = paths.managed_binary();
+    // A wired config still cannot spawn unless the managed binary it names is a
+    // runnable file, so runnability (not mere existence) gates every "configured"
+    // verdict below: matching config text is necessary but not sufficient for the
+    // server to actually connect.
+    let binary_state = managed_binary_state(&binary);
+    let binary_runnable = binary_state == BinaryState::Runnable;
+    println!();
+    println!("MCP wiring:");
+    if let Some(reason) = binary_state.unrunnable_reason() {
+        println!(
+            "Managed binary {reason}: {} (run `{bin} install`); host configs below cannot spawn the server until it is fixed",
+            binary.display()
+        );
+    }
+
+    let codex_path = paths.codex_config_toml();
+    context.diagnostic(format!("codex config: {}", codex_path.display()));
+    match fs::read_to_string(&codex_path) {
+        Ok(contents) => match mcp_config::codex_server_wiring(&contents, &binary) {
+            Ok(ServerWiring::Wired) if binary_runnable => {
+                println!("Codex MCP server configured: {}", codex_path.display())
+            }
+            Ok(ServerWiring::Wired) => println!(
+                "Codex MCP server configured but managed binary {}: {} (run `{bin} install`)",
+                binary_state.unrunnable_reason().unwrap_or("unavailable"),
+                codex_path.display()
+            ),
+            Ok(ServerWiring::Mismatched) => println!(
+                "Codex MCP server command stale: {} (points at a different binary; run `{bin} install` to refresh)",
+                codex_path.display()
+            ),
+            Ok(ServerWiring::Absent) => println!(
+                "Codex MCP server not configured: {} (run `{bin} install`)",
+                codex_path.display()
+            ),
+            Err(error) => println!(
+                "Codex config unreadable as TOML: {} ({error})",
+                codex_path.display()
+            ),
+        },
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => println!(
+            "Codex config missing: {} (run `{bin} install`)",
+            codex_path.display()
+        ),
+        Err(error) => println!(
+            "Codex config unreadable: {} ({error})",
+            codex_path.display()
+        ),
+    }
+
+    let mut checked = 0usize;
+    let mut unwired = 0usize;
+    for project in &registry.projects {
+        // A missing root is already reported above; skip it here to avoid a
+        // redundant "not wired" line for a project that no longer exists.
+        if !project.root.exists() {
+            continue;
+        }
+        checked += 1;
+        let mcp_json = project.root.join(".mcp.json");
+        // Distinguish absent / invalid / (in)correctly-wired: an invalid
+        // `.mcp.json` must NOT be reported as merely "not wired", because the
+        // suggested `register`/`init` re-merge would hit the same parse failure
+        // and cannot repair it — the file needs a manual fix or delete.
+        let wiring = match fs::read_to_string(&mcp_json) {
+            Ok(contents) => match mcp_config::claude_project_server_wiring(&contents, &binary) {
+                Ok(wiring) => wiring,
+                Err(error) => {
+                    unwired += 1;
+                    println!(
+                        "Project {} MCP config invalid: {} ({error}); fix or delete it, then run `{bin} register {}` or `init`, or run `{bin} install` to materialize the fallback Claude template for manual wiring",
+                        project.id,
+                        mcp_json.display(),
+                        project.root.display()
+                    );
+                    continue;
+                }
+            },
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => ServerWiring::Absent,
+            Err(error) => {
+                unwired += 1;
+                println!(
+                    "Project {} MCP config unreadable: {} ({error})",
+                    project.id,
+                    mcp_json.display()
+                );
+                continue;
+            }
+        };
+        // "Wired" only counts when the managed binary it names is runnable.
+        let hint = match wiring {
+            ServerWiring::Wired if binary_runnable => None,
+            ServerWiring::Wired => Some(format!(
+                "wired but managed binary {}: {} (run `{bin} install`)",
+                binary_state.unrunnable_reason().unwrap_or("unavailable"),
+                mcp_json.display()
+            )),
+            ServerWiring::Mismatched => Some(format!(
+                "wiring stale: {} (command points at a different binary; run `{bin} register {}` or `init` to refresh)",
+                mcp_json.display(),
+                project.root.display()
+            )),
+            ServerWiring::Absent => Some(format!(
+                "not wired: {} (run `{bin} register {}` or `init` to wire it, or run `{bin} install` to materialize the fallback Claude template for manual wiring)",
+                mcp_json.display(),
+                project.root.display()
+            )),
+        };
+        if let Some(hint) = hint {
+            unwired += 1;
+            println!("Project {} MCP {hint}", project.id);
+        }
+    }
+    if checked == 0 {
+        println!("No registered projects with an existing root to check for Claude MCP wiring.");
+    } else if unwired == 0 {
+        println!("All {checked} registered project(s) have Claude MCP wiring.");
+    }
+}
+
+/// Whether the managed binary can actually be spawned by a host.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum BinaryState {
+    Runnable,
+    Missing,
+    NotExecutable,
+}
+
+impl BinaryState {
+    /// Short reason the binary cannot spawn, or `None` when it is runnable.
+    /// Reads naturally after "Managed binary " and after "managed binary ".
+    fn unrunnable_reason(self) -> Option<&'static str> {
+        match self {
+            Self::Runnable => None,
+            Self::Missing => Some("missing"),
+            Self::NotExecutable => Some("not executable"),
+        }
+    }
+}
+
+/// Classify the managed binary for `doctor`. A host cannot spawn a file that is
+/// absent or (on Unix) lacks any execute bit, so existence alone would overstate
+/// connectability. On Windows executability is not a POSIX permission bit, so a
+/// present regular file is treated as runnable.
+fn managed_binary_state(binary: &Path) -> BinaryState {
+    let Ok(metadata) = fs::metadata(binary) else {
+        return BinaryState::Missing;
+    };
+    if !metadata.is_file() {
+        return BinaryState::Missing;
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if metadata.permissions().mode() & 0o111 == 0 {
+            return BinaryState::NotExecutable;
+        }
+    }
+    BinaryState::Runnable
+}
+
 fn backend_state_label(state: &BackendState) -> &'static str {
     match state {
         BackendState::Ready => "ready",
         BackendState::Missing => "missing",
         BackendState::Stale => "stale",
+        BackendState::Transient => "transient",
+        BackendState::PermissionDenied => "permission-denied",
         BackendState::Corrupt => "corrupt",
         BackendState::SchemaMismatch => "schema-mismatch",
     }
-}
-
-fn is_legacy_symlink(path: &Path) -> Result<bool> {
-    let metadata = match fs::symlink_metadata(path) {
-        Ok(metadata) => metadata,
-        Err(_) => return Ok(false),
-    };
-    if !metadata.file_type().is_symlink() {
-        return Ok(false);
-    }
-    let target = fs::read_link(path)?;
-    let marker = std::env::var("LLM_WIKI_LEGACY_SYMLINK_MARKER")
-        .unwrap_or_else(|_| "software_project_management".to_string());
-    Ok(target.to_string_lossy().contains(&marker))
 }
 
 fn find_on_path(binary_name: &str) -> Option<PathBuf> {

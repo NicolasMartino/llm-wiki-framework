@@ -77,10 +77,13 @@ must rerun `eval run` and `eval calibrate` before threshold promotion.
 
 ## Consequences
 
-- `wiki-query` can use `llm-wiki search --mode auto --format json` to
-  supplement `wiki/index.md`, but it must inspect selected-mode, readiness,
-  fallback, zero-result, and per-result metadata before reading and citing the
-  returned wiki pages.
+- `wiki-query` uses `llm-wiki search --mode auto --format json` for every query
+  after reading `wiki/index.md` when the current project is registered, but it
+  must inspect selected-mode, readiness, fallback, zero-result, and per-result
+  metadata before reading and citing the returned wiki pages.
+- If search is unavailable, the project is unregistered, the index is stale, or
+  results are not useful, `wiki-query` falls back to index-based navigation
+  rather than treating search failure or zero results as an answer.
 - Search results remain retrieval results, not synthesized answers. Wiki pages
   remain the citation source.
 - Zero results are valid when relevance thresholds reject all candidates.
@@ -95,6 +98,11 @@ must rerun `eval run` and `eval calibrate` before threshold promotion.
   search changes readiness immediately but does not delete model files or
   semantic indexes; explicit cleanup is owned by `llm-wiki uninstall
   --search-artifacts` or full uninstall.
+- Backend cache access failures are reported as readiness/status metadata, not
+  as forced-reindex corruption. Single-project JSON search emits parseable
+  `backend_status` for `permission_denied` and exhausted `transient` failures;
+  `search-all` reports backend status per project while preserving results
+  from ready projects.
 - The v1 shipped baseline is calibrated hybrid/auto without a calibrated
   reranker profile. A future reranker profile needs its own artifact/license
   readiness, eval run, calibration report, and threshold scope.

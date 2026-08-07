@@ -1,4 +1,5 @@
 use std::fs;
+use std::io::IsTerminal;
 use std::path::Path;
 
 use anyhow::{Result, bail};
@@ -29,6 +30,15 @@ pub(super) fn from_args(args: &InitArgs) -> Result<Answers> {
             blueprint: required_flag("--blueprint", &args.blueprint)?.parse()?,
             packs: parse_cli_packs(&args.packs)?,
         });
+    }
+
+    // Guard interactive prompts behind a TTY check so a non-terminal invocation
+    // gets a clear hint instead of a cryptic inquire "not a terminal" error.
+    if !std::io::stdin().is_terminal() {
+        bail!(
+            "interactive init requires a terminal; re-run with --non-interactive and \
+             provide --name, --description, and --blueprint (see `init --help`)"
+        );
     }
 
     let defaults = ExistingAnswers::from_project(&args.path)?;

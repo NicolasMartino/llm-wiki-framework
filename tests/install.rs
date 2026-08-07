@@ -4,12 +4,17 @@ use std::path::Path;
 use assert_cmd::Command;
 use predicates::prelude::*;
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use tempfile::TempDir;
 use toml::Value as TomlValue;
 
 fn llm_wiki(home: &Path) -> Command {
     let mut command = Command::cargo_bin("llm-wiki").expect("binary");
-    command.env("HOME", home).env_remove("RUST_LOG");
+    command
+        .env("HOME", home)
+        .env_remove("RUST_LOG")
+        .env_remove("XDG_CACHE_HOME")
+        .env_remove("XDG_DATA_HOME");
     command
 }
 
@@ -22,14 +27,10 @@ fn install_writes_files_and_manifest() {
         .assert()
         .success();
 
+    assert!(home.path().join(".codex/config.toml").exists());
     assert!(
         home.path()
-            .join(".claude/skills/wiki-init/SKILL.md")
-            .exists()
-    );
-    assert!(
-        home.path()
-            .join(".codex/skills/wiki/agents/openai.yaml")
+            .join(".llm_wiki/mcp/claude-project.mcp.json")
             .exists()
     );
     let manifest = read_manifest(home.path());
@@ -43,14 +44,13 @@ fn install_writes_files_and_manifest() {
             .expect("backup manifest path"),
     );
     assert!(backup_manifest.exists());
+    assert_eq!(manifest["skills"].as_array().expect("files").len(), 0);
     assert_eq!(
-        manifest["skills"].as_array().expect("files").len(),
-        installed_files(home.path())
+        manifest["assets"][0]["kind"]
+            .as_str()
+            .expect("managed asset kind"),
+        "mcp-config"
     );
-    let skill =
-        fs::read_to_string(home.path().join(".claude/skills/wiki-init/SKILL.md")).expect("skill");
-    assert!(skill.contains(".llm_wiki/bin/llm-wiki"));
-    assert!(!skill.contains("`llm-wiki init "));
 }
 
 #[test]
@@ -70,11 +70,177 @@ fn plain_noninteractive_install_requires_explicit_search_posture() {
 }
 
 #[test]
+fn explicit_noninteractive_install_requires_search_posture() {
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .args(["install", "--non-interactive"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "non-interactive install requires either",
+        ))
+        .stderr(predicate::str::contains("--enable-llm-search"))
+        .stderr(predicate::str::contains("--disable-llm-search"));
+
+    assert_no_install_or_search_writes(home.path());
+}
+
+#[test]
+fn install_enable_llm_search_requires_noninteractive_profile() {
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .args(["install", "--enable-llm-search", "--profile", "balanced"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("--non-interactive"));
+
+    assert_no_install_or_search_writes(home.path());
+}
+
+#[test]
+fn install_enable_llm_search_conflicts_with_disable() {
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .args([
+            "install",
+            "--non-interactive",
+            "--enable-llm-search",
+            "--profile",
+            "balanced",
+            "--disable-llm-search",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("--enable-llm-search"))
+        .stderr(predicate::str::contains("--disable-llm-search"));
+
+    assert_no_install_or_search_writes(home.path());
+}
+
+#[test]
+fn install_profile_and_consent_flags_require_enable_llm_search() {
+    for flag in [
+        &["--profile", "balanced"][..],
+        &["--confirm-model-downloads"][..],
+        &["--accept-profile-licenses"][..],
+    ] {
+        let home = TempDir::new().expect("home");
+        let mut args = vec!["install", "--non-interactive"];
+        args.extend_from_slice(flag);
+
+        llm_wiki(home.path())
+            .args(args)
+            .assert()
+            .failure()
+            .stderr(predicate::str::contains("--enable-llm-search"));
+
+        assert_no_install_or_search_writes(home.path());
+    }
+}
+
+#[test]
+fn noninteractive_enable_missing_download_confirmation_writes_no_state() {
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .args([
+            "install",
+            "--non-interactive",
+            "--enable-llm-search",
+            "--profile",
+            "balanced",
+            "--accept-profile-licenses",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("--confirm-model-downloads"))
+        .stderr(predicate::str::contains(
+            "no install or search state was changed",
+        ));
+
+    assert_no_install_or_search_writes(home.path());
+}
+
+#[test]
+fn noninteractive_enable_missing_license_confirmation_writes_no_state() {
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .args([
+            "install",
+            "--non-interactive",
+            "--enable-llm-search",
+            "--profile",
+            "balanced",
+            "--confirm-model-downloads",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("--accept-profile-licenses"))
+        .stderr(predicate::str::contains(
+            "no install or search state was changed",
+        ));
+
+    assert_no_install_or_search_writes(home.path());
+}
+
+#[test]
+fn noninteractive_enable_hash_mismatch_without_force_writes_no_install_state() {
+    let home = TempDir::new().expect("home");
+    let model_path = home
+        .path()
+        .join(".llm_wiki/models/embeddinggemma-300m-q8_0/embeddinggemma-300M-Q8_0.gguf");
+    fs::create_dir_all(model_path.parent().expect("model parent")).expect("model dir");
+    fs::write(&model_path, "corrupt model bytes").expect("model bytes");
+
+    llm_wiki(home.path())
+        .args([
+            "install",
+            "--non-interactive",
+            "--enable-llm-search",
+            "--profile",
+            "balanced",
+            "--confirm-model-downloads",
+            "--accept-profile-licenses",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("model artifact hash mismatch"))
+        .stderr(predicate::str::contains("--force"));
+
+    assert_no_install_or_search_writes(home.path());
+    assert_eq!(
+        fs::read_to_string(&model_path).expect("model remains"),
+        "corrupt model bytes"
+    );
+}
+
+#[test]
 fn install_disable_llm_search_writes_disabled_search_profile() {
     let home = TempDir::new().expect("home");
 
     llm_wiki(home.path())
         .args(["install", "--skip-path-guidance", "--disable-llm-search"])
+        .assert()
+        .success();
+
+    assert_disabled_search_profile(home.path());
+}
+
+#[test]
+fn noninteractive_disable_llm_search_writes_disabled_search_profile() {
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .args([
+            "install",
+            "--skip-path-guidance",
+            "--non-interactive",
+            "--disable-llm-search",
+        ])
         .assert()
         .success();
 
@@ -137,8 +303,15 @@ fn verbose_install_emits_command_diagnostics() {
         .stderr(predicate::str::contains("current executable:"))
         .stderr(predicate::str::contains("managed binary:"))
         .stderr(predicate::str::contains("partial marker recovery:"))
-        .stderr(predicate::str::contains("render target:"))
-        .stderr(predicate::str::contains("collision classification:"));
+        .stderr(predicate::str::contains(
+            "runtime skill projection disabled",
+        ))
+        .stderr(predicate::str::contains(
+            "MCP server startup is host-managed stdio",
+        ))
+        .stderr(predicate::str::contains("wired Codex MCP config"))
+        .stderr(predicate::str::contains("materialized Claude MCP config"))
+        .stderr(predicate::str::contains("is a fallback for manual setups"));
 }
 
 #[test]
@@ -154,11 +327,69 @@ fn verbose_install_configure_search_emits_profile_diagnostics() {
         ])
         .assert()
         .success()
-        .stderr(predicate::str::contains("configure search: true"))
+        .stderr(predicate::str::contains("configure search: false"))
         .stderr(predicate::str::contains("search config:"))
         .stderr(predicate::str::contains("external dependencies:"))
         .stderr(predicate::str::contains(
             "search configuration action: wrote disabled LLM search profile",
+        ));
+}
+
+#[test]
+fn verbose_noninteractive_disabled_install_reports_redundant_configure_search() {
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .args([
+            "--verbose",
+            "install",
+            "--skip-path-guidance",
+            "--non-interactive",
+            "--disable-llm-search",
+            "--configure-search",
+        ])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("non-interactive: true"))
+        .stderr(predicate::str::contains(
+            "search configuration selected posture: disabled",
+        ))
+        .stderr(predicate::str::contains(
+            "redundant beside explicit disabled posture",
+        ));
+}
+
+#[test]
+fn verbose_noninteractive_enabled_refusal_reports_preflight_state() {
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path())
+        .args([
+            "--verbose",
+            "install",
+            "--non-interactive",
+            "--enable-llm-search",
+            "--profile",
+            "balanced",
+            "--accept-profile-licenses",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("enable llm search: true"))
+        .stderr(predicate::str::contains(
+            "search profile selected: balanced",
+        ))
+        .stderr(predicate::str::contains(
+            "search artifact classification summary:",
+        ))
+        .stderr(predicate::str::contains(
+            "search license classification summary:",
+        ))
+        .stderr(predicate::str::contains(
+            "search non-interactive missing runtime confirmation: --confirm-model-downloads",
+        ))
+        .stderr(predicate::str::contains(
+            "search non-interactive refusal: no install state mutated",
         ));
 }
 
@@ -263,7 +494,9 @@ fn install_reports_interrupted_partial_binary_without_force() {
     write_partial(
         home.path(),
         &managed_binary,
-        manifest["binary"]["hash"].as_str().expect("binary hash"),
+        manifest["binary"]["source_hash"]
+            .as_str()
+            .expect("binary source hash"),
     );
 
     llm_wiki(home.path())
@@ -302,13 +535,96 @@ fn install_rejects_unsupported_manifest_schema() {
     )
     .expect("write manifest");
 
+    // `status` now surfaces a corrupt/unsupported manifest as a finding and
+    // exits successfully, rather than aborting — a diagnostic command must be
+    // able to report exactly this corruption class instead of failing on it.
     llm_wiki(home.path())
         .arg("status")
         .assert()
-        .failure()
-        .stderr(predicate::str::contains(
+        .success()
+        .stdout(predicate::str::contains(
             "unsupported manifest schema_version 3",
         ));
+}
+
+#[test]
+fn install_removes_unchanged_legacy_generated_skills() {
+    let home = TempDir::new().expect("home");
+    let skill_path = home.path().join(".codex/skills/wiki-query/SKILL.md");
+    fs::create_dir_all(skill_path.parent().expect("skill parent")).expect("skill parent");
+    let generated = "generated wiki query skill";
+    fs::write(&skill_path, generated).expect("write generated skill");
+    write_legacy_manifest(
+        home.path(),
+        &[legacy_skill_entry(
+            &skill_path,
+            "wiki-query",
+            "codex",
+            sha256_hex(generated.as_bytes()),
+        )],
+    );
+
+    llm_wiki(home.path())
+        .args(["install", "--skip-path-guidance", "--disable-llm-search"])
+        .assert()
+        .success();
+
+    assert!(!skill_path.exists());
+    assert!(!skill_path.parent().expect("skill parent").exists());
+    let manifest = read_manifest(home.path());
+    assert_eq!(manifest["schema_version"].as_u64(), Some(2));
+    assert_eq!(manifest["skills"].as_array().expect("skills").len(), 0);
+}
+
+#[test]
+fn install_preserves_edited_legacy_generated_skills_with_warning() {
+    let home = TempDir::new().expect("home");
+    let skill_path = home.path().join(".codex/skills/wiki-query/SKILL.md");
+    fs::create_dir_all(skill_path.parent().expect("skill parent")).expect("skill parent");
+    let generated = "generated wiki query skill";
+    fs::write(&skill_path, "user edited wiki query skill").expect("write edited skill");
+    write_legacy_manifest(
+        home.path(),
+        &[legacy_skill_entry(
+            &skill_path,
+            "wiki-query",
+            "codex",
+            sha256_hex(generated.as_bytes()),
+        )],
+    );
+
+    llm_wiki(home.path())
+        .args(["install", "--skip-path-guidance", "--disable-llm-search"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Warning: manual cleanup required: legacy generated skill was edited and was preserved",
+        ));
+
+    assert_eq!(
+        fs::read_to_string(&skill_path).expect("preserved skill"),
+        "user edited wiki query skill"
+    );
+    let manifest = read_manifest(home.path());
+    assert_eq!(manifest["skills"].as_array().expect("skills").len(), 1);
+}
+
+#[test]
+fn install_warns_about_manifestless_legacy_generated_skill_dirs() {
+    let home = TempDir::new().expect("home");
+    let skill_path = home.path().join(".codex/skills/wiki-query/SKILL.md");
+    fs::create_dir_all(skill_path.parent().expect("skill parent")).expect("skill parent");
+    fs::write(&skill_path, "orphaned generated skill").expect("write orphaned skill");
+
+    llm_wiki(home.path())
+        .args(["install", "--skip-path-guidance", "--disable-llm-search"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Warning: manual cleanup required: legacy generated skill directory remains",
+        ));
+
+    assert!(skill_path.exists());
 }
 
 #[test]
@@ -337,21 +653,6 @@ fn install_rejects_unsupported_partial_schema() {
         .stderr(predicate::str::contains(
             "unsupported partial install schema_version 2",
         ));
-}
-
-#[test]
-fn install_refuses_user_authored_collision_by_default() {
-    let home = TempDir::new().expect("home");
-    let path = home.path().join(".claude/skills/wiki-init/SKILL.md");
-    fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
-    fs::write(&path, "user skill").expect("write");
-
-    llm_wiki(home.path())
-        .args(["install", "--disable-llm-search"])
-        .assert()
-        .failure();
-    assert_eq!(fs::read_to_string(&path).expect("read"), "user skill");
-    assert!(!home.path().join(".llm_wiki").exists());
 }
 
 #[test]
@@ -413,50 +714,9 @@ fn install_refuses_unmanaged_binary_collision_by_default() {
 }
 
 #[test]
-fn force_install_backs_up_and_replaces_collision() {
-    let home = TempDir::new().expect("home");
-    let path = home.path().join(".claude/skills/wiki-init/SKILL.md");
-    fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
-    fs::write(&path, "user skill").expect("write");
-
-    llm_wiki(home.path())
-        .args(["install", "--force", "--disable-llm-search"])
-        .assert()
-        .success();
-
-    let backups = fs::read_dir(path.parent().expect("parent"))
-        .expect("read_dir")
-        .filter_map(Result::ok)
-        .filter(|entry| {
-            entry
-                .file_name()
-                .to_string_lossy()
-                .starts_with("SKILL.md.bak.")
-        })
-        .count();
-    assert_eq!(backups, 1);
-    let manifest = read_manifest(home.path());
-    let backup_manifest = Path::new(
-        manifest["backups"][0]["path"]
-            .as_str()
-            .expect("backup manifest path"),
-    );
-    let backup_manifest: Value =
-        serde_json::from_str(&fs::read_to_string(backup_manifest).expect("backup manifest"))
-            .expect("backup json");
-    assert_eq!(
-        backup_manifest["files"][0]["original_path"]
-            .as_str()
-            .expect("original path"),
-        path.to_string_lossy()
-    );
-    assert_ne!(fs::read_to_string(&path).expect("read"), "user skill");
-}
-
-#[test]
 fn uninstall_removes_manifest_owned_files_only() {
     let home = TempDir::new().expect("home");
-    let user_file = home.path().join(".codex/skills/user-skill/SKILL.md");
+    let user_file = home.path().join(".codex/user-owned.txt");
     fs::create_dir_all(user_file.parent().expect("parent")).expect("mkdir");
     fs::write(&user_file, "keep").expect("write");
 
@@ -469,12 +729,6 @@ fn uninstall_removes_manifest_owned_files_only() {
     assert!(user_file.exists());
     assert!(!home.path().join(".llm_wiki/manifest.json").exists());
     assert!(home.path().join(".llm_wiki/bin/llm-wiki").exists());
-    assert!(
-        !home
-            .path()
-            .join(".claude/skills/wiki-init/SKILL.md")
-            .exists()
-    );
 }
 
 #[test]
@@ -593,6 +847,12 @@ fn forced_search_artifact_cleanup_deletes_artifacts_without_rewriting_search_con
     assert!(
         !home
             .path()
+            .join(".llm_wiki/search-runtime-probes.toml")
+            .exists()
+    );
+    assert!(
+        !home
+            .path()
             .join(".llm_wiki/indexes/fixture/semantic-index.json")
             .exists()
     );
@@ -637,7 +897,7 @@ fn search_artifact_cleanup_preserves_install_registry_and_lexical_indexes() {
     assert!(home.path().join(".llm_wiki/bin/llm-wiki").exists());
     assert!(
         home.path()
-            .join(".claude/skills/wiki-init/SKILL.md")
+            .join(".llm_wiki/mcp/claude-project.mcp.json")
             .exists()
     );
     assert!(
@@ -655,6 +915,12 @@ fn search_artifact_cleanup_preserves_install_registry_and_lexical_indexes() {
         !home
             .path()
             .join(".llm_wiki/accepted-licenses.toml")
+            .exists()
+    );
+    assert!(
+        !home
+            .path()
+            .join(".llm_wiki/search-runtime-probes.toml")
             .exists()
     );
 }
@@ -683,6 +949,12 @@ fn full_uninstall_removes_global_runtime_state_but_keeps_project_local_state() {
         !home
             .path()
             .join(".llm_wiki/accepted-licenses.toml")
+            .exists()
+    );
+    assert!(
+        !home
+            .path()
+            .join(".llm_wiki/search-runtime-probes.toml")
             .exists()
     );
     assert!(
@@ -717,7 +989,7 @@ fn verbose_uninstall_emits_command_diagnostics() {
 #[test]
 fn uninstall_refuses_drifted_manifest_file() {
     let home = TempDir::new().expect("home");
-    let path = home.path().join(".claude/skills/wiki-init/SKILL.md");
+    let path = home.path().join(".llm_wiki/mcp/claude-project.mcp.json");
 
     llm_wiki(home.path())
         .args(["install", "--disable-llm-search"])
@@ -735,6 +1007,48 @@ fn uninstall_refuses_drifted_manifest_file() {
 
     assert_eq!(fs::read_to_string(&path).expect("read"), "user edit");
     assert!(home.path().join(".llm_wiki/manifest.json").exists());
+}
+
+fn write_legacy_manifest(home: &Path, skills: &[Value]) {
+    let manifest_path = home.join(".llm_wiki/manifest.json");
+    fs::create_dir_all(manifest_path.parent().expect("manifest parent")).expect("manifest parent");
+    let manifest = serde_json::json!({
+        "schema_version": 1,
+        "installed_by": "llm-wiki",
+        "installed_at": "2026-06-23T00:00:00Z",
+        "binary": {
+            "path": home.join(".llm_wiki/bin/llm-wiki").to_string_lossy(),
+            "version": "0.0.0",
+            "hash_algorithm": "sha256",
+            "hash": sha256_hex(b"old binary"),
+            "ownership": "manifest-owned"
+        },
+        "skills": skills
+    });
+    fs::write(
+        manifest_path,
+        serde_json::to_string_pretty(&manifest).expect("manifest json"),
+    )
+    .expect("write legacy manifest");
+}
+
+fn legacy_skill_entry(path: &Path, skill: &str, runtime: &str, hash: String) -> Value {
+    serde_json::json!({
+        "path": path.to_string_lossy(),
+        "skill": skill,
+        "runtime": runtime,
+        "kind": "skill",
+        "hash_algorithm": "sha256",
+        "hash": hash,
+        "ownership": "manifest-owned",
+        "installed_by_version": "0.1.0"
+    })
+}
+
+fn sha256_hex(input: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(input);
+    format!("{:x}", hasher.finalize())
 }
 
 fn read_manifest(home: &Path) -> Value {
@@ -801,6 +1115,17 @@ fn assert_no_install_metadata(home: &Path) {
     assert!(!home.join(".llm_wiki/backups").exists());
 }
 
+fn assert_no_install_or_search_writes(home: &Path) {
+    assert!(!home.join(".llm_wiki/manifest.json").exists());
+    assert!(!home.join(".llm_wiki/install.partial.json").exists());
+    assert!(!home.join(".llm_wiki/backups").exists());
+    assert!(!home.join(".llm_wiki/bin/llm-wiki").exists());
+    assert!(!home.join(".llm_wiki/accepted-licenses.toml").exists());
+    assert!(!home.join(".llm_wiki/models/artifacts.toml").exists());
+    assert!(!home.join(".llm_wiki/search.toml").exists());
+    assert!(!home.join(".llm_wiki/external-dependencies.toml").exists());
+}
+
 fn seed_search_artifacts(home: &Path) {
     let model = home.join(".llm_wiki/models/fixture/model.gguf");
     fs::create_dir_all(model.parent().expect("model parent")).expect("model dir");
@@ -829,6 +1154,19 @@ accepted_by_version = "test"
         "schema_version = 2\nupdated_at = \"2026-05-14T00:00:00Z\"\nthresholds = []\n",
     )
     .expect("thresholds");
+    fs::write(
+        home.join(".llm_wiki/search-runtime-probes.toml"),
+        r#"
+schema_version = 1
+updated_at = "2026-05-14T00:00:00Z"
+binary_version = "test"
+target_triple = "test"
+qmd_rs_version = "0.3.2"
+adapter_schema_version = 1
+records = []
+"#,
+    )
+    .expect("runtime probes");
     let index = home.join(".llm_wiki/indexes/fixture");
     fs::create_dir_all(&index).expect("index dir");
     fs::write(index.join("semantic-index.json"), "{}").expect("semantic metadata");
@@ -889,28 +1227,4 @@ configured_at = "2026-05-14T00:00:00Z"
 configured_by_version = "test"
 reason = "llm_search_disabled""#
     }
-}
-
-fn installed_files(home: &Path) -> usize {
-    let mut count = 0;
-    for root in [home.join(".claude/skills"), home.join(".codex/skills")] {
-        count += count_files(&root);
-    }
-    count
-}
-
-fn count_files(path: &Path) -> usize {
-    let Ok(entries) = fs::read_dir(path) else {
-        return 0;
-    };
-    entries
-        .filter_map(Result::ok)
-        .map(|entry| {
-            if entry.path().is_dir() {
-                count_files(&entry.path())
-            } else {
-                1
-            }
-        })
-        .sum()
 }

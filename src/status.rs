@@ -1,9 +1,13 @@
 use std::fs;
+use std::path::Path;
 
 use anyhow::Result;
 
+use crate::instance;
+use crate::legacy_skills;
 use crate::manifest::Manifest;
 use crate::manifest::hash::sha256_hex;
+use crate::mcp_config;
 use crate::paths::Paths;
 
 pub fn run(context: &crate::cli::CliContext) -> Result<()> {
@@ -16,65 +20,100 @@ pub fn run(context: &crate::cli::CliContext) -> Result<()> {
         paths.managed_binary().display()
     ));
     context.diagnostic(format!("manifest: {}", manifest_path.display()));
-    let Some(manifest) = Manifest::read(&manifest_path)? else {
+
+    // A corrupt manifest should be reported, not aborted on: render the parse
+    // failure as status output and finish cleanly with the remaining checks.
+    let manifest = match Manifest::read(&manifest_path) {
+        Ok(manifest) => manifest,
+        Err(error) => {
+            context.diagnostic(format!("manifest parse failed: {error:#}"));
+            println!("{} {}", instance::binary_stem(), env!("CARGO_PKG_VERSION"));
+            println!("status: manifest.json failed to parse: {error:#}");
+            println!("managed home: {}", paths.managed_home().display());
+            print_legacy_skill_warnings(&paths);
+            return Ok(());
+        }
+    };
+    let Some(manifest) = manifest else {
         context.diagnostic("manifest state: missing");
-        println!("llm-wiki {}: not installed", env!("CARGO_PKG_VERSION"));
+        println!("{} {}", instance::binary_stem(), env!("CARGO_PKG_VERSION"));
+        println!("status: not installed");
+        println!("managed home: {}", paths.managed_home().display());
+        print_legacy_skill_warnings(&paths);
         return Ok(());
     };
-    context.diagnostic("manifest state: present");
-    context.diagnostic(format!("manifest files: {}", manifest.skills.len()));
 
-    println!("llm-wiki {}", env!("CARGO_PKG_VERSION"));
-    println!("installed version: {}", manifest.binary.version);
+    context.diagnostic("manifest state: present");
+    let file_count = manifest.skills.len() + manifest.assets.len();
+    context.diagnostic(format!("manifest files: {file_count}"));
+
+    println!("{} {}", instance::binary_stem(), env!("CARGO_PKG_VERSION"));
+    println!("version: {}", manifest.binary.version);
     println!("installed at: {}", manifest.installed_at);
     println!("managed binary: {}", manifest.binary.path.display());
-    println!("manifest files: {}", manifest.skills.len());
+    println!(
+        "mcp server startup: {} ({})",
+        mcp_config::SERVER_STARTUP,
+        mcp_config::server_start_command(&manifest.binary.path)
+    );
+    println!("manifest files: {file_count}");
+    println!("files: {file_count}");
 
     for entry in &manifest.skills {
-        let status = if !entry.path.exists() {
-            "Missing"
-        } else {
-            let current = sha256_hex(&fs::read(&entry.path)?);
-            if current == entry.hash {
-                "OK"
-            } else {
-                "Drifted"
-            }
-        };
-        context.diagnostic(format!(
-            "manifest file status: {} {} {} -> {}",
-            entry.runtime_string(),
-            entry.kind_string(),
-            entry.path.display(),
-            status
-        ));
-        println!(
-            "{status}: {} {} {}",
-            entry.runtime_string(),
-            entry.kind_string(),
-            entry.path.display()
-        );
+        print_file_status("skill", &entry.path, &entry.hash, context)?;
     }
+    for asset in &manifest.assets {
+        print_file_status("asset", &asset.path, &asset.hash, context)?;
+    }
+
+    print_legacy_skill_warnings(&paths);
     Ok(())
 }
 
-trait EntryLabels {
-    fn runtime_string(&self) -> &'static str;
-    fn kind_string(&self) -> &'static str;
+fn print_legacy_skill_warnings(paths: &Paths) {
+    for dir in legacy_skills::existing_legacy_skill_dirs(paths) {
+        println!(
+            "Warning: legacy generated skill directory remains: {}",
+            dir.display()
+        );
+    }
 }
 
-impl EntryLabels for crate::manifest::ManifestEntry {
-    fn runtime_string(&self) -> &'static str {
-        match self.runtime {
-            crate::manifest::RuntimeName::Claude => "claude",
-            crate::manifest::RuntimeName::Codex => "codex",
-        }
+fn print_file_status(
+    label: &str,
+    path: &Path,
+    expected_hash: &str,
+    context: &crate::cli::CliContext,
+) -> Result<()> {
+    if !path.exists() {
+        context.diagnostic(format!(
+            "manifest file status: {} -> missing",
+            path.display()
+        ));
+        println!("Missing {label}: {}", path.display());
+        return Ok(());
     }
 
-    fn kind_string(&self) -> &'static str {
-        match self.kind {
-            crate::manifest::FileKind::Skill => "skill",
-            crate::manifest::FileKind::RuntimeConfig => "runtime-config",
+    let current = match fs::read(path) {
+        Ok(bytes) => sha256_hex(&bytes),
+        Err(error) => {
+            context.diagnostic(format!(
+                "manifest file status: {} -> unreadable",
+                path.display()
+            ));
+            println!("Unreadable {label}: {} ({error})", path.display());
+            return Ok(());
         }
+    };
+    if current == expected_hash {
+        context.diagnostic(format!("manifest file status: {} -> ok", path.display()));
+        println!("OK: {label}: {}", path.display());
+    } else {
+        context.diagnostic(format!(
+            "manifest file status: {} -> drifted",
+            path.display()
+        ));
+        println!("Drifted {label}: {}", path.display());
     }
+    Ok(())
 }

@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -11,8 +10,10 @@ use sha2::{Digest, Sha256};
 use crate::search::adapter::{
     Freshness, MatchSpan, Score, SearchFilters, SearchMode, SearchResult,
 };
+use crate::search::gguf_runtime::{self, GgufRuntimeReport};
 use crate::search::index_text::mask_search_ignored_spans;
 use crate::search::metadata::parse_wiki_metadata;
+use crate::search::qmd_rs::{WalkEntry, classify_walk_entry};
 use crate::search_models::{
     ADAPTER_SCHEMA_VERSION, ModelArtifactRecord, ModelArtifacts, QMD_RS_VERSION,
     SearchThresholdStore, SearchThresholds, model_by_id,
@@ -24,6 +25,7 @@ pub const SEMANTIC_VECTOR_SCHEMA_VERSION: u32 = 1;
 pub const CHUNK_SIZE_CHARS: usize = 3_200;
 pub const CHUNK_OVERLAP_CHARS: usize = 480;
 pub const CHUNKING_STRATEGY: &str = "qmd-rs-character-v1:3200:480";
+#[cfg(debug_assertions)]
 const TEST_EMBEDDINGS_ENV: &str = "LLM_WIKI_TEST_EMBEDDINGS";
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -280,14 +282,28 @@ impl SemanticVectorIndex {
         let mut embedder =
             SemanticEmbedder::new(&embedding_artifact.path, metadata.embedding_dimensions)?;
         let mut vectors = Vec::with_capacity(metadata.chunks.len());
+        // Read+mask each source file exactly once and derive every chunk's text and
+        // its text_hash from that same in-memory copy, so a file edited mid-build
+        // cannot stamp an embedding with a hash taken from a different read.
+        let project_root = wiki_root.parent().unwrap_or(wiki_root);
+        let mut file_cache: BTreeMap<String, String> = BTreeMap::new();
         for chunk in &metadata.chunks {
-            let text = chunk_text(wiki_root, chunk)?;
-            let embedding = embedder.embed_document(&text, Some(&chunk.title))?;
+            let body = cached_masked_body(&mut file_cache, project_root, &chunk.path)?;
+            let text = body
+                .get(chunk.source_start..chunk.source_end)
+                .with_context(|| {
+                    format!(
+                        "semantic chunk span {}..{} is invalid for {}",
+                        chunk.source_start, chunk.source_end, chunk.path
+                    )
+                })?;
+            let text_hash = sha256_bytes(text.as_bytes());
+            let embedding = embedder.embed_document(text, Some(&chunk.title))?;
             validate_embedding_dimensions(&embedding, metadata.embedding_dimensions)?;
             vectors.push(SemanticVector {
                 path: chunk.path.clone(),
                 ordinal: chunk.ordinal,
-                text_hash: chunk.text_hash.clone(),
+                text_hash,
                 embedding,
             });
         }
@@ -420,6 +436,9 @@ impl SemanticVectorIndex {
             .map(|chunk| ((chunk.path.as_str(), chunk.ordinal), chunk))
             .collect::<BTreeMap<_, _>>();
         let mut rolled = BTreeMap::<String, SearchResult>::new();
+        let project_root = context.wiki_root.parent().unwrap_or(context.wiki_root);
+        // Cache each source file's masked body so it is read at most once per search.
+        let mut file_cache: BTreeMap<String, String> = BTreeMap::new();
 
         for vector in &self.vectors {
             if vector.embedding.len() != self.embedding_dimensions {
@@ -459,7 +478,34 @@ impl SemanticVectorIndex {
                 continue;
             }
 
-            let text = chunk_text(context.wiki_root, chunk)?;
+            // Re-read the source and verify it still matches the indexed bytes. If
+            // the file changed after the freshness check (invalid span or hash
+            // mismatch), skip just this result with a warning rather than aborting
+            // the whole search.
+            let body = match cached_masked_body(&mut file_cache, project_root, &chunk.path) {
+                Ok(body) => body,
+                Err(err) => {
+                    eprintln!(
+                        "warning: skipping semantic result for {}#{}: {err:#}",
+                        chunk.path, vector.ordinal
+                    );
+                    continue;
+                }
+            };
+            let Some(text) = body.get(chunk.source_start..chunk.source_end) else {
+                eprintln!(
+                    "warning: skipping semantic result for {}#{}: span {}..{} is invalid (source changed?)",
+                    chunk.path, vector.ordinal, chunk.source_start, chunk.source_end
+                );
+                continue;
+            };
+            if sha256_bytes(text.as_bytes()) != chunk.text_hash {
+                eprintln!(
+                    "warning: skipping semantic result for {}#{}: source changed since indexing",
+                    chunk.path, vector.ordinal
+                );
+                continue;
+            }
             let candidate = SearchResult {
                 project_id: context.project_id.to_string(),
                 project_name: context.project_name.map(ToString::to_string),
@@ -468,7 +514,7 @@ impl SemanticVectorIndex {
                 document_class: chunk.document_class.clone(),
                 status: chunk.status.clone(),
                 score: Score(score),
-                snippet: Some(snippet_text(&text)),
+                snippet: Some(snippet_text(text)),
                 match_span: Some(MatchSpan {
                     start: chunk.source_start,
                     end: chunk.source_end,
@@ -510,10 +556,43 @@ pub fn embed_query(
     embedding_artifact: &ModelArtifactRecord,
     dimensions: usize,
 ) -> Result<Vec<f32>> {
-    let mut embedder = SemanticEmbedder::new(&embedding_artifact.path, dimensions)?;
-    let embedding = embedder.embed_query(query)?;
-    validate_embedding_dimensions(&embedding, dimensions)?;
-    Ok(embedding)
+    Ok(embed_query_with_runtime_report(query, embedding_artifact, dimensions)?.embedding)
+}
+
+pub struct SemanticQueryEmbedding {
+    pub embedding: Vec<f32>,
+    pub runtime_report: Option<GgufRuntimeReport>,
+}
+
+pub fn embed_query_with_runtime_report(
+    query: &str,
+    embedding_artifact: &ModelArtifactRecord,
+    dimensions: usize,
+) -> Result<SemanticQueryEmbedding> {
+    QueryEmbedder::new(embedding_artifact, dimensions)?.embed(query)
+}
+
+/// A reusable query embedder that loads the GGUF engine once and embeds many
+/// queries against it. Hybrid search expands a query into several sub-queries;
+/// constructing this once avoids reloading the ~333 MB model per expansion.
+pub struct QueryEmbedder {
+    embedder: SemanticEmbedder,
+    dimensions: usize,
+}
+
+impl QueryEmbedder {
+    pub fn new(embedding_artifact: &ModelArtifactRecord, dimensions: usize) -> Result<Self> {
+        Ok(Self {
+            embedder: SemanticEmbedder::new(&embedding_artifact.path, dimensions)?,
+            dimensions,
+        })
+    }
+
+    pub fn embed(&mut self, query: &str) -> Result<SemanticQueryEmbedding> {
+        let result = self.embedder.embed_query(query)?;
+        validate_embedding_dimensions(&result.embedding, self.dimensions)?;
+        Ok(result)
+    }
 }
 
 pub fn thresholds_match_index_inputs(
@@ -562,20 +641,27 @@ pub fn select_thresholds_for_index<'a>(
     unscoped_match
 }
 
+// `Deterministic` is only ever constructed by the debug-only test seam below.
+#[cfg_attr(not(debug_assertions), allow(dead_code))]
 enum SemanticEmbedder {
     Deterministic { dimensions: usize },
-    Qmd(qmd::EmbeddingEngine),
+    Qmd(gguf_runtime::GgufEmbeddingEngine),
 }
 
 impl SemanticEmbedder {
     fn new(model_path: &Path, dimensions: usize) -> Result<Self> {
-        if env::var(TEST_EMBEDDINGS_ENV)
+        // Debug-only test seam: release binaries ignore LLM_WIKI_TEST_EMBEDDINGS and
+        // always use the real embedding engine.
+        #[cfg(debug_assertions)]
+        if std::env::var(TEST_EMBEDDINGS_ENV)
             .ok()
             .is_some_and(|value| value == "deterministic")
         {
             return Ok(Self::Deterministic { dimensions });
         }
-        Ok(Self::Qmd(qmd::EmbeddingEngine::new(model_path)?))
+        #[cfg(not(debug_assertions))]
+        let _ = dimensions;
+        Ok(Self::Qmd(gguf_runtime::embedding_engine(model_path)?))
     }
 
     fn embed_document(&mut self, text: &str, title: Option<&str>) -> Result<Vec<f32>> {
@@ -584,14 +670,23 @@ impl SemanticEmbedder {
                 &format!("{} {text}", title.unwrap_or_default()),
                 *dimensions,
             )),
-            Self::Qmd(engine) => Ok(engine.embed_document(text, title)?.embedding),
+            Self::Qmd(engine) => Ok(gguf_runtime::embed_document(engine, text, title)?.value),
         }
     }
 
-    fn embed_query(&mut self, query: &str) -> Result<Vec<f32>> {
+    fn embed_query(&mut self, query: &str) -> Result<SemanticQueryEmbedding> {
         match self {
-            Self::Deterministic { dimensions } => Ok(deterministic_embedding(query, *dimensions)),
-            Self::Qmd(engine) => Ok(engine.embed_query(query)?.embedding),
+            Self::Deterministic { dimensions } => Ok(SemanticQueryEmbedding {
+                embedding: deterministic_embedding(query, *dimensions),
+                runtime_report: None,
+            }),
+            Self::Qmd(engine) => {
+                let embedding = gguf_runtime::embed_query(engine, query)?;
+                Ok(SemanticQueryEmbedding {
+                    embedding: embedding.value,
+                    runtime_report: Some(embedding.report),
+                })
+            }
         }
     }
 }
@@ -678,22 +773,21 @@ fn chunk_document(text: &str, chunk_size_chars: usize, overlap_chars: usize) -> 
     chunks
 }
 
-fn chunk_text(wiki_root: &Path, chunk: &SemanticChunk) -> Result<String> {
-    let project_root = wiki_root.parent().unwrap_or(wiki_root);
-    let path = project_root.join(&chunk.path);
-    let raw_body = fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?;
-    let body = mask_search_ignored_spans(&raw_body);
-    let text = body
-        .get(chunk.source_start..chunk.source_end)
-        .with_context(|| {
-            format!(
-                "semantic chunk span {}..{} is invalid for {}",
-                chunk.source_start,
-                chunk.source_end,
-                path.display()
-            )
-        })?;
-    Ok(text.to_string())
+/// Read+mask a source file at most once per call, caching the masked body by its
+/// relative path. Callers slice chunk spans out of the returned in-memory copy so
+/// every chunk of a file comes from identical bytes and the file is read once.
+fn cached_masked_body<'a>(
+    cache: &'a mut BTreeMap<String, String>,
+    project_root: &Path,
+    rel_path: &str,
+) -> Result<&'a String> {
+    if !cache.contains_key(rel_path) {
+        let path = project_root.join(rel_path);
+        let raw_body =
+            fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?;
+        cache.insert(rel_path.to_string(), mask_search_ignored_spans(&raw_body));
+    }
+    Ok(&cache[rel_path])
 }
 
 fn snippet_text(text: &str) -> String {
@@ -710,32 +804,41 @@ fn collect_wiki_documents(wiki_root: &Path) -> Result<Vec<WikiDocument>> {
         .with_context(|| format!("canonicalize wiki root {}", wiki_root.display()))?;
     let project_root = wiki_root.parent().unwrap_or(&wiki_root).to_path_buf();
     let mut docs = Vec::new();
-    collect_markdown(&wiki_root, &project_root, &mut docs)?;
+    collect_markdown(&wiki_root, &project_root, &wiki_root, &mut docs)?;
     docs.sort_by(|left, right| left.canonical_path.cmp(&right.canonical_path));
     Ok(docs)
 }
 
-fn collect_markdown(path: &Path, project_root: &Path, docs: &mut Vec<WikiDocument>) -> Result<()> {
+// NOTE: The symlink scope/cycle guard is shared with the copy in qmd_rs.rs via
+// `classify_walk_entry`; keep both walk call sites in sync.
+fn collect_markdown(
+    path: &Path,
+    project_root: &Path,
+    canonical_root: &Path,
+    docs: &mut Vec<WikiDocument>,
+) -> Result<()> {
     for entry in fs::read_dir(path).with_context(|| format!("read dir {}", path.display()))? {
         let entry = entry?;
         let path = entry.path();
-        if path.is_dir() {
-            collect_markdown(&path, project_root, docs)?;
-        } else if path.extension().and_then(|value| value.to_str()) == Some("md") {
-            let metadata = entry.metadata()?;
-            let modified = unix_seconds(metadata.modified().unwrap_or(UNIX_EPOCH))?;
-            let content_hash = sha256_file(&path)?;
-            let canonical_path = path
-                .strip_prefix(project_root)
-                .unwrap_or(&path)
-                .to_string_lossy()
-                .replace(std::path::MAIN_SEPARATOR, "/");
-            docs.push(WikiDocument {
-                absolute_path: path,
-                canonical_path,
-                content_hash,
-                modified_unix_seconds: modified,
-            });
+        match classify_walk_entry(&path, canonical_root)? {
+            WalkEntry::Directory => collect_markdown(&path, project_root, canonical_root, docs)?,
+            WalkEntry::Skip => {}
+            WalkEntry::Markdown => {
+                let metadata = entry.metadata()?;
+                let modified = unix_seconds(metadata.modified().unwrap_or(UNIX_EPOCH))?;
+                let content_hash = sha256_file(&path)?;
+                let canonical_path = path
+                    .strip_prefix(project_root)
+                    .unwrap_or(&path)
+                    .to_string_lossy()
+                    .replace(std::path::MAIN_SEPARATOR, "/");
+                docs.push(WikiDocument {
+                    absolute_path: path,
+                    canonical_path,
+                    content_hash,
+                    modified_unix_seconds: modified,
+                });
+            }
         }
     }
     Ok(())
@@ -797,7 +900,11 @@ fn sha256_bytes(bytes: &[u8]) -> String {
 }
 
 fn unix_seconds(time: SystemTime) -> Result<i64> {
-    Ok(time.duration_since(UNIX_EPOCH)?.as_secs() as i64)
+    // Clamp pre-1970 mtimes to 0, matching the UNIX_EPOCH fallback elsewhere.
+    Ok(time
+        .duration_since(UNIX_EPOCH)
+        .map(|delta| delta.as_secs() as i64)
+        .unwrap_or(0))
 }
 
 #[cfg(test)]

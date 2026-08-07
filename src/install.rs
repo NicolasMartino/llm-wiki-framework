@@ -1,32 +1,36 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs;
 use std::io::{self, IsTerminal};
 use std::path::{Path, PathBuf};
+#[cfg(target_os = "macos")]
+use std::process::Command;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, anyhow, bail};
 use chrono::{Timelike, Utc};
-use llm_wiki_schema::{ClaudeProjector, CodexProjector, Projector, Runtime, parse};
 use serde::Serialize;
 
 use crate::backup_policy::exclude_rebuildable_from_time_machine;
 use crate::cli::{CliContext, InstallArgs};
-use crate::embed;
+use crate::instance;
+use crate::legacy_skills;
 use crate::manifest::collision::{Collision, classify};
 use crate::manifest::hash::sha256_hex;
 use crate::manifest::{
-    BackupEntry, BinaryEntry, FileKind, HashAlgorithm, Manifest, ManifestEntry, Ownership,
-    PartialInstall, RuntimeName,
+    BackupEntry, BinaryEntry, FileKind, HashAlgorithm, ManagedAssetEntry, ManagedAssetKind,
+    Manifest, ManifestEntry, Ownership, PartialInstall, RuntimeName,
 };
+use crate::mcp_config;
+use crate::mcp_wiring;
 use crate::path_guidance;
 use crate::paths::Paths;
+use crate::search::runtime_probe::{self, RuntimeProbeStore};
 use crate::search_models::{
     AcceptedLicenses, DEFAULT_PROFILE_ID, MaterializationOutcome, ModelArtifactClassification,
-    ModelArtifactRecord, ModelArtifacts, SearchModel, classify_model_artifact, materialize_model,
-    models_for_profile, profile_by_id,
+    ModelArtifactRecord, ModelArtifacts, ProfileBundle, SearchModel, classify_model_artifact,
+    materialize_model, profile_by_id,
 };
 use crate::search_profile::{ExternalDependencies, SearchConfig, SearchProfile};
-use crate::skill_render::{apply_binary_context, managed_binary_invocation};
 
 pub fn run(args: &InstallArgs, context: &CliContext) -> Result<()> {
     if args.disable_llm_search {
@@ -35,11 +39,29 @@ pub fn run(args: &InstallArgs, context: &CliContext) -> Result<()> {
     context.diagnostic("command: install");
     context.diagnostic(format!("force: {}", args.force));
     context.diagnostic(format!("path guidance: {}", !args.skip_path_guidance));
-    context.diagnostic(format!("configure search: {}", true));
+    context.diagnostic(format!("configure search: {}", args.configure_search));
     context.diagnostic(format!(
         "configure search requested: {}",
         args.configure_search
     ));
+    context.diagnostic(format!("non-interactive: {}", args.non_interactive));
+    context.diagnostic(format!("enable llm search: {}", args.enable_llm_search));
+    context.diagnostic(format!("disable llm search: {}", args.disable_llm_search));
+    context.diagnostic(format!(
+        "search profile argument: {}",
+        args.profile
+            .map(|profile| profile.id())
+            .unwrap_or(DEFAULT_PROFILE_ID)
+    ));
+    context.diagnostic(format!(
+        "confirm model downloads: {}",
+        args.confirm_model_downloads
+    ));
+    context.diagnostic(format!(
+        "accept profile licenses: {}",
+        args.accept_profile_licenses
+    ));
+    validate_install_args(args)?;
     let paths = Paths::from_env()?;
     context.diagnostic(format!("managed home: {}", paths.managed_home().display()));
     context.diagnostic(format!(
@@ -67,7 +89,12 @@ pub fn run(args: &InstallArgs, context: &CliContext) -> Result<()> {
         "model artifacts: {}",
         paths.model_artifacts().display()
     ));
+    context.diagnostic(format!(
+        "runtime probes: {}",
+        paths.search_runtime_probes().display()
+    ));
     ensure_search_prompt_available(args)?;
+    let enabled_search_preflight = preflight_noninteractive_enabled_search(args, &paths, context)?;
     let current_exe = env::current_exe().context("failed to resolve current executable")?;
     context.diagnostic(format!("current executable: {}", current_exe.display()));
     let current_exe_bytes = fs::read(&current_exe).with_context(|| {
@@ -111,6 +138,8 @@ pub fn run(args: &InstallArgs, context: &CliContext) -> Result<()> {
         context,
     )?;
     preflight_install_files(&files, manifest.as_ref(), args.force, context)?;
+    let retained_legacy_skill_entries =
+        cleanup_legacy_generated_skills(&paths, manifest.as_ref(), context)?;
 
     let partial = PartialInstall::new(
         current_exe.clone(),
@@ -129,13 +158,21 @@ pub fn run(args: &InstallArgs, context: &CliContext) -> Result<()> {
         partial_state,
         context,
     )?;
-    let skill_entries = install_files(files, manifest.as_ref(), args.force, context)?;
+    let mcp_config = materialize_mcp_configs(&paths, &binary.path, context)?;
+    let mut skill_entries = install_files(files, manifest.as_ref(), args.force, context)?;
+    skill_entries.extend(retained_legacy_skill_entries);
+    let mut assets = manifest
+        .as_ref()
+        .map(|manifest| manifest.assets.clone())
+        .unwrap_or_default();
+    assets.retain(|existing| existing.kind != ManagedAssetKind::McpConfig);
+    assets.push(mcp_config);
     let mut backups = manifest
         .as_ref()
         .map(|manifest| manifest.backups.clone())
         .unwrap_or_default();
     backups.push(backup);
-    Manifest::new(binary, skill_entries, backups).write_atomic(&paths.manifest())?;
+    Manifest::new(binary, skill_entries, assets, backups).write_atomic(&paths.manifest())?;
     if paths.partial_install().exists() {
         fs::remove_file(paths.partial_install()).with_context(|| {
             format!(
@@ -144,34 +181,230 @@ pub fn run(args: &InstallArgs, context: &CliContext) -> Result<()> {
             )
         })?;
     }
-    configure_search(args, &paths, context)?;
+    configure_search(args, &paths, context, enabled_search_preflight)?;
     if !args.skip_path_guidance {
         path_guidance::print_guidance(&paths);
     }
     Ok(())
 }
 
-fn configure_search(args: &InstallArgs, paths: &Paths, context: &CliContext) -> Result<()> {
+fn validate_install_args(args: &InstallArgs) -> Result<()> {
+    if args.non_interactive && !args.enable_llm_search && !args.disable_llm_search {
+        bail!(
+            "non-interactive install requires either `--enable-llm-search --profile balanced` or `--disable-llm-search`"
+        );
+    }
+    Ok(())
+}
+
+fn configure_search(
+    args: &InstallArgs,
+    paths: &Paths,
+    context: &CliContext,
+    enabled_search_preflight: Option<EnabledSearchPreflight>,
+) -> Result<()> {
     context.diagnostic("search configuration action: start");
     if args.disable_llm_search {
+        context.diagnostic("search configuration selected posture: disabled");
+        if args.configure_search {
+            context.diagnostic(
+                "search configuration: --configure-search redundant beside explicit disabled posture",
+            );
+        }
         return configure_disabled_search(paths, context);
+    }
+    if args.enable_llm_search {
+        context.diagnostic("search configuration selected posture: enabled");
+        context.diagnostic("search configuration prompt skipped: non-interactive posture supplied");
+        if args.configure_search {
+            context.diagnostic(
+                "search configuration: --configure-search redundant beside explicit enabled posture",
+            );
+        }
+        return configure_enabled_search(args, paths, context, enabled_search_preflight);
     }
 
     let posture = current_search_posture(paths, context);
     let selected = prompt_search_posture(posture)?;
     if selected == SearchInstallPosture::SemanticHybrid {
-        return configure_enabled_search(args, paths, context);
+        return configure_enabled_search(args, paths, context, None);
     }
     configure_disabled_search(paths, context)
 }
 
 fn ensure_search_prompt_available(args: &InstallArgs) -> Result<()> {
-    if args.disable_llm_search || io::stdin().is_terminal() {
+    if args.disable_llm_search || args.enable_llm_search || io::stdin().is_terminal() {
         return Ok(());
     }
     bail!(
-        "interactive install requires a terminal for search setup; rerun with `--disable-llm-search` for lexical-only/no-LLM automation or run `llm-wiki install` from a terminal"
+        "interactive install requires a terminal for search setup; rerun with `--non-interactive --disable-llm-search` for lexical-only/no-LLM automation, rerun with `--non-interactive --enable-llm-search --profile balanced --confirm-model-downloads --accept-profile-licenses` for scripted LLM search, or run `{} install` from a terminal",
+        instance::binary_stem()
     )
+}
+
+#[derive(Clone, Debug)]
+struct EnabledSearchPreflight {
+    profile: ProfileBundle,
+    models: Vec<SearchModel>,
+    install_plan: EnabledSearchInstallPlan,
+}
+
+fn preflight_noninteractive_enabled_search(
+    args: &InstallArgs,
+    paths: &Paths,
+    context: &CliContext,
+) -> Result<Option<EnabledSearchPreflight>> {
+    if !args.enable_llm_search {
+        return Ok(None);
+    }
+
+    context.diagnostic("search non-interactive preflight: start");
+    let preflight = build_enabled_search_preflight(args, paths, context)?;
+    validate_noninteractive_enabled_search(args, &preflight.install_plan, context)?;
+    context.diagnostic("search non-interactive preflight: accepted");
+    Ok(Some(preflight))
+}
+
+fn build_enabled_search_preflight(
+    args: &InstallArgs,
+    paths: &Paths,
+    context: &CliContext,
+) -> Result<EnabledSearchPreflight> {
+    let profile_id = args
+        .profile
+        .map(|profile| profile.id())
+        .unwrap_or(DEFAULT_PROFILE_ID);
+    let profile = profile_by_id(profile_id)
+        .with_context(|| format!("LLM search profile `{profile_id}` is not available"))?;
+    let models = runtime_probe::probe_targets_for_profile(profile)?
+        .into_iter()
+        .map(|target| target.model)
+        .collect::<Vec<_>>();
+    context.diagnostic(format!(
+        "search profile selected: {} (source: {})",
+        profile.id,
+        if args.profile.is_some() {
+            "--profile"
+        } else {
+            "default"
+        }
+    ));
+    context.diagnostic(format!("search profile models: {}", models.len()));
+
+    let accepted_licenses = AcceptedLicenses::read(&paths.accepted_licenses())?;
+    let classifications = models
+        .iter()
+        .copied()
+        .map(|model| {
+            classify_model_artifact(model, profile, &paths.managed_model_root())
+                .map(|classification| (model, classification))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    diagnose_model_classifications(&classifications, context);
+    let install_plan = plan_enabled_search_install(
+        &models,
+        accepted_licenses.as_ref(),
+        classifications,
+        args.force,
+    )?;
+    diagnose_license_classifications(&models, &install_plan, context);
+
+    Ok(EnabledSearchPreflight {
+        profile,
+        models,
+        install_plan,
+    })
+}
+
+fn diagnose_model_classifications(
+    classifications: &[(SearchModel, ModelArtifactClassification)],
+    context: &CliContext,
+) {
+    let mut verified = 0;
+    let mut missing = 0;
+    let mut hash_mismatch = 0;
+    for (model, classification) in classifications {
+        match classification {
+            ModelArtifactClassification::Verified { .. } => {
+                verified += 1;
+                context.diagnostic(format!(
+                    "search artifact classification: {} verified",
+                    model.id
+                ));
+            }
+            ModelArtifactClassification::Missing { path } => {
+                missing += 1;
+                context.diagnostic(format!(
+                    "search artifact classification: {} missing at {}",
+                    model.id,
+                    path.display()
+                ));
+            }
+            ModelArtifactClassification::HashMismatch {
+                path,
+                observed_sha256,
+            } => {
+                hash_mismatch += 1;
+                context.diagnostic(format!(
+                    "search artifact classification: {} hash-mismatch at {} observed_sha256={}",
+                    model.id,
+                    path.display(),
+                    observed_sha256
+                ));
+            }
+        }
+    }
+    context.diagnostic(format!(
+        "search artifact classification summary: verified={verified}, missing={missing}, hash_mismatch={hash_mismatch}"
+    ));
+}
+
+fn diagnose_license_classifications(
+    models: &[SearchModel],
+    install_plan: &EnabledSearchInstallPlan,
+    context: &CliContext,
+) {
+    let missing_or_stale = install_plan.models_requiring_license_ack.len();
+    let current = models.len().saturating_sub(missing_or_stale);
+    context.diagnostic(format!(
+        "search license classification summary: current={current}, missing_or_stale={missing_or_stale}"
+    ));
+}
+
+fn validate_noninteractive_enabled_search(
+    args: &InstallArgs,
+    install_plan: &EnabledSearchInstallPlan,
+    context: &CliContext,
+) -> Result<()> {
+    let mut missing = Vec::new();
+    if install_plan.requires_download() && !args.confirm_model_downloads {
+        missing.push("--confirm-model-downloads");
+    }
+    if install_plan.license_prompt_required && !args.accept_profile_licenses {
+        missing.push("--accept-profile-licenses");
+    }
+    if !missing.is_empty() {
+        context.diagnostic(format!(
+            "search non-interactive missing runtime confirmation: {}",
+            missing.join(", ")
+        ));
+        context.diagnostic("search non-interactive refusal: no install state mutated");
+        bail!(
+            "non-interactive LLM search install requires {}; no install or search state was changed",
+            missing.join(" and ")
+        );
+    }
+    if args.confirm_model_downloads && !install_plan.requires_download() {
+        context.diagnostic(
+            "search non-interactive confirmation: --confirm-model-downloads accepted as no-op",
+        );
+    }
+    if args.accept_profile_licenses && !install_plan.license_prompt_required {
+        context.diagnostic(
+            "search non-interactive confirmation: --accept-profile-licenses accepted as no-op",
+        );
+    }
+    Ok(())
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -251,37 +484,72 @@ fn configure_disabled_search(paths: &Paths, context: &CliContext) -> Result<()> 
     ));
     if search_artifacts_present(paths)? {
         println!(
-            "LLM search artifacts remain on disk. Remove them with `llm-wiki uninstall --search-artifacts` when you no longer need them."
+            "LLM search artifacts remain on disk. Remove them with `{} uninstall --search-artifacts` when you no longer need them.",
+            instance::binary_stem()
         );
     }
     Ok(())
 }
 
-fn configure_enabled_search(args: &InstallArgs, paths: &Paths, context: &CliContext) -> Result<()> {
-    let profile =
-        profile_by_id(DEFAULT_PROFILE_ID).context("default LLM search profile missing")?;
-    let models = models_for_profile(profile, false)?;
-    context.diagnostic(format!("search profile selected: {}", profile.id));
-    context.diagnostic(format!("search profile models: {}", models.len()));
-
-    let accepted_licenses = AcceptedLicenses::read(&paths.accepted_licenses())?;
-    let classifications = models
-        .iter()
-        .copied()
-        .map(|model| {
-            classify_model_artifact(model, profile, &paths.managed_model_root())
-                .map(|classification| (model, classification))
-        })
-        .collect::<Result<Vec<_>>>()?;
-    let install_plan = plan_enabled_search_install(
-        &models,
-        accepted_licenses.as_ref(),
-        classifications,
-        args.force,
-    )?;
+fn configure_enabled_search(
+    args: &InstallArgs,
+    paths: &Paths,
+    context: &CliContext,
+    preflight: Option<EnabledSearchPreflight>,
+) -> Result<()> {
+    let EnabledSearchPreflight {
+        profile,
+        models,
+        install_plan,
+    } = match preflight {
+        Some(preflight) => preflight,
+        None => build_enabled_search_preflight(args, paths, context)?,
+    };
 
     println!("LLM search profile: {}", profile.display_name);
-    if install_plan.requires_download() {
+    if args.enable_llm_search {
+        if install_plan.requires_download() {
+            println!("Models to download and verify:");
+            for model in install_plan.models_to_download() {
+                print_model_license_line(model, Some(model.expected_sha256));
+            }
+            for replacement in install_plan.models_to_replace() {
+                println!(
+                    "- {}: {} / {} ({}, sha256 {}, replacing local hash {}){}",
+                    replacement.model.role.label(),
+                    replacement.model.repository,
+                    replacement.model.file,
+                    license_label(replacement.model),
+                    replacement.model.expected_sha256,
+                    replacement.observed_sha256,
+                    terms_suffix(replacement.model)
+                );
+            }
+            let reused_unaccepted = install_plan.reused_models_requiring_license_ack();
+            if !reused_unaccepted.is_empty() {
+                println!(
+                    "Already installed and verified, but license/terms acknowledgement was also required:"
+                );
+                for model in reused_unaccepted {
+                    print_model_license_line(model, None);
+                }
+            }
+            println!(
+                "Model bytes are stored under {} and are not bundled with llm-wiki.",
+                paths.managed_model_root().display()
+            );
+        } else if install_plan.license_prompt_required {
+            println!("All required model artifacts are already installed and verified.");
+            println!("Model license/terms acknowledgement was required for this profile:");
+            for model in &models {
+                print_model_license_line(*model, None);
+            }
+        } else {
+            println!(
+                "All required model artifacts are already installed and verified; reusing managed copies."
+            );
+        }
+    } else if install_plan.requires_download() {
         println!("Models to download and verify:");
         for model in install_plan.models_to_download() {
             print_model_license_line(model, Some(model.expected_sha256));
@@ -397,8 +665,44 @@ fn configure_enabled_search(args: &InstallArgs, paths: &Paths, context: &CliCont
             }
         }
     }
-    ModelArtifacts::from_records(artifact_records).write_atomic(&paths.model_artifacts())?;
+    let artifacts = ModelArtifacts::from_records(artifact_records);
+    artifacts.write_atomic(&paths.model_artifacts())?;
     context.diagnostic("search configuration action: recorded model artifacts");
+
+    let probe_run = runtime_probe::probe_profile_bundle(profile, &artifacts)?;
+    let probe_store = RuntimeProbeStore::from_records(probe_run.records.clone());
+    probe_store.write_atomic(&paths.search_runtime_probes())?;
+    context.diagnostic(format!(
+        "search runtime probes: records={} all_passed={}",
+        probe_run.records.len(),
+        probe_run.all_passed()
+    ));
+    context.diagnostic(format!(
+        "runtime probes: {}",
+        paths.search_runtime_probes().display()
+    ));
+    if let Some(failure) = probe_run.first_required_problem() {
+        let reason = format!(
+            "runtime_probe_failed:{}:{}:{}",
+            failure.role,
+            failure.failure_stage.as_deref().unwrap_or("runtime_probe"),
+            failure.failure_kind.as_deref().unwrap_or("unknown")
+        );
+        SearchConfig::disabled_with_reason(reason).write_atomic(&paths.search_config())?;
+        ExternalDependencies::empty().write_atomic(&paths.external_dependencies())?;
+        context.diagnostic(
+            "search configuration action: wrote disabled LLM search profile after failed runtime probe",
+        );
+        bail!(
+            "GGUF runtime probe {} for {} during {} ({}); requested_backend={}, used_backend={}, LLM search profile was disabled and was not enabled",
+            failure.outcome.label(),
+            failure.role,
+            failure.failure_stage.as_deref().unwrap_or("runtime_probe"),
+            failure.failure_kind.as_deref().unwrap_or("unknown"),
+            failure.requested_backend,
+            failure.used_backend.as_deref().unwrap_or("<unknown>")
+        );
+    }
 
     let config = SearchConfig::enabled(SearchProfile::enabled(
         profile.id,
@@ -536,8 +840,9 @@ fn plan_enabled_search_install(
             } => {
                 if !force {
                     bail!(
-                        "model artifact hash mismatch for {}; rerun `llm-wiki install --configure-search --force` to replace {}",
+                        "model artifact hash mismatch for {}; rerun `{} install --configure-search --force` to replace {}",
                         model.id,
+                        instance::binary_stem(),
                         path.display()
                     );
                 }
@@ -669,13 +974,16 @@ fn preflight_managed_binary(
             format!("failed to read managed binary {}", managed_binary.display())
         })?);
     let manifest_owned = manifest.is_some_and(|manifest| manifest.binary.path == managed_binary);
+    let source_matches =
+        manifest_binary_source_matches(manifest, &managed_binary, &managed_hash, &current_hash);
     context.diagnostic(format!(
-        "managed binary comparison: hash_match={}, manifest_owned={}, force={}",
+        "managed binary comparison: hash_match={}, manifest_owned={}, source_match={}, force={}",
         managed_hash == current_hash,
         manifest_owned,
+        source_matches,
         force
     ));
-    if managed_hash != current_hash && !manifest_owned && !force {
+    if !source_matches && managed_hash != current_hash && !manifest_owned && !force {
         if partial_state == PartialState::Resuming {
             bail!(
                 "previous install left a partial managed binary {}; rerun with --force to replace it",
@@ -724,8 +1032,9 @@ fn preflight_install_files(
             Collision::Symlink => {
                 if !force {
                     bail!(
-                        "refusing to replace symlink {}; run llm-wiki doctor or rerun install --force",
-                        file.path.display()
+                        "refusing to replace symlink {}; run `{} doctor` or rerun install --force",
+                        file.path.display(),
+                        instance::binary_stem()
                     );
                 }
             }
@@ -831,7 +1140,13 @@ fn install_managed_binary(
         let manifest_owned = manifest
             .as_ref()
             .is_some_and(|manifest| manifest.binary.path == managed_binary);
-        if managed_hash != current_hash && !manifest_owned && !force {
+        let source_matches = manifest_binary_source_matches(
+            manifest.as_ref(),
+            &managed_binary,
+            &managed_hash,
+            &current_hash,
+        );
+        if !source_matches && managed_hash != current_hash && !manifest_owned && !force {
             if partial_state == PartialState::Resuming {
                 bail!(
                     "previous install left a partial managed binary {}; rerun with --force to replace it",
@@ -843,18 +1158,19 @@ fn install_managed_binary(
                 managed_binary.display()
             );
         }
-        if managed_hash != current_hash {
+        if !source_matches && managed_hash != current_hash {
             context.diagnostic("managed binary action: replace existing target");
-            copy_current_exe(current_exe, &managed_binary)?;
+            copy_current_exe(current_exe, &managed_binary, context)?;
         } else {
             context.diagnostic("managed binary action: existing target hash matches");
         }
     } else {
         context.diagnostic("managed binary action: copy new target");
-        copy_current_exe(current_exe, &managed_binary)?;
+        copy_current_exe(current_exe, &managed_binary, context)?;
     }
 
     let managed_hash = sha256_hex(&fs::read(&managed_binary)?);
+    #[cfg(not(target_os = "macos"))]
     if managed_hash != current_hash {
         bail!(
             "managed binary hash mismatch after copy: {}",
@@ -867,7 +1183,26 @@ fn install_managed_binary(
         version: env!("CARGO_PKG_VERSION").to_string(),
         hash_algorithm: HashAlgorithm::Sha256,
         hash: managed_hash,
+        source_hash: Some(current_hash),
         ownership: Ownership::ManifestOwned,
+    })
+}
+
+fn manifest_binary_source_matches(
+    manifest: Option<&Manifest>,
+    managed_binary: &Path,
+    managed_hash: &str,
+    current_hash: &str,
+) -> bool {
+    manifest.is_some_and(|manifest| {
+        manifest.binary.path == managed_binary
+            && manifest.binary.hash == managed_hash
+            && manifest
+                .binary
+                .source_hash
+                .as_deref()
+                .unwrap_or(managed_hash)
+                == current_hash
     })
 }
 
@@ -881,19 +1216,76 @@ fn same_file_when_possible(left: &Path, right: &Path) -> bool {
     }
 }
 
-fn copy_current_exe(current_exe: &Path, managed_binary: &Path) -> Result<()> {
-    fs::copy(current_exe, managed_binary).with_context(|| {
-        format!(
-            "failed to copy {} to {}",
-            current_exe.display(),
+fn copy_current_exe(current_exe: &Path, managed_binary: &Path, context: &CliContext) -> Result<()> {
+    let parent = managed_binary.parent().ok_or_else(|| {
+        anyhow!(
+            "managed binary path has no parent directory: {}",
             managed_binary.display()
+        )
+    })?;
+    let temp = tempfile::Builder::new()
+        .prefix(".llm-wiki-bin-")
+        .tempfile_in(parent)
+        .with_context(|| {
+            format!(
+                "failed to create temporary managed binary in {}",
+                parent.display()
+            )
+        })?;
+
+    fs::copy(current_exe, temp.path()).with_context(|| {
+        format!(
+            "failed to copy {} to temporary managed binary {}",
+            current_exe.display(),
+            temp.path().display()
         )
     })?;
     let permissions = fs::metadata(current_exe)
         .with_context(|| format!("failed to inspect {}", current_exe.display()))?
         .permissions();
-    fs::set_permissions(managed_binary, permissions)
-        .with_context(|| format!("failed to set permissions on {}", managed_binary.display()))?;
+    fs::set_permissions(temp.path(), permissions)
+        .with_context(|| format!("failed to set permissions on {}", temp.path().display()))?;
+    sign_macos_binary(temp.path(), context)?;
+    temp.persist(managed_binary).map(|_| ()).map_err(|error| {
+        anyhow!(
+            "failed to atomically replace {} with staged binary {}: {}",
+            managed_binary.display(),
+            error.file.path().display(),
+            error.error
+        )
+    })?;
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn sign_macos_binary(path: &Path, context: &CliContext) -> Result<()> {
+    let identifier = format!("dev.llm-wiki.{}", instance::binary_stem());
+    context.diagnostic(format!(
+        "macOS managed binary signing: codesign --force --sign - --identifier {identifier} {}",
+        path.display()
+    ));
+    let output = Command::new("/usr/bin/codesign")
+        .args(["--force", "--sign", "-", "--identifier", &identifier])
+        .arg(path)
+        .output()
+        .with_context(|| "failed to run codesign for managed binary")?;
+    if !output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!(
+            "codesign failed for managed binary {}: status={} stdout={} stderr={}",
+            path.display(),
+            output.status,
+            stdout.trim(),
+            stderr.trim()
+        );
+    }
+    Ok(())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn sign_macos_binary(_path: &Path, context: &CliContext) -> Result<()> {
+    context.diagnostic("macOS managed binary signing: skipped on non-macOS");
     Ok(())
 }
 
@@ -935,8 +1327,9 @@ fn install_files(
             Collision::Symlink => {
                 if !force {
                     bail!(
-                        "refusing to replace symlink {}; run llm-wiki doctor or rerun install --force",
-                        file.path.display()
+                        "refusing to replace symlink {}; run `{} doctor` or rerun install --force",
+                        file.path.display(),
+                        instance::binary_stem()
                     );
                 }
                 backup(&file.path)?;
@@ -948,6 +1341,125 @@ fn install_files(
     }
 
     Ok(new_entries)
+}
+
+fn cleanup_legacy_generated_skills(
+    paths: &Paths,
+    manifest: Option<&Manifest>,
+    context: &CliContext,
+) -> Result<Vec<ManifestEntry>> {
+    let Some(manifest) = manifest else {
+        warn_existing_legacy_skill_dirs(paths, context);
+        return Ok(Vec::new());
+    };
+
+    let mut retained = Vec::new();
+    let mut touched_dirs = HashSet::new();
+
+    for entry in &manifest.skills {
+        if !legacy_skills::is_legacy_global_skill_path(paths, &entry.path) {
+            retained.push(entry.clone());
+            continue;
+        }
+        if !matches!(entry.ownership, Ownership::ManifestOwned) {
+            warn_legacy_skill(
+                context,
+                format!(
+                    "manual cleanup required: legacy generated skill is not manifest-owned: {}",
+                    entry.path.display()
+                ),
+            );
+            retained.push(entry.clone());
+            continue;
+        }
+        if !matches!(entry.hash_algorithm, HashAlgorithm::Sha256) {
+            warn_legacy_skill(
+                context,
+                format!(
+                    "manual cleanup required: legacy generated skill uses unsupported hash algorithm: {}",
+                    entry.path.display()
+                ),
+            );
+            retained.push(entry.clone());
+            continue;
+        }
+
+        match fs::read(&entry.path) {
+            Ok(contents) if sha256_hex(&contents) == entry.hash => {
+                fs::remove_file(&entry.path).with_context(|| {
+                    format!(
+                        "failed to remove legacy generated skill {}",
+                        entry.path.display()
+                    )
+                })?;
+                context.diagnostic(format!(
+                    "removed legacy generated skill: {}",
+                    entry.path.display()
+                ));
+                touched_dirs.insert(entry.path.clone());
+            }
+            Ok(_) => {
+                warn_legacy_skill(
+                    context,
+                    format!(
+                        "manual cleanup required: legacy generated skill was edited and was preserved: {}",
+                        entry.path.display()
+                    ),
+                );
+                retained.push(entry.clone());
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                context.diagnostic(format!(
+                    "legacy generated skill already absent: {}",
+                    entry.path.display()
+                ));
+            }
+            Err(error) => {
+                return Err(error).with_context(|| {
+                    format!(
+                        "failed to read legacy generated skill {}",
+                        entry.path.display()
+                    )
+                });
+            }
+        }
+    }
+
+    for path in touched_dirs {
+        for removed in
+            legacy_skills::remove_empty_legacy_parents(&path, paths).with_context(|| {
+                format!(
+                    "failed to remove empty legacy generated skill directories for {}",
+                    path.display()
+                )
+            })?
+        {
+            context.diagnostic(format!(
+                "removed empty legacy generated skill directory: {}",
+                removed.display()
+            ));
+        }
+    }
+
+    warn_existing_legacy_skill_dirs(paths, context);
+    Ok(retained)
+}
+
+fn warn_existing_legacy_skill_dirs(paths: &Paths, context: &CliContext) {
+    for dir in legacy_skills::existing_legacy_skill_dirs(paths) {
+        warn_legacy_skill(
+            context,
+            format!(
+                "manual cleanup required: legacy generated skill directory remains: {}",
+                dir.display()
+            ),
+        );
+    }
+}
+
+fn warn_legacy_skill(context: &CliContext, message: String) {
+    context.diagnostic(&message);
+    println!("Warning: {message}");
 }
 
 fn manifest_entries_by_path(manifest: Option<&Manifest>) -> HashMap<PathBuf, ManifestEntry> {
@@ -1005,7 +1517,10 @@ fn write_backup_snapshot(
             format!("failed to read managed binary {}", managed_binary.display())
         })?;
         let current_hash = sha256_hex(&current);
-        if current_hash != current_exe_hash {
+        let manifest_owned = manifest.is_some_and(|manifest| {
+            manifest.binary.path == managed_binary && manifest.binary.hash == current_hash
+        });
+        if current_hash != current_exe_hash && !manifest_owned {
             let backup_path = dir.join("0000-llm-wiki");
             fs::write(&backup_path, current)
                 .with_context(|| format!("failed to write {}", backup_path.display()))?;
@@ -1077,54 +1592,69 @@ fn write_backup_snapshot(
     })
 }
 
-fn render_install_files(paths: &Paths, context: &CliContext) -> Result<Vec<InstallFile>> {
-    let mut files = Vec::new();
-    for asset in embed::SKILLS {
-        let doc = parse(asset.skill_md)
-            .with_context(|| format!("failed to parse embedded skill {}", asset.name))?;
-        let binary_invocation = managed_binary_invocation(&paths.managed_binary());
-        let doc = apply_binary_context(doc, &binary_invocation);
-        if doc.frontmatter.runtimes.contains(&Runtime::Claude) {
-            let rendered = ClaudeProjector.project(&doc)?;
-            context.diagnostic(format!(
-                "render target: skill={} runtime=claude path={}",
-                asset.name,
-                paths.claude_skill(asset.name).display()
-            ));
-            files.push(InstallFile::new(
-                paths.claude_skill(asset.name),
-                asset.name,
-                RuntimeName::Claude,
-                FileKind::Skill,
-                rendered.skill_md,
-            ));
-        }
-        if doc.frontmatter.runtimes.contains(&Runtime::Codex) {
-            let runtime_config = llm_wiki_schema::CodexRuntimeConfig::from_yaml(asset.codex_openai)
-                .with_context(|| format!("failed to parse {} Codex runtime config", asset.name))?;
-            let rendered = CodexProjector::with_runtime_config(runtime_config).project(&doc)?;
-            context.diagnostic(format!(
-                "render target: skill={} runtime=codex path={}",
-                asset.name,
-                paths.codex_skill(asset.name).display()
-            ));
-            files.push(InstallFile::new(
-                paths.codex_skill(asset.name),
-                asset.name,
-                RuntimeName::Codex,
-                FileKind::Skill,
-                rendered.skill_md,
-            ));
-            files.push(InstallFile::new(
-                paths.codex_config(asset.name),
-                asset.name,
-                RuntimeName::Codex,
-                FileKind::RuntimeConfig,
-                rendered.runtime_config.context("missing runtime config")?,
-            ));
-        }
+fn materialize_mcp_configs(
+    paths: &Paths,
+    managed_binary: &Path,
+    context: &CliContext,
+) -> Result<ManagedAssetEntry> {
+    // Codex is globally wired via the same shared core that `init`/`register`
+    // use for project onboarding, so the two paths cannot drift: the merge is
+    // non-destructive, the pre-llm-wiki config is snapshotted once, and the
+    // merged config is written atomically.
+    let codex_path = paths.codex_config_toml();
+    mcp_wiring::ensure_codex_mcp_config(&codex_path, managed_binary, context)?;
+    context.diagnostic(format!(
+        "MCP server startup is {}: hosts spawn `{}` on demand; no background daemon is installed",
+        mcp_config::SERVER_STARTUP,
+        mcp_config::server_start_command(managed_binary)
+    ));
+
+    let claude_contents = mcp_config::render_claude_project_mcp_config(managed_binary)?;
+    let claude_path = paths.claude_project_mcp_config();
+    // The staged Claude MCP config is manifest-owned and drift-tracked, and
+    // uninstall hard-fails if it was edited. Mirror that safety here: install
+    // used to overwrite it silently. Least-invasive correct fix — warn on drift
+    // before overwriting so a user edit is never lost without notice (a full
+    // backup would leak an untracked sibling that uninstall does not clean).
+    if let Ok(previous) = fs::read_to_string(&claude_path)
+        && previous != claude_contents
+    {
+        let message = format!(
+            "overwriting edited staged Claude MCP config {}; re-copy it to your project .mcp.json if you customized it",
+            claude_path.display()
+        );
+        context.diagnostic(&message);
+        println!("Warning: {message}");
     }
-    Ok(files)
+    write_file(&claude_path, &claude_contents)?;
+    let hash = sha256_hex(claude_contents.as_bytes());
+    context.diagnostic(format!(
+        "materialized Claude MCP config: {} ({hash})",
+        claude_path.display()
+    ));
+    context.diagnostic(format!(
+        "Claude MCP is wired per project by `{} init`/`register`; this staged copy at {} is a fallback for manual setups",
+        instance::binary_stem(),
+        claude_path.display()
+    ));
+
+    Ok(ManagedAssetEntry {
+        path: claude_path,
+        asset: "claude-project-mcp-config".to_string(),
+        kind: ManagedAssetKind::McpConfig,
+        hash_algorithm: HashAlgorithm::Sha256,
+        hash,
+        ownership: Ownership::ManifestOwned,
+        installed_by_version: env!("CARGO_PKG_VERSION").to_string(),
+    })
+}
+
+fn render_install_files(paths: &Paths, context: &CliContext) -> Result<Vec<InstallFile>> {
+    context.diagnostic(format!(
+        "runtime skill projection disabled; MCP config points to {}",
+        paths.managed_binary().display()
+    ));
+    Ok(Vec::new())
 }
 
 fn write_file(path: &Path, contents: &str) -> Result<()> {
@@ -1210,24 +1740,6 @@ struct InstallFile {
 }
 
 impl InstallFile {
-    fn new(
-        path: PathBuf,
-        skill: impl Into<String>,
-        runtime: RuntimeName,
-        kind: FileKind,
-        contents: String,
-    ) -> Self {
-        let sha256 = sha256_hex(contents.as_bytes());
-        Self {
-            path,
-            skill: skill.into(),
-            runtime,
-            kind,
-            contents,
-            sha256,
-        }
-    }
-
     fn entry(&self) -> ManifestEntry {
         ManifestEntry {
             path: self.path.clone(),
@@ -1272,13 +1784,19 @@ mod tests {
     use tempfile::TempDir;
 
     use super::{
-        PlannedModelAction, SearchInstallPosture, backup_with_suffix, plan_enabled_search_install,
+        EnabledSearchInstallPlan, EnabledSearchPreflight, PlannedModelAction, SearchInstallPosture,
+        backup_with_suffix, configure_enabled_search, plan_enabled_search_install,
+        validate_noninteractive_enabled_search,
     };
+    use crate::cli::{InstallArgs, InstallSearchProfileArg};
+    use crate::paths::Paths;
     use crate::search_models::{
         ADAPTER_SCHEMA_VERSION, AcceptedLicenses, BALANCED_PROFILE, EMBEDDING_GEMMA_300M,
         ModelArtifactClassification, ModelArtifactRecord, QMD_QUERY_EXPANSION_17B, QMD_RS_VERSION,
         SearchModel,
     };
+    use crate::search_profile::SearchConfig;
+    use crate::test_env::EnvVarGuard;
 
     #[test]
     fn backup_retries_when_first_candidate_exists() {
@@ -1333,6 +1851,12 @@ mod tests {
 
         assert!(!plan.license_prompt_required);
         assert!(!plan.requires_download());
+        validate_noninteractive_enabled_search(
+            &install_args(false, false, false),
+            &plan,
+            context(),
+        )
+        .expect("no confirmations required");
         assert!(matches!(
             plan.actions[0],
             PlannedModelAction::Reuse {
@@ -1375,6 +1899,15 @@ mod tests {
 
         assert!(plan.license_prompt_required);
         assert!(!plan.requires_download());
+        let error = validate_noninteractive_enabled_search(
+            &install_args(false, false, false),
+            &plan,
+            context(),
+        )
+        .expect_err("license confirmation required");
+        assert!(format!("{error:#}").contains("--accept-profile-licenses"));
+        validate_noninteractive_enabled_search(&install_args(false, true, false), &plan, context())
+            .expect("license confirmation accepted");
     }
 
     #[test]
@@ -1404,6 +1937,15 @@ mod tests {
 
         assert!(!plan.license_prompt_required);
         assert!(plan.requires_download());
+        let error = validate_noninteractive_enabled_search(
+            &install_args(false, false, false),
+            &plan,
+            context(),
+        )
+        .expect_err("download confirmation required");
+        assert!(format!("{error:#}").contains("--confirm-model-downloads"));
+        validate_noninteractive_enabled_search(&install_args(true, false, false), &plan, context())
+            .expect("download confirmation accepted");
         assert_eq!(plan.models_to_download(), vec![QMD_QUERY_EXPANSION_17B]);
         assert!(matches!(
             plan.actions[0],
@@ -1447,6 +1989,22 @@ mod tests {
 
         assert!(plan.requires_download());
         assert!(plan.license_prompt_required);
+        let error = validate_noninteractive_enabled_search(
+            &install_args(true, false, false),
+            &plan,
+            context(),
+        )
+        .expect_err("profile license confirmation required");
+        assert!(format!("{error:#}").contains("--accept-profile-licenses"));
+        let error = validate_noninteractive_enabled_search(
+            &install_args(false, true, false),
+            &plan,
+            context(),
+        )
+        .expect_err("download confirmation required");
+        assert!(format!("{error:#}").contains("--confirm-model-downloads"));
+        validate_noninteractive_enabled_search(&install_args(true, true, false), &plan, context())
+            .expect("both confirmations accepted");
         assert_eq!(
             plan.reused_models_requiring_license_ack(),
             vec![EMBEDDING_GEMMA_300M]
@@ -1503,6 +2061,15 @@ mod tests {
 
         assert!(!plan.license_prompt_required);
         assert!(plan.requires_download());
+        let error = validate_noninteractive_enabled_search(
+            &install_args(false, false, true),
+            &plan,
+            context(),
+        )
+        .expect_err("forced replacement still needs download confirmation");
+        assert!(format!("{error:#}").contains("--confirm-model-downloads"));
+        validate_noninteractive_enabled_search(&install_args(true, false, true), &plan, context())
+            .expect("forced replacement download confirmed");
         assert!(matches!(
             plan.actions[0],
             PlannedModelAction::Reuse {
@@ -1518,6 +2085,166 @@ mod tests {
             }
         ));
         assert_eq!(plan.models_to_replace()[0].observed_sha256, "bad-sha");
+    }
+
+    #[test]
+    fn noninteractive_enabled_validator_accepts_extra_confirmations_when_current() {
+        let models = [EMBEDDING_GEMMA_300M, QMD_QUERY_EXPANSION_17B];
+        let accepted = AcceptedLicenses::from_models(&models);
+        let plan = plan_enabled_search_install(
+            &models,
+            Some(&accepted),
+            vec![
+                (
+                    EMBEDDING_GEMMA_300M,
+                    ModelArtifactClassification::Verified {
+                        record: Box::new(artifact_record(EMBEDDING_GEMMA_300M)),
+                    },
+                ),
+                (
+                    QMD_QUERY_EXPANSION_17B,
+                    ModelArtifactClassification::Verified {
+                        record: Box::new(artifact_record(QMD_QUERY_EXPANSION_17B)),
+                    },
+                ),
+            ],
+            false,
+        )
+        .expect("plan");
+
+        validate_noninteractive_enabled_search(&install_args(true, true, false), &plan, context())
+            .expect("extra confirmations are no-op scripted intent");
+    }
+
+    #[test]
+    fn configure_enabled_search_records_runtime_probe_before_enabling_search() {
+        let temp = TempDir::new().expect("tempdir");
+        let paths = fixture_paths(temp.path());
+        let _guard = EnvVarGuard::set("LLM_WIKI_TEST_GGUF_RUNTIME_PROBE", "pass");
+
+        configure_enabled_search(
+            &install_args(true, true, false),
+            &paths,
+            context(),
+            Some(reuse_preflight()),
+        )
+        .expect("enabled search");
+
+        let search = SearchConfig::read(&paths.search_config())
+            .expect("read search")
+            .expect("search config");
+        assert!(search.project_default.llm_search_enabled);
+        assert!(search.global_search.llm_search_enabled);
+        let probes =
+            crate::search::runtime_probe::RuntimeProbeStore::read(&paths.search_runtime_probes())
+                .expect("read probes")
+                .expect("runtime probes");
+        assert_eq!(probes.records.len(), 2);
+        assert!(probes.records.iter().all(|record| record.required));
+        assert!(
+            probes.records.iter().all(|record| record.outcome
+                == crate::search::runtime_probe::RuntimeProbeOutcome::Passed)
+        );
+    }
+
+    #[test]
+    fn failed_runtime_probe_disables_previously_enabled_search_config() {
+        let temp = TempDir::new().expect("tempdir");
+        let paths = fixture_paths(temp.path());
+        let existing = SearchConfig::enabled(crate::search_profile::SearchProfile::enabled(
+            BALANCED_PROFILE.id,
+            EMBEDDING_GEMMA_300M.id,
+            Some(QMD_QUERY_EXPANSION_17B.id.to_string()),
+            None,
+        ));
+        existing
+            .write_atomic(&paths.search_config())
+            .expect("existing search config");
+        let _guard = EnvVarGuard::set("LLM_WIKI_TEST_GGUF_RUNTIME_PROBE", "fail:embedding");
+
+        let error = configure_enabled_search(
+            &install_args(true, true, false),
+            &paths,
+            context(),
+            Some(reuse_preflight()),
+        )
+        .expect_err("runtime probe should fail");
+
+        assert!(format!("{error:#}").contains("GGUF runtime probe failed"));
+        let search = SearchConfig::read(&paths.search_config())
+            .expect("read search")
+            .expect("search config");
+        assert!(!search.project_default.llm_search_enabled);
+        assert!(!search.global_search.llm_search_enabled);
+        assert!(
+            search
+                .project_default
+                .reason
+                .as_deref()
+                .is_some_and(|reason| reason.starts_with("runtime_probe_failed:embedding:"))
+        );
+        let probes =
+            crate::search::runtime_probe::RuntimeProbeStore::read(&paths.search_runtime_probes())
+                .expect("read probes")
+                .expect("runtime probes");
+        assert_eq!(
+            probes.records[0].outcome,
+            crate::search::runtime_probe::RuntimeProbeOutcome::Failed
+        );
+    }
+
+    fn context() -> &'static crate::cli::CliContext {
+        const CONTEXT: crate::cli::CliContext = crate::cli::CliContext { verbose: false };
+        &CONTEXT
+    }
+
+    fn fixture_paths(root: &Path) -> Paths {
+        Paths {
+            home: root.to_path_buf(),
+            cache_home: root.join(".cache/llm-wiki"),
+            data_home: root.join(".local/share/llm-wiki"),
+            managed_home: root.join(".llm_wiki"),
+        }
+    }
+
+    fn reuse_preflight() -> EnabledSearchPreflight {
+        let models = vec![EMBEDDING_GEMMA_300M, QMD_QUERY_EXPANSION_17B];
+        EnabledSearchPreflight {
+            profile: BALANCED_PROFILE,
+            models,
+            install_plan: EnabledSearchInstallPlan {
+                actions: vec![
+                    PlannedModelAction::Reuse {
+                        model: EMBEDDING_GEMMA_300M,
+                        record: Box::new(artifact_record(EMBEDDING_GEMMA_300M)),
+                    },
+                    PlannedModelAction::Reuse {
+                        model: QMD_QUERY_EXPANSION_17B,
+                        record: Box::new(artifact_record(QMD_QUERY_EXPANSION_17B)),
+                    },
+                ],
+                license_prompt_required: false,
+                models_requiring_license_ack: Vec::new(),
+            },
+        }
+    }
+
+    fn install_args(
+        confirm_model_downloads: bool,
+        accept_profile_licenses: bool,
+        force: bool,
+    ) -> InstallArgs {
+        InstallArgs {
+            force,
+            skip_path_guidance: false,
+            configure_search: false,
+            non_interactive: true,
+            enable_llm_search: true,
+            profile: Some(InstallSearchProfileArg::Balanced),
+            confirm_model_downloads,
+            accept_profile_licenses,
+            disable_llm_search: false,
+        }
     }
 
     fn artifact_record(model: SearchModel) -> ModelArtifactRecord {

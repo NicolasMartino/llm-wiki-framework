@@ -15,13 +15,19 @@ proptest! {
                 .expect("binary")
                 .env("HOME", home.path())
                 .env_remove("RUST_LOG")
-                .args(["install", "--disable-llm-search"])
+                .env_remove("XDG_CACHE_HOME")
+                .env_remove("XDG_DATA_HOME")
+                .args(["install", "--disable-llm-search", "--skip-path-guidance"])
                 .assert()
                 .success();
         }
         let manifest = fs::read_to_string(home.path().join(".llm_wiki/manifest.json"))
             .expect("manifest");
         prop_assert!(manifest.contains("\"skills\""));
-        prop_assert!(home.path().join(".claude/skills/wiki-init/SKILL.md").exists());
+        prop_assert!(
+            home.path()
+                .join(".llm_wiki/mcp/claude-project.mcp.json")
+                .exists()
+        );
     }
 }

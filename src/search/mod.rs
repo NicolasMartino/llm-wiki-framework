@@ -1,8 +1,10 @@
 pub mod adapter;
 pub mod commands;
+pub mod gguf_runtime;
 pub mod index_text;
 pub mod metadata;
 pub mod project;
 pub mod qmd_rs;
+pub mod runtime_probe;
 pub mod sanitize;
 pub mod semantic;

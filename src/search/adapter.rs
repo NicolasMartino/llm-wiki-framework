@@ -37,6 +37,11 @@ impl SearchFilters {
             .is_none_or(|expected| status.is_some_and(|actual| same_token(expected, actual)));
         class_matches && status_matches
     }
+
+    /// True when at least one filter is set and can therefore drop candidates.
+    pub fn is_active(&self) -> bool {
+        self.document_class.is_some() || self.status.is_some()
+    }
 }
 
 fn same_token(left: &str, right: &str) -> bool {
@@ -71,6 +76,9 @@ pub struct SearchResult {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Score(pub f64);
 
+// SAFETY(invariant): scores are cosine similarities and BM25 ranks — always
+// finite, never NaN — so reflexivity holds and this `Eq` is sound. A NaN would
+// violate `Eq`; guard against introducing one when constructing `Score`.
 impl Eq for Score {}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -90,18 +98,68 @@ pub enum Freshness {
 pub struct BackendStatus {
     pub store_path: PathBuf,
     pub state: BackendState,
+    pub open_mode: BackendOpenMode,
     pub indexed_files: usize,
     pub stale: bool,
     pub message: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BackendAccessError {
+    status: BackendStatus,
+}
+
+impl BackendAccessError {
+    pub fn new(status: BackendStatus) -> Self {
+        Self { status }
+    }
+
+    pub fn status(&self) -> &BackendStatus {
+        &self.status
+    }
+}
+
+impl fmt::Display for BackendAccessError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.status.message.as_deref() {
+            Some(message) => write!(formatter, "{message}"),
+            None => write!(
+                formatter,
+                "search backend access failed with state {:?}",
+                self.status.state
+            ),
+        }
+    }
+}
+
+impl std::error::Error for BackendAccessError {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BackendState {
     Ready,
     Missing,
     Stale,
+    Transient,
+    PermissionDenied,
     Corrupt,
     SchemaMismatch,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum BackendOpenMode {
+    ReadOnlyImmutable,
+    ReadWriteIndexing,
+    NotOpened,
+}
+
+impl BackendOpenMode {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::ReadOnlyImmutable => "read_only_immutable",
+            Self::ReadWriteIndexing => "read_write_indexing",
+            Self::NotOpened => "not_opened",
+        }
+    }
 }
 
 pub trait SearchBackend {
@@ -115,6 +173,7 @@ pub trait SearchBackend {
 
     fn search_project(
         &self,
+        project_id: &str,
         store_path: &Path,
         wiki_root: &Path,
         query: &str,
@@ -122,10 +181,16 @@ pub trait SearchBackend {
         limit: usize,
     ) -> Result<Vec<SearchResult>>;
 
-    fn status(&self, store_path: &Path, wiki_root: &Path) -> Result<BackendStatus>;
+    fn status(
+        &self,
+        project_id: &str,
+        store_path: &Path,
+        wiki_root: &Path,
+    ) -> Result<BackendStatus>;
 
     fn doctor(
         &self,
+        project_id: &str,
         store_path: &Path,
         wiki_root: &Path,
         mode: SearchMode,

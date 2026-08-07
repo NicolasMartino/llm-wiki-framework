@@ -5,6 +5,7 @@ expression: snapshot
 # files
 - .llm_wiki/init.toml
 - .llm_wiki/runtime.toml
+- .mcp.json
 - AGENTS.md
 - CLAUDE.md
 - project_guidelines.md
@@ -218,6 +219,7 @@ wiki/
   references/                 External evidence synthesis
   experiments/                Investigation records
   evals/                      Evaluation reports
+  model-cards/                Model cards and lineage
 
   archive/                    Completed, superseded, or rejected documents
 ```
@@ -229,7 +231,7 @@ wiki/
   AGENTS.md                   Schema: agent conventions and workflows
   CLAUDE.md                   Compatibility shim for Claude-oriented tooling
   project_guidelines.md       This file: documentation and execution model
-  README.md                   Project orientation and setup
+  README.md                   Project orientation (optional; not created by init)
   raw/                        Immutable source material (human-curated)
   wiki/                       Compiled knowledge (agent-owned)
     index.md
@@ -243,10 +245,10 @@ wiki/
     references/
     experiments/
     evals/
+    model-cards/
 
     archive/
   models/                     Model artifacts, configs
-  data/                       Datasets, schemas, pipelines
   notebooks/                  Exploratory analysis
   evals/                      Evaluation harnesses (code)
 
@@ -328,6 +330,44 @@ ML projects add experiment, eval, and model-card records. Eval statuses include
 `Planned`, `Baseline`, `Candidate`, `Accepted`, `Rejected`, and `Superseded`.
 Claims about model quality require eval conditions, metrics, and comparison
 context.
+
+## Read-Only Access Contract For `wiki/` And `raw/`
+
+These rules keep `wiki/` and `raw/` provenance exact, and keep them safe if a
+context-compression tool such as Headroom is ever run in front of the model.
+
+**Route wiki/raw through the MCP tools.** When the host exposes the LLM Wiki MCP
+server, read and search `wiki/` and `raw/` through the framework-owned tools —
+`llm_wiki_read`, `llm_wiki_search`, and `llm_wiki_search_all` — rather than
+shell-family file reads/search (`cat`, `sed`, `grep`). On Claude Code the native
+`Read` tool is an acceptable fallback for a single wiki/raw file; on Codex (which
+has no native read tool) the MCP tools are the primary surface. These outputs are
+produced by llm-wiki itself, so read this way they are exact at the MCP server
+boundary; if an optional host/proxy later replaces content with CCR markers,
+compression envelopes, or omitted payload fields, treat that as a failed
+delivery check rather than exact content.
+
+**`headroom_read` ban.** If you run Headroom, do not enable `HEADROOM_MCP_READ=on`
+and do not call the `headroom_read` MCP tool against any `wiki/` or `raw/` path.
+That tool routes file content through CCR with retrieval markers, which would
+defeat exact provenance. Headroom is an optional, unmanaged external runtime; the
+framework does not bundle or configure Headroom itself, but it does ship one
+launch convenience —
+`llm-wiki headroom [--headroom-bin <PATH>] [--unsafe-mcp-read] [--] <headroom args...>` —
+which execs the real `headroom` binary with `HEADROOM_MCP_READ=off` and
+`*llm_wiki*` plus the explicit `llm_wiki_*` MCP tool names added to
+`HEADROOM_EXCLUDE_TOOLS`. Exact wiki/raw
+provenance still comes from routing reads/search through the `llm_wiki_*` MCP
+tools; `HEADROOM_EXCLUDE_TOOLS` is best-effort only and is not a provenance
+boundary. Known `headroom-ai 0.24.0` Codex/OpenAI-Responses runs did not consult
+that exclude list for normal tool-output compression; inspected
+`headroom-ai 0.32.0` source appears to honor Responses excludes, so live
+Headroom runs must record the exact version/path and treat CCR markers,
+compression envelopes, or omitted payload fields as failed delivery checks.
+Current Headroom support is Option A: compact search is supported for discovery,
+while exact large `wiki/` and `raw/` reads should be performed outside Headroom.
+The framework does not add read pagination for Headroom in the current product
+posture.
 
 ## Core Rule
 
@@ -565,9 +605,22 @@ Humans curate `raw/` and make judgment calls. You handle the bookkeeping.
 
 ## How To Orient
 
+When the host exposes the LLM Wiki MCP server, it is your primary surface for
+wiki operations — prefer it over shell-family file reads and search:
+
+- Read `wiki/` and `raw/` pages with the `llm_wiki_read` MCP tool (not `cat`,
+  `sed`, or a shell read on those paths).
+- Find pages with the `llm_wiki_search` MCP tool, and `llm_wiki_search_all` for
+  cross-project search, instead of grepping the filesystem.
+
+(On a developer test instance these tools carry a `_test` suffix, e.g.
+`llm_wiki_search_test`.) If the MCP server is not configured, fall back to the
+index-and-read steps below.
+
 1. Read `project_guidelines.md` for the documentation model and rules.
 2. Read `wiki/index.md` for the catalog of all project knowledge.
-3. Read specific wiki pages identified from the index.
+3. Read specific wiki pages identified from the index (via `llm_wiki_read` when
+   the MCP server is available).
 4. Read `raw/` sources only when wiki content is insufficient.
 
 Never browse the filesystem to find information. `wiki/index.md` is your
@@ -590,8 +643,11 @@ When new material appears in `raw/`:
 
 When answering questions:
 
-1. Read `wiki/index.md` to find relevant pages.
-2. Read those pages.
+1. Search with the `llm_wiki_search` MCP tool first — it ranks across the whole
+   project. Read `wiki/index.md` for orientation when the MCP server is
+   unavailable.
+2. Read the matching pages with `llm_wiki_read` (or directly when no MCP server
+   is configured).
 3. Synthesize an answer with citations.
 4. If the answer is durable new knowledge, file it as a wiki page.
 
@@ -637,7 +693,7 @@ Periodically or on request:
 See @AGENTS.md.
 
 # .llm_wiki/init.toml
-framework_version = "0.2.0"
+framework_version = "[version]"
 project_name = "Fixture Project"
 project_description = "A fixture project."
 blueprint = "custom"

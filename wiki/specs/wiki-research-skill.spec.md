@@ -5,7 +5,7 @@
 - Date: 2026-05-08
 - Category: Tooling
 - Scope: Gather source material into `raw/research/` before ingest.
-- Sources: assets/skills/wiki-research/SKILL.md, wiki/decisions/llm-wiki-binary-distribution.decision.md
+- Sources: .claude/skills/wiki-research/SKILL.md, wiki/decisions/llm-wiki-binary-distribution.decision.md
 - Related: wiki/specs/wiki-ingest-skill.spec.md, wiki/specs/documentation-model.spec.md
 
 ## Contract
@@ -18,19 +18,17 @@ modes. It does not write durable knowledge directly into `wiki/`.
 Ingest remains a separate operation and only runs when the user explicitly
 asks for it.
 
-## Runtime Projection
+## Skill Source
 
-Canonical source: `assets/skills/wiki-research/SKILL.md`.
-Runtime variants are rendered by `llm-wiki build` and globally installed by
-`llm-wiki install`.
+Authored source: `.claude/skills/wiki-research/SKILL.md`, a repo-local Claude
+Code skill. The MCP-first surface no longer renders runtime variants or globally
+installs skills; hosts read and search the wiki through the `llm_wiki_*` MCP
+tools while gathering sources.
 
 Invocation:
 
-- Claude: `/wiki-research <request>`
-- Codex: `$wiki-research <request>` or `$wiki research <request>`
+- Claude Code: `/wiki-research <request>` (repo-local skill)
 
 ## Proven By
 
-- Canonical schema parsing tests.
-- Runtime projection snapshots.
 - Research-first routing in `wiki-ingest`.

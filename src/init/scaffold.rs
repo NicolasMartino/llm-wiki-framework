@@ -32,7 +32,7 @@ pub(super) fn create_project(
     let mode = init_mode(path);
     let previous_manifest = match mode {
         InitMode::Fresh => None,
-        InitMode::Rerun => InitManifest::read_from_project(path)?,
+        InitMode::Rerun => read_previous_manifest(path),
     };
     if mode == InitMode::Fresh {
         refuse_framework_collision(path)?;
@@ -41,6 +41,18 @@ pub(super) fn create_project(
     fs::create_dir_all(path).with_context(|| format!("failed to create {}", path.display()))?;
 
     let output = compose(plan)?;
+
+    // Commit `.llm_wiki/init.toml` BEFORE the project files. If a later scaffold
+    // step fails, the tool-owned `.llm_wiki/` marker is already present, so a
+    // re-run resumes as a Rerun instead of tripping the collision guard and
+    // trapping the user with a half-written scaffold they must hand-delete.
+    write_manifest(
+        path,
+        answers,
+        output.resolved_packs.clone(),
+        output.folders.clone(),
+        mode,
+    )?;
 
     for folder in &output.folders {
         fs::create_dir_all(path.join(folder))
@@ -74,8 +86,6 @@ pub(super) fn create_project(
         apply_schema_drift_audit(path, &drift)?;
     }
 
-    write_manifest(path, answers, output.resolved_packs, output.folders, mode)?;
-
     match mode {
         InitMode::Fresh => println!("Initialized LLM Wiki project at {}", path.display()),
         InitMode::Rerun => println!("Updated LLM Wiki project at {}", path.display()),
@@ -84,10 +94,26 @@ pub(super) fn create_project(
 }
 
 fn init_mode(path: &Path) -> InitMode {
-    if path.join(".llm_wiki/init.toml").is_file() {
+    // Any tool-owned `.llm_wiki/` directory (even one missing `init.toml` after an
+    // interrupted init) counts as a resumable project, so a partial scaffold is
+    // repaired by a Rerun rather than refused as a Fresh collision.
+    if path.join(".llm_wiki").is_dir() {
         InitMode::Rerun
     } else {
         InitMode::Fresh
+    }
+}
+
+/// Read the previous init manifest, tolerating a corrupt/partial `init.toml`
+/// (treated as absent) so a re-run can overwrite it and recover instead of
+/// aborting on the parse error.
+fn read_previous_manifest(path: &Path) -> Option<InitManifest> {
+    match InitManifest::read_from_project(path) {
+        Ok(manifest) => manifest,
+        Err(error) => {
+            eprintln!("Warning: ignoring unreadable .llm_wiki/init.toml: {error:#}");
+            None
+        }
     }
 }
 

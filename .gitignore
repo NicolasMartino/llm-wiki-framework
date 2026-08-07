@@ -1,6 +1,12 @@
 /target/
 
-# Local agent/editor settings. Generated framework skills under .claude/skills
-# and .codex/skills are committed intentionally.
+# Local agent/editor settings. Runtime install no longer generates
+# .claude/skills or .codex/skills trees.
 /.claude/settings.local.json
 /.codex/settings.local.json
+/.serena/
+
+# Python bytecode caches (e2e probe scripts)
+__pycache__/
+*.pyc
+.tokensave

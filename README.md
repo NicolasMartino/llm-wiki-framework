@@ -6,10 +6,10 @@ knowledge.
 
 ## Install
 
-Install the binary from a release, then install the framework skills globally:
+Install the binary from a release, then install the managed MCP surface:
 
 ```bash
-curl -L https://github.com/nicolasmartino/llm-wiki-rs/releases/latest/download/llm-wiki-installer.sh | sh
+curl -L https://github.com/nicolasmartino/llm-wiki-rs/releases/latest/download/llm-wiki-rs-installer.sh | sh
 llm-wiki install
 ```
 
@@ -22,8 +22,32 @@ llm-wiki install
 ```
 
 `llm-wiki install` copies or verifies the runtime binary at
-`~/.llm_wiki/bin/llm-wiki` and renders installed skills to call that managed
-path directly. Run `llm-wiki path` for optional shell `PATH` guidance.
+`~/.llm_wiki/bin/llm-wiki`, merges the active instance into Codex MCP config,
+and writes a staged Claude project `.mcp.json` under the managed home. Hosts
+spawn `llm-wiki mcp serve` over stdio on demand; no background daemon is
+installed. The installer no longer renders generated runtime skills.
+
+On upgrade from a pre-MCP install, unchanged manifest-owned generated skills
+under `~/.claude/skills/` and `~/.codex/skills/` are removed. User-edited
+generated skills are preserved with manual cleanup warnings. Manifest-less old
+skill directories are warned about, not deleted.
+
+MCP read and search have different readiness rules: `llm_wiki_read` can read
+scoped `wiki/` and `raw/` files from the active project; `llm_wiki_search` and
+`llm_wiki_search_all` require registered/indexed project state or return
+readiness/failure metadata. Run `llm-wiki path` for optional shell `PATH`
+guidance.
+
+For automation, choose the search posture explicitly:
+
+```bash
+llm-wiki install --non-interactive --disable-llm-search
+llm-wiki install --non-interactive --enable-llm-search --profile balanced --confirm-model-downloads --accept-profile-licenses
+```
+
+The full enabled command is the portable form for scripts. Shorter enabled
+commands are only valid when the current local model and license state no
+longer needs the omitted confirmation.
 
 ## Create a Project
 
@@ -51,12 +75,66 @@ llm-wiki -v search "query" --project my-project
 llm-wiki index --project my-project -v
 ```
 
+## Commands
+
+`llm-wiki` is MCP-first: hosts drive the wiki through the MCP server, and the
+CLI subcommands cover install and local operations.
+
+- `install` — install the managed binary and materialize the MCP configs.
+- `init <path>` — scaffold a new project wiki.
+- `headroom [--headroom-bin <PATH>] [--unsafe-mcp-read] [--] <headroom args...>` —
+  run Headroom with LLM Wiki environment guards (see below).
+- `mcp serve` — run the stdio MCP server (hosts spawn this on demand).
+- `read <path>` — read a scoped `wiki/`/`raw/` file through the framework.
+- `register` / `forget` / `projects` — manage the project registry.
+- `index` / `index-all` — build or refresh semantic indexes.
+- `search` / `search-all` — query one or all registered projects.
+- `eval run` / `eval calibrate` — measure and tune semantic search candidates.
+- `path` / `status` / `doctor` — inspect install and PATH state.
+- `uninstall` — remove the managed surface.
+
+The MCP server exposes these tools: `llm_wiki_read`, `llm_wiki_search`,
+`llm_wiki_search_all`, `llm_wiki_index`, `llm_wiki_register`, and
+`llm_wiki_status`. Run `llm-wiki --help` for the full surface.
+
+## Headroom
+
+Headroom is an optional external context-compression runtime. `llm-wiki
+headroom` exports environment guards, resolves the real `headroom` binary, and
+execs it with forwarded Headroom arguments:
+
+```bash
+llm-wiki headroom -- wrap codex
+```
+
+By default the launcher sets `HEADROOM_MCP_READ=off` in the Headroom environment
+so the `headroom_read` tool cannot route `wiki/`/`raw/` content through
+compression, and it adds `*llm_wiki*` plus the explicit llm-wiki MCP tool names
+to `HEADROOM_EXCLUDE_TOOLS` on a best-effort basis. Pass `--unsafe-mcp-read` to
+remove `HEADROOM_MCP_READ` from
+Headroom instead of forcing it off; this is only safe when the session routes all
+wiki/raw reads through the llm-wiki MCP tools and avoids `headroom_read`.
+Known caveat: in `headroom-ai 0.24.0`, Codex/OpenAI-Responses tool outputs did
+not consult `HEADROOM_EXCLUDE_TOOLS`, so full llm-wiki MCP payloads could still
+be compressed. Inspected `headroom-ai 0.32.0` source appears to honor Responses
+excludes, but live runs must record the exact Headroom version/path. Treat CCR
+markers, compression envelopes, or omitted payload fields as a failed delivery
+check, not exact wiki/raw content.
+
+Current Headroom support is Option A: compact search is supported for discovery,
+while exact large `wiki/` and `raw/` reads should be performed outside Headroom.
+`llm-wiki` does not add read pagination for Headroom in the current product
+posture.
+
 ## Search Modes
 
-`llm-wiki search` defaults to `--mode auto`. Auto selects calibrated hybrid
-search only when the install profile, accepted licenses, model artifacts, fresh
-semantic index, and scoped thresholds are ready; otherwise it reports the
-lexical selection or readiness failure in command metadata.
+`llm-wiki search` defaults to `--mode auto`. Hybrid search works out of the box:
+the balanced profile ships DEFAULT thresholds, so auto selects hybrid once the
+install profile, accepted licenses, model artifacts, and a fresh semantic index
+are ready. Calibration is an optional override that tunes those thresholds per
+corpus, not a gate that hybrid waits on. When the semantic prerequisites are not
+ready, auto reports the lexical selection or readiness failure in command
+metadata.
 
 `--rerank` is currently an opt-in, readiness-gated extension rather than part of
 the v1 promoted hybrid baseline. The shipped balanced profile does not configure

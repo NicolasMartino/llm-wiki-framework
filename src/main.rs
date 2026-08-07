@@ -1,39 +1,49 @@
 mod backup_policy;
-mod build;
 mod cli;
 mod doctor;
-mod embed;
 mod eval;
+mod headroom;
 mod init;
 mod install;
+mod instance;
+mod legacy_skills;
 mod manifest;
+mod mcp;
+mod mcp_config;
+mod mcp_wiring;
 mod path_guidance;
 mod paths;
+mod payload_integrity;
 mod registry;
 mod search;
 mod search_models;
 mod search_profile;
-mod skill_render;
 mod status;
+#[cfg(test)]
+mod test_env;
 mod uninstall;
+mod wiki_read;
 
 use std::env;
 use std::ffi::OsStr;
 use std::io::IsTerminal;
 
 use anyhow::{Context, Result, anyhow};
-use clap::Parser;
+use clap::{CommandFactory, FromArgMatches};
 use cli::{Cli, CliContext, Command, DIAGNOSTIC_TARGET};
 use tracing_subscriber::EnvFilter;
 
 fn main() -> Result<()> {
-    let cli = Cli::parse();
+    let cli = parse_cli();
     init_tracing(cli.verbose)?;
+    search::gguf_runtime::set_verbose_stderr(cli.verbose);
     let context = CliContext::new(cli.verbose);
     match &cli.command {
-        Command::Build(args) => build::run(args, &context),
         Command::Install(args) => install::run(args, &context),
         Command::Init(args) => init::run(args, &context),
+        Command::Headroom(args) => headroom::run(args, &context),
+        Command::Mcp(args) => mcp::run(args, &context),
+        Command::Read(args) => wiki_read::run_cli(args, &context),
         Command::Eval(args) => eval::run(args, &context),
         Command::Register(args) => registry::register(args, &context),
         Command::Forget(args) => registry::forget(args, &context),
@@ -44,9 +54,17 @@ fn main() -> Result<()> {
         Command::SearchAll(args) => search::commands::search_all(args, &context),
         Command::Path => path_guidance::run(&context),
         Command::Status => status::run(&context),
-        Command::Doctor => doctor::run(&context),
+        Command::Doctor(args) => doctor::run(args, &context),
         Command::Uninstall(args) => uninstall::run(args, &context),
     }
+}
+
+fn parse_cli() -> Cli {
+    let matches = Cli::command()
+        .name(instance::binary_stem())
+        .bin_name(instance::binary_stem())
+        .get_matches();
+    Cli::from_arg_matches(&matches).unwrap_or_else(|err| err.exit())
 }
 
 fn init_tracing(verbose: bool) -> Result<()> {

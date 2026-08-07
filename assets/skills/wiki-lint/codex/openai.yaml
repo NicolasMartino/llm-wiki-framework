@@ -1,4 +1,0 @@
-interface:
-  display_name: "Wiki Lint"
-  short_description: "Scan and fix wiki consistency issues."
-  default_prompt: "Use $wiki-lint to scan the wiki for contradictions, stale claims, and missing cross-references."

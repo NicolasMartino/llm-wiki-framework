@@ -1,4 +1,0 @@
-interface:
-  display_name: "Init Project"
-  short_description: "Bootstrap or update an LLM Wiki project."
-  default_prompt: "Initialize or update this project with the LLM Wiki framework."

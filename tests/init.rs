@@ -54,7 +54,10 @@ fn init_profiles_match_snapshots() {
         let temp = TempDir::new().expect("tempdir");
         init_project(temp.path(), blueprint, &packs, &extra);
         let snapshot = snapshot_project(temp.path());
-        insta::with_settings!({filters => vec![(r"\d{4}-\d{2}-\d{2}", "[date]")]}, {
+        insta::with_settings!({filters => vec![
+            (r"\d{4}-\d{2}-\d{2}", "[date]"),
+            (r#"framework_version = "\d+\.\d+\.\d+""#, r#"framework_version = "[version]""#),
+        ]}, {
             insta::assert_snapshot!(format!("init_{name}"), snapshot);
         });
     }
@@ -1033,4 +1036,43 @@ fn assert_code_dirs_absent(project: &Path) {
     for folder in ["src", "tests", "scripts", "infra"] {
         assert!(!project.join(folder).exists(), "{folder} should not exist");
     }
+}
+
+#[test]
+fn init_recovers_from_partial_scaffold_missing_init_toml() {
+    let project = TempDir::new().expect("project");
+    let home = TempDir::new().expect("home");
+
+    // Simulate a mid-init failure: the project files and the tool-owned
+    // `.llm_wiki/` marker exist, but `.llm_wiki/init.toml` was never committed.
+    // Previously this trapped the user (Fresh mode -> collision refusal); a
+    // re-run must now recover without hand-deleting anything.
+    fs::create_dir_all(project.path().join(".llm_wiki")).expect("marker dir");
+    fs::create_dir_all(project.path().join("wiki")).expect("wiki dir");
+    fs::write(project.path().join("wiki/index.md"), "# Wiki Index\n").expect("index");
+    fs::write(project.path().join("wiki/log.md"), "# Wiki Log\n").expect("log");
+    fs::write(project.path().join("AGENTS.md"), "# AGENTS\n").expect("agents");
+    assert!(!project.path().join(".llm_wiki/init.toml").exists());
+
+    llm_wiki(home.path())
+        .arg("init")
+        .arg(project.path())
+        .args([
+            "--no-register",
+            "--non-interactive",
+            "--name",
+            "Recovered Project",
+            "--description",
+            "A recovered project.",
+            "--blueprint",
+            "generic",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Updated LLM Wiki project"));
+
+    assert!(
+        project.path().join(".llm_wiki/init.toml").is_file(),
+        "re-run should recover the init manifest"
+    );
 }

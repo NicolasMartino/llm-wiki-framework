@@ -10,6 +10,16 @@ description: Ingest explicit raw source material into an LLM Wiki project. Use w
 Compile source material into the project wiki so future answers can use
 organized, cited knowledge instead of re-reading raw sources.
 
+## MCP Routing
+
+When the host exposes the LLM Wiki MCP server, use the framework-owned MCP
+tools for wiki/raw access: `llm_wiki_read` for full `wiki/` or `raw/` files,
+`llm_wiki_search` for current-project retrieval, `llm_wiki_search_all` only for
+cross-project retrieval, and `llm_wiki_index` after ingest changes wiki content.
+Shell `llm-wiki ...` commands and direct wiki/raw file reads are fallback only
+when MCP is unavailable. Direct file edits remain the mutation mechanism for
+writing `wiki/` pages, `wiki/index.md`, and `wiki/log.md`.
+
 ## Behavior
 
 1. Require `wiki/index.md` in the current working directory. If it is missing,
@@ -23,10 +33,12 @@ organized, cited knowledge instead of re-reading raw sources.
    one by one.
 4. If no path is provided, read `wiki/log.md`, identify raw files that do not
    appear in prior ingest log entries, and ask whether to ingest all or a
-   subset.
-5. Before processing sources, read `wiki/index.md`, `project_guidelines.md`
-   when present, and existing wiki pages that appear to cover the source
-   topic.
+   subset. Use `llm_wiki_read` for `wiki/log.md` when MCP is exposed.
+5. Before processing sources, read `wiki/index.md`, relevant `raw/` files, and
+   existing wiki pages that appear to cover the source topic via
+   `llm_wiki_read` when MCP is exposed. Use `llm_wiki_search` to find candidate
+   pages when the project is registered. Read `project_guidelines.md` from an
+   MCP resource if exposed, otherwise directly.
 6. Process one source completely before moving to the next. Extract key facts,
    claims, entities, systems, APIs, relationships, implied decisions, open
    questions, uncertainties, and status information.
@@ -40,9 +52,10 @@ organized, cited knowledge instead of re-reading raw sources.
    contradicts an existing page, show the conflict and ask the user which
    claim is correct before updating.
 10. Update `wiki/index.md` for every created or modified page, append an
-    `ingest` entry to `wiki/log.md`, and run
-    `llm-wiki index --force` when the current project is registered
-    and search results may be stale.
+    `ingest` entry to `wiki/log.md`, and run `llm_wiki_index` when MCP is
+    exposed and the current project is registered. Fall back to
+    `llm-wiki index --force` only when MCP is unavailable and search results may
+    be stale.
 
 ## Invocation
 

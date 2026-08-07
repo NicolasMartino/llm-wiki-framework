@@ -88,18 +88,39 @@ fn unique_dest(path: &Path) -> PathBuf {
 
 fn copy_dir(source: &Path, dest: &Path) -> Result<()> {
     fs::create_dir_all(dest).with_context(|| format!("failed to create {}", dest.display()))?;
+    // Resolve the destination root once so the walk can skip it if the source
+    // tree contains it, avoiding an unbounded self-copy.
+    let dest_root = dest.canonicalize().ok();
+    copy_dir_inner(source, dest, dest_root.as_deref())
+}
+
+fn copy_dir_inner(source: &Path, dest: &Path, dest_root: Option<&Path>) -> Result<()> {
+    fs::create_dir_all(dest).with_context(|| format!("failed to create {}", dest.display()))?;
     for entry in
         fs::read_dir(source).with_context(|| format!("failed to read {}", source.display()))?
     {
         let entry = entry?;
+        let file_type = entry.file_type()?;
+        let entry_path = entry.path();
+        // Skip symlinks: following a symlink-to-dir would let `fs::copy` abort
+        // mid-copy ("Is a directory") and could re-enter a cycle.
+        if file_type.is_symlink() {
+            continue;
+        }
+        // Skip the destination itself if it lives inside the source tree.
+        if let (Some(dest_root), Ok(canonical)) = (dest_root, entry_path.canonicalize())
+            && canonical == dest_root
+        {
+            continue;
+        }
         let entry_dest = dest.join(entry.file_name());
-        if entry.file_type()?.is_dir() {
-            copy_dir(&entry.path(), &entry_dest)?;
+        if file_type.is_dir() {
+            copy_dir_inner(&entry_path, &entry_dest, dest_root)?;
         } else {
-            fs::copy(entry.path(), &entry_dest).with_context(|| {
+            fs::copy(&entry_path, &entry_dest).with_context(|| {
                 format!(
                     "failed to copy {} to {}",
-                    entry.path().display(),
+                    entry_path.display(),
                     entry_dest.display()
                 )
             })?;

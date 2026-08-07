@@ -10,6 +10,7 @@
   artifacts, managed runtime paths, search parity, and install/doctor/uninstall
   behavior.
 - Sources: conversational request 2026-05-15; wiki/roadmaps/framework-v1.roadmap.md;
+  wiki/roadmaps/cross-platform-release-e2e.roadmap.md;
   wiki/decisions/llm-wiki-binary-distribution.decision.md;
   wiki/plans/llm-wiki-binary.plan.md;
   wiki/decisions/binary-path-bootstrap.decision.md;
@@ -18,19 +19,28 @@
   wiki/plans/qmd-rs-search-backend.plan.md; proposal review feedback
   2026-05-15; cross-platform E2E, real-use simulation, and re-review feedback
   2026-05-15; command-surface review feedback 2026-05-15; Cargo.toml;
-  src/cli.rs; src/paths.rs; src/skill_render.rs; src/doctor.rs
+  src/cli.rs; src/paths.rs; src/skill_render.rs; src/doctor.rs;
+  wiki/plans/cross-platform-release-e2e-harness.plan.md;
+  raw/research/2026-05-26-cqrs-release-e2e-source-capture/manifest.md;
+  raw/research/2026-05-26-cqrs-release-e2e-source-capture/research-summary.md
 - Related: wiki/specs/documentation-model.spec.md,
   wiki/specs/wiki-init-skill.spec.md,
   wiki/checklists/observability-contract.checklist.md,
-  wiki/proposals/project-update-command.proposal.md
+  wiki/proposals/project-update-command.proposal.md,
+  wiki/roadmaps/cross-platform-release-e2e.roadmap.md,
+  wiki/plans/cross-platform-release-e2e-harness.plan.md
 
 ## Source Capture
 
 This proposal currently cites conversational input and review feedback because
-the direction was developed in chat. Before acceptance, promotion to a roadmap
-item, or conversion into an implementation plan, capture the conversation and
-review basis as a raw source under `raw/` or replace the conversational source
-references with another durable source path.
+the direction was developed in chat. The CQRS Pulumi/test-runner precedent has
+now been captured under
+`raw/research/2026-05-26-cqrs-release-e2e-source-capture/`. The associated
+roadmap and tactical plan now exist because release E2E execution is already
+underway. Before accepting this proposal as a durable support baseline or
+promoting its outcomes into validated specs/decisions, capture the remaining
+conversation and review basis as raw sources under `raw/` or replace those
+references with durable project-owned source paths.
 
 ## Question
 
@@ -47,10 +57,29 @@ The support target is: a Windows user can install `llm-wiki`, run
 use init, registry, indexing, search, status, doctor, and uninstall without WSL,
 without a Rust toolchain, and without hand-editing shell profiles.
 
-The work should be promoted into the roadmap as the next release/platform
-deliverable after the currently completed V1 and P1 search work. A tactical
-plan should then implement it in narrow phases with Windows CI and a
-cross-platform release E2E matrix as the proof gate.
+The work is coordinated by
+`wiki/roadmaps/cross-platform-release-e2e.roadmap.md` as the next
+release/platform workstream after the completed V1 and P1/P2 search work. The
+tactical harness plan implements it in narrow phases with Docker/Linux proof,
+native host proof, Windows CI/host proof, and a cross-platform release E2E
+matrix as the proof gate.
+
+## Associated Roadmap And Tactical Plan
+
+`wiki/roadmaps/cross-platform-release-e2e.roadmap.md` is the roadmap associated
+with this proposal. It owns deliverable ordering, dependencies, proof gates,
+promotion targets, and the distinction between Linux Docker simulation, native
+host proof, Windows host proof, and GGUF CPU release proof.
+
+`wiki/plans/cross-platform-release-e2e-harness.plan.md` is the tactical plan
+associated with this proposal's release-E2E harness. It owns the runner,
+profile, Pulumi/Linux-lane, native macOS/Windows lane, report, no-download
+readiness, and real-model GGUF CPU proof design.
+
+The roadmap and plan do not by themselves accept or complete full Windows
+support. This proposal remains the parent support definition for Windows
+managed paths, PowerShell skill invocation, qmd-rs/search parity,
+Defender/long-path gates, and release target claims.
 
 ## Current Baseline
 
@@ -377,6 +406,41 @@ coverage because profile paths, Known Folder resolution, Defender behavior,
 runtime skill discovery, and platform filesystem behavior are part of the
 supported user experience.
 
+### CQRS-Informed Harness Architecture
+
+The tactical release E2E work should follow the architecture recorded in
+`wiki/plans/cross-platform-release-e2e-harness.plan.md`. The key lesson from
+the CQRS/Pulumi repository is lifecycle discipline, not "Docker proves every
+platform."
+
+Adopt these patterns:
+
+1. A Rust runner owns E2E categories, command execution, report paths, JUnit
+   output, and lifecycle flags such as `--skip-infra`, `--keep-infra`,
+   `--output-dir`, `--stdout`, and `--verbose`.
+2. `just` exposes small public commands while private recipes own stack
+   startup, health checks, and teardown.
+3. Profile files and required-key manifests describe lane-specific inputs
+   instead of hiding environment assumptions in scripts.
+4. Pulumi owns isolated Docker infrastructure for Linux/container lanes, with
+   stack-specific names, platform selection, mounts, and cleanup.
+5. Native macOS and Windows lanes use the same runner/report contract without
+   Pulumi, because host filesystem, shell, security, and runtime-discovery
+   behavior are exactly what those lanes must prove.
+6. Target-aware evidence is accepted. A native runner, an emulated Docker lane,
+   a no-download readiness lane, and a real-model GGUF lane are different proof
+   types and must be labeled as such in reports.
+
+For this proposal, the practical correction is:
+
+1. Docker can prove Linux artifact behavior when the container OS/architecture
+   matches the support target.
+2. Docker can supplement Windows testing only when it runs on a Windows host
+   and is labeled as container coverage.
+3. Docker cannot replace Windows host/VM proof for Known Folder resolution,
+   PowerShell execution, Defender interaction, path-with-spaces behavior,
+   installed skill discovery, or long-path runnability.
+
 ### Search Backend Parity
 
 qmd-rs is the selected backend for normal builds. Full Windows support therefore
@@ -413,7 +477,8 @@ The tactical plan should inspect and adapt these areas first:
 6. project registry canonical-root handling for drive letters and separators
 7. search index path construction and qmd-rs store creation on Windows
 8. release E2E harness and fixtures that assert filesystem state after every
-   command on every supported artifact target
+   command on every supported artifact target, implemented through
+   `wiki/plans/cross-platform-release-e2e-harness.plan.md`
 9. Windows application manifest and long-path-aware build configuration
 10. integration tests that currently assume Unix path strings or executable bits
 11. README, release notes, and install documentation
@@ -535,17 +600,19 @@ called out in release notes if signing remains out of scope.
 8. Codex skill discovery on Windows may expose runtime-specific behavior that
    the current repo cannot fully validate without a runtime smoke.
 
-## Proposed Promotion Path
+## Promotion Status
 
-If accepted:
+Roadmap and tactical-plan bookkeeping now exists:
+`wiki/roadmaps/cross-platform-release-e2e.roadmap.md` coordinates deliverables,
+and `wiki/plans/cross-platform-release-e2e-harness.plan.md` owns the current
+harness implementation.
 
-1. Add a post-V1 roadmap item, tentatively
-   `P2 - Cross-Platform Release E2E And Windows Support`.
-2. Write a tactical plan that owns the implementation phases and proof gates.
-3. Apply the Observability Contract checklist to every changed command path.
-4. Add or update a repeatable release E2E checklist/eval so future releases can
+Remaining promotion tasks:
+
+1. Apply the Observability Contract checklist to every changed command path.
+2. Add or update a repeatable release E2E checklist/eval so future releases can
    prove every supported platform artifact still satisfies the command and file
    verification contract.
-5. Replace the current forward-looking Windows sentence in
+3. Replace the current forward-looking Windows sentence in
    `wiki/specs/documentation-model.spec.md` with validated target-specific
    support language only after Windows CI and release smoke pass.

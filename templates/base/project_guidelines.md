@@ -91,31 +91,35 @@ The index must fit in a single context window. If it grows beyond ~50,000
 tokens, split into a root index with per-type sub-indexes.
 
 {% if include_qmd %}
-### qmd-rs Search (scale beyond index.md)
+### qmd-rs Search
 
-For wikis that grow beyond ~100 pages, supplement index.md navigation with
-`llm-wiki search`. The binary indexes wiki markdown into qmd-rs-backed stores
-under host-local cache state. Markdown remains canonical, and all search
-results still point back to wiki pages that must be read directly.
+Search is the default retrieval pass, not only a large-wiki fallback. When the
+host exposes the LLM Wiki MCP server, the `llm_wiki_search` MCP tool (and
+`llm_wiki_search_all` across projects) is the primary query surface; the shell
+`llm-wiki search --mode auto --format json` command is the fallback when no MCP
+server is configured. The binary indexes wiki markdown into qmd-rs-backed stores
+under host-local cache state. Markdown remains canonical, and all search results
+still point back to wiki pages that must be read directly (via `llm_wiki_read`
+when the MCP server is available).
 
-Setup:
+Setup (once per project, from the shell):
 
 ```bash
 llm-wiki register .
 llm-wiki index
-llm-wiki search "query"
 ```
 
-Navigation strategy becomes tiered:
+Navigation strategy:
 1. Read `wiki/index.md` first for orientation
-2. If the index does not surface the needed page, use `llm-wiki search`
-3. Read the identified pages
+2. Query with the `llm_wiki_search` MCP tool (shell `llm-wiki search --mode auto
+   --format json "<question>"` when no MCP server is configured)
+3. Inspect mode, readiness, fallback, zero-result, and per-result metadata
+4. Read and cite the returned wiki pages directly (via `llm_wiki_read`)
+5. If search is unavailable, stale, or unhelpful, continue from index-based
+   navigation
 
-Refresh the search index after ingest or lint:
-
-```bash
-llm-wiki index --force
-```
+Refresh the search index after ingest or lint with `llm-wiki index --force` (or
+the `llm_wiki_index` MCP tool).
 {% endif %}
 
 ### log.md
@@ -234,6 +238,7 @@ wiki/
   references/                 External evidence synthesis
 {% if include_ml_ai %}  experiments/                Investigation records
   evals/                      Evaluation reports
+  model-cards/                Model cards and lineage
 {% endif %}
   archive/                    Completed, superseded, or rejected documents
 ```
@@ -245,7 +250,7 @@ wiki/
   AGENTS.md                   Schema: agent conventions and workflows
   CLAUDE.md                   Compatibility shim for Claude-oriented tooling
   project_guidelines.md       This file: documentation and execution model
-  README.md                   Project orientation and setup
+  README.md                   Project orientation (optional; not created by init)
   raw/                        Immutable source material (human-curated)
   wiki/                       Compiled knowledge (agent-owned)
     index.md
@@ -259,10 +264,10 @@ wiki/
     references/
 {% if include_ml_ai %}    experiments/
     evals/
+    model-cards/
 {% endif %}
     archive/
 {% if include_ml_ai %}  models/                     Model artifacts, configs
-  data/                       Datasets, schemas, pipelines
   notebooks/                  Exploratory analysis
   evals/                      Evaluation harnesses (code)
 {% endif %}
@@ -329,6 +334,44 @@ while they are current evidence, reusable procedures, or important context.
 {% for fragment in guidelines_fragments %}
 {{ fragment }}
 {% endfor %}
+
+## Read-Only Access Contract For `wiki/` And `raw/`
+
+These rules keep `wiki/` and `raw/` provenance exact, and keep them safe if a
+context-compression tool such as Headroom is ever run in front of the model.
+
+**Route wiki/raw through the MCP tools.** When the host exposes the LLM Wiki MCP
+server, read and search `wiki/` and `raw/` through the framework-owned tools —
+`llm_wiki_read`, `llm_wiki_search`, and `llm_wiki_search_all` — rather than
+shell-family file reads/search (`cat`, `sed`, `grep`). On Claude Code the native
+`Read` tool is an acceptable fallback for a single wiki/raw file; on Codex (which
+has no native read tool) the MCP tools are the primary surface. These outputs are
+produced by llm-wiki itself, so read this way they are exact at the MCP server
+boundary; if an optional host/proxy later replaces content with CCR markers,
+compression envelopes, or omitted payload fields, treat that as a failed
+delivery check rather than exact content.
+
+**`headroom_read` ban.** If you run Headroom, do not enable `HEADROOM_MCP_READ=on`
+and do not call the `headroom_read` MCP tool against any `wiki/` or `raw/` path.
+That tool routes file content through CCR with retrieval markers, which would
+defeat exact provenance. Headroom is an optional, unmanaged external runtime; the
+framework does not bundle or configure Headroom itself, but it does ship one
+launch convenience —
+`llm-wiki headroom [--headroom-bin <PATH>] [--unsafe-mcp-read] [--] <headroom args...>` —
+which execs the real `headroom` binary with `HEADROOM_MCP_READ=off` and
+`*llm_wiki*` plus the explicit `llm_wiki_*` MCP tool names added to
+`HEADROOM_EXCLUDE_TOOLS`. Exact wiki/raw
+provenance still comes from routing reads/search through the `llm_wiki_*` MCP
+tools; `HEADROOM_EXCLUDE_TOOLS` is best-effort only and is not a provenance
+boundary. Known `headroom-ai 0.24.0` Codex/OpenAI-Responses runs did not consult
+that exclude list for normal tool-output compression; inspected
+`headroom-ai 0.32.0` source appears to honor Responses excludes, so live
+Headroom runs must record the exact version/path and treat CCR markers,
+compression envelopes, or omitted payload fields as failed delivery checks.
+Current Headroom support is Option A: compact search is supported for discovery,
+while exact large `wiki/` and `raw/` reads should be performed outside Headroom.
+The framework does not add read pagination for Headroom in the current product
+posture.
 
 ## Core Rule
 

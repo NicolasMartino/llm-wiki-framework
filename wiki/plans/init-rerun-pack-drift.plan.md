@@ -6,7 +6,7 @@
 - Category: Tooling, project scaffolding, rerun observability
 - Scope: Extend `llm-wiki init` rerun behavior so that when the resolved pack set or resolved pack composition changes, the rerun records schema drift in `wiki/log.md` and a minimal `wiki/index.md` drift section. Orphan-folder content stays on disk; users or future lint cleanup decide whether to archive, rehome, or remove it.
 - Sources: src/init/scaffold.rs, src/init/answers.rs, src/init/manifest.rs, src/init/compose.rs, src/search/qmd_rs.rs (collect_wiki_documents), wiki/decisions/composable-project-init.decision.md, wiki/specs/wiki-init-skill.spec.md, wiki/plans/composable-project-init.plan.md
-- Related: wiki/decisions/composable-project-init.decision.md (2026-05-13 rerun revision), wiki/specs/wiki-init-skill.spec.md (Rerun Behavior section)
+- Related: wiki/decisions/composable-project-init.decision.md (2026-05-13 rerun revision), wiki/specs/wiki-init-skill.spec.md (Rerun Behavior section), wiki/plans/mcp-onboarding-init-register.plan.md and wiki/plans/mcp-first-agent-guidance.plan.md (consumers: the rerun refresh of framework-owned AGENTS.md is how existing projects pick up the MCP wiring + MCP-routing guidance changes from those plans)
 
 ## Deliverable
 

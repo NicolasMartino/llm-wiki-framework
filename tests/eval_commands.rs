@@ -205,6 +205,70 @@ fn eval_run_records_candidate_profile_and_calibrate_reads_report() {
 }
 
 #[test]
+fn eval_calibrate_record_resolves_eval_page_from_different_dir() {
+    let home = TempDir::new().expect("home");
+    let elsewhere = TempDir::new().expect("elsewhere");
+    // The project lives under $HOME so its paths serialize in the redacted
+    // `~/…` form and round-trip exactly, regardless of the directory from which
+    // `eval calibrate --record` is later invoked.
+    let project = fixture_project(home.path());
+    let eval_page = project.join("wiki/evals/tiny.eval.md");
+    let output_dir = home.path().join("eval-output");
+
+    llm_wiki(home.path())
+        .args(["install", "--skip-path-guidance", "--disable-llm-search"])
+        .assert()
+        .success();
+    write_verified_model_state(home.path());
+
+    let run = llm_wiki(home.path())
+        .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+        .env("LLM_WIKI_TEST_QUERY_EXPANSION", "deterministic")
+        .args(["eval", "run", "--project-root"])
+        .arg(&project)
+        .args(["--candidate-profile", "balanced", "--eval-page"])
+        .arg(&eval_page)
+        .args(["--output-dir"])
+        .arg(&output_dir)
+        .args(["--format", "json"])
+        .output()
+        .expect("eval run");
+    assert!(
+        run.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&run.stderr)
+    );
+
+    let before = fs::read_to_string(&eval_page).expect("eval page before");
+    assert!(!before.contains("Eval Calibration Run"));
+
+    // Invoke calibrate from an unrelated working directory: the redacted run
+    // report must still resolve the eval page (and output dir) under $HOME.
+    let calibrate = llm_wiki(home.path())
+        .current_dir(elsewhere.path())
+        .args(["eval", "calibrate", "--run-report"])
+        .arg(output_dir.join("eval-run.json"))
+        .args(["--record", "--format", "json"])
+        .output()
+        .expect("eval calibrate");
+    assert!(
+        calibrate.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&calibrate.stderr)
+    );
+    let calibration_json: Value =
+        serde_json::from_slice(&calibrate.stdout).expect("calibration json");
+    assert_eq!(calibration_json["recorded"], true);
+
+    let after = fs::read_to_string(&eval_page).expect("eval page after");
+    assert!(
+        after.contains("Eval Calibration Run"),
+        "record did not append provenance to the correct eval page: {after}"
+    );
+    assert!(output_dir.join("eval-calibration.json").is_file());
+}
+
+#[test]
 fn eval_run_rejects_partial_explicit_model_bundle() {
     let home = TempDir::new().expect("home");
     let workspace = TempDir::new().expect("workspace");

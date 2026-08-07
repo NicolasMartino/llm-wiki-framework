@@ -1,0 +1,888 @@
+# =============================================================================
+# COMMAND REFERENCE
+# =============================================================================
+# Run `just --list` or `just help` to see all available commands
+#
+# DEVELOPMENT
+#   just dev              - Start dev infra + all backend APIs (7xxx ports)
+#   just dev deps         - Start shared deps only (Postgres, Kafka, Keycloak, etc.)
+#   just dev exercise-api - Start shared deps + only exercise-api
+#   just dev down         - Destroy the dev stack
+#   just dev down exercise-api - Disable one API container, keep shared deps up
+#   just local fullstack  - Run fullstack/BFF locally against dev stack
+#   just local exercise-api - Run exercise-api locally against dev stack
+#   just fullstack        - Start fullstack server (port 7081)
+#   just desktop          - Start desktop app
+#
+# MOBILE
+#   just emulator         - Start Android emulator
+#   just emulator-kill    - Kill all Android emulators
+#   just android          - Build + install + run Android app
+#   just android-hot      - Android with hot reload
+#   just ios-dev          - Build + install + run iOS simulator app
+#
+# GALLERY (Component Preview)
+#   just gallery          - Start gallery web app (port 7100)
+#   just gallery-desktop  - Start gallery desktop app
+#   just gallery-android  - Build + install gallery on Android
+#   just gallery-ios      - Build + install gallery on iOS simulator
+#
+# VALIDATION & TESTING
+#   just validate         - Full validation pyramid (Rust + TypeScript + i18n + CSS tokens)
+#   just test             - Full gate: validate + unit + e2e
+#   just test unit        - Cargo workspace unit tests only
+#   just test e2e         - E2E integration tests only (starts 9xxx stack automatically)
+#
+# VISUAL REGRESSION
+#   just test-baselines           - Generate e2e browser baselines (first time)
+#   just test-baselines update    - Re-generate e2e browser baselines (overwrite)
+#   just test-visual-fail-first   - Run strict fail-first visual suite (missing baselines fail)
+#   just test-visual-create       - Create/update visual baselines from current output
+#   just test-visual-verify       - Verify visual suite against baselines
+#   just test-visual-audit        - Audit manifest vs linux baseline files
+#   just test-parity-visual-create - Create headless-safe parity baselines
+#   just test-parity-visual-verify - Verify headless-safe parity baselines
+#
+# QUALITY
+#   just check            - Check all targets compile
+#   just check-web        - Check web target
+#   just check-server     - Check server feature
+#   just check-i18n       - Check for hardcoded user-facing strings
+#   just lint             - Run clippy on all crates
+#   just quality-check    - Run strict lint + managed tests + enforced coverage gates
+#   just coverage         - Run hermetic host coverage summary (no infra startup)
+#   just coverage-runtime - Enforce 80% coverage on the mutation/runtime surface
+#   just coverage-backend - Enforce 80% coverage on backend core packages
+#   just coverage-gates   - Run all enforced host coverage gates
+#   just coverage-lcov    - Generate LCOV report for hermetic host coverage
+#   just fmt              - Format code
+#
+# BUILD
+#   just build-web        - Build web app for production
+#
+# =============================================================================
+
+# Show all available commands
+help:
+    @just --list
+
+# Run a service as a host process against the dev stack
+local service:
+    scripts/runtime/run-local.sh dev {{service}}
+
+# Start fullstack server (port 7081 - serves web app + server functions)
+fullstack:
+    cd code/frontend/app && dx serve --platform web --fullstack --port 7081
+
+# Alias for fullstack
+web: fullstack
+
+# Start desktop app (connects to fullstack server on :7081)
+desktop:
+    cargo run -p app --features desktop
+
+# Build web app for production
+build-web:
+    cd code/frontend/app && dx build --platform web --fullstack --release
+
+# Start Android emulator (API 34 - stable)
+emulator:
+    ~/Library/Android/sdk/emulator/emulator @Test_phone &
+
+# Kill all Android emulators
+emulator-kill:
+    adb devices | grep emulator | cut -f1 | xargs -I {} adb -s {} emu kill 2>/dev/null || true
+
+# Patch Android manifest to add deep link support for OAuth callback
+patch-android-manifest:
+    #!/usr/bin/env bash
+    MANIFEST="$(pwd)/code/target/dx/app/debug/android/app/app/src/main/AndroidManifest.xml"
+    if [ -f "$MANIFEST" ]; then
+        if ! grep -q "repforge" "$MANIFEST"; then
+            # macOS compatible: use perl instead of sed for multi-line replace
+            perl -i -p0e 's|</intent-filter>\s*</activity>|</intent-filter>
+            <!-- Deep link for OAuth callback -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="repforge" android:host="callback" />
+            </intent-filter>
+        </activity>|s' "$MANIFEST"
+            echo "✓ Patched AndroidManifest.xml with deep link support"
+        else
+            echo "✓ AndroidManifest.xml already has deep link support"
+        fi
+    else
+        echo "⚠ AndroidManifest.xml not found - run android build first"
+    fi
+
+# Build and run Android app (requires backend via Pulumi)
+# Use `just android` for dev stack (7xxx) or `just android 9` for e2e stack (9xxx)
+android stack="7":
+    #!/usr/bin/env bash
+    set -e
+    ROOT="$(pwd)"
+    STACK="{{stack}}"
+    if [ "$STACK" = "9" ]; then
+        KC_PORT=9051; FS_PORT=9081
+    else
+        KC_PORT=7051; FS_PORT=7081
+    fi
+    # Start emulator if not running
+    if ! adb devices | grep -q "emulator"; then
+        echo "Starting Android emulator..."
+        ~/Library/Android/sdk/emulator/emulator @Test_phone &
+        adb wait-for-device
+        echo "Waiting for emulator to boot..."
+        while [ "$(adb shell getprop sys.boot_completed 2>/dev/null)" != "1" ]; do sleep 1; done
+        echo "Emulator ready"
+    fi
+    # Set up adb reverse tunnels so emulator can reach host services via localhost
+    echo "Setting up adb reverse tunnels..."
+    adb reverse tcp:$KC_PORT tcp:$KC_PORT  # Keycloak
+    adb reverse tcp:$FS_PORT tcp:$FS_PORT  # Fullstack server
+    echo "✓ Tunnels: localhost:$KC_PORT (Keycloak), localhost:$FS_PORT (Fullstack)"
+    # Export env vars so the native app picks up the right stack
+    export REPFORGE_KEYCLOAK_URL="http://localhost:$KC_PORT"
+    export REPFORGE_FRONTEND_BASE_URL="http://localhost:$FS_PORT"
+    export REPFORGE_REDIRECT_URI="http://localhost:$FS_PORT/callback"
+    cd "$ROOT/code/frontend/app" && dx build --platform android --features mobile
+    cd "$ROOT"
+    just patch-android-manifest
+    APK="$ROOT/code/target/dx/app/debug/android/app/app/build/outputs/apk/debug/app-debug.apk"
+    adb uninstall com.repforge.app || true
+    adb install "$APK"
+    adb shell am start -n com.repforge.app/dev.dioxus.main.MainActivity
+
+# Android with hot reload (starts its own server - use only if you don't need SSE)
+android-hot stack="7":
+    #!/usr/bin/env bash
+    set -e
+    ROOT="$(pwd)"
+    STACK="{{stack}}"
+    if [ "$STACK" = "9" ]; then
+        KC_PORT=9051; FS_PORT=9081
+    else
+        KC_PORT=7051; FS_PORT=7081
+    fi
+    # Start emulator if not running
+    if ! adb devices | grep -q "emulator"; then
+        echo "Starting Android emulator..."
+        ~/Library/Android/sdk/emulator/emulator @Test_phone &
+        adb wait-for-device
+        echo "Waiting for emulator to boot..."
+        while [ "$(adb shell getprop sys.boot_completed 2>/dev/null)" != "1" ]; do sleep 1; done
+        echo "Emulator ready"
+    fi
+    # Set up adb reverse tunnels
+    echo "Setting up adb reverse tunnels..."
+    adb reverse tcp:$KC_PORT tcp:$KC_PORT  # Keycloak
+    adb reverse tcp:$FS_PORT tcp:$FS_PORT  # Fullstack server
+    echo "✓ Tunnels: localhost:$KC_PORT (Keycloak), localhost:$FS_PORT (Fullstack)"
+    export REPFORGE_KEYCLOAK_URL="http://localhost:$KC_PORT"
+    export REPFORGE_FRONTEND_BASE_URL="http://localhost:$FS_PORT"
+    export REPFORGE_REDIRECT_URI="http://localhost:$FS_PORT/callback"
+    cd "$ROOT/code/frontend/app" && dx build --platform android --features mobile
+    cd "$ROOT"
+    just patch-android-manifest
+    APK="$ROOT/code/target/dx/app/debug/android/app/app/build/outputs/apk/debug/app-debug.apk"
+    adb uninstall com.repforge.app || true
+    adb install "$APK"
+    cd "$ROOT/code/frontend/app" && dx serve --platform android --features mobile --device Test_phone
+
+# Build, install, and launch iOS app on simulator (no code signing required)
+ios-dev stack="7":
+    #!/usr/bin/env bash
+    set -e
+    STACK="{{stack}}"
+    if [ "$STACK" = "9" ]; then
+        KC_URL="http://localhost:9051"
+        FS_URL="http://localhost:9081"
+    else
+        KC_URL="http://localhost:7051"
+        FS_URL="http://localhost:7081"
+    fi
+    xcrun simctl boot "iPhone 17 Pro" 2>/dev/null || true
+    open -a Simulator
+    cd code/frontend/app && dx build --platform ios --target aarch64-apple-ios-sim --features mobile
+    xcrun simctl install "iPhone 17 Pro" code/target/dx/app/debug/ios/App.app
+    SIMCTL_CHILD_REPFORGE_FRONTEND_BASE_URL="$FS_URL" \
+    SIMCTL_CHILD_REPFORGE_KEYCLOAK_URL="$KC_URL" \
+    SIMCTL_CHILD_REPFORGE_REDIRECT_URI="$FS_URL/callback" \
+    xcrun simctl launch "iPhone 17 Pro" com.repforge.app
+
+# Dev stack (Pulumi/Docker)
+#   just dev                         - start shared deps + all backend service containers
+#   just dev deps                    - start shared deps only
+#   just dev user-api                - start shared deps + only user-api
+#   just dev workout-api             - start shared deps + only workout-api
+#   just dev exercise-api            - start shared deps + only exercise-api
+#   just dev down                    - destroy the dev stack
+#   just dev down user-api           - disable one API container, keep shared deps up
+dev *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{justfile_directory()}}"
+    set -- {{args}}
+
+    stack="cqrs"
+
+    usage() {
+        cat <<'EOF'
+    Usage:
+      just dev                         Start dev infra + all backend APIs
+      just dev deps                    Start shared deps only
+      just dev user-api                Start shared deps + only user-api
+      just dev workout-api             Start shared deps + only workout-api
+      just dev exercise-api            Start shared deps + only exercise-api
+      just dev down                    Destroy the dev stack
+      just dev down user-api           Disable one API container and keep shared deps up
+
+    Dev ports:
+      Keycloak      http://localhost:7051
+      User API      http://localhost:7061
+      Workout API   http://localhost:7062
+      Exercise API  http://localhost:7063
+      Fullstack     http://localhost:7081 (run with: just local fullstack)
+      Elasticsearch http://localhost:7200
+      Kafka UI      http://localhost:7052
+      Mailpit       http://localhost:7057
+      Prometheus    http://localhost:7090
+    EOF
+    }
+
+    pulumi_cmd() {
+        (cd infra && PULUMI_CONFIG_PASSPHRASE='' pulumi "$@")
+    }
+
+    ensure_stack() {
+        (cd infra && npm install --silent)
+        pulumi_cmd stack select "$stack" 2>/dev/null || pulumi_cmd stack init "$stack" --secrets-provider passphrase
+    }
+
+    select_stack() {
+        pulumi_cmd stack select "$stack" >/dev/null
+    }
+
+    set_config() {
+        pulumi_cmd config set "$1" "$2" -s "$stack" >/dev/null
+    }
+
+    set_services() {
+        set_config enableFullstack false
+        set_config enableUserApi "$1"
+        set_config enableWorkoutApi "$2"
+        set_config enableExerciseApi "$3"
+    }
+
+    normalize_service() {
+        case "$1" in
+            user|users|user-api) echo "user-api" ;;
+            workout|workouts|workout-api) echo "workout-api" ;;
+            exercise|exercises|exercise-api) echo "exercise-api" ;;
+            deps|infra|dependencies) echo "deps" ;;
+            all|"") echo "all" ;;
+            *) echo "" ;;
+        esac
+    }
+
+    enable_only_service() {
+        case "$1" in
+            user-api) set_services true false false ;;
+            workout-api) set_services false true false ;;
+            exercise-api) set_services false false true ;;
+            deps) set_services false false false ;;
+            all) set_services true true true ;;
+            *) echo "Unknown dev service: $1" >&2; usage; exit 2 ;;
+        esac
+    }
+
+    disable_service() {
+        case "$1" in
+            user-api) set_config enableUserApi false ;;
+            workout-api) set_config enableWorkoutApi false ;;
+            exercise-api) set_config enableExerciseApi false ;;
+            deps|all) ;;
+            *) echo "Unknown dev service: $1" >&2; usage; exit 2 ;;
+        esac
+    }
+
+    wait_http() {
+        local name="$1"
+        local url="$2"
+        local limit="${3:-60}"
+        echo "==> Waiting for ${name}..."
+        for i in $(seq 1 "$limit"); do
+            if curl -sf "$url" >/dev/null 2>&1; then
+                echo "    ${name} ready after ${i}s"
+                return 0
+            fi
+            sleep 1
+        done
+        echo "    ${name} did not become ready within ${limit}s" >&2
+        return 1
+    }
+
+    wait_dev_stack() {
+        local target="$1"
+        wait_http "Keycloak" "http://localhost:7051/realms/local/.well-known/openid-configuration" 120
+        wait_http "Elasticsearch" "http://localhost:7200/_cluster/health" 120
+        case "$target" in
+            all)
+                wait_http "user-api" "http://localhost:7061/ready" 60
+                wait_http "workout-api" "http://localhost:7062/ready" 60
+                wait_http "exercise-api" "http://localhost:7063/ready" 60
+                ;;
+            user-api) wait_http "user-api" "http://localhost:7061/ready" 60 ;;
+            workout-api) wait_http "workout-api" "http://localhost:7062/ready" 60 ;;
+            exercise-api) wait_http "exercise-api" "http://localhost:7063/ready" 60 ;;
+            deps) ;;
+        esac
+    }
+
+    print_urls() {
+        cat <<'EOF'
+    Dev stack URLs:
+      Keycloak      http://localhost:7051
+      User API      http://localhost:7061
+      Workout API   http://localhost:7062
+      Exercise API  http://localhost:7063
+      Elasticsearch http://localhost:7200
+      Kafka UI      http://localhost:7052
+      Mailpit       http://localhost:7057
+      Prometheus    http://localhost:7090
+    EOF
+    }
+
+    # Route: just dev → start all; just dev <service> → start service; just dev down [service] → stop
+    action="${1:-}"
+    if [ "$action" = "down" ]; then
+        target="$(normalize_service "${2:-all}")"
+        if [ "$target" = "all" ]; then
+            select_stack
+            pulumi_cmd destroy -s "$stack" --yes --skip-preview
+            docker rmi repforge/user-api:latest repforge/workout-api:latest repforge/exercise-api:latest 2>/dev/null || true
+        elif [ -n "$target" ]; then
+            select_stack
+            disable_service "$target"
+            pulumi_cmd up -s "$stack" --yes --skip-preview
+            echo "Disabled ${target}; shared dev infra remains up."
+        else
+            echo "Unknown dev target: ${2:-}" >&2
+            usage
+            exit 2
+        fi
+    elif [ "$action" = "help" ] || [ "$action" = "-h" ] || [ "$action" = "--help" ]; then
+        usage
+    else
+        # No action or a service name: start the stack
+        target="$(normalize_service "${action:-all}")"
+        if [ -z "$target" ]; then
+            echo "Unknown dev target: ${action:-}" >&2
+            usage
+            exit 2
+        fi
+        ensure_stack
+        enable_only_service "$target"
+        pulumi_cmd up -s "$stack" --yes --skip-preview
+        wait_dev_stack "$target"
+        print_urls
+    fi
+
+# Validate the project: lint, format, type checks across all languages
+validate:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{justfile_directory()}}"
+    echo "==> Rust: cargo check --workspace"
+    (cd code && cargo check --workspace)
+    echo "==> Rust: cargo clippy --workspace -- -D warnings"
+    (cd code && cargo clippy --workspace --all-targets --all-features -- -D warnings)
+    echo "==> Rust: cargo fmt --check"
+    (cd code && cargo fmt -- --check)
+    echo "==> Rust: wasm32 target"
+    just check-web
+    echo "==> TypeScript: tsc + eslint + prettier"
+    (cd infra && npm run validate)
+    echo "==> i18n: check for hardcoded strings"
+    just check-i18n
+    echo "==> CSS: check semantic tokens"
+    just check-tokens
+    echo "==> All validation passed."
+
+# Run the full test gate: validate + unit + e2e
+#   just test                  - Full gate: validate, unit tests, E2E tests
+#   just test unit             - Cargo workspace unit tests only
+#   just test e2e              - E2E integration tests only (starts 9xxx stack automatically)
+#   just test -- test_name     - Filtered tests via test-runner
+test *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{justfile_directory()}}"
+    if [ -z "{{args}}" ]; then
+        echo "==> Full test gate: validate + unit + e2e"
+        just validate
+        echo "==> Running unit tests..."
+        (cd code && cargo run -p test-runner -- rust)
+        echo "==> Running E2E tests..."
+        (cd code && cargo run -p test-runner -- e2e)
+        echo "==> Full test gate passed."
+    elif [ "{{args}}" = "unit" ]; then
+        cd code && cargo test --workspace
+    elif [ "{{args}}" = "e2e" ]; then
+        cd code && cargo run -p test-runner -- e2e
+    else
+        cd code && cargo run -p test-runner -- {{args}}
+    fi
+
+# Run tests with infrastructure already running (skip startup)
+test-skip-infra *args:
+    cd code && cargo run -p test-runner -- --skip-infra {{args}}
+
+# CI run - full signal, JUnit output for all test categories
+test-ci:
+    cd code && cargo run -p test-runner -- --output-dir ../reports rust e2e
+
+# Generate or update visual regression baselines (requires e2e stack running on 9xxx)
+# Use CREATE_BASELINES=1 for first-time generation, UPDATE_BASELINES=1 to overwrite existing
+test-baselines mode="create":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "{{mode}}" = "create" ]; then
+        export CREATE_BASELINES=1
+        echo "==> Creating new baselines (will skip existing)..."
+    elif [ "{{mode}}" = "update" ]; then
+        export UPDATE_BASELINES=1
+        echo "==> Updating all baselines..."
+    else
+        echo "Usage: just test-baselines [create|update]"
+        exit 1
+    fi
+    set -a && source config/runtime/e2e/local/test-runner.env && set +a
+    (cd code && cargo test -p e2e-tests --test user_registration_ui -- --nocapture --test-threads 1)
+    (cd code && cargo test -p e2e-tests --test user_preferences_ui -- --nocapture --test-threads 1)
+    (cd code && cargo test -p e2e-tests --test exercise_crud test_exercise_create_modal_empty_visual -- --nocapture --test-threads 1)
+    echo "==> Baselines saved to code/tests/e2e/baselines/linux/"
+
+# Audit visual manifest against linux/darwin baseline directories
+test-visual-audit:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    ROOT="$(pwd)"
+    MANIFEST="$ROOT/code/tests/e2e/visual-manifest.toml"
+    LINUX_DIR="$ROOT/code/tests/e2e/baselines/linux"
+    DARWIN_DIR="$ROOT/code/tests/e2e/baselines/darwin"
+    TMP_DIR="$(mktemp -d)"
+    trap 'rm -rf "$TMP_DIR"' EXIT
+
+    if [ ! -f "$MANIFEST" ]; then
+      echo "visual manifest not found: $MANIFEST"
+      exit 1
+    fi
+
+    rg -o '"[A-Za-z0-9_-]+"' "$MANIFEST" | tr -d '"' | sort -u > "$TMP_DIR/manifest.txt"
+    if [ -d "$LINUX_DIR" ]; then
+      find "$LINUX_DIR" -maxdepth 1 -type f -name '*.png' -exec basename {} .png \; | sort -u > "$TMP_DIR/linux.txt"
+    else
+      touch "$TMP_DIR/linux.txt"
+    fi
+
+    if [ -d "$DARWIN_DIR" ]; then
+      find "$DARWIN_DIR" -maxdepth 1 -type f -name '*.png' -exec basename {} .png \; | sort -u > "$TMP_DIR/darwin.txt"
+    else
+      touch "$TMP_DIR/darwin.txt"
+    fi
+
+    cat "$TMP_DIR/linux.txt" "$TMP_DIR/darwin.txt" | sort -u > "$TMP_DIR/available.txt"
+
+    comm -23 "$TMP_DIR/manifest.txt" "$TMP_DIR/available.txt" > "$TMP_DIR/missing-any.txt" || true
+    comm -23 "$TMP_DIR/manifest.txt" "$TMP_DIR/linux.txt" > "$TMP_DIR/missing-linux.txt" || true
+    comm -13 "$TMP_DIR/manifest.txt" "$TMP_DIR/linux.txt" > "$TMP_DIR/orphan-linux.txt" || true
+    comm -13 "$TMP_DIR/manifest.txt" "$TMP_DIR/darwin.txt" > "$TMP_DIR/orphan-darwin.txt" || true
+
+    HAS_ISSUES=0
+    if [ -s "$TMP_DIR/missing-any.txt" ]; then
+      HAS_ISSUES=1
+      echo "Missing baselines (not found in linux or darwin):"
+      cat "$TMP_DIR/missing-any.txt"
+    fi
+    if [ -s "$TMP_DIR/missing-linux.txt" ]; then
+      if [ "${VISUAL_STRICT_LINUX_CANONICAL:-0}" = "1" ]; then
+        HAS_ISSUES=1
+        echo "Missing linux canonical baselines:"
+        cat "$TMP_DIR/missing-linux.txt"
+      else
+        echo "Warning: missing linux canonical baselines (using darwin fallback):"
+        cat "$TMP_DIR/missing-linux.txt"
+      fi
+    fi
+    if [ -s "$TMP_DIR/orphan-linux.txt" ]; then
+      HAS_ISSUES=1
+      echo "Orphan linux baselines (not in manifest):"
+      cat "$TMP_DIR/orphan-linux.txt"
+    fi
+    if [ -s "$TMP_DIR/orphan-darwin.txt" ]; then
+      HAS_ISSUES=1
+      echo "Orphan darwin baselines (not in manifest):"
+      cat "$TMP_DIR/orphan-darwin.txt"
+    fi
+
+    if [ "$HAS_ISSUES" -ne 0 ]; then
+      exit 1
+    fi
+
+    echo "Visual audit passed: manifest and baseline files are aligned."
+
+# Strict fail-first run: missing baselines are compared to empty screenshots and fail
+test-visual-fail-first:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export VISUAL_MISSING_BASELINE_MODE=empty
+    unset CREATE_BASELINES
+    unset UPDATE_BASELINES
+    set -a && source config/runtime/e2e/local/test-runner.env && set +a
+    (cd code && cargo test -p e2e-tests --test user_registration_ui -- --nocapture --test-threads 1)
+    (cd code && cargo test -p e2e-tests --test user_preferences_ui -- --nocapture --test-threads 1)
+    (cd code && cargo test -p e2e-tests --test exercise_crud test_exercise_create_modal_empty_visual -- --nocapture --test-threads 1)
+
+# Baseline creation/update run for visual suite
+test-visual-create:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export CREATE_BASELINES=1
+    export VISUAL_MISSING_BASELINE_MODE=create
+    unset UPDATE_BASELINES
+    set -a && source config/runtime/e2e/local/test-runner.env && set +a
+    (cd code && cargo test -p e2e-tests --test user_registration_ui -- --nocapture --test-threads 1)
+    (cd code && cargo test -p e2e-tests --test user_preferences_ui -- --nocapture --test-threads 1)
+    (cd code && cargo test -p e2e-tests --test exercise_crud test_exercise_create_modal_empty_visual -- --nocapture --test-threads 1)
+
+# Strict verification run for visual suite
+test-visual-verify:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just test-visual-audit
+    export VISUAL_MISSING_BASELINE_MODE=empty
+    unset CREATE_BASELINES
+    unset UPDATE_BASELINES
+    set -a && source config/runtime/e2e/local/test-runner.env && set +a
+    (cd code && cargo test -p e2e-tests --test user_registration_ui -- --nocapture --test-threads 1)
+    (cd code && cargo test -p e2e-tests --test user_preferences_ui -- --nocapture --test-threads 1)
+    (cd code && cargo test -p e2e-tests --test exercise_crud test_exercise_create_modal_empty_visual -- --nocapture --test-threads 1)
+
+# Baseline creation/update run for parity scenes with headless-safe screenshot providers.
+# Baselines are written to code/tests/e2e/baselines/<target>/<host-os>/.
+test-parity-visual-create mode="create":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "{{mode}}" = "create" ]; then
+        export CREATE_BASELINES=1
+        export VISUAL_MISSING_BASELINE_MODE=create
+        unset UPDATE_BASELINES
+        echo "==> Creating missing headless-safe parity baselines..."
+    elif [ "{{mode}}" = "update" ]; then
+        export UPDATE_BASELINES=1
+        export VISUAL_MISSING_BASELINE_MODE=update
+        unset CREATE_BASELINES
+        echo "==> Updating headless-safe parity baselines..."
+    else
+        echo "Usage: just test-parity-visual-create [create|update]"
+        exit 1
+    fi
+    cd code
+    cargo run -p test-runner -- e2e -- \
+      test_preferences_bootstrap_and_persistence_ \
+      test_preferences_live_propagation_ \
+      test_exercise_library_browse_
+
+# Strict verification run for parity scenes with headless-safe screenshot providers.
+test-parity-visual-verify:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export VISUAL_MISSING_BASELINE_MODE=empty
+    unset CREATE_BASELINES
+    unset UPDATE_BASELINES
+    cd code
+    cargo run -p test-runner -- e2e -- \
+      test_preferences_bootstrap_and_persistence_ \
+      test_preferences_live_propagation_ \
+      test_exercise_library_browse_
+
+# Validate required canonical database environment variables for local/e2e runs
+validate-env:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    REQUIRED_VARS=(
+      APP_DATABASE_URL
+      USER_API_DATABASE_URL
+      WORKOUT_API_DATABASE_URL
+      EXERCISE_API_DATABASE_URL
+    )
+
+    MISSING=()
+    for VAR in "${REQUIRED_VARS[@]}"; do
+      if [ -z "${!VAR:-}" ]; then
+        MISSING+=("$VAR")
+      fi
+    done
+
+    if [ "${#MISSING[@]}" -ne 0 ]; then
+      echo "Missing required canonical env vars:"
+      printf ' - %s\n' "${MISSING[@]}"
+      exit 1
+    fi
+
+    echo "Environment validation passed."
+
+# Check all targets compile
+check:
+    cd code && cargo check --workspace --all-targets
+
+# Check for hardcoded strings (i18n compliance)
+# Check for hardcoded user-facing strings (i18n compliance)
+check-i18n:
+    cd code && cargo test -p gallery test_no_hardcoded_user_facing_strings
+
+# Check web target compiles
+check-web:
+    cd code && cargo check -p app --features web --target wasm32-unknown-unknown
+
+# Check documentation structure and stale path references
+docs-check:
+    bash ./scripts/docs_check.sh
+
+# Check server feature compiles
+check-server:
+    cd code && cargo check -p app --features server
+
+# Lint all crates
+lint:
+    cd code && cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+# Strict quality check.
+# - `just test` owns infra startup/health/teardown for the 9xxx e2e stack.
+# - `just coverage-gates` stays hermetic because host `cargo llvm-cov` does not
+#   instrument code that runs inside Pulumi-managed service containers.
+quality-check:
+    just lint
+    just test
+    just coverage-gates
+
+# Host coverage summary with a self-managed temporary Postgres instance.
+# Excludes suites that require the full externally managed stack:
+# - `e2e-tests` still requires the 9xxx Pulumi stack.
+# This command intentionally provisions only the databases needed by host tests,
+# so DB-backed unit/integration tests do not silently skip under coverage.
+# It remains non-threshold-gated at workspace level because the monorepo still
+# contains many packages that are informative to measure but not yet worth
+# making globally red.
+coverage:
+    ./scripts/run_coverage_with_postgres.sh summary
+
+# Runtime coverage gate for the HTTP mutation migration surface.
+# This keeps the stakeholder guarantee focused on the authoritative write path
+# and service runtime code instead of preview/demo packages like gallery.
+coverage-runtime:
+    ./scripts/run_coverage_with_postgres.sh summary
+    python3 ./scripts/check_runtime_coverage.py ./code/target/coverage/summary.json 80 server_mutation_path runtime_backend
+
+# Backend core coverage gate for production/shared service code.
+# Excludes frontend packages and frontend-facing shared contract domain catalogs.
+coverage-backend:
+    ./scripts/run_coverage_with_postgres.sh summary
+    python3 ./scripts/check_runtime_coverage.py ./code/target/coverage/summary.json 80 backend_core
+
+# Run all enforced host coverage gates after producing a fresh summary.
+coverage-gates:
+    ./scripts/run_coverage_with_postgres.sh summary
+    python3 ./scripts/check_runtime_coverage.py ./code/target/coverage/summary.json 80 server_mutation_path runtime_backend backend_core
+
+# Generate LCOV artifact for host coverage with the same temporary Postgres.
+coverage-lcov:
+    ./scripts/run_coverage_with_postgres.sh lcov
+
+# Check for CSS vars that have semantic token equivalents
+check-tokens:
+    #!/usr/bin/env bash
+    echo "Checking for CSS vars that should use semantic tokens..."
+    # Only flag specific patterns that have semantic token equivalents:
+    # - var(--color-primary-100) -> colors::semantic::PRIMARY_LIGHT
+    # - var(--color-primary-700) -> colors::semantic::PRIMARY_DARK
+    # - var(--color-on-primary)  -> colors::semantic::ON_PRIMARY
+    # - var(--color-bg-overlay)  -> colors::semantic::BG_OVERLAY
+    VIOLATIONS=$(grep -rE --include="*.rs" "var\(--color-(primary-100|primary-700|on-primary|bg-overlay|primary-light|primary-dark)\)" code/frontend/ | grep -v "/tokens/" | grep -v "// allow-raw-var" || true)
+    if [ -n "$VIOLATIONS" ]; then
+        echo "❌ Found CSS vars that should use semantic tokens:"
+        echo "$VIOLATIONS"
+        echo ""
+        echo "Use semantic tokens instead:"
+        echo "  var(--color-primary-100)  -> colors::semantic::PRIMARY_LIGHT"
+        echo "  var(--color-primary-700)  -> colors::semantic::PRIMARY_DARK"
+        echo "  var(--color-on-primary)   -> colors::semantic::ON_PRIMARY"
+        echo "  var(--color-bg-overlay)   -> colors::semantic::BG_OVERLAY"
+        echo "  var(--color-primary-light)-> colors::semantic::PRIMARY_LIGHT"
+        echo "  var(--color-primary-dark) -> colors::semantic::PRIMARY_DARK"
+        echo ""
+        echo "Or add '// allow-raw-var' comment if intentional."
+        exit 1
+    else
+        echo "✓ No semantic token violations found"
+    fi
+
+# Format
+fmt:
+    cargo fmt
+
+# =============================================================================
+# GALLERY (Multi-Platform Component Preview)
+# =============================================================================
+
+# Start gallery web app with hot reload (port 7100)
+gallery:
+    cd code/frontend/gallery && dx serve --platform web --features web --hot-reload true --port 7100
+
+# Start gallery desktop app
+gallery-desktop:
+    cd code/frontend/gallery && dx serve --platform desktop --features desktop --hot-reload true
+
+# Build and install gallery on Android emulator
+gallery-android:
+    #!/usr/bin/env bash
+    set -e
+    ROOT="$(pwd)"
+    # Start emulator if not running
+    if ! adb devices | grep -q "emulator"; then
+        echo "Starting Android emulator..."
+        ~/Library/Android/sdk/emulator/emulator @Test_phone &
+        adb wait-for-device
+        echo "Waiting for emulator to boot..."
+        while [ "$(adb shell getprop sys.boot_completed 2>/dev/null)" != "1" ]; do sleep 1; done
+        echo "Emulator ready"
+    fi
+    cd "$ROOT/code/frontend/gallery" && dx build --platform android --features mobile
+    cd "$ROOT"
+    APK="$ROOT/code/target/dx/gallery/debug/android/app/app/build/outputs/apk/debug/app-debug.apk"
+    adb uninstall com.repforge.gallery || true
+    adb install "$APK"
+    adb shell am start -n com.repforge.gallery/dev.dioxus.main.MainActivity
+
+# Build and install gallery on iOS simulator
+gallery-ios:
+    xcrun simctl boot "iPhone 17 Pro" 2>/dev/null || true
+    open -a Simulator
+    cd code/frontend/gallery && dx build --platform ios --target aarch64-apple-ios-sim --features mobile
+    xcrun simctl install "iPhone 17 Pro" code/target/dx/gallery/debug/ios/Gallery.app
+    xcrun simctl launch "iPhone 17 Pro" com.repforge.gallery
+
+# =============================================================================
+# E2E TEST INFRASTRUCTURE (9xxx ports)
+# =============================================================================
+
+# Internal: Start e2e infrastructure (9xxx ports)
+_e2e-infra-up:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{justfile_directory()}}"
+    echo "==> Starting e2e infrastructure on 9xxx ports..."
+    (cd infra && npm install --silent)
+    # Initialize stack if it doesn't exist
+    (cd infra && PULUMI_CONFIG_PASSPHRASE='' pulumi stack select e2e 2>/dev/null || PULUMI_CONFIG_PASSPHRASE='' pulumi stack init e2e --secrets-provider passphrase)
+    # Docker Desktop can deadlock under parallel BuildKit image builds on the
+    # e2e stack. Keep stack startup deterministic; test concurrency still comes
+    # from nextest once the infrastructure is healthy.
+    (cd infra && PULUMI_CONFIG_PASSPHRASE='' pulumi up -s e2e --yes --skip-preview --parallel 1) || {
+        echo "Failed to start e2e stack"
+        exit 1
+    }
+
+# Internal: Stop e2e infrastructure
+_e2e-infra-down:
+    #!/usr/bin/env bash
+    cd "{{justfile_directory()}}"
+    echo "==> Stopping e2e infrastructure..."
+    # All services (including fullstack) are managed by Pulumi
+    (cd infra && PULUMI_CONFIG_PASSPHRASE='' pulumi destroy -s e2e --yes --skip-preview 2>/dev/null) || true
+    # Optional: remove stack state entirely (set E2E_STACK_RM=1 when needed)
+    if [ "${E2E_STACK_RM:-0}" = "1" ]; then
+        (cd infra && PULUMI_CONFIG_PASSPHRASE='' pulumi stack rm e2e --yes 2>/dev/null) || true
+    fi
+    # Remove cached Docker images so they're rebuilt from scratch
+    docker rmi repforge/user-api:latest repforge/workout-api:latest repforge/exercise-api:latest repforge/fullstack:latest 2>/dev/null || true
+
+# Internal: Wait for services to be healthy (all deployed via Pulumi)
+_wait-for-services:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "==> Waiting for Keycloak (9051)..."
+    for i in $(seq 1 120); do
+        if curl -sf http://localhost:9051/realms/local/.well-known/openid-configuration > /dev/null 2>&1; then
+            echo "    Keycloak ready after $i seconds"
+            break
+        fi
+        if [ $i -eq 120 ]; then
+            echo "    Keycloak failed to start within 120s"
+            exit 1
+        fi
+        sleep 1
+    done
+
+    echo "==> Waiting for user-api readiness (9061/ready)..."
+    for i in $(seq 1 60); do
+        if curl -sf http://localhost:9061/ready > /dev/null 2>&1; then
+            echo "    user-api ready after $i seconds"
+            break
+        fi
+        if [ $i -eq 60 ]; then
+            echo "    user-api failed to start within 60s"
+            exit 1
+        fi
+        sleep 1
+    done
+
+    echo "==> Waiting for workout-api readiness (9062/ready)..."
+    for i in $(seq 1 60); do
+        if curl -sf http://localhost:9062/ready > /dev/null 2>&1; then
+            echo "    workout-api ready after $i seconds"
+            break
+        fi
+        if [ $i -eq 60 ]; then
+            echo "    workout-api failed to start within 60s"
+            exit 1
+        fi
+        sleep 1
+    done
+
+    echo "==> Waiting for exercise-api readiness (9063/ready)..."
+    for i in $(seq 1 60); do
+        if curl -sf http://localhost:9063/ready > /dev/null 2>&1; then
+            echo "    exercise-api ready after $i seconds"
+            break
+        fi
+        if [ $i -eq 60 ]; then
+            echo "    exercise-api failed to start within 60s"
+            exit 1
+        fi
+        sleep 1
+    done
+
+    echo "==> Waiting for ingress readiness (9081/ready)..."
+    for i in $(seq 1 120); do
+        if curl -sf http://localhost:9081/ready > /dev/null 2>&1; then
+            echo "    ingress ready after $i seconds"
+            break
+        fi
+        if [ $i -eq 120 ]; then
+            echo "    ingress failed to start within 120s"
+            exit 1
+        fi
+        sleep 1
+    done
+
+
+# Clear Mailpit emails (useful before running auth tests)
+clear-mailpit:
+    # Try e2e stack first (9057), then dev stack (7057)
+    curl -s -X DELETE http://localhost:9057/api/v1/messages \
+      || curl -s -X DELETE http://localhost:7057/api/v1/messages \
+      || echo "Mailpit not running"

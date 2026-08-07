@@ -5,7 +5,7 @@
 - Date: 2026-05-08
 - Category: Tooling
 - Scope: Scan the wiki for bookkeeping issues and fix them directly.
-- Sources: assets/skills/wiki-lint/SKILL.md, wiki/decisions/llm-wiki-binary-distribution.decision.md
+- Sources: .claude/skills/wiki-lint/SKILL.md, wiki/decisions/llm-wiki-binary-distribution.decision.md
 - Related: wiki/specs/documentation-model.spec.md
 
 ## Contract
@@ -18,19 +18,17 @@ documented source of truth.
 The skill reads `wiki/index.md` first and only reads additional pages needed to
 confirm or repair specific issues.
 
-## Runtime Projection
+## Skill Source
 
-Canonical source: `assets/skills/wiki-lint/SKILL.md`.
-Runtime variants are rendered by `llm-wiki build` and globally installed by
-`llm-wiki install`.
+Authored source: `.claude/skills/wiki-lint/SKILL.md`, a repo-local Claude Code
+skill. The MCP-first surface no longer renders runtime variants or globally
+installs skills; hosts read and search the wiki through the `llm_wiki_*` MCP
+tools while linting.
 
 Invocation:
 
-- Claude: `/wiki-lint`
-- Codex: `$wiki-lint` or `$wiki lint`
+- Claude Code: `/wiki-lint` (repo-local skill)
 
 ## Proven By
 
-- Canonical schema parsing tests.
-- Runtime projection snapshots.
 - V1 fixture smoke checklist for ingest/query/lint behavior.

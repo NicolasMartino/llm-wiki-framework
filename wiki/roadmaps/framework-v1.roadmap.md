@@ -604,4 +604,100 @@ Promotion Target:
 
 Unlocks:
 - direct CLI search for realistic project questions
-- more reliable `wiki-query` fallback when index navigation is insufficient
+- search-first `wiki-query` retrieval for registered-project queries, with
+  index-based fallback when search is unavailable or unhelpful
+
+### P2 - Sandbox-Safe Search Cache Reads
+
+Status: Completed
+Promise: Read-only search, search-all, doctor, and project-status checks can
+inspect completed managed qmd-rs caches from sandboxed agents without cache
+write permission and without misclassifying access failures as corruption.
+Depends On: P1, D9
+Execution Plan: wiki/plans/sandbox-safe-search-cache-reads.plan.md
+Proposal: wiki/proposals/sandbox-safe-search-cache-reads.proposal.md
+Completed: 2026-05-23. Validated outcome is recorded in
+wiki/plans/sandbox-safe-search-cache-reads.plan.md,
+wiki/decisions/search-backend-selection.decision.md, and
+wiki/decisions/semantic-hybrid-search-mode.decision.md.
+
+Included:
+- immutable completed-store read path for lexical/status reads
+- writer-side completed-store proof before qmd-rs live promotion
+- metadata-first validation for completed stores
+- retryable transient state for mixed sqlite/metadata promotion observations
+- `permission_denied` state distinct from corrupt/schema-mismatch/stale/missing
+- `search-all` per-project JSON readiness and warning behavior for cache access
+  failures
+- backend-status JSON `open_mode`
+
+Excluded:
+- moving indexes into project roots
+- implicit rebuilds from read commands
+- model/license/materialization changes
+- Metal, query-expansion, embedding, or reranker runtime diagnostics
+- replacing qmd-rs
+
+Proof:
+- lexical JSON search succeeds against a managed qmd-rs cache with read access
+  but no write access
+- doctor/projects report read-only caches as ready or stale and true access
+  failures distinctly
+- permission_denied never routes to force-reindex guidance
+- search-all JSON stays parseable and reports per-project access failures while
+  returning other ready results
+- writer promotion verifies immutable readability before publication and treats
+  races as completed old/new or retryable transient states
+- existing qmd-rs query parity tests remain green
+
+Promotion Target:
+- wiki/decisions/search-backend-selection.decision.md
+- wiki/decisions/semantic-hybrid-search-mode.decision.md
+- wiki/specs/documentation-model.spec.md
+- wiki/specs/wiki-query-skill.spec.md
+
+Unlocks:
+- reliable search-first `wiki-query` in sandboxed Codex sessions
+- safer project-update `--reindex` follow-on
+- cleaner Windows/E2E proof later because read/write cache scopes are explicit
+
+### P3 - Cross-Platform Release E2E And Windows Support
+
+Status: Active
+Promise: Supported release artifacts prove the documented `llm-wiki` product
+story on their target platforms, with Linux Docker simulation, native host
+proof, Windows host proof, and GGUF CPU proof separated by evidence type.
+Depends On: P1, P2, D8-D11
+Execution Roadmap: wiki/roadmaps/cross-platform-release-e2e.roadmap.md
+Execution Plan: wiki/plans/cross-platform-release-e2e-harness.plan.md
+Proposal: wiki/proposals/full-windows-support.proposal.md
+
+Included:
+- release E2E runner and report contract
+- Linux Docker archive simulation and native Linux proof
+- native macOS archive proof
+- Windows runtime path, PowerShell, artifact, and host E2E proof
+- real GGUF CPU release proof where semantic/hybrid support is claimed
+
+Excluded:
+- treating Docker as macOS or Windows proof
+- claiming Windows support before Windows-specific path and host gates pass
+- claiming semantic/hybrid platform support from deterministic hooks or
+  no-model readiness checks
+
+Proof:
+- target-platform release E2E reports exist for each supported artifact
+- report metadata distinguishes native, virtualized, and emulated proof
+- Windows reports cover Known Folder paths, path with spaces, PowerShell
+  invocation, `.exe` runnability, JSON path escaping, search, and uninstall
+- GGUF reports prove forced-CPU semantic, hybrid, and `search-all` from
+  managed models
+
+Promotion Target:
+- wiki/specs/documentation-model.spec.md
+- future release E2E checklist or eval
+- Windows support decision/spec after validation
+
+Unlocks:
+- honest platform support claims
+- release-gate evidence for future artifacts

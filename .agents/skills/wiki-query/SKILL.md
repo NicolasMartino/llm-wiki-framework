@@ -1,0 +1,71 @@
+---
+name: wiki-query
+description: Query an LLM Wiki project knowledge base and answer with citations. Use when Codex is asked a question about the current project, specs, decisions, features, roadmap, plans, documented evidence, or when the user says to check the wiki, look up project knowledge, summarize what is known, find a decision, save a durable synthesis back into the wiki, or explicitly invokes the skill.
+---
+
+# /wiki-query
+
+## Purpose
+
+Answer project questions from the compiled wiki instead of rediscovering
+knowledge from the filesystem.
+
+## MCP Routing
+
+When the host exposes the LLM Wiki MCP server, use the framework-owned MCP
+tools for wiki/raw access: `llm_wiki_read` for full `wiki/` or `raw/` files,
+`llm_wiki_search` for current-project retrieval, `llm_wiki_search_all` only for
+cross-project retrieval, and `llm_wiki_index` when a saved answer changes wiki
+content. Shell `llm-wiki ...` commands and direct file reads are fallback only
+when MCP is unavailable.
+
+## Behavior
+
+1. Require `wiki/index.md` in the current working directory. If it is missing,
+   tell the user that the project has not been initialized with the LLM Wiki
+   framework.
+2. Read `wiki/index.md` first via `llm_wiki_read` when MCP is exposed; otherwise
+   fall back to a direct file read. Treat it as orientation and as the catalog
+   of all project knowledge.
+3. For every query, use `llm_wiki_search` when MCP is exposed and the current
+   project is registered. Fall back to shell
+   `llm-wiki search --mode auto --format json "<question>"` only when MCP is
+   unavailable. Inspect `selected_mode`,
+   `readiness_reason`, `fallback_reason`, `zero_result_reason`, and each
+   result's `mode` / `backend` before trusting the result set. Search snippets
+   are navigation aids only; read and cite the returned wiki pages directly via
+   `llm_wiki_read` when MCP is exposed.
+4. If search is unavailable, not ready, stale, unregistered, or returns no
+   useful result, continue from index-based navigation instead of treating the
+   search failure or zero-result outcome as an answer.
+5. Identify relevant pages from search results and the index. Prefer specs for
+   current truth, decisions for rationale, proposals for unaccepted direction,
+   roadmaps for delivery status, plans for tactical work, experiments/evals for
+   measured findings, and references for external evidence.
+6. Start with the three to five most relevant pages. Read more when the answer
+   is incomplete, cross-references point to important context, or search/index
+   evidence suggests a likely omission.
+7. Synthesize a direct answer with citations to wiki page paths. Include raw
+   source paths transitively when a cited wiki page depends on a key raw
+   source.
+8. Flag gaps explicitly when the wiki lacks enough information. Flag
+   contradictions instead of silently choosing one source over another.
+9. Do not speculate beyond documented wiki knowledge unless the user asks for
+   advice; clearly label advice as inference.
+10. If the answer creates durable new knowledge through synthesis across pages,
+   offer to save it as a wiki page. When the user agrees, choose the document
+   type by role, write the page with the required metadata block, update
+   `wiki/index.md`, append a `create` entry to `wiki/log.md`, and refresh the
+   index with `llm_wiki_index` when MCP is exposed.
+
+## Invocation
+
+Use normal language or an explicit skill invocation:
+
+- `/wiki-query what is D8 on the roadmap?`
+- `/wiki-query summarize the binary distribution decision`
+
+## Notes
+
+Lead with the answer, then cite supporting pages. Keep the response clear
+about what is documented, what is missing, and what is inferred.
