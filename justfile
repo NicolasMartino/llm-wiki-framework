@@ -48,6 +48,25 @@ audit-legacy:
 
 verify: fmt test clippy-strict snapshots audit-legacy
 
+# The integration test files that take longest; they run in `just verify` and
+# the full CI, not in `just fast-check`.
+slow_tests := "install mcp_install post_install properties search_commands"
+
+# The fast check on PRs into develop: `just verify` without the slow test
+# files. One `cargo insta test --check` runs the quick tests and checks the
+# snapshots together. A new test file is quick until it is named above.
+fast-check: fmt clippy-strict audit-legacy
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cargo insta --version >/dev/null 2>&1 || { echo "fast-check needs cargo-insta: install it with \`cargo install cargo-insta\`" >&2; exit 1; }
+    args=()
+    for file in tests/*.rs; do
+      name=$(basename "$file" .rs)
+      [[ " {{ slow_tests }} " == *" $name "* ]] || args+=(--test "$name")
+    done
+    cargo insta test --check --bins "${args[@]}"
+    cargo test --manifest-path tools/release-e2e/Cargo.toml
+
 verify-full: verify coverage udeps
 
 post-install:

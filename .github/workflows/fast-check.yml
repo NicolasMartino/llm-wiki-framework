@@ -1,7 +1,8 @@
 name: Fast Check
 
-# Work PRs into develop, and their merges there, get one fast Linux check: the
-# steps of `just verify`. The full CI (ci.yml) runs on the way to master.
+# Work PRs into develop, and their merges there, get one fast Linux check:
+# `just fast-check`, which is `just verify` without the slow test files. The
+# full CI (ci.yml) runs everything on the way to master.
 on:
   pull_request:
     branches: [develop]
@@ -9,8 +10,8 @@ on:
     branches: [develop]
 
 jobs:
-  verify:
-    name: just verify
+  fast-check:
+    name: just fast-check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,5 +22,5 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: just,cargo-insta,ripgrep
-      - name: Verify
-        run: just verify
+      - name: Fast check
+        run: just fast-check

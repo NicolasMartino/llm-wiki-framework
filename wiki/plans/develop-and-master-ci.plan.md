@@ -90,16 +90,46 @@ The state the coordinator read, before this plan's PR changed it:
 
 ### How To Run Each Check
 
+The owner, 2026-10-06: "the longer CI different env (ubuntu, macos, windows
+etc) tests on PR branch master. PR branch dev is fast checks, cargo clippy,
+maybe some llm wiki quick tests and such."
+
 - **The fast check** (PRs into `develop`, pushes to `develop`):
   `.github/workflows/fast-check.yml`, one `ubuntu-latest` job running
-  `just verify`. Locally, `just verify` needs `just`, `cargo-insta` and
-  `ripgrep`, and says which is missing.
+  `just fast-check`: fmt, clippy-strict, audit-legacy, the unit tests and the
+  quick integration test files with the snapshot check in one
+  `cargo insta test --check` run, and the `tools/release-e2e` tests. It needs
+  `just`, `cargo-insta` and `ripgrep`, and says which is missing.
+- **Left to `just verify` and the full CI:** the integration test files named
+  in the justfile's `slow_tests`: `install`, `mcp_install` and `post_install`
+  (each installs the binary under a temporary HOME), `properties` and
+  `search_commands`. A new test file is in the fast check until it is named
+  there.
+- **`just verify`** stays the whole local gate: every test, run once by
+  `cargo test` and again by `cargo insta test --check`.
 - **The full CI** (PRs into master, pushes to master): `.github/workflows/ci.yml`
   (`ubuntu-latest`, `ubuntu-24.04-arm`, `macos-14`, each `just verify` and
   `just coverage`; the unused-dependencies job on `nightly-2026-05-01`) and the
   release E2E on PRs into master that touch code. On any other branch:
-  `gh workflow run CI --ref <branch>`.
+  `gh workflow run CI --ref <branch>`. Windows is not in the matrix: llm-wiki
+  does not support it yet, and the cross-platform roadmap owns that.
 
+Measured on `ubuntu-latest` with a warm cargo cache, `just verify` as the fast
+check (`e32a7b3`, 2 min 53 s for the whole job):
+
+| Step | Time | In `just fast-check` |
+| --- | --- | --- |
+| Setup (checkout, toolchain, cache, tools) | 29 s | yes |
+| fmt | under 1 s | yes |
+| `cargo test --workspace` (13 s of it compiling) | 67 s | quick files only |
+| of which `search_commands` | 21 s | no |
+| of which `install` | 13 s | no |
+| of which `properties` | 7 s | no |
+| of which `mcp_install`, `post_install` | 4 s | no |
+| `tools/release-e2e` tests | 9 s | yes |
+| clippy-strict | 5 s | yes |
+| `cargo insta test --check` (the whole suite again) | 55 s | quick files only, once |
+| audit-legacy | under 1 s | yes |
 ## Target
 
 - **PRs into `develop`, and pushes to `develop`:** one job on `ubuntu-latest`
