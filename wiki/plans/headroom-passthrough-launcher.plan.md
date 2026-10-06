@@ -1,7 +1,7 @@
 # Plan: `llm-wiki headroom` — env-injecting passthrough to the Headroom binary
 
 - Document Class: Plan
-- Status: Implemented; live Headroom field-test repair active
+- Status: Blocked
 - Date: 2026-07-18
 - Category: Agent runtime, Headroom, developer ergonomics, CLI
 - Revises: the Phase 2 command design in
@@ -29,6 +29,23 @@
   - `wiki/checklists/mcp-field-test.checklist.md`
   - `wiki/references/headroom-context-compression.reference.md`
   - `wiki/plans/headroom-mcp-field-test-repair.plan.md`
+
+## Where This Stands (2026-10-06)
+
+Done: the passthrough launcher and its tests, recorded in "Implementation
+Evidence (2026-07-18)" below and on master (`src/cli.rs`, `src/headroom.rs`,
+`tests/headroom.rs`). Acceptance items 1 to 4 hold.
+
+Still pending, and the reason this plan is Blocked rather than Completed:
+acceptance item 5, the Headroom launch smoke
+(`wiki/checklists/headroom-launch-smoke.checklist.md`). The first live run did
+not pass it ("Live Field-Test Outcome (2026-07-18)" below), and no later run
+records it passing.
+
+It waits on `wiki/plans/headroom-mcp-field-test-repair.plan.md` (Active), whose
+Phase 7 reruns that smoke. When that rerun records the smoke's gated facts, this
+plan completes; the full-payload behavior stays observational here, as
+"Acceptance" says.
 
 ## Why (the defect this corrects)
 

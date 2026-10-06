@@ -1,7 +1,7 @@
 # Plan: Headroom No-Legacy Reduction + `llm-wiki headroom wrap`
 
 - Document Class: Plan
-- Status: Implemented
+- Status: Completed
 - Date: 2026-07-07
 - Category: Agent runtime, Headroom, wiki reduction, developer ergonomics
 - Implements: wiki/decisions/headroom-single-posture-mcp-first.decision.md (Accepted; amended 2026-07-07)
@@ -29,6 +29,15 @@ current surface is `llm-wiki headroom [--headroom-bin <PATH>]
 [--unsafe-mcp-read] [--] <headroom args...>`: it exports the same guard env and
 then execs the real `headroom` binary, forwarding `wrap codex`, `proxy --port
 8790`, or any other Headroom-owned args to Headroom itself.
+
+## Where This Stands (2026-10-06)
+
+Completed 2026-07-07: all three phases and the acceptance list in "Sequence &
+Acceptance" are done, with the evidence in "Implementation Evidence
+(2026-07-07)". The status is a bare `Completed`, not `Completed (master)`,
+because master no longer holds all of it: Phases 0 and 1 still stand there,
+but Phase 2's `llm-wiki headroom wrap` command does not, since the passthrough
+launcher replaced it (see the Supersession Note). Nothing is pending here.
 
 ## Principle
 
