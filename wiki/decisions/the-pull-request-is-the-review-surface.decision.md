@@ -7,9 +7,8 @@
 - Scope: Where a review lives, the blind feedback review every PR gets first,
   what counts as the owner's verdict, and what a merge needs.
 - Sources:
-  - `raw/handover/2026-10-06-riseon-handover-poman-and-coordination.md`,
-    section 6 (the blind reviews of riseon's PRs; a PASS given in
-    conversation)
+  - The owner's decisions of 2026-10-06, and what riseon's blind reviews of
+    that day found; a PASS given in conversation
   - RepForge's decision of the same name (2026-09-19, amended 2026-10-03 and
     2026-10-06), carried over through riseon
 - Related:
