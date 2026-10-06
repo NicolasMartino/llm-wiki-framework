@@ -5,8 +5,8 @@
 - Date: 2026-10-06
 - Category: Project init, MCP prompts, way of working
 - Scope: Carry out P19 of the framework roadmap, as the accepted proposal
-  describes it: first, `AGENTS.md` (and, if the owner approves, `CLAUDE.md`
-  and `project_guidelines.md`) gets one marked block that init owns and
+  describes it: first, `AGENTS.md`, `CLAUDE.md`
+  and `project_guidelines.md` each get one marked block that init owns and
   refreshes, and init leaves everything outside it as it is; then an init pack writes the coordinated way
   of working's files, an `operations_setup` MCP prompt holds the setup steps,
   and a built-in MCP resource carries the same steps.
@@ -116,10 +116,9 @@ Whoever does the work rechecks each point against the commit they start from.
 ### The block that init owns
 
 Decided by the owner on 2026-10-06 for `AGENTS.md` ("a needle, a part of the
-agents.md file that is dedicated to llm wiki"). The same block in `CLAUDE.md`
-and `project_guidelines.md` is recommended here and is the owner's to approve
-("Open For The Owner", choice 1); the rules below are written for all three
-and shrink to `AGENTS.md` alone if the owner says no. This changes how init
+agents.md file that is dedicated to llm wiki"), and on the same day for
+`CLAUDE.md` and `project_guidelines.md` as well ("The Owner's Choices"): the
+rules below apply to all three root schema files. This changes how init
 writes the root schema files for every project, with or without the
 operations pack.
 
@@ -401,23 +400,17 @@ The owner's PASS on the integration PR (phases 2 to 4) that meets "Done
 When", merged into `develop`, after phase 1's PR has merged. The integration
 PR also sets P19 Completed.
 
-## Open For The Owner
+## The Owner's Choices
 
-Asked on 2026-10-06; the work starts once the owner has approved this plan
-and answered. When the owner answers, the answer is written here with its
-date, and the text that points here follows it.
-
-1. **The same block in `CLAUDE.md` and `project_guidelines.md`.** The
-   owner's answer names `AGENTS.md`. Recommended: the same block in the other
-   two root schema files, because a rerun rewrites them whole today too, so
+1. **The same block in `CLAUDE.md` and `project_guidelines.md`.** Decided by
+   the owner on 2026-10-06: yes. The owner's first answer named `AGENTS.md`;
+   the same block goes in the other two root schema files, because a rerun rewrites them whole today too, so
    a project's own notes in `CLAUDE.md` or its additions to the guidelines
    are lost the same way, and one rule for the three files is simpler to
-   keep and to test than two. The alternative: `CLAUDE.md` and
-   `project_guidelines.md` stay whole files that a rerun rewrites, and the
-   block's rules apply to `AGENTS.md` alone.
+   keep and to test than two.
 
-Decided on 2026-10-06 and written into the Target: build it now ("asap");
-the block in `AGENTS.md`; the pack's name, `operation-manager`.
+Also decided on 2026-10-06 and written into the Target: build it now
+("asap"); the block in `AGENTS.md`; the pack's name, `operation-manager`.
 
 ## Out Of Scope
 
