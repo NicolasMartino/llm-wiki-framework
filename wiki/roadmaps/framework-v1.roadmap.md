@@ -1146,3 +1146,22 @@ Excluded:
 
 Proof:
 - the plan's Done When
+
+### P22 - The Dependency Gate Covers Dev-Dependencies
+
+Status: Draft
+Promise: The strict gates' dependency check (`cargo deny`) covers the strict
+crates' dev-dependencies too, so a banned or duplicated crate pulled in only by
+tests cannot slip past it.
+Depends On: PM1 (poman roadmap)
+Execution Plan: Not created yet (a short plan comes before its worker)
+
+Included:
+- the leftover the blind review of PR #28 named (2026-10-06): cargo-deny 0.20.2
+  skips dev-dependencies, so the deny gate is partial
+
+Excluded:
+- llm-wiki's own modules (PM8)
+
+Proof:
+- the plan's Done When
