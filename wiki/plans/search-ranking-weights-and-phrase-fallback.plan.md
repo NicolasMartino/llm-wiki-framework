@@ -271,5 +271,5 @@ All four decided by the owner on 2026-10-06, each as recommended.
   sees.
 - Compact search paging (P17, issue #29) and the stale-index warning
   (issue #36): their own plans.
-- The score scale and its printing, unless the owner chooses otherwise above.
+- The score scale and its printing (the owner's choice, above).
 - Refreshing `tests/fixtures/search-eval/wiki/`.
