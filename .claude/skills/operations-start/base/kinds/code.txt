@@ -1,0 +1,23 @@
+This task's kind: a code change. The lines below add to the spec above; where they say "the issue", "the plan" or "the spec page", the spec names it.
+
+Files, as well as the spec's:
+- The spec or decision page that describes this behaviour: update it in the same PR, so the wiki never describes code that does not exist.
+- Tests for the behaviour you add or change, where this crate keeps its tests today.
+
+Context, as well as the spec's:
+- The plan says what this work proves; keep to it, and say in the PR where you could not.
+- A change to templates/ (only when the spec names it) changes what every project gets: list each snapshot that changes (`cargo insta`) in the PR body, with why.
+- Status is the plan's, kept by the coordinator; write no status into any other page.
+- Comments say why, not what; add one only when it says what the names and types do not.
+
+Done when, as well as the spec's:
+- A draft PR titled "<Track> · <Area>: <imperative summary>" (or "<Area>: …") closes the issue. Its body has: ## Why, ## What changed, ## Gates (filled after the run), ## Leftovers ("None" if none), and a "Closes #<n>" line.
+
+Report (worker_done, 10 lines max):
+- the PR link and head SHA;
+- what behaviour changed, in one or two lines, and which wiki page it updated;
+- the blind review's findings and what the fix round did with each P1 and P2;
+- the gate log path, the `just verify` result, the CI result, and the gate comment link;
+- any P3, leftover or llm-wiki pain point for the coordinator to file.
+
+Followed by: shared/rules.txt, then shared/full-gates.txt.

@@ -1,0 +1,24 @@
+This task's kind: settling a design with the owner, no code. The lines below add to the spec above; where they say "the issue", the spec names it.
+
+Files, as well as the spec's:
+- You change no file in the repository. Your output is one comment on the issue; the coordinator turns what it settles into wiki pages and roadmap entries.
+- Read anything.
+
+Out of scope, as well as the spec's:
+- Code, wiki, tests; commits and pushes. A later worker builds whatever is decided here.
+
+Context, as well as the spec's:
+- Settle the spec's questions a few at a time, numbered from the Roman numeral the spec gives.
+- Study first: read the decisions, the specs and the code the design touches until you can explain how it works today with one concrete example, then start with the owner.
+
+Done when, as well as the spec's:
+- The owner said in this terminal that they approve the comment draft, shown to them in full before it is posted.
+- One comment on the issue records each settled point in plain language, names the wiki decisions it amends and the passage in each, and lists what is still open.
+
+Report (worker_done, 10 lines max):
+- the comment link;
+- each settled point, one line each;
+- the decisions to amend, and the roadmap entries it proposes;
+- anything still open, where the owner overruled you, and the last Roman numeral you used.
+
+Followed by: shared/talking-with-the-owner.txt, then shared/rules.txt, then shared/no-file-changes.txt.

@@ -1,0 +1,8 @@
+- No PR is ready for review until every gate ran and passed: `just verify` in this worktree with zero skips, and CI passing on the PR's head (`gh pr checks <n>`; CI also runs coverage and the three operating systems). A skip is not a pass and not an acceptable caveat. Open PRs as draft; the coordinator marks them ready after checking your gate output.
+- The review ask: once your change is pushed and the draft PR is open, and before your gate run, ask the coordinator (orchestration ask) "ready for review: PR #<n> at <short sha>" and wait. Its answer carries the blind review's findings, as your one fix round: fix every P1 and P2; fix each P3 or name it in your report for the coordinator to file; push; then run the gates. Skip the ask when the spec says this is a fix round: the review already ran.
+
+Done when, as well as the spec's list, the full gates:
+- the review ask was answered and its fix round pushed (or the spec says this is a fix round);
+- then `just verify` on the PR's head exits 0 with nothing skipped; keep its output in a log file in your scratchpad and give the coordinator the path;
+- CI on that head has passed (`gh pr checks <n> --watch` until it settles); a failing check is fixed, not explained;
+- post the summary as a comment headed `## Full gate run — <short sha>`: each `just verify` step and its result, and the CI checks with theirs.

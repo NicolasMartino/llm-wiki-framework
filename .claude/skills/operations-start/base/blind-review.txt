@@ -1,0 +1,23 @@
+Goal: Review pull request #<PR> of NicolasMartino/llm-wiki-framework at its current head, cold, and post your feedback on it as one PR comment. You review; you change no code.
+
+Read only what the PR points to: `gh pr view <PR> --comments`, `gh pr diff <PR>`, the issues it closes and the comments those rest on, the repository's AGENTS.MD (read wiki/ and raw/ pages as it says), and any file the change touches or depends on. Check the code out in this worktree with `gh pr checkout <PR> --detach` (the PR's branch is usually checked out in its worker's worktree, and a detached checkout holds no branch) to read it, run its tests, or run anything that touches no shared resource.
+
+What to check, in this order:
+1. Does the change do what its issue (and the owner's comments that issue rests on) asks, all of it and nothing else? Name anything missing, and anything changed outside the issue.
+2. Correctness: bugs, wrong edge cases, states the code lets happen that it should not, data that can be lost, behaviour that differs between the places that must agree. Give each one a concrete case: the input or steps, and what goes wrong.
+3. Tests: is each behaviour the issue asks for covered by a test that would fail if it broke? Run the tests for the code the PR changes (`cargo test`, and `cargo insta test --check` when templates or output change). If the PR changes templates/, is each snapshot change intended and explained?
+4. The gates: if the PR's latest `## Full gate run` comment names the current head, check that `just verify` had nothing skipped or failed and that CI passed on that head (`gh pr checks <PR>`). If no gate run has happened on this head yet, say what the gates must cover for what it changes. A PR that changes wiki pages only runs no gates: check instead that what it says about the repository matches the code, the other pages and the issues it names.
+5. Quality, briefly: names, dead code, duplication, comments that say what the code does instead of why. Only what matters.
+
+The comment you post:
+- Heading: `## Feedback review — <short head SHA>`, then a first line: "A blind review: feedback for the fix round, not the owner's verdict." Never use the words PASS or FAIL anywhere in the comment: a verdict is the owner's, and this comment is posted under the owner's login.
+- Findings first, most serious first, each with a severity (P1 blocks merging, P2 should be fixed before merging, P3 can follow later), a file and line, the concrete failing case, and what would fix it in a sentence. Then one short line per thing you checked and found sound.
+- Plain words. No watermark, signature, footer or branding of any kind, and no mention of AI, models, agents, or the tools that ran the review.
+- Write it to a file in your session's scratchpad (never inside the worktree) and post it with `gh pr comment <PR> --body-file <file>`, once.
+
+Rules:
+- Change no file in the repository, push nothing, merge nothing, approve nothing, edit no issue or board.
+- Do not start workers, subagents or background agents.
+- If the PR cannot be reviewed (it does not build, or its head moved while you read), say so in the comment and stop.
+
+Report (worker_done, 10 lines max): the comment link, the head SHA reviewed, and the count of findings by severity with each P1 and P2 in one line.

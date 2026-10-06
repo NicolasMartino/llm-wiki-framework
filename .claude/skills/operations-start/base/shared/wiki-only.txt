@@ -1,0 +1,2 @@
+- This PR is wiki-only: no local gate run (CI still runs on it). Open it as draft; the coordinator marks it ready after its blind review.
+- The review ask: once the PR is open, ask the coordinator (orchestration ask) "ready for review: PR #<n> at <short sha>" and wait. Its answer carries the blind review's findings, as your one fix round: fix every P1 and P2; fix each P3 or name it in your report for the coordinator to file; push; then report. Skip the ask when the spec says this is a fix round: the review already ran.

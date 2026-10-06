@@ -1,5 +1,27 @@
 # Wiki Log
 
+## [2026-10-06] create | Development workflow: plans as the record, a board as their view, one blind review per PR
+
+Started the coordinated way of working carried over from RepForge and riseon,
+adapted to the owner's later decisions in the riseon handover: the repository
+is the truth (every deliverable a roadmap entry, a plan before any code or
+tooling worker, the plan's Status the record, the GitHub board only a view with
+the plan statuses as columns), work in flight is a pushed branch, and every PR
+gets one blind feedback review before the owner's verdict. Added the
+coordinator's checklists and the `/operations`, `/operations-start` and
+`/operations-land` skills with their worker briefs, the setup plan the next
+session follows (board, ids, wiki search for this repository, Orca, the
+handover's ingest), per-worktree wiki search through `orca.yaml`, a
+commit-message hook that strips AI trailers, and `just branch-status`, which
+already reports four plans whose status is outside the vocabulary.
+
+Pages affected: `AGENTS.MD`, `wiki/decisions/work-is-recorded-in-the-repository.decision.md`,
+`wiki/decisions/work-in-flight-is-a-pushed-branch.decision.md`,
+`wiki/decisions/the-pull-request-is-the-review-surface.decision.md`,
+`wiki/checklists/operation-manager.checklist.md`,
+`wiki/checklists/worker-briefs.checklist.md`,
+`wiki/plans/development-workflow-setup.plan.md`, `wiki/index.md`, `wiki/log.md`.
+
 ## [2026-08-01] update | Claude production MCP 0.2.15 field-test review
 
 Ingested the user-supplied Claude production MCP field-test results for

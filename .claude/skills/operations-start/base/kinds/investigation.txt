@@ -1,0 +1,23 @@
+This task's kind: an investigation. The lines below add to the spec above; where they say "the issue", the spec names it.
+
+Files, as well as the spec's:
+- You change no file in the repository. Your output is one comment on the issue.
+
+Out of scope, as well as the spec's:
+- Fixing what you find: say what the fix would be and where; a later worker does it.
+
+Context, as well as the spec's:
+- Keep to the spec's time box. When it runs out, post what you have.
+- Measure, don't estimate: every number in the comment comes with the command that produced it.
+- If the comment would pass GitHub's 65,536-character limit, split it in two, the first saying the second follows.
+
+Done when, as well as the spec's:
+- One comment on the issue answers every point in the issue, with one of: the answer; "no" with the reason; "blocked" with what blocks it; or "cause not found" with every cause ruled out and how.
+- It links each issue, PR or file it cites.
+
+Report (worker_done, 10 lines max):
+- the comment link;
+- the answer in one line;
+- the points it could not settle, and what would settle them.
+
+Followed by: shared/rules.txt, then shared/no-file-changes.txt.

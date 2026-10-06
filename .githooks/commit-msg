@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+#
+# Removes AI attribution trailers from every commit message, whoever wrote it.
+#
+# The settings that produce them live in the tool, not the repository -- and a
+# tool setting is per-machine, per-user, and silently reverts when a config is
+# reset or a different client is used. This hook is the repository's own answer:
+# a commit made here cannot carry the trailer, regardless of what generated it.
+#
+# It strips rather than refuses. A rejected commit loses the message the author
+# just wrote, for a line no human typed and nobody wants -- so the hook fixes
+# the message and says on stderr that it did.
+#
+# `git commit -n` skips it. That is git's rule, not a gap this could close.
+#
+# No bash 4: macOS ships bash 3.2, and `#!/usr/bin/env bash` finds it on a
+# machine with nothing newer.
+set -uo pipefail
+
+msg_file="${1:-}"
+[ -n "$msg_file" ] && [ -f "$msg_file" ] || exit 0
+
+before=$(wc -c < "$msg_file")
+
+# The second `sed` drops the blank lines the first one leaves behind: removing a
+# trailer block from the end of a message otherwise leaves it ending on the
+# blank line that separated the body from it.
+sed -E -e '/^[Cc]o-[Aa]uthored-[Bb]y:[[:space:]]*Claude/d' \
+       -e '/^Claude-Session:[[:space:]]*http/d' \
+       -e '/Generated with \[?Claude Code/d' \
+       -e '/^🤖/d' \
+       "$msg_file" \
+  | sed -e :a -e '/^\n*$/{$d;N;};/\n$/ba' > "$msg_file.stripped"
+mv "$msg_file.stripped" "$msg_file"
+
+after=$(wc -c < "$msg_file")
+if [ "$before" != "$after" ]; then
+  echo "commit-msg: removed AI attribution from the commit message" >&2
+fi
+exit 0

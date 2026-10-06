@@ -1,0 +1,22 @@
+# Orca reads this file for every worktree it makes or removes for this repository.
+# Why each line is here: wiki/checklists/operation-manager.checklist.md, "Worktrees".
+
+# A worker's agent starts once the setup script has finished, so its wiki search
+# works from its first command.
+setupAgentStartupPolicy: wait-for-setup
+
+# Each script takes the worktree's copy of wiki-worktree.sh, or the main
+# checkout's when the worktree's branch predates it, and never fails: a failed
+# setup fails the worker's start, a failed archive blocks the removal.
+scripts:
+  setup: |
+    for d in "$ORCA_WORKTREE_PATH" "$ORCA_ROOT_PATH"; do
+      if [ -x "$d/tools/wiki-worktree.sh" ]; then "$d/tools/wiki-worktree.sh" register; break; fi
+    done
+    true
+  # Runs only when the removal passes --run-hooks (orca worktree rm --run-hooks).
+  archive: |
+    for d in "$ORCA_WORKTREE_PATH" "$ORCA_ROOT_PATH"; do
+      if [ -x "$d/tools/wiki-worktree.sh" ]; then "$d/tools/wiki-worktree.sh" forget; break; fi
+    done
+    true

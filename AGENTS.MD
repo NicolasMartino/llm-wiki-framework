@@ -75,6 +75,62 @@ the management system. When working here:
 - The ultimate proof: a fresh agent in a fresh project, using only
   these specs, can bootstrap and maintain a self-managing wiki.
 
+## How Work Runs
+
+The owner decides. A coordinating session (the operation manager) turns the
+owner's go into roadmap entries, plans, issues and Orca workers, starts each
+PR's blind review, lands PRs on the owner's PASS, and keeps the plans and the
+board true. It writes no product code.
+
+- **First session here?** If `wiki/checklists/operation-manager.checklist.md`,
+  "The Board", says "Not set yet", follow
+  `wiki/plans/development-workflow-setup.plan.md` first, with the owner's go.
+- **Coordinating:** load `/operations`, then `/operations-start <issue>` to
+  start a worker and `/operations-land <PR>` to land its PR. The rules and the
+  reason for each are in `wiki/checklists/operation-manager.checklist.md`; what
+  each worker is told, and why, in `wiki/checklists/worker-briefs.checklist.md`.
+- **The repository is the truth**
+  (`wiki/decisions/work-is-recorded-in-the-repository.decision.md`): every
+  deliverable is a roadmap entry, a code or tooling deliverable has its plan
+  before its worker starts, the plan's `Status` is where the work stands, and
+  the GitHub board only shows it.
+- **Work in flight is a branch on `origin`**, not a worktree
+  (`wiki/decisions/work-in-flight-is-a-pushed-branch.decision.md`). A plan under
+  way names its branch (`- Branch: \`<branch>\``), and a plan completed from now
+  on says where its proof holds: `Completed (master)`, `(local)` or `(spike)`.
+  `just branch-status` checks both against `origin`.
+- **Every PR is reviewed twice**: one blind feedback review that never gives a
+  verdict, then the owner's verdict, a PR comment with PASS or FAIL in its
+  heading (`wiki/decisions/the-pull-request-is-the-review-surface.decision.md`).
+- **Every change goes through a PR**, ingest and lint included, and the
+  coordinator writes the log entry at merge, at the top of `wiki/log.md` in its
+  usual form. Where "Operations" above says "append to `wiki/log.md`" or "fix
+  issues directly", that is how it happens here. The exceptions are the setup
+  plan's two commits and the coordinator's status-only commits (plans'
+  `Status` and `Branch` lines), which go straight to master.
+- **A worker** follows its spec and the rules pasted under it; it never edits
+  `wiki/log.md`, this file, a plan's `Status` or `Branch` lines, or
+  `templates/` unless its spec names it, never merges or releases, and never
+  starts workers of its own.
+- **Worktrees:** Orca makes them, and `orca.yaml` gives each its own wiki
+  search (`tools/wiki-worktree.sh`); remove one with
+  `orca worktree rm --run-hooks`.
+- `Sources` may also cite an owner's decision with its date, or an issue or PR.
+
+## Commits And GitHub
+
+- **Titles:** an issue in a track `<Track> · <Area>: <what>`, a track issue
+  `<Track> track: <what>`, any other issue `<Area>: <what>`. A PR, and so its
+  squash commit, takes the pattern of the issue it closes.
+- **No mention of AI, models, agents or the tools that do the work** in commit
+  messages or anywhere on GitHub, folder names included: no footer, no
+  trailer, no path on anyone's machine. This repository is public. Repository
+  files may name tools. `.githooks/commit-msg` strips the usual trailers
+  (enabled with `git config core.hooksPath .githooks`), and
+  `.claude/settings.json` turns Claude Code's attribution off.
+- **Backlog means a roadmap entry** and its issue on the board; a line in a
+  chat or a plan alone gets lost.
+
 ## Read-Only Access Contract For `wiki/` And `raw/`
 
 These rules keep `wiki/` and `raw/` provenance exact, and keep them safe if a

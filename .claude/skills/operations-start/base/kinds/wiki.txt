@@ -1,0 +1,29 @@
+This task's kind: a wiki PR. The lines below add to the spec above; where they say "the issue", the spec names it.
+
+Files, as well as the spec's:
+- Recheck the spec's list of wiki pages with `llm_wiki_search` for the subject and read each page with `llm_wiki_read`; without the LLM Wiki MCP server, fall back as AGENTS.MD, "How To Orient", says.
+- wiki/index.md: its entry for any page added, renamed or archived.
+
+Out of scope, as well as the spec's:
+- Code and infra.
+- wiki/log.md, AGENTS.MD, and plans' `Status` and `Branch` lines: the coordinator writes the log entry at merge, keeps the statuses, and makes AGENTS.MD changes itself. If AGENTS.MD needs a line, write the exact line in the PR body.
+- templates/, unless the spec names it: it is the framework's output, not this wiki.
+- Changing a rule another page owns: point to that page instead of restating it.
+
+Context, as well as the spec's:
+- Every page keeps the wiki's metadata block (AGENTS.MD, "Conventions", and `templates/base/project_guidelines.md`).
+- Every claim this PR moves or keeps about the code is rechecked against the code on the commit the spec names. A wrong claim you cannot fix here: name it in your report for the coordinator to file.
+- The owner's writing rules: plain, concrete language; grouped bullet lists, never wide tables; no list of code to change; any list of impacts says plainly it must be rechecked by whoever does the work.
+
+Done when, as well as the spec's:
+- wiki/index.md lists every page added or renamed.
+- After adding, moving or renaming pages, refresh this worktree's search index (`~/.llm_wiki/bin/llm-wiki index`, run in the worktree) so your own searches see them.
+- A draft PR titled "<Track> · Wiki: <imperative summary>" (or "Wiki: …") closes the issue. Its body lists each page changed with one line on why, and any AGENTS.MD line proposed.
+
+Report (worker_done, 10 lines max):
+- the PR link and head SHA;
+- pages changed, one line each;
+- the blind review's findings and what the fix round did with each P1 and P2;
+- any AGENTS.MD line proposed, and any wrong claim for the coordinator to file.
+
+Followed by: shared/rules.txt, then shared/wiki-only.txt.

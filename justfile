@@ -143,3 +143,111 @@ release-e2e-linux-infra-down stack="e2e":
 git-summary:
     git status --short --branch
     git log --oneline --decorate --max-count=14
+
+# See wiki/decisions/work-in-flight-is-a-pushed-branch.decision.md.
+# What is in flight, and whether the plans agree with origin.
+branch-status:
+    #!/usr/bin/env bash
+    set -uo pipefail
+    cd "{{ justfile_directory() }}"
+    ok=0
+    say() { printf '  %-9s %-30s %s\n' "$1" "$2" "$3"; case "$1" in STALE|UNPUSHED) ok=1 ;; esac; return 0; }
+
+    # `origin` is the authority, not `git worktree list`, which one machine alone sees; see
+    # `wiki/decisions/work-in-flight-is-a-pushed-branch.decision.md`.
+    remotes=$(mktemp); trap 'rm -f "$remotes"' EXIT
+    if out=$(GIT_SSH_COMMAND="ssh -o BatchMode=yes" git ls-remote --heads origin 2>/dev/null); then
+      [ -z "$out" ] || printf '%s\n' "$out" | sed 's#.*refs/heads/##' > "$remotes"
+      origin_note="live"
+    # The remote is SSH; without the key's passphrase, ask GitHub through gh.
+    elif out=$(gh api "repos/{owner}/{repo}/branches" --paginate --jq '.[].name' 2>/dev/null); then
+      printf '%s\n' "$out" > "$remotes"
+      origin_note="live, through gh"
+    else
+      git for-each-ref --format='%(refname:lstrip=3)' refs/remotes/origin \
+        | grep -vx HEAD > "$remotes"
+      origin_note="unreachable, using refs from the last fetch"
+    fi
+    on_origin() { grep -qx "$1" "$remotes"; }
+
+    plan_status() { awk -F': ' '/^- Status:/{print $2; exit}' "$1"; }
+    plan_branch() { awk -F'`' '/^- Branch: /{print $2; exit}' "$1"; }
+    plans() { find wiki/plans -maxdepth 1 -name '*.plan.md' 2>/dev/null; }
+
+    # A plan claiming a branch must also be live. Matching `Branch:` alone would
+    # accept a Draft plan and report it as in flight.
+    live_plan_for() {
+      local want="$1" f st
+      while IFS= read -r f; do
+        [ "$(plan_branch "$f")" = "$want" ] || continue
+        st=$(plan_status "$f")
+        case "$st" in Active|Blocked) printf '%s\t%s\n' "$f" "$st"; return 0 ;; esac
+      done < <(plans)
+      return 1
+    }
+
+    echo "branches on origin ($origin_note)"
+    while IFS= read -r branch; do
+      [ -n "$branch" ] || continue
+      [ "$branch" = "master" ] && { say ok master "the base"; continue; }
+      if hit=$(live_plan_for "$branch"); then
+        say ok "$branch" "-> $(basename "${hit%%$'\t'*}") [${hit##*$'\t'}]"
+      else
+        say "no plan" "$branch" "answers to an issue, or needs a plan's Branch: line (see the board)"
+      fi
+    done < "$remotes"
+
+    echo ""
+    echo "plans naming a branch"
+    while IFS= read -r plan; do
+      branch=$(plan_branch "$plan"); [ -n "$branch" ] || continue
+      st=$(plan_status "$plan")
+      case "$st" in Active|Blocked) ;; *) continue ;; esac
+      if on_origin "$branch"; then
+        say ok "$(basename "$plan")" "$branch [$st]"
+      else
+        say UNPUSHED "$(basename "$plan")" "$st, names $branch, which origin does not have"
+      fi
+    done < <(plans)
+
+    echo ""
+    # Informational: a worktree is a convenience on one machine, and its branch
+    # counts as in flight only once it is pushed. An unpushed branch is work no
+    # other machine can see or continue.
+    echo "worktrees on this machine"
+    git worktree list --porcelain | awk '
+      /^worktree /   { w = substr($0, 10); b = "(detached)" }
+      /^branch /     { b = substr($0, 8); sub("refs/heads/", "", b) }
+      /^detached$/   { b = "(detached)" }
+      /^$/           { if (w != "") { print w "\t" b; w = "" } }
+      END            { if (w != "") print w "\t" b }' \
+    | while IFS=$'\t' read -r dir branch; do
+        name=$(basename "$dir")
+        case "$branch" in
+          "(detached)") say ok "$name" "detached HEAD" ;;
+          *) on_origin "$branch" \
+               && say ok "$name" "$branch, pushed" \
+               || say local "$name" "$branch is not on origin yet" ;;
+        esac
+      done
+
+    echo ""
+    echo "status vocabulary"
+    # `templates/base/project_guidelines.md` governs: Draft, Active, Blocked,
+    # Completed, Superseded. A plan completed from now on also says where its
+    # proof holds, because "completed" alone is the question people ask.
+    while IFS= read -r plan; do
+      st=$(plan_status "$plan")
+      case "$st" in
+        Draft|Active|Blocked|Superseded) ;;
+        "Completed (local)"|"Completed (master)"|"Completed (spike)") ;;
+        # Plans completed before 2026-10-06 say only "Completed".
+        Completed) ;;
+        *) say STALE "$(basename "$plan")" "not a plan status: '$st'" ;;
+      esac
+    done < <(plans)
+
+
+    echo ""
+    [ "$ok" = 0 ] && echo "wiki and origin agree." || echo "Push what is missing, or update the plan Status: lines above."
+    exit "$ok"

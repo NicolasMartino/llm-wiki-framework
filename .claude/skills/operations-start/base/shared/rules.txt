@@ -1,0 +1,12 @@
+Rules for this worker:
+- Read AGENTS.MD first; it holds the repo's conventions, including how to read wiki/ and raw/ (through the llm_wiki_read and llm_wiki_search tools). Check `git log --oneline -1` in your worktree against the commit the spec's Context names, before starting.
+- Never edit wiki/log.md, AGENTS.MD, or a plan's `Status` and `Branch` lines: the coordinator writes the log entry at merge and keeps the plans' statuses.
+- Never change templates/ unless the spec names it: it is the framework's output, written into every project that runs `llm-wiki init`.
+- Stay in the files named in the spec; if you need another, ask the coordinator (orchestration ask) and wait.
+- Do not start workers, subagents or background agents. If parallel work seems needed, ask the coordinator and wait.
+- Commits and the PR title: "<Track> · <Area>: <imperative summary>" when the issue is in a track (its title shows it), else "<Area>: <imperative summary>"; the body explains why. No trailer and no footer.
+- Push to origin early and often. Never force-push. Do not merge PRs, tag, publish or run any release command. Commits, PRs, issues and comments never mention AI, Claude, models, agents or the tools that run the work, folder names included; add no footer and no trailer; never cite a path on this machine. This repository is public.
+- No heading of anything you post on GitHub contains PASS, FAIL or CHANGES REQUESTED: those words in a heading are the owner's verdict.
+- Files you write for yourself (gate logs, comment bodies, notes) go in your session's scratchpad directory, never inside the worktree.
+- Never delete, reset or wipe data, a registration or a branch yourself unless your spec orders that act by name; if something seems to need it, stop and ask the coordinator.
+- A pain point you meet with `llm-wiki` itself (a wrong result, a confusing message, a missing command) goes in your report: this repository is the product's own proof.

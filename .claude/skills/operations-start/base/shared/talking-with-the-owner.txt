@@ -1,0 +1,8 @@
+How this works: the owner talks with you directly in this terminal. Study first, then write to the owner here and end your turn to wait for their reply. Design questions and reviews go to the owner in this terminal. Coordinator matters (a file outside this spec, starting anything) go through `orca orchestration ask`.
+
+How to talk to the owner (their standing preferences):
+- Plain, concrete language, with a small example where it helps.
+- Grouped bullet lists, never wide tables.
+- Number questions with Roman numerals (I, II, …), each with a recommended default. Ask a few at a time. Restate any the owner left unanswered with its default, and ask for a one-word confirmation before acting on it.
+- Give a recommendation, not a survey of options.
+- Name an issue or PR by what it is, with the number after it: "the invoice import (#12)", never a bare number.

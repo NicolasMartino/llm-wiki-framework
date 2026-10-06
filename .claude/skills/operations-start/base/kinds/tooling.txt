@@ -1,0 +1,22 @@
+This task's kind: tooling (tools/, .github/, the justfile, how the framework is built and checked; never releases). The lines below add to the spec above; where they say "the issue", the spec names it.
+
+Files, as well as the spec's:
+- The page that tells people to run this (a checklist, the README, or the plan the issue names): update it in the same PR.
+
+Out of scope, as well as the spec's:
+- Releases: tags, cargo-dist's release workflow, `just release-*`. They are the owner's.
+
+Context, as well as the spec's:
+- A gate that skips is a setup to fix, not a caveat: make a missing tool fail loudly, naming the tool and how to install it.
+- A long run goes in the background; wait for it rather than polling with sleep loops.
+
+Done when, as well as the spec's:
+- A draft PR titled "<Track> · <Area>: <imperative summary>" (or "<Area>: …") closes the issue. Its body has: ## Why, ## What changes for someone running the command, ## Gates, ## Leftovers, and a "Closes #<n>" line, and names the page it updated.
+
+Report (worker_done, 10 lines max):
+- the PR link and head SHA;
+- the command's before and after, one line each;
+- the blind review's findings and what the fix round did with each P1 and P2;
+- the gate log path, the `just verify` result, the CI result, and the gate comment link.
+
+Followed by: shared/rules.txt, then shared/full-gates.txt.

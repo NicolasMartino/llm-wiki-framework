@@ -10,3 +10,8 @@
 __pycache__/
 *.pyc
 .tokensave
+
+# A worktree's own wiki search settings, written by tools/wiki-worktree.sh.
+/.llm_wiki/
+# Worktrees Claude's own subagents make; Orca's live outside the repository.
+/.claude/worktrees/
