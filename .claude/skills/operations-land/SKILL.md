@@ -1,12 +1,12 @@
 ---
 name: operations-land
-description: Land an llm-wiki-framework worker's PR as the operation manager - make sure its blind review ran, check the gates and CI, mark it ready, check the owner's verdict, merge, write the log entry and the plan's status, and clean up. Use for "/operations-land <PR>", when a worker reports done, or when asked to mark ready, merge or clean up after a PR.
+description: Land an llm-wiki-framework worker's PR as the operation manager - make sure its blind review ran, check the gates and CI, mark it ready, check the owner's verdict, merge, write the log entry, move the board, and clean up. Use for "/operations-land <PR>", when a worker reports done, or when asked to mark ready, merge or clean up after a PR.
 ---
 
 # Operations: land a PR
 
 Steps: blind review → gate check → ready → verdict → check it yourself → merge
-→ log and status → clean-up. The rules and their reasons are in
+→ log and board → clean-up. The rules and their reasons are in
 `wiki/checklists/operation-manager.checklist.md`, "Landing A PR". Load
 `/operations` first if this session has not. An issue answered by a comment
 (an investigation, a design with the owner) lands by the checklist's "Landing
@@ -42,7 +42,12 @@ hears why. Workers are released when their report is read, not here
    failed verdict: `gh pr ready <n> --undo`, then a fix round; when it is
    pushed, come back to step 2.
 5. **Check it yourself.** Read the diff against the issue, the plan and its
-   Done when; a review can be wrong or incomplete. For a log PR, check every
+   Done when; a review can be wrong or incomplete. A PR with a plan marks it
+   `Completed (develop)` with its Branch line removed, and updates its roadmap
+   entry once the entry's work is all done (checklist, "The Board"); one that
+   does not goes back to its worker, or to a fix round, before merging. That
+   holds for a plan that was Active on `develop` before 2026-10-06 too: its
+   spec names the exception, and its own PR completes it. For a log PR, check every
    entry against the merges it records, in GitHub and in Git. Raise anything
    you find with the owner before merging.
 6. **Merge.**
@@ -59,15 +64,15 @@ hears why. Workers are released when their report is read, not here
    `develop`, its default branch), and close it with a pointer to the PR if it
    did not. The PR from `develop` into master merges with a merge commit
    instead (checklist, "Develop And Master").
-7. **The log and the status.** Add the merge's entry at the top of
-   `wiki/log.md` in this wiki's format, mark its plan Completed (the word after
-   it is in the checklist, "The Board") with the Branch line removed, and update its roadmap entry, all in a log PR
-   (checklist, "Landing A PR", has the commands); land that PR by these same
-   steps when it is ready. Then the issue to Completed on the board, and any
-   plan it blocked: unblock it in the repository first, then on the board. Not
-   for a log PR itself, nor for a piece merged into an integration branch. The
-   PR from `develop` into master gets one entry and changes no status
-   (checklist, "Develop And Master").
+7. **The log and the board.** Add the merge's entry at the top of
+   `wiki/log.md` in this wiki's format, in a log PR that carries only log
+   entries: the plan's status came with the PR itself (checklist, "Landing A
+   PR", has the commands); land that PR by these same steps when it is ready.
+   Then the issue to Completed on the board, and any plan it blocked: its
+   card back to Active, or Draft if no worker had started it, with the title
+   note off; the worker that picks it up sets the plan Active in its own PR. Not for a log PR itself, nor for a piece merged into an
+   integration branch. The PR from `develop` into master gets one entry and
+   changes no status (checklist, "Develop And Master").
 8. **Clean up.** The PR's worker and its reviewer were released when their
    reports were read; check
    `orca orchestration worker-list --run <R> --terminal-state reclaimable --json`

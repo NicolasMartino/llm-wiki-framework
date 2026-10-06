@@ -93,11 +93,14 @@ board true. It writes no product code.
   (`wiki/decisions/work-is-recorded-in-the-repository.decision.md`): every
   deliverable is a roadmap entry, a code or tooling deliverable has its plan
   before its worker starts, the plan's `Status` is where the work stands, and
-  the GitHub board only shows it.
+  the GitHub board only shows it. A plan's status changes in the PR that does
+  the work: Active with its Branch line in the first push, Completed before
+  the PR leaves draft; the coordinator commits no status and moves the board.
 - **Work in flight is a branch on `origin`**, not a worktree
   (`wiki/decisions/work-in-flight-is-a-pushed-branch.decision.md`). A plan under
-  way names its branch (`- Branch: \`<branch>\``), and a plan completed from now
-  on says where its proof holds: `Completed (develop)`, `(local)` or `(spike)`.
+  way names its branch (`- Branch: \`<branch>\``) on that branch, so `develop`
+  shows it as Draft until its PR merges, and a plan completed from now on
+  says where its proof holds: `Completed (develop)`, `(local)` or `(spike)`.
   `just branch-status` checks both against `origin`.
 - **Every PR is reviewed twice**: one blind feedback review that never gives a
   verdict, then the owner's verdict, a PR comment with PASS or FAIL in its
@@ -109,13 +112,12 @@ board true. It writes no product code.
 - **Every change goes through a PR**, ingest and lint included, and the
   coordinator writes the log entry at merge, at the top of `wiki/log.md` in its
   usual form. Where "Operations" above says "append to `wiki/log.md`" or "fix
-  issues directly", that is how it happens here. The exceptions are the setup
-  plan's two commits and the coordinator's status-only commits (plans'
-  `Status` and `Branch` lines), which go straight to `develop`.
-- **A worker** follows its spec and the rules pasted under it; it never edits
-  `wiki/log.md`, this file, a plan's `Status` or `Branch` lines, or
-  `templates/` unless its spec names it, never merges or releases, and never
-  starts workers of its own.
+  issues directly", that is how it happens here. The only exception is the
+  setup plan's two commits, which went straight to `develop`.
+- **A worker** follows its spec and the rules pasted under it; it sets its own
+  plan's `Status` and `Branch` lines in its PR, and never edits `wiki/log.md`,
+  this file, any other plan's status, or `templates/` unless its spec names
+  it, never merges or releases, and never starts workers of its own.
 - **Worktrees:** Orca makes them, and `orca.yaml` gives each its own wiki
   search (`tools/wiki-worktree.sh`); remove one with
   `orca worktree rm --run-hooks`.

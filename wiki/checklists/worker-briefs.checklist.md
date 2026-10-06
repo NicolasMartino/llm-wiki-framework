@@ -56,10 +56,9 @@ Every base text is followed by `base/shared/rules.txt`:
 
 - **Read AGENTS.MD first, and check the start commit**: a new worktree can
   start from a stale `develop`, and the worker is the last one who can see it.
-- **Never edit `wiki/log.md`, AGENTS.MD, or a plan's Status and Branch lines**:
-  the log is the rule most often broken when several workers run, a worker must
-  not rewrite the instructions it is reviewed against, and the plans' statuses
-  are the coordinator's record (`work-is-recorded-in-the-repository`).
+- **Never edit `wiki/log.md` or AGENTS.MD**: the log is the rule most often
+  broken when several workers run, and a worker must not rewrite the
+  instructions it is reviewed against.
 - **Never change `templates/` unless the spec names it**: it is the framework's
   output, written into every project that runs `llm-wiki init`.
 - **Stay in the spec's files; ask before any other**: only the coordinator sees
@@ -79,6 +78,21 @@ Every base text is followed by `base/shared/rules.txt`:
 
 ## The Add-Ons, And Why
 
+- **The plan's status** (`base/shared/plan-status.txt`), for every code,
+  tooling and wiki worker, right after the shared rules. It concerns the plan
+  of the work the PR does: the worker sets it Active with its Branch line,
+  and its roadmap entry and index line, in its first push; Blocked in the
+  same PR if the work stops to wait; Completed with the Branch line removed
+  before the PR leaves draft, and the roadmap entry Completed only when the
+  PR finishes everything the entry includes. It changes no other status. Why:
+  the owner wants a status to land in the PR that does the work, "so no
+  separate commit or PR" (2026-10-06), and the merge is what makes Completed
+  true (the operation manager checklist, "The Board").
+  - A PR that writes a plan leaves it Draft: the plan is not under way yet.
+  - A fix round leaves a Completed plan as it is: flipping it back to Active
+    would leave the PR saying Active if the round stopped early.
+  - A spec that names neither plan nor roadmap entry says so, and the part is
+    skipped.
 - **The full gates** (`base/shared/full-gates.txt`), for every kind that
   changes code or tooling:
   - `just verify` with zero skips, and CI passing on the PR's head (the fast
@@ -107,8 +121,8 @@ shared rules, and once it is done add a base text, a line in
 
 A change to the crates and their tests.
 
-- **Base text:** `base/kinds/code.txt`, then the shared rules and the full
-  gates.
+- **Base text:** `base/kinds/code.txt`, then the shared rules, the plan's
+  status and the full gates.
 - **Model:** Opus, medium. Opus, high to design a new boundary.
 - **Why its lines:** the spec or decision that describes the behaviour is
   updated in the same PR, so the wiki never describes code that does not
@@ -121,8 +135,8 @@ A change to the crates and their tests.
 A change to `tools/`, `.github/`, the justfile, or how the framework is built
 and checked. Not releases.
 
-- **Base text:** `base/kinds/tooling.txt`, then the shared rules and the full
-  gates.
+- **Base text:** `base/kinds/tooling.txt`, then the shared rules, the plan's
+  status and the full gates.
 - **Model:** Opus, medium.
 - **Why its lines:** the page that tells people to run the command is updated
   in the same PR; a gate that skips is a setup to fix, not a caveat.
@@ -143,8 +157,8 @@ A worker the owner talks to directly, to settle a design before any code.
 
 A change to wiki pages only, plans included.
 
-- **Base text:** `base/kinds/wiki.txt`, then the shared rules and the wiki-only
-  add-on.
+- **Base text:** `base/kinds/wiki.txt`, then the shared rules, the plan's
+  status and the wiki-only add-on.
 - **Model:** Opus, medium.
 - **Why its lines:** every claim a PR moves or keeps is rechecked against the
   code today, since a stale claim carried over once outlived its own review;

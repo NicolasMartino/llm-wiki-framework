@@ -19,4 +19,4 @@ Report (worker_done, 10 lines max):
 - the blind review's findings and what the fix round did with each P1 and P2;
 - the gate log path, the `just verify` result, the CI result, and the gate comment link.
 
-Followed by: shared/rules.txt, then shared/full-gates.txt.
+Followed by: shared/rules.txt, then shared/plan-status.txt, then shared/full-gates.txt.

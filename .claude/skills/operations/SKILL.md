@@ -27,9 +27,13 @@ do `wiki/plans/development-workflow-setup.plan.md` first, with the owner's go.
    id for every `worker-start`, `check` and `worker-list`.
 3. **Read the state from the repository, then GitHub**:
    - the roadmaps in `wiki/roadmaps/` and the plans' `Status` lines;
-     `just branch-status` checks the plans against the pushed branches;
+     `just branch-status` checks the plans against the pushed branches. A plan
+     in flight is still Draft on `develop`: read it on its branch
+     (`git show origin/<branch>:wiki/plans/<slug>.plan.md`) until
+     `just branch-status` reads each branch's own plans (issue #31);
    - the board: `gh project item-list 5 --owner NicolasMartino --limit 300 --format json`
-     (project 5; its ids are in the checklist, "The Board"); it should match the plans;
+     (project 5; its ids are in the checklist, "The Board"); it should match the plans as
+     their branches have them, not `develop` ("The Board");
    - open PRs, their draft state and review comments: `gh pr list`;
    - the run's workers and any unanswered asks:
      `orca orchestration worker-list --run <R> --json` and

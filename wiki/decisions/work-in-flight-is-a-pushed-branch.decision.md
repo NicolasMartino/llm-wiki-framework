@@ -13,6 +13,7 @@
     riseon
   - The owner's decision of 2026-10-06 that work lands on `develop`
     (`the-pull-request-is-the-review-surface.decision.md`, rule 6)
+  - The owner, 2026-10-06: a plan's status changes in the PR that does the work
 - Related:
   - `wiki/decisions/work-is-recorded-in-the-repository.decision.md`
   - `justfile`, recipe `branch-status`
@@ -28,9 +29,10 @@
 3. **Unpushed is invisible.** A branch that never reached `origin` cannot be
    seen, reviewed, continued or rescued by anyone else. Workers push early.
 4. **A plan whose work is under way names its branch**: `- Branch: \`<branch>\``
-   under `- Status: Active` or `- Status: Blocked`. The coordinator writes it
-   when the worker starts and removes it when the plan is Completed
-   (`wiki/checklists/operation-manager.checklist.md`, "The Board").
+   under `- Status: Active` or `- Status: Blocked`, on that branch: the
+   worker's first push sets it, and the same PR removes it when it marks the
+   plan Completed (`wiki/checklists/operation-manager.checklist.md`, "The
+   Board"). So `develop` shows the plan as Draft until the PR merges.
    `just branch-status` fetches `origin` and reads each pushed branch's plans
    from its own `origin/<branch>` ref. It fails (STALE) on a plan on the
    checkout it runs in that names another branch `origin` lacks, or names one
