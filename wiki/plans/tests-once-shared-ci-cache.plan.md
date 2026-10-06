@@ -1,7 +1,8 @@
 # Plan: Run The Tests Once And Share One CI Cache
 
 - Document Class: Plan
-- Status: Draft
+- Status: Active
+- Branch: `NicolasMartino/tests-once-15`
 - Date: 2026-10-06
 - Category: CI, development process
 - Scope: Make `just verify`, and the full CI jobs that run it, run the test

@@ -940,7 +940,7 @@ owner's.
 
 ### P13 - Run The Tests Once And Share One CI Cache
 
-Status: Draft
+Status: Active
 Promise: `just verify`, and the full CI that runs it, run the test suite once
 instead of twice, and the CI cache is saved only from `develop` and master, so
 every PR starts from `develop`'s cache.
