@@ -1,7 +1,8 @@
 # Plan: The Shared Page Reader And File Types
 
 - Document Class: Plan
-- Status: Draft
+- Status: Active
+- Branch: `NicolasMartino/pm2-build-46`
 - Date: 2026-10-06
 - Category: poman development
 - Scope: Carry out PM2 of the poman roadmap: the page reader moved from
