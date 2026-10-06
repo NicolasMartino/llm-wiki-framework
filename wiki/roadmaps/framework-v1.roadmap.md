@@ -977,7 +977,7 @@ Proof:
 
 ### P15 - Compact Search Honours Its Limit
 
-Status: Draft
+Status: Active
 Promise: `llm_wiki_search` with `compact` set returns as many results as its
 `limit` asks for, or says plainly how to get the rest, instead of a first page
 of three that reads as the limit being ignored.
@@ -1021,3 +1021,54 @@ Excluded:
 
 Proof:
 - the plan's Done When
+
+### P17 - Compact Search Pages Follow The Limit
+
+Status: Draft
+Promise: `llm_wiki_search` in compact mode returns as many results as its
+`limit` asks for by default, and says plainly when more exist.
+Depends On: P15
+Execution Plan: Not created yet (a short plan comes before its worker; the
+plan's PR also marks P15 Completed, its answer having landed)
+
+Included:
+- the fix the investigation of P15 named (issue #24, comment of 2026-10-06):
+  the compact page size defaults to `limit` instead of the constant 3
+  (`src/search/commands.rs`, `DEFAULT_COMPACT_SEARCH_PAGE_SIZE`), the reply
+  says when more results exist, both documented in the MCP tool's schema and
+  the spec, with a test
+
+Excluded:
+- ranking (P16)
+
+Proof:
+- the plan's Done When
+
+### P18 - A Plan's Status Lands In The PR That Does The Work
+
+Status: Draft
+Promise: A plan's status changes in the PR that does its work: the worker sets
+it Active with its Branch line in its first push and Completed before the PR
+leaves draft, and the merge makes it true. The coordinator commits no status,
+the log PR carries only the log, and `just branch-status` reads each branch's
+plans from its own `origin/<branch>`.
+Depends On: None
+Execution Plan: Not needed (the rules change is wiki-only; the recipe change is
+tooling, each its own issue)
+
+Included:
+- the owner's decision of 2026-10-06: "the status change should be part of the
+  PR that contains the work that is suppose to achieve this status change, so
+  no separate commit or PR"
+- AGENTS.MD, both checklists, the two workflow decisions, the operations
+  skills, the worker briefs' shared rules and a plan-status part for code,
+  tooling and wiki workers
+- `just branch-status` reading Branch lines from each branch's own ref
+
+Excluded:
+- statuses already on `develop`, which stay until their work merges
+
+Proof:
+- no page of the way of working tells the coordinator to commit a status, and
+  every brief for code, tooling and wiki work carries the plan-status part
+- `just branch-status` lists each pushed branch with the plan its own ref names

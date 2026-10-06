@@ -1,5 +1,47 @@
 # Wiki Log
 
+## [2026-10-06] merge | The owner's answers on poman's open questions
+
+Merged #23 (closes #21): deadline files land straight on the repository's main
+branch, master by default and settable, as a named exception in a repository
+that keeps them; the computed date is `should-start`, worked out backwards from
+each task's latest finish; `poman check` runs in an opt-in pre-push hook, in
+`poman push` refusing while it fails, and in CI; the release archive ships both
+binaries and `llm-wiki install` copies poman from beside itself. PM4 now also
+depends on PM6.
+
+Pages affected: `wiki/decisions/deadline-files-hold-one-deadline-each.decision.md`,
+`wiki/decisions/poman-lives-in-this-workspace.decision.md`,
+`wiki/decisions/llm-wiki-binary-distribution.decision.md`,
+`wiki/decisions/poman-tree-and-list-show-the-files.decision.md`,
+`wiki/decisions/poman-syncs-a-tracker-the-way-git-syncs-a-remote.decision.md`,
+`wiki/roadmaps/poman.roadmap.md`, `wiki/index.md`.
+
+## [2026-10-06] merge | The plan for poman's workspace and strict gates
+
+Merged #22 (closes #20): the plan for PM1 sets out the shared crate and the
+`poman` crate under every gate of the strictest-gates decision, one gate script,
+install and uninstall handling poman with no recorded poman ever orphaned, and
+one local release build holding both binaries. The owner answered its open
+choices the same day (the crate is `llm-wiki-core` with a `types` module;
+install refuses without poman; uninstall removes everything; the gate script
+runs in both CI checks; the first behaviour splits a wiki filename; no lint
+exceptions in tests), and its build started as #26.
+
+Pages affected: `wiki/plans/poman-workspace-and-strict-gates.plan.md`,
+`wiki/roadmaps/poman.roadmap.md`, `wiki/index.md`.
+
+## [2026-10-06] merge | The search eval test runs against a frozen wiki
+
+Merged #18 (closes #17): the search quality test now indexes a frozen copy of
+the wiki (`tests/fixtures/search-eval/wiki/`, taken at the last commit it passed
+on) instead of the live `wiki/`, with every query and expected page unchanged,
+so adding wiki pages can no longer turn the fast check red. The legacy audit
+leaves the frozen copy out.
+
+Pages affected: `wiki/plans/search-eval-test-frozen-wiki.plan.md`,
+`wiki/evals/search-backend-selection.eval.md`.
+
 ## [2026-10-06] merge | The way of working points at develop
 
 Merged #11 (closes #10): every rule, brief and skill of the way of working now
