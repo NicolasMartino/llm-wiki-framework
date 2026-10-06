@@ -34,15 +34,21 @@ view of it, nothing else.**
    waits on and what starts it. Wiki-only work, an investigation, or a design
    settled with the owner needs no plan of its own; its roadmap entry and its
    issue are enough. **A status changes in the PR that does the work**: Active,
-   with the branch, in its first push; Completed, with its roadmap entry,
-   before it leaves draft, made true by the merge. No separate commit or PR
-   changes a status; a settled investigation's or design's roadmap status goes
-   in the wiki PR that records its outcome.
+   with the branch, in its first push; Blocked, in the same PR, if its work
+   stops to wait on something; Completed before it leaves draft, made true by
+   the merge, with its roadmap entry once the entry's work is all done. No
+   separate commit or PR changes a status. A PR that writes a plan leaves it
+   Draft; a plan blocked before any worker starts stays Draft, its issue
+   carrying the blocker; a settled investigation's or design's roadmap status
+   goes in the wiki PR that records its outcome.
 3. **The board shows the plans.** Each deliverable has one issue on the
    project's board, whose body points to its roadmap entry and plan. The
    board's Status column has the plan statuses as its options, Draft, Active,
-   Blocked and Completed, and shows the plan's. When the board and the
-   repository disagree, the repository wins, and the board is corrected.
+   Blocked and Completed, and shows the plan's as the work's pushed branch has
+   it: `develop` shows a plan in flight as Draft until its PR merges, so a
+   card Active or Blocked is checked against `origin/<branch>`, not
+   `develop`. When the board and the repository read that way disagree, the
+   repository wins, and the board is corrected.
 4. **Review states stay on the pull request**, not on the board: a draft PR is
    being worked on or fixed, a ready PR waits for the owner, and the feedback
    review and the owner's verdict are comments on it

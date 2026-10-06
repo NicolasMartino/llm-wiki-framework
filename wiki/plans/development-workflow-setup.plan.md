@@ -215,7 +215,8 @@ Each with the owner's go, each a roadmap entry and an issue on the board:
 - This plan becomes `Completed (develop)`, and its index entry says it is the
   record of how the setup was done. The "First time here?" pointers in
   AGENTS.MD and `/operations` look for "Not set yet", which is gone.
-- Commit and push it, straight to `develop`, like a status-only commit:
+- Commit and push it, straight to `develop` (AGENTS.MD's one exception to
+  "every change goes through a PR"):
 
   ```bash
   git add -A && git status --short    # the checklist's ids, the skill's <P>, this plan, the log, the index

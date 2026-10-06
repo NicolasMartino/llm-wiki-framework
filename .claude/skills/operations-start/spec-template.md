@@ -28,9 +28,13 @@ Done when:
 - <each check the issue's "Done when" asks for, as a command and its expected result>
 ```
 
-Name the plan and its roadmap entry in Context whenever there is one: the
-`plan-status.txt` part has the worker set its status in this PR. A spec with
-no plan says so, and names the roadmap entry whose status the PR sets, if any.
+Name the plan whose work this PR does, and its roadmap entry, in Context
+whenever there is one: the `plan-status.txt` part has the worker set their
+status in this PR. Say whether this PR finishes everything the roadmap entry
+includes; if not, the entry stays Active. A spec with no plan says so, and
+names the roadmap entry whose status the PR sets, if any. A PR that writes a
+plan leaves that plan Draft. A plan Active on `develop` from before
+2026-10-06 is named as an exception: this PR completes it.
 
 `<sha>` is the commit the worktree really starts from, the one passed as
 `--base-branch`. The base text's "Done when, as well as the spec's" lines, its

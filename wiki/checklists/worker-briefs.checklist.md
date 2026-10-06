@@ -79,13 +79,20 @@ Every base text is followed by `base/shared/rules.txt`:
 ## The Add-Ons, And Why
 
 - **The plan's status** (`base/shared/plan-status.txt`), for every code,
-  tooling and wiki worker, right after the shared rules: the worker sets its
-  plan Active with its Branch line, and its roadmap entry, in its first push,
-  and Completed with the Branch line removed before the PR leaves draft; it
-  changes no other plan's status. Why: the owner wants a status to land in
-  the PR that does the work, "so no separate commit or PR" (2026-10-06), and
-  the merge is what makes Completed true (the operation manager checklist,
-  "The Board"). A spec that names no plan says so, and the part is skipped.
+  tooling and wiki worker, right after the shared rules. It concerns the plan
+  of the work the PR does: the worker sets it Active with its Branch line,
+  and its roadmap entry and index line, in its first push; Blocked in the
+  same PR if the work stops to wait; Completed with the Branch line removed
+  before the PR leaves draft, and the roadmap entry Completed only when the
+  PR finishes everything the entry includes. It changes no other status. Why:
+  the owner wants a status to land in the PR that does the work, "so no
+  separate commit or PR" (2026-10-06), and the merge is what makes Completed
+  true (the operation manager checklist, "The Board").
+  - A PR that writes a plan leaves it Draft: the plan is not under way yet.
+  - A fix round leaves a Completed plan as it is: flipping it back to Active
+    would leave the PR saying Active if the round stopped early.
+  - A spec that names neither plan nor roadmap entry says so, and the part is
+    skipped.
 - **The full gates** (`base/shared/full-gates.txt`), for every kind that
   changes code or tooling:
   - `just verify` with zero skips, and CI passing on the PR's head (the fast

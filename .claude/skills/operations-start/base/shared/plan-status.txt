@@ -1,4 +1,6 @@
-Your plan's status is part of this PR (the spec names the plan and its roadmap entry; if it names none, skip this):
-- In your first push: under the plan's metadata, `- Status: Active` and, right under it, `- Branch: \`<your branch>\``; the roadmap entry's status to Active too.
-- Before your gate run (or, for a wiki PR, before you report): the plan's `- Status: Completed (develop)`, its Branch line removed, and its roadmap entry's status to Completed. The PR merging is what makes it true.
-- Change no other plan's status. If the work cannot finish, leave the plan Active and say why in your report.
+Your plan's status is part of this PR. This part concerns the plan of the work this PR does, as the spec names it with its roadmap entry; a PR that writes a plan leaves that plan Draft and sets only the roadmap statuses the spec names. If the spec names no plan and no roadmap entry, skip this.
+- In your first push: under the plan's metadata, `- Status: Active` and, right under it, `- Branch: \`<your branch>\``; the roadmap entry's status to Active too, and the plan's line in wiki/index.md if it shows a status.
+- Before your gate run (or, for a wiki PR, before you report): the plan's `- Status: Completed (develop)`, its Branch line removed, and its line in wiki/index.md to match. The roadmap entry goes to Completed only when this PR finishes everything the entry includes; otherwise it stays Active. The PR merging is what makes it true.
+- If your work stops because it waits on something outside it: in this PR, pushed and left draft, the plan's `- Status: Blocked` (the Branch line stays), and in its body what it waits on and what starts it; say so in your report. The coordinator moves the board card. If the work cannot finish for another reason, leave the plan Active and say why in your report.
+- A fix round leaves a plan this PR already marked Completed as it is: no Active again.
+- Change no other plan's status, and write no status into any other page.

@@ -54,7 +54,9 @@ worker briefs checklist.
 2. **The kind.** Pick it yourself from the list above; split a task that mixes
    kinds into one issue per kind first.
 3. **The plan.** For code or tooling, its plan exists in `wiki/plans/` and is
-   Draft or Blocked-and-now-free. No plan yet: the first worker is a wiki
+   Draft or Blocked-and-now-free. `develop` shows a plan in flight as Draft,
+   so also check no open PR or live worker already has it: the board card is
+   not Active, and `gh pr list` shows no PR for its issue. No plan yet: the first worker is a wiki
    worker that writes it, and the owner approves it before the code worker.
 4. **The facts.** Start the read-only `investigator` subagent (Sonnet) with
    `facts-helper-prompt.md`, `<n>` filled. Check each fact it returns yourself
@@ -112,5 +114,8 @@ worker briefs checklist.
 8. **The board.** The issue to Active on the board, any "(blocked: …)" note
    off its title. The plan's own status changes in the worker's PR, not here
    (the `plan-status.txt` part; checklist, "The Board"); the coordinator
-   commits no status. A fix round changes no status. Tell the owner in one
+   commits no status. A fix round changes no status, and leaves a plan its PR
+   already marked Completed as it is. A plan that was Active on `develop`
+   before 2026-10-06: name it in the spec's Context as an exception, so its
+   own PR completes it (checklist, "The Board"). Tell the owner in one
    line: the work by name, the kind, the tier.

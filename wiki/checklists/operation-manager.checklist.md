@@ -41,8 +41,8 @@ Three repo commands walk the steps and point back here:
   kind → plan → facts → spec → checklist → worker → board. The base texts sit
   beside it.
 - `/operations-land <PR>` (`.claude/skills/operations-land/SKILL.md`): blind
-  review → gate check → ready → verdict → check it yourself → merge → log →
-  clean-up.
+  review → gate check → ready → verdict → check it yourself → merge → log and
+  board → clean-up.
 
 Workers run under Orca. The machine-wide rules (every agent is an Orca worker,
 the worker lifecycle, the spec shape) are in the owner's global Claude
@@ -118,25 +118,38 @@ the status, and the board shows it.
   2026-10-06: "the status change should be part of the PR that contains the
   work that is suppose to achieve this status change, so no separate commit or
   PR"):
-  - Draft when the plan is written (in the wiki PR that writes it), and its
-    issue made;
+  - Draft when the plan is written (in the wiki PR that writes it, which
+    leaves it Draft), and its issue made;
   - Active, with `- Branch: \`<branch>\`` under the Status line, in the
     worker's first push, and its roadmap entry's status with it;
   - Completed in the same PR before it leaves draft (before its gate run, or
     for a wiki PR before it reports): `Completed (develop)` (or `(local)`,
-    `(spike)`), the Branch line removed, its roadmap entry updated. The merge
-    makes it true. Which word follows Completed is
+    `(spike)`), the Branch line removed; its roadmap entry to Completed only
+    when the PR finishes everything the entry includes. The merge makes it
+    true. A fix round leaves it Completed. Which word follows Completed is
     `work-in-flight-is-a-pushed-branch.decision.md`'s, rule 5: `(develop)`,
     decided by the owner on 2026-10-06;
-  - Blocked when it waits on something: in the PR that finds out, or a small
-    wiki PR; the plan's body says what it waits on and what starts it.
+  - Blocked when its work stops to wait on something: the worker sets it in
+    its own PR, pushed and left draft, Branch line kept, and the plan's body
+    says what it waits on and what starts it; the worker that picks the work
+    up again sets it back to Active in the same way. A plan blocked before any
+    worker starts stays Draft: its issue carries the blocker (the title note,
+    the "Blocked by" link) until its worker starts. No separate status PR.
 
   The worker makes these edits (the `plan-status.txt` part beside
   `/operations-start`); the coordinator commits no status, and checks them
   when landing. So `develop` shows a plan as Draft until its PR merges; what
   is in flight is the pushed branch, its plan as that branch has it, and the
-  board. A settled investigation's or design's roadmap status goes in the wiki
-  PR that records its outcome ("Landing A Comment").
+  board; read a plan in flight on its branch
+  (`git show origin/<branch>:wiki/plans/<slug>.plan.md`) until
+  `just branch-status` reads each branch's own plans (issue #31). A settled
+  investigation's or design's roadmap status goes in the wiki PR that records
+  its outcome ("Landing A Comment").
+- **Plans already Active on `develop` when this rule came in** (2026-10-06;
+  poman's workspace and strict gates, PR #28, is one): their own PR completes
+  them. The coordinator writes that exception into the worker's spec (or its
+  fix round's), naming the plan, so the plan-status part's Completed step
+  applies to it; the log PR still carries no status.
 - **The board follows the work**, moved by the coordinator: Active when the
   worker starts, Blocked with the title note (` (blocked: <short name> #<n>)`)
   and, when the blocker is an issue, GitHub's "Blocked by" link, Completed when
