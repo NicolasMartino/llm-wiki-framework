@@ -49,8 +49,23 @@ Checked against the code at `9b64345`:
   body.
 - `search_project` (same file, about line 99) asks the table for a window of
   rows larger than `limit` (four times it, at least 20), drops the rows the
-  class and status filters reject, and keeps the first `limit`. Nothing
-  re-runs the query when it returns too few.
+  class and status filters reject, and keeps the first `limit`. When a class
+  or status filter is active and too few rows survive it, it re-runs the same
+  query with the window doubled, up to 100,000 rows, until it has `limit`
+  results or the table runs out (about lines 121 to 188; its comment says a
+  fixed window silently drops filtered matches ranked below it). Without a
+  filter it never re-runs, and no query other than the all-words one is ever
+  tried.
+- Every search reaches `search_project` through `perform_project_search` and
+  `search_attempt` (`src/search/commands.rs`, about lines 3615 and 3677).
+  The default mode is `auto` (`src/cli.rs`, about line 287), which runs
+  hybrid when its models are ready, so most real searches take
+  `perform_hybrid_project_search` (same file, about line 2849). Its lexical
+  branch asks for `max(limit, 20)` rows per expanded query. `search_project`
+  returns only its results (`src/search/adapter.rs`, about line 174); the
+  reply's warnings are built in `src/search/commands.rs`.
+- The eval's lexical column calls `search_project` directly
+  (`src/eval.rs`, about line 955), not through the search command.
 - The investigation measured, on the live wiki at `ad18a00` (123 pages):
   - "operation manager": both words are in more than half the pages
     (62 and 78 of 123), so BM25's word weight is clamped to almost zero,
@@ -76,9 +91,18 @@ Checked against the code at `9b64345`:
   two. Its README says the copy is refreshed only together with the test's
   queries and targets.
 - The frozen wiki holds the "Operation Manager" checklist and all four plans
-  named above. A rough count for this plan (grep of word forms, not the
-  index) puts "manager" and its stem in about 75 of 121 pages but
-  "operation" in about 57, just under half; the index's own count decides.
+  named above. Measured by the blind review of this plan on an FTS5 table
+  built from the frozen wiki with the index's columns and tokenizer (porter
+  stems operation, operations, operate, operator and operating to one term):
+  - "operation" is in 62 of 121 pages and "manager" in 78, both over half;
+  - with no weights the checklist ranks 6th of 47 for "operation manager"
+    and 11th of 25 for "operation manager checklist"; with weights 10, 10, 1
+    it ranks 1st and 2nd;
+  - with the phrase-OR fallback after the four all-words pages and weights
+    10, 10, 1, the four plans come 5th, 6th, 7th and 10th;
+  - with the weights, scores over 15 queries rose by at most 18%, and none
+    crossed hybrid's strong-lexical floor of 10.0.
+  Phase 1 rechecks these on llm-wiki's own index.
 
 ## Target
 
@@ -87,19 +111,33 @@ Checked against the code at `9b64345`:
   in one place, named, with the reason in a comment. It is a query-side
   change: no reindex.
 - **Fallback:** when the all-words query leaves fewer than `limit` results
-  after the filters, search again with each hyphen-joined name of the raw
-  query kept as one phrase (a lone word is a one-word phrase), the phrases
-  joined by OR, and add the new pages after the all-words results, without
-  repeating a page, up to `limit`. The all-words results keep their place:
-  plain word-level OR ranks worse, so it never comes first. Filters apply to
-  the added pages too. When the phrase query can only return pages the
-  all-words query already found (a query of one name or one word), it is
-  not run.
+  after the filters, search again with each name of the raw query kept as
+  one phrase, the phrases joined by OR, and add the new pages after the
+  all-words results, without repeating a page, up to `limit`.
+  - **What a name is:** a name ends at whitespace and at a comma, semicolon,
+    quote or backtick. Inside a name, hyphens, slashes and dots join its
+    words into one phrase, in order. So `qmd-rs,search-all` gives the
+    phrases "qmd rs" and "search all", and
+    `wiki/plans/headroom-wrap-command.plan.md` gives one phrase that matches
+    that page's file path, not a lone "wiki" that every page holds. A lone
+    word is a one-word phrase; a query with no joined names makes the
+    fallback a plain OR of its words.
+  - **Order:** the all-words results keep their place; plain word-level OR
+    ranks worse, so it never comes first.
+  - **Filters:** the fallback runs after the all-words query's window loop,
+    and its own query goes through the same window growth when a filter is
+    active, so a filtered search is not cut short by a fixed window.
+  - **When it does not run:** when the phrase query can only return pages
+    the all-words query already found (a query of one name or one word).
+  - **Where it runs:** in lexical search only, or everywhere, is the owner's
+    choice below; the Done When follows that choice.
 - **Tests on a frozen wiki:**
   - a page whose title's words are each in more than half the frozen wiki's
     pages, counted on its index, comes first when searched by its title;
   - the four plan names searched together return the plans (the bar is an
     open choice below);
+  - unit tests for how a query splits into names: `qmd-rs,search-all` gives
+    two phrases, and `wiki/plans/headroom-wrap-command.plan.md` gives one;
   - each new test fails on the ranking as it is at `9b64345` (shown once, not
     committed), so it guards the fix rather than describing today.
 - **The existing quality test** keeps its eight queries and targets and stays
@@ -107,14 +145,18 @@ Checked against the code at `9b64345`:
   by how much and why, and the owner decides before any target changes; no
   target is replaced to make it pass.
 - **Unchanged:** the score scale and what the CLI prints (see "Open For The
-  Owner"), semantic and hybrid ranking, and the index format.
+  Owner"), semantic ranking, and the index format. The weights do reach
+  hybrid's lexical scores, which `hybrid_candidate_survives_final_gate`
+  (`src/search/commands.rs`, about line 3398) compares with a calibrated
+  strong-lexical floor (10.0 by default); the review saw scores rise by at
+  most 18% and none cross it, and phase 2 rechecks that.
 
 ## Phases
 
 1. **Measure before changing.** Index the frozen wiki and record, in this
-   plan: how many pages hold each word of the chosen title; the target's rank
-   for its title with no weights; what the four plan names return; and where
-   the eight existing queries' targets rank.
+   plan: how many pages hold "operation" and "manager"; the checklist's rank
+   for "operation manager" with no weights; what the four plan names return;
+   and where the eight existing queries' targets rank.
 2. **Weights.** Add the column weights; rerun the measurements of phase 1 and
    record them.
 3. **Fallback.** Keep hyphen-joined names as phrases for the fallback query
@@ -126,24 +168,38 @@ Checked against the code at `9b64345`:
    does the work:
    - the snapshots and ordering assertions in `tests/search_commands.rs` and
      `tests/snapshots/`;
-   - hybrid search's lexical branch, which calls the same `search_project`
-     (seen in `src/eval.rs`); hybrid is out of scope, so a change in its
-     results is recorded, not tuned;
+   - hybrid search, through `perform_hybrid_project_search`, the path
+     most real searches take: the weights reach its lexical branch in any
+     case, and the fallback too if the owner chooses "everywhere" below.
+     Hybrid is out of scope, so a change in its results is recorded, not
+     tuned;
    - the ignored `tests/natural_language_search_eval.rs`, which asserts
-     hybrid and auto beat lexical: a better lexical column could make that
-     assertion fail on its next manual run. Replay the eval page's lexical
-     column (its query form, top 10) before and after on the same tree and
-     record both counts here; the investigation saw 18 of 26 at `ad18a00`,
-     with case C5 returning nothing.
+     hybrid ≥ 22 and auto ≥ 22 passes of 30, at most 8 misses each, and
+     that hybrid and auto beat lexical: a better lexical column could make
+     the last fail on its next manual run. Replay the eval page's lexical
+     column before and after on the same tree, through the path a lexical
+     search takes (`llm-wiki search --mode lexical --format json`, top 10,
+     as the investigation did), and record both counts here. The eval's own
+     lexical column calls `search_project` directly, so it sees the fallback
+     only if the fallback lives there; the record says which was measured.
+     The investigation saw 18 of 26 at `ad18a00`, with case C5 returning
+     nothing.
 6. **Prove it on the PR**: the fast check, and `just verify` locally.
 
 ## Done When
 
-- A test on the frozen wiki puts a page first for its own title, where each
-  word of that title is in more than half the frozen wiki's pages, and that
-  test fails on the ranking at `9b64345`.
+- A test on the frozen wiki puts the "Operation Manager" checklist first for
+  "operation manager", both words being in more than half its pages, and
+  that test fails on the ranking at `9b64345`.
 - A test on the frozen wiki searches the four plan names together and gets
   the plans, to the bar the owner sets below.
+- The two unit tests on how a query splits into names pass.
+- Where the fallback runs, as the owner chose below:
+  - lexical only: a test shows hybrid's lexical branch gets the all-words
+    results alone, with no fallback pages;
+  - everywhere: the ignored eval test, run by hand before and after on the
+    same tree, keeps hybrid ≥ 22 and auto ≥ 22 passes and at most 8 misses
+    each, and both runs' counts are recorded here.
 - `fixed_eval_queries_keep_expected_targets_in_top_two` passes with its
   queries and targets unchanged, or the PR names each change and its reason
   and the owner accepted it.
@@ -160,32 +216,48 @@ unweighted, found by searching the wiki for it at that time.
 
 ## Open For The Owner
 
-1. **The zero word-weight clamp.** BM25 gives a word in more than half the
+1. **Where the fallback runs.** Hybrid's lexical branch asks for
+   `max(limit, 20)` rows, so with the default limit of 10, a fallback inside
+   `search_project` would run whenever the all-words query finds fewer than
+   20 pages: six of the eight fixed queries on the frozen wiki. For "three
+   phase ingest extraction drafting bookkeeping" (5 all-words pages, no
+   hyphens) it becomes a plain word OR matching 94 of 121 pages, and 15
+   partial matches would enter hybrid's fusion with lexical ranks they never
+   had. Issue #25 leaves hybrid out of scope.
+   - Lexical only: the fallback runs for a lexical search (chosen, or
+     selected by auto), never in hybrid's lexical branch.
+   - Everywhere: it also runs in hybrid's lexical branch, and the Done When
+     adds the hybrid before-and-after above.
+   Recommendation: lexical only. It keeps the default search as it is
+   beyond the weights, keeps the change inside the issue, and the place that
+   runs the fallback can then also say so in the reply (choice 4).
+2. **The zero word-weight clamp.** BM25 gives a word in more than half the
    pages a weight of almost zero, so such a search prints scores of 0.000
    even when the order is right. The weights fix the order, not the scores.
    Making scores meaningful (normalising them, or a small added boost for a
    title or file-name match) changes what every lexical score means to its
-   readers, hybrid fusion included. Recommendation: leave it out of this
-   plan, whose promise is the order, and open its own roadmap entry only if
-   a reader is found misled by the 0.000 scores.
-2. **The bar for the four plan names.** The investigation measured three of
-   the four plans in the top 8 on the live wiki, with the fallback and
-   weights; the fourth came behind pages that mention it. Recommendation:
-   the test asserts at least three of the four in the top 10 on the frozen
-   wiki, and this plan records where the fourth lands; asking for all four
-   would mean tuning beyond what was measured.
-3. **Which title the first test uses.** The rough count above suggests
-   "operation" is in just under half the frozen wiki's pages.
-   Recommendation: use "operation manager" if the index's count puts both
-   words over half; otherwise another page of the frozen wiki whose title
-   words both are, chosen in phase 1 and named here. Only if no such page
-   exists, add a small separate fixture built for this test, leaving the
-   existing frozen wiki unrefreshed, as its README asks.
+   readers, hybrid fusion and its strong-lexical floor included.
+   Recommendation: leave it out of this plan, whose promise is the order,
+   and open its own roadmap entry only if a reader is found misled by the
+   0.000 scores.
+3. **The bar for the four plan names.** The investigation measured three of
+   the four plans in the top 8 on the live wiki; the review measured all
+   four in the top 10 on the frozen wiki, the fourth at 10th, right at the
+   cutoff. Recommendation: the test asserts at least three of the four in
+   the top 10, and this plan records where the fourth lands; asking for all
+   four would pass today only at the edge.
 4. **Saying when the fallback ran.** Pages added by the fallback matched
    only some of the query, and their scores come from a different query, so
-   the score column may rise after them. Recommendation: one line in the
-   search result's existing warnings when the fallback added pages, so a
-   reader knows the later pages are partial matches; no new field.
+   the score column may rise after them. The reply's warnings are built in
+   `src/search/commands.rs`, but `search_project` returns only its results,
+   so the warning needs a signal from wherever the fallback runs: either the
+   fallback is run by the search command's lexical path, which then knows
+   itself, or the backend tells its caller, by a marker on each added result
+   or a changed return type (four callers outside tests).
+   Recommendation: one line in the reply's existing warnings when the
+   fallback added pages, with the signal following choice 1: with "lexical
+   only", from the lexical path that runs the fallback; the PR names which
+   way it took.
 
 ## Out Of Scope
 
