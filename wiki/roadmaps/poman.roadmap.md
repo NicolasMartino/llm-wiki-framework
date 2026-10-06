@@ -1,7 +1,7 @@
 # poman Roadmap
 
 - Document Class: Roadmap
-- Status: Draft
+- Status: Active
 - Date: 2026-10-06
 - Category: poman development
 - Scope: The order in which poman, the project-management binary, is built: the workspace and the gates, the shared types, the
