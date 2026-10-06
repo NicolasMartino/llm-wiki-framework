@@ -1,11 +1,24 @@
 # Plan: macOS Installed Binary Codesign Repair
 
-Document Class: Plan
-Status: Implemented - native release archive proof pending
-Date: 2026-06-25
-Category: macOS install, test instance, binary materialization, release readiness
-Scope: Repair the macOS launch hang where newly installed `llm-wiki-test` and the matching local build binary enter kernel wait before CLI argument handling, by making macOS binary signing an explicit, tested part of managed install and release/test-instance proof.
-Sources: Live diagnostic observation on 2026-06-23; `src/install.rs`; `src/paths.rs`; `src/manifest/schema.rs`; `tests/post_install.rs`; `tests/mcp_install.rs`; `wiki/plans/test-instance-namespaced-binary.plan.md`; `wiki/plans/headroom-mcp-merge-readiness-repair.plan.md`; `wiki/roadmaps/cross-platform-release-e2e.roadmap.md`.
+- Document Class: Plan
+- Status: Completed (master)
+- Date: 2026-06-25
+- Category: macOS install, test instance, binary materialization, release readiness
+- Scope: Repair the macOS launch hang where newly installed `llm-wiki-test` and the matching local build binary enter kernel wait before CLI argument handling, by making macOS binary signing an explicit, tested part of managed install and release/test-instance proof.
+- Sources: Live diagnostic observation on 2026-06-23; `src/install.rs`; `src/paths.rs`; `src/manifest/schema.rs`; `tests/post_install.rs`; `tests/mcp_install.rs`; `wiki/plans/test-instance-namespaced-binary.plan.md`; `wiki/plans/headroom-mcp-merge-readiness-repair.plan.md`; `wiki/roadmaps/cross-platform-release-e2e.roadmap.md`.
+
+## Where This Stands (2026-10-06)
+
+Completed against its own "Closure Criteria" below: the repair, its focused
+tests and the live test-instance proof are recorded in "2026-06-25
+Implementation Evidence", `wiki/log.md` records it, and the staged, signed
+install is on master (`src/install.rs`, `manifest.binary.source_hash` in
+`src/manifest/schema.rs`).
+
+Still pending, outside this plan: the macOS release archive half of Phase 5's
+gate. That proof was never run here; it is
+`wiki/roadmaps/cross-platform-release-e2e.roadmap.md`, "R4 - Native macOS
+Release Archive Proof" (Draft).
 
 ## Objective
 
