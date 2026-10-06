@@ -80,7 +80,7 @@ Proof:
 
 ### PM2 - The Shared Page Reader And File Types
 
-Status: Completed
+Status: Completed (develop)
 Promise: The field-block parser lives in the shared crate, and llm-wiki's
 document types are defined there with their fields and statuses, so llm-wiki
 and poman read pages one way.
