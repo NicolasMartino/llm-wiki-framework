@@ -3,6 +3,13 @@ name: CI
 # The full CI, on the way to master: the PR from develop into master, and
 # master itself. Run it on any branch by hand with workflow_dispatch. PRs into
 # develop get the fast check instead (fast-check.yml).
+#
+# The cache: every job restores the newest cache its key matches, from its own
+# branch, the PR's base branch or develop (the default branch), and only pushes
+# to develop and master save one. A job's key is its job id, OS, installed
+# toolchains (each job drops the runner image's own first) and lockfiles, so
+# `strict` shares fast-check.yml's cache; `test` and `udeps` save theirs on
+# master.
 on:
   pull_request:
     branches: [master]
@@ -24,15 +31,21 @@ jobs:
       # rust-toolchain.toml pins the toolchain and its components; rustup
       # installs exactly that.
       - name: Install the pinned toolchain
-        run: rustup toolchain install
+        run: |
+          # rust-cache keys on every installed toolchain: drop the runner
+          # image's own, so an image update does not change the key.
+          rustup toolchain list --quiet | while read -r t; do rustup toolchain uninstall "$t"; done
+          rustup toolchain install
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master') }}
       - uses: taiki-e/install-action@v2
         with:
           tool: just,cargo-insta,ripgrep,cargo-llvm-cov
-      - name: Verify
-        run: just verify
-      - name: Coverage Gate
-        run: just coverage
+      # `just verify` with its one test run under coverage, which the
+      # coverage gate then reads: the suite runs once.
+      - name: Verify and coverage gate
+        run: just verify-coverage
 
   udeps:
     name: unused dependencies
@@ -41,8 +54,14 @@ jobs:
       - uses: actions/checkout@v4
       # The dated nightly is named once, in tools/udeps-nightly.
       - name: Install the dated nightly
-        run: rustup toolchain install "$(tr -d '[:space:]' < tools/udeps-nightly)" --profile minimal
+        run: |
+          # rust-cache keys on every installed toolchain: drop the runner
+          # image's own, so an image update does not change the key.
+          rustup toolchain list --quiet | while read -r t; do rustup toolchain uninstall "$t"; done
+          rustup toolchain install "$(tr -d '[:space:]' < tools/udeps-nightly)" --profile minimal
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master') }}
       - uses: taiki-e/install-action@cargo-udeps
       - name: Unused Dependency Audit
         run: cargo +"$(tr -d '[:space:]' < tools/udeps-nightly)" udeps --workspace
@@ -54,9 +73,14 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install the pinned toolchain and the dated nightly
         run: |
+          # rust-cache keys on every installed toolchain: drop the runner
+          # image's own, so an image update does not change the key.
+          rustup toolchain list --quiet | while read -r t; do rustup toolchain uninstall "$t"; done
           rustup toolchain install
           rustup toolchain install "$(tr -d '[:space:]' < tools/udeps-nightly)" --profile minimal
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master') }}
       - uses: taiki-e/install-action@v2
         with:
           tool: just,cargo-llvm-cov,cargo-mutants,cargo-deny,cargo-udeps
