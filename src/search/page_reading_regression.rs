@@ -39,8 +39,11 @@ fn markdown_files(dir: &Path) -> Vec<PathBuf> {
 /// What search reads of a page: masked as both search callers mask it, then
 /// its title and its fields.
 fn read_page(text: &str) -> (Option<String>, BTreeMap<String, String>) {
-    let metadata = parse_wiki_metadata(&mask_search_ignored_spans(text));
-    (metadata.title, metadata.fields)
+    let metadata = Page::read(&mask_search_ignored_spans(text)).wiki_view();
+    (
+        metadata.title().map(ToString::to_string),
+        metadata.fields().clone(),
+    )
 }
 
 #[test]
