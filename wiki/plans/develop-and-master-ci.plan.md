@@ -130,6 +130,13 @@ check (`e32a7b3`, 2 min 53 s for the whole job):
 | clippy-strict | 5 s | yes |
 | `cargo insta test --check` (the whole suite again) | 55 s | quick files only, once |
 | audit-legacy | under 1 s | yes |
+
+`just fast-check` as the fast check (`7ad359d`), warm cache: 1 min 17 s for the
+whole job, of which setup 26 s, fmt under 1 s, clippy-strict 5 s, the quick
+tests with the snapshot check 37 s (11 s of it compiling), the
+`tools/release-e2e` tests 9 s. With a cold cache (the first run after the job
+was renamed) it took 8 min 15 s, nearly all compiling: a work PR into
+`develop` reads the cache `develop`'s own runs save.
 ## Target
 
 - **PRs into `develop`, and pushes to `develop`:** one job on `ubuntu-latest`
