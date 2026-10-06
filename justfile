@@ -43,7 +43,7 @@ audit-legacy:
         *) echo "audit-legacy: rg failed" >&2; exit 1 ;;
       esac
     }
-    audit 'Successor:|Will Supersede On D8 Completion|<!-- CLAUDE -->|<!-- CODEX -->|<!-- END -->|skills/build\.sh|bash renderer|(?:^|[^a-z])build\.sh' wiki README.md .github src tests Cargo.toml
+    audit -g '!tests/fixtures/search-eval/**' 'Successor:|Will Supersede On D8 Completion|<!-- CLAUDE -->|<!-- CODEX -->|<!-- END -->|skills/build\.sh|bash renderer|(?:^|[^a-z])build\.sh' wiki README.md .github src tests Cargo.toml
     audit 'legacy shell renderer|legacy skill render script|legacy render script|<!-- TAG -->' wiki/specs wiki/decisions wiki/plans wiki/roadmaps wiki/index.md README.md AGENTS.MD CLAUDE.md
 
 verify: fmt test clippy-strict snapshots audit-legacy

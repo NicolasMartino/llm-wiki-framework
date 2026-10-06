@@ -8,3 +8,6 @@ top two. Against the live `wiki/` it failed whenever new pages shifted the
 scores, not when search got worse, so it reads this copy instead. Leave the
 copy as it is: refresh it only together with the test's queries and expected
 targets, and only from a commit where every expected target held.
+
+`just audit-legacy` leaves this copy out: it is the wiki as it stood, legacy
+wording included, and the live `wiki/` is where that wording is audited.
