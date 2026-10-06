@@ -27,6 +27,8 @@
     `92187d3`, the state "Where It Stands" summarises
   - riseon issue #11: the founding tasks to be written as deadline files once
     PM3 lands
+  - The owner's answers of 2026-10-07 to the plan's three choices, each as
+    recommended: "Decided By The Owner"
 - Related:
   - `wiki/plans/poman-workspace-and-strict-gates.plan.md`: PM1, which made the
     crate and the gates this plan builds on
@@ -129,8 +131,8 @@ Whoever does the work rechecks each point against the commit they start from.
 - **Two views of that one pass:**
   - **the wiki's view**, which gives search exactly what
     `parse_wiki_metadata` gives today: the same title and the same fields,
-    with the same precedence and the same quirk ("Open For The Owner",
-    choice 3);
+    with the same precedence and the same quirk (the owner's choice 3,
+    "Decided By The Owner");
   - **the bullet-block view**, poman's: only the `- Key: Value` block right
     after the title, continuation lines included, each field with its line.
     Fields found in any other form are reported with their line, not
@@ -162,8 +164,8 @@ Whoever does the work rechecks each point against the commit they start from.
   (`poman-reads-only-its-own-file-types.decision.md`, rule 1): for each
   type, its name (`Plan`), its plural label (`Plans`), its suffix, its
   folder, whether its filenames take an index, its fields and its statuses.
-- **Which types: the nine the guidelines name** ("Open For The Owner",
-  choice 1): spec, decision, proposal, roadmap, plan, checklist, reference,
+- **Which types: the nine the guidelines name** (the owner's choice 1,
+  "Decided By The Owner"): spec, decision, proposal, roadmap, plan, checklist, reference,
   and experiment and eval, marked as the ML pack's.
 - **Fields:** the six every page carries (Document Class, Status, Date,
   Category, Scope, Sources) and five optional keys, from the guidelines'
@@ -193,7 +195,7 @@ Whoever does the work rechecks each point against the commit they start from.
   types rather than of labels, and takes each label from its definition.
   The sections of the other packs (Runbooks, Threat Models, Findings,
   Literature, Hypotheses) stay literal in `compose.rs`: their types stay in
-  `src/init/packs.rs` (choice 1).
+  `src/init/packs.rs` (the owner's choice 1).
 - **The ML pack's experiment and eval come from the definitions:** its rows
   for them in "Pack Document Types", and its Evals row in "Pack Status
   Vocabulary", are built from the two definitions instead of the copies in
@@ -267,7 +269,8 @@ Whoever does the work rechecks each point against the commit they start from.
   - **"Wiki Folder Structure":** without the ML pack, the seven core
     folders and init's own `archive/`; with it, also the two ML folders and
     `model-cards/`, which the check takes from the ML pack's folders in
-    `src/init/packs.rs` (the Model Card type stays there, choice 1). Every
+    `src/init/packs.rs` (the Model Card type stays there, the owner's choice
+    1). Every
     folder shown must be one of these, and each of these shown. The `wiki/`
     lines of "Full Repository Structure" follow the same rule; its other
     lines are not checked.
@@ -282,8 +285,8 @@ Whoever does the work rechecks each point against the commit they start from.
 - **A deliberate slip fails it:** a status changed in a definition, and a
   type left out, each shown failing the test and reverted, recorded in the
   PR.
-- **The guidelines are read, not rewritten** ("Open For The Owner",
-  choice 2): `templates/` stays as it is. The ML pack's own tables need no
+- **The guidelines are read, not rewritten** (the owner's choice 2,
+  "Decided By The Owner"): `templates/` stays as it is. The ML pack's own tables need no
   check: they are built from the definitions, and the ML snapshots prove
   them unchanged.
 - The shared crate never reads `templates/`: it is published on its own and
@@ -401,31 +404,30 @@ coverage.
 
 The owner's PASS on the PR that meets "Done When", merged into `develop`.
 
-## Open For The Owner
+## Decided By The Owner
 
-Each choice has a recommendation; the Target above follows it until the owner
-answers.
+The owner answered the plan's three choices on 2026-10-07, each as the plan
+recommended ("all pass"); the Target above follows them.
 
-1. **Which types PM2 defines: the nine the guidelines name (recommended).**
+1. **Which types PM2 defines: the nine the guidelines name.**
    The packs' types (API spec, design, runbook, threat model and the rest)
    stay in `src/init/packs.rs` for a later entry: some of their suffixes have
    a hyphen or a second dot, which PM1's filename splitter refuses, and their
    status lists do not match their types one to one. The ML pack's
    experiment and eval are two of the nine, so its rows for them are built
-   from the definitions; its Model Card stays. The alternative is all
-   of them now, with the splitter widened and the pack lists made whole.
+   from the definitions; its Model Card stays. Not chosen: all of them now,
+   with the splitter widened and the pack lists made whole.
 2. **How the definitions and the guidelines are kept the same: a test that
-   compares them (recommended).** It is what the roadmap's proof asks, and
-   leaves `templates/` as it is. The alternative is rendering the guidelines'
-   type tables from the definitions, so they cannot differ, which changes
+   compares them.** It is what the roadmap's proof asks, and leaves
+   `templates/` as it is. Not chosen: rendering the guidelines' type tables
+   from the definitions, so they cannot differ, which would change
    `templates/base/project_guidelines.md` into a template fed by code.
 3. **Today's quirk kept: a prose line with a colon right under the title is
-   read as a field (recommended).** Search reads only the title and five
-   fields (Document Class, Status, Category, Scope, Sources), so the quirk
-   shows nowhere today, and keeping it lets "nothing changed" be
-   proved exactly. Fixing it later is a change of its own with its own
-   proof. The alternative is fixing it in PM2, and proving instead that only
-   such pages' fields change.
+   read as a field.** Search reads only the title and five fields (Document
+   Class, Status, Category, Scope, Sources), so the quirk shows nowhere
+   today, and keeping it lets "nothing changed" be proved exactly. Fixing it
+   later is a change of its own with its own proof. Not chosen: fixing it in
+   PM2, and proving instead that only such pages' fields change.
 
 ## Out Of Scope
 
@@ -438,4 +440,4 @@ answers.
   Plan): they are sections of a roadmap, not pages, and PM9 decides how poman
   reads them.
 - P19's managed block and its pack.
-- Changing `templates/` (choice 2).
+- Changing `templates/` (the owner's choice 2).
