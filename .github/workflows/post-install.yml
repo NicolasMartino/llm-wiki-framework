@@ -19,6 +19,10 @@ jobs:
       # installs exactly that.
       - name: Install the pinned toolchain
         run: rustup toolchain install
+      # Only pushes to develop and master save a cache (see fast-check.yml); a
+      # tag's cache could be read by that tag alone.
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master') }}
       - name: Verify redirected HOME install manifest
         run: cargo test --test post_install

@@ -45,7 +45,7 @@ coverage:
     eval "$llvm_cov_env"
     cargo llvm-cov clean --workspace
     cargo insta test --workspace --check
-    cargo llvm-cov report --fail-under-lines 80
+    cargo llvm-cov report --workspace --fail-under-lines 80
 
 # The dated nightly is named once, in tools/udeps-nightly, which the strict
 # gates and CI's unused-dependencies job also read.
@@ -75,11 +75,15 @@ audit-legacy:
     audit 'legacy shell renderer|legacy skill render script|legacy render script|<!-- TAG -->' wiki/specs wiki/decisions wiki/plans wiki/roadmaps wiki/index.md README.md AGENTS.MD CLAUDE.md
 
 # Every workspace test runs once, in `snapshots`.
-verify: fmt snapshots test-tools clippy-strict audit-legacy branch-status-test
+verify: fmt snapshots checks
 
 # The full CI's test job: `just verify` with its one test run under coverage
 # (`coverage` in place of `snapshots`), so the suite still runs once.
-verify-coverage: fmt coverage test-tools clippy-strict audit-legacy branch-status-test
+verify-coverage: fmt coverage checks
+
+# The gates `verify` and `verify-coverage` share; one list, so they cannot
+# drift apart.
+checks: test-tools clippy-strict audit-legacy branch-status-test
 
 # The integration test files that take longest; they run in `just verify` and
 # the full CI, not in `just fast-check`.
