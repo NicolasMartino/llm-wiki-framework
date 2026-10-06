@@ -33,11 +33,17 @@ Updated: 2026-08-01
 - [Work Is Recorded In The Repository](decisions/work-is-recorded-in-the-repository.decision.md) — Accepted — Every deliverable is a roadmap entry, code and tooling work has its plan first, the plan's Status is the truth, and the GitHub board only shows it (Draft, Active, Blocked, Completed)
 - [Work In Flight Is A Pushed Branch](decisions/work-in-flight-is-a-pushed-branch.decision.md) — Accepted — `origin` says what is in flight, not a worktree; plans under way name their branch, and completed plans say where their proof holds; checked by `just branch-status`
 - [The Pull Request Is The Review Surface](decisions/the-pull-request-is-the-review-surface.decision.md) — Accepted — Reviews live on the PR: one blind feedback review first, then the owner's PASS or FAIL on the current head; squash merge pinned to that head
+- [poman Lives In This Workspace](decisions/poman-lives-in-this-workspace.decision.md) — Accepted — poman is a second crate and binary in this workspace; a shared crate holds the page reader and the file types; `llm-wiki install` installs poman; every crate gets the strictest gates, llm-wiki's own code by a ratchet
+- [poman Syncs A Tracker The Way Git Syncs A Remote](decisions/poman-syncs-a-tracker-the-way-git-syncs-a-remote.decision.md) — Accepted — `poman fetch`, `diff` and `push` keep a tracker a view of the files through a local mirror; poman's data knows no tracker and GitHub is the first adapter ("gh is just a ui for poman"); poman later draws this repository's own board
+- [poman Reads Only Its Own File Types](decisions/poman-reads-only-its-own-file-types.decision.md) — Accepted — Types defined in code and written by `poman new`; `poman check` reads only known suffixes, warns on near misses, holds fields in the bullet block and references as repository paths
+- [Deadline Files Hold One Deadline Each](decisions/deadline-files-hold-one-deadline-each.decision.md) — Accepted — poman's first type, `wiki/deadlines/<slug>.deadline.md`: its fields, durations in whole working days, three importance levels, a computed start date, and landing straight on master
+- [poman tree And poman list Show The Files](decisions/poman-tree-and-list-show-the-files.decision.md) — Accepted — `poman tree` draws the reference graph, `poman list` a flat list; shared filters including `--type`, and `--json`
 
 ## Roadmaps
 
 - [Framework V1](roadmaps/framework-v1.roadmap.md) — Active — Framework deliverables through D11 plus D4-D7 proof gates are completed; post-V1 P1 semantic/hybrid search and P2 sandbox-safe search cache reads are completed; P3 now points to the active cross-platform release E2E roadmap; P4 (the coordinated development workflow) is Active, and P5 to P8 (the riseon handover ingest, plan statuses, install download progress, build-skills recipes) are Draft
 - [Cross-Platform Release E2E](roadmaps/cross-platform-release-e2e.roadmap.md) — Active — Coordinates post-V1 release-platform deliverables: completed release E2E runner and Linux Docker archive simulation, active native Linux amd64 proof, draft macOS archive proof, draft Windows runtime/artifact and host E2E proof, draft GGUF CPU release proof, and a future release evidence gate
+- [poman](roadmaps/poman.roadmap.md) — Draft — For the owner to approve: the order in which poman is built, from the riseon handover: the workspace and strict gates, the shared types, the deadline type, where the check runs, `tree` and `list`, the tracker sync (GitHub first), the forecast and what follows, and the ratchet
 
 ## References
 
