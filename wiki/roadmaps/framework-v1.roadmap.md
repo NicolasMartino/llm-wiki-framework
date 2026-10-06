@@ -746,7 +746,7 @@ Unlocks:
 
 ### P5 - riseon Handover Ingest
 
-Status: Draft
+Status: Active
 Promise: The owner's settled decisions for poman, the project-management
 binary moved here from riseon, are wiki decision pages, and the handover's
 suggested order is a poman roadmap the owner has approved, so no poman work
@@ -788,7 +788,7 @@ Unlocks:
 
 ### P6 - Plan Statuses In The Vocabulary
 
-Status: Draft
+Status: Active
 Promise: Every plan's `- Status:` line uses the plan vocabulary (Draft,
 Active, Blocked, Completed, Superseded), with what is still pending written in
 its body, so `just branch-status` can pass.
