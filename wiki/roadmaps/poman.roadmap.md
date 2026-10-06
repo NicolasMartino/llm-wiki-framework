@@ -50,7 +50,7 @@ Promise: The shared crate and the poman crate exist in this workspace, both
 held to the strictest gates from their first commit; `llm-wiki install`
 installs poman; one release ships both binaries.
 Depends On: None
-Execution Plan: Not created yet
+Execution Plan: `wiki/plans/poman-workspace-and-strict-gates.plan.md`
 
 Included:
 - the shared library crate and the `poman` crate, with a binary that runs
