@@ -79,7 +79,9 @@ the first adapter.**
 - **This repository's own board too** (the owner, 2026-10-06): poman draws it from this repository's roadmaps and plans, as a
   later deliverable that comes after fetch, diff and push. Until then the
   coordinator mirrors the plans onto the board by hand, per
-  `work-is-recorded-in-the-repository.decision.md`, rule 5.
+  `work-is-recorded-in-the-repository.decision.md`, rule 5. A plan in flight
+  is read from its own pushed branch, since `develop` shows it as Draft until
+  its PR merges (rule 3 there); drawing the board must do the same.
 
 ### The GitHub adapter
 

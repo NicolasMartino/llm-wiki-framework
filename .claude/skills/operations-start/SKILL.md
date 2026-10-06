@@ -1,11 +1,11 @@
 ---
 name: operations-start
-description: Start an llm-wiki-framework worker on an issue as the operation manager - pick the kind, check the plan, gather and check the facts, write the spec, paste the kind's base text, run the checklist, start the Orca worker and mark the plan Active. Use for "/operations-start <issue>", or when asked to start, dispatch or brief a worker on an issue.
+description: Start an llm-wiki-framework worker on an issue as the operation manager - pick the kind, check the plan, gather and check the facts, write the spec, paste the kind's base text, run the checklist, start the Orca worker and move its issue to Active on the board. Use for "/operations-start <issue>", or when asked to start, dispatch or brief a worker on an issue.
 ---
 
 # Operations: start a worker
 
-Steps: issue → kind → plan → facts → spec → checklist → worker → status. The
+Steps: issue → kind → plan → facts → spec → checklist → worker → board. The
 rules and their reasons are in `wiki/checklists/operation-manager.checklist.md`,
 "Starting A Worker" and "Limits Across Workers"; each kind's reasons are in
 `wiki/checklists/worker-briefs.checklist.md`. Load `/operations` first if this
@@ -17,8 +17,8 @@ session has not.
 - `facts-helper-prompt.md`: the fixed prompt for the facts helper.
 - `base/kinds/<kind>.txt`: one fixed base text per kind. Its last line names
   the shared parts that follow it, in order.
-- `base/shared/`: the shared rules and the add-ons (full gates, wiki-only, no
-  file changes, talking with the owner).
+- `base/shared/`: the shared rules and the add-ons (the plan's status, full
+  gates, wiki-only, no file changes, talking with the owner).
 - `base/blind-review.txt`: the whole spec of a PR's one blind review, `<PR>`
   replaced by its number (checklist, "Landing A PR").
 
@@ -54,7 +54,9 @@ worker briefs checklist.
 2. **The kind.** Pick it yourself from the list above; split a task that mixes
    kinds into one issue per kind first.
 3. **The plan.** For code or tooling, its plan exists in `wiki/plans/` and is
-   Draft or Blocked-and-now-free. No plan yet: the first worker is a wiki
+   Draft or Blocked-and-now-free. `develop` shows a plan in flight as Draft,
+   so also check no open PR or live worker already has it: the board card is
+   not Active, and `gh pr list` shows no PR for its issue. No plan yet: the first worker is a wiki
    worker that writes it, and the owner approves it before the code worker.
 4. **The facts.** Start the read-only `investigator` subagent (Sonnet) with
    `facts-helper-prompt.md`, `<n>` filled. Check each fact it returns yourself
@@ -81,6 +83,10 @@ worker briefs checklist.
    - **The gates line:** a code or tooling kind has `full-gates.txt`; a wiki
      PR has `wiki-only.txt`; a design with the owner or an investigation has
      `no-file-changes.txt`. Each kind's last line names its parts.
+   - **The plan's status:** a code, tooling or wiki kind has `plan-status.txt`
+     after the shared rules, and the spec's Context names the plan and its
+     roadmap entry (or says there is no plan); the worker sets the status in
+     its PR (checklist, "The Board").
    - **No tool mentions:** the shared rules are pasted whole, and nothing in
      the spec asks for a footer, a trailer, tool wording or a local path in
      commits or on GitHub.
@@ -105,10 +111,11 @@ worker briefs checklist.
    for. Then link the worktree:
    `orca worktree set --worktree path:<worktree> --issue <n> --json`, and check
    `git -C <worktree> log --oneline -1` shows the SHA in the spec.
-8. **The status.** For code or tooling, in the main checkout: the plan's
-   `- Status: Active` with `- Branch: \`<the worker's branch>\`` under it, and
-   the roadmap entry's status, as a status-only commit on `develop` pushed
-   straight to `develop` ("Wiki: Mark <plan> Active"; checklist, "The Board"). Then the issue
-   to Active on the board, any "(blocked: …)" note off its title. A fix round
-   changes no status. Tell the owner in one line: the work by name, the kind,
-   the tier.
+8. **The board.** The issue to Active on the board, any "(blocked: …)" note
+   off its title. The plan's own status changes in the worker's PR, not here
+   (the `plan-status.txt` part; checklist, "The Board"); the coordinator
+   commits no status. A fix round changes no status, and leaves a plan its PR
+   already marked Completed as it is. A plan that was Active on `develop`
+   before 2026-10-06: name it in the spec's Context as an exception, so its
+   own PR completes it (checklist, "The Board"). Tell the owner in one
+   line: the work by name, the kind, the tier.
