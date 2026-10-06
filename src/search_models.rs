@@ -7,6 +7,8 @@ use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+use crate::cli::CliContext;
+use crate::progress::{ProgressOperation, ProgressReporter};
 use crate::search_profile::{timestamp, write_toml_atomic};
 
 const ACCEPTED_LICENSES_SCHEMA_VERSION: u32 = 1;
@@ -118,12 +120,14 @@ pub enum ModelArtifactClassification {
     },
 }
 
+#[cfg(test)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MaterializedModel {
     pub record: ModelArtifactRecord,
     pub outcome: MaterializationOutcome,
 }
 
+#[cfg(test)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MaterializationOutcome {
     Reused,
@@ -555,26 +559,26 @@ pub fn model_by_id(id: &str) -> Option<SearchModel> {
     MODEL_CATALOG.iter().copied().find(|model| model.id == id)
 }
 
-pub fn materialize_model(
-    model: SearchModel,
-    profile: ProfileBundle,
-    model_root: &Path,
-    force: bool,
-) -> Result<MaterializedModel> {
-    materialize_model_with_downloader(model, profile, model_root, force, download_model)
-}
-
 pub fn classify_model_artifact(
     model: SearchModel,
     profile: ProfileBundle,
     model_root: &Path,
+) -> Result<ModelArtifactClassification> {
+    classify_model_artifact_with_progress(model, profile, model_root, None)
+}
+
+pub fn classify_model_artifact_with_progress(
+    model: SearchModel,
+    profile: ProfileBundle,
+    model_root: &Path,
+    progress: Option<&mut ProgressOperation>,
 ) -> Result<ModelArtifactClassification> {
     let path = model.managed_path(model_root);
     if !path.exists() {
         return Ok(ModelArtifactClassification::Missing { path });
     }
 
-    let observed_sha256 = sha256_file(&path)?;
+    let observed_sha256 = sha256_file_with_progress(&path, progress)?;
     if observed_sha256 == model.expected_sha256 {
         return Ok(ModelArtifactClassification::Verified {
             record: Box::new(artifact_record(model, profile, path, observed_sha256)?),
@@ -587,6 +591,7 @@ pub fn classify_model_artifact(
     })
 }
 
+#[cfg(test)]
 fn materialize_model_with_downloader(
     model: SearchModel,
     profile: ProfileBundle,
@@ -615,6 +620,7 @@ fn materialize_model_with_downloader(
     }
 }
 
+#[cfg(test)]
 fn download_and_verify_model(
     model: SearchModel,
     profile: ProfileBundle,
@@ -635,6 +641,36 @@ fn download_and_verify_model(
         record: artifact_record(model, profile, path.to_path_buf(), observed)?,
         outcome: MaterializationOutcome::Downloaded,
     })
+}
+
+pub fn download_and_verify_model_with_progress(
+    model: SearchModel,
+    profile: ProfileBundle,
+    path: &Path,
+    model_index: usize,
+    total_models: usize,
+    reporter: &mut ProgressReporter,
+    context: &CliContext,
+) -> Result<ModelArtifactRecord> {
+    download_model_with_progress(model, path, model_index, total_models, reporter, context)?;
+    let mut verify = reporter.begin(
+        "verify",
+        model.id,
+        model_index,
+        total_models,
+        model.expected_size_bytes,
+    );
+    let observed = sha256_file_with_progress(path, Some(&mut verify))?;
+    verify.finish();
+    if observed != model.expected_sha256 {
+        bail!(
+            "downloaded model artifact hash mismatch for {}; expected {}, observed {}",
+            model.id,
+            model.expected_sha256,
+            observed
+        );
+    }
+    artifact_record(model, profile, path.to_path_buf(), observed)
 }
 
 fn artifact_record(
@@ -667,19 +703,47 @@ fn artifact_record(
     })
 }
 
-fn download_model(model: SearchModel, destination: &Path) -> Result<()> {
-    // Retry transient download failures a bounded number of times. Each attempt is
-    // a clean retry-from-zero (no resume-from-offset); the temp-file + atomic
-    // persist below keep partial downloads from leaking, and SHA-256 verification
-    // at the call site still guards integrity.
+fn download_model_with_progress(
+    model: SearchModel,
+    destination: &Path,
+    model_index: usize,
+    total_models: usize,
+    reporter: &mut ProgressReporter,
+    context: &CliContext,
+) -> Result<()> {
     const MAX_ATTEMPTS: u32 = 3;
     let mut attempt = 1;
     loop {
-        match download_model_once(model, destination) {
-            Ok(()) => return Ok(()),
+        let mut progress = reporter.begin(
+            "download",
+            model.id,
+            model_index,
+            total_models,
+            model.expected_size_bytes,
+        );
+        let result = download_model_once(
+            model,
+            destination,
+            |content_length| {
+                if let Some(content_length) = content_length
+                    && content_length != model.expected_size_bytes
+                {
+                    context.diagnostic(format!(
+                        "search model content length mismatch: {} expected {} bytes, server reported {} bytes",
+                        model.id, model.expected_size_bytes, content_length
+                    ));
+                }
+            },
+            |bytes| progress.advance(bytes),
+        );
+        match result {
+            Ok(()) => {
+                progress.finish();
+                return Ok(());
+            }
             Err(err) if attempt < MAX_ATTEMPTS => {
                 eprintln!(
-                    "warning: model download attempt {attempt}/{MAX_ATTEMPTS} for {} failed: {err:#}; retrying",
+                    "warning: model download attempt {attempt}/{MAX_ATTEMPTS} for {} failed: {err:#}; retrying from zero",
                     model.id
                 );
                 std::thread::sleep(Duration::from_secs(u64::from(attempt)));
@@ -690,7 +754,12 @@ fn download_model(model: SearchModel, destination: &Path) -> Result<()> {
     }
 }
 
-fn download_model_once(model: SearchModel, destination: &Path) -> Result<()> {
+fn download_model_once(
+    model: SearchModel,
+    destination: &Path,
+    content_length_observer: impl FnOnce(Option<u64>),
+    progress_observer: impl FnMut(u64),
+) -> Result<()> {
     let parent = destination.parent().with_context(|| {
         format!(
             "model artifact path has no parent: {}",
@@ -715,27 +784,47 @@ fn download_model_once(model: SearchModel, destination: &Path) -> Result<()> {
             response.status()
         );
     }
+    content_length_observer(response.content_length());
 
     let mut temp = tempfile::NamedTempFile::new_in(parent)
         .with_context(|| format!("create temp model artifact in {}", parent.display()))?;
-    let mut buffer = [0u8; 64 * 1024];
-    loop {
-        let bytes = response
-            .read(&mut buffer)
-            .with_context(|| format!("read model response for {}", model.id))?;
-        if bytes == 0 {
-            break;
-        }
-        temp.write_all(&buffer[..bytes])
-            .with_context(|| format!("write temp model artifact for {}", model.id))?;
-    }
+    copy_model_stream(&mut response, &mut temp, model.id, progress_observer)?;
     temp.persist(destination)
         .map_err(|err| err.error)
         .with_context(|| format!("persist model artifact {}", destination.display()))?;
     Ok(())
 }
 
+fn copy_model_stream(
+    reader: &mut impl Read,
+    writer: &mut impl Write,
+    model_id: &str,
+    mut progress_observer: impl FnMut(u64),
+) -> Result<()> {
+    let mut buffer = [0u8; 64 * 1024];
+    loop {
+        let bytes = reader
+            .read(&mut buffer)
+            .with_context(|| format!("read model response for {model_id}"))?;
+        if bytes == 0 {
+            break;
+        }
+        writer
+            .write_all(&buffer[..bytes])
+            .with_context(|| format!("write temp model artifact for {model_id}"))?;
+        progress_observer(bytes as u64);
+    }
+    Ok(())
+}
+
 pub fn sha256_file(path: &Path) -> Result<String> {
+    sha256_file_with_progress(path, None)
+}
+
+fn sha256_file_with_progress(
+    path: &Path,
+    mut progress: Option<&mut ProgressOperation>,
+) -> Result<String> {
     let mut file =
         fs::File::open(path).with_context(|| format!("open model artifact {}", path.display()))?;
     let mut hasher = Sha256::new();
@@ -748,6 +837,9 @@ pub fn sha256_file(path: &Path) -> Result<String> {
             break;
         }
         hasher.update(&buffer[..bytes]);
+        if let Some(progress) = progress.as_deref_mut() {
+            progress.advance(bytes as u64);
+        }
     }
     Ok(format!("{:x}", hasher.finalize()))
 }
@@ -757,14 +849,30 @@ mod tests {
     use std::cell::Cell;
     use std::fs;
 
+    use tempfile::TempDir;
+
     use super::{
         AcceptedLicenses, DEFAULT_PROFILE_ID, EMBEDDING_GEMMA_300M, MaterializationOutcome,
         ModelArtifactClassification, ModelRole, ProfileBundle, QMD_QUERY_EXPANSION_17B,
         SearchModel, SearchThresholdStore, SearchThresholds, classify_model_artifact,
-        materialize_model_with_downloader, profile_by_id,
+        copy_model_stream, materialize_model_with_downloader, profile_by_id,
     };
-    use tempfile::TempDir;
 
+    #[test]
+    fn model_stream_reports_every_written_chunk() {
+        let input = vec![7_u8; 150_000];
+        let mut reader = std::io::Cursor::new(&input);
+        let mut output = Vec::new();
+        let mut reported = 0_u64;
+
+        copy_model_stream(&mut reader, &mut output, "fixture", |bytes| {
+            reported += bytes;
+        })
+        .expect("copy model stream");
+
+        assert_eq!(output, input);
+        assert_eq!(reported, input.len() as u64);
+    }
     const FIXTURE_MODEL_BYTES: &[u8] = b"fixture model";
     const BAD_MODEL_BYTES: &[u8] = b"bad model";
 

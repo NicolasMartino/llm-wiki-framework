@@ -1,5 +1,29 @@
 # Wiki Log
 
+## [2026-08-15] update | Install model download progress implementation
+
+Activated the install-download-progress plan and implemented progress across
+all enabled-search install stalls. Model response chunks now drive an
+`indicatif` stderr progress bar during the primary download path; existing-file
+classification and post-download SHA-256 verification report the same model and
+phase context. Non-TTY stderr uses bounded 25% milestone lines, retries restart
+from zero, catalog sizes remain authoritative, and HTTP content-length drift is
+verbose-only diagnostic evidence. The install plan's preflight classification
+is reused so download actions do not perform an unnecessary second pre-download
+hash.
+
+Updated the README, documentation-model spec, observability checklist, and wiki
+index. `just verify` passes, covering formatting, workspace and release-E2E
+tests, strict all-target clippy, snapshots, and the legacy audit; diff checks
+also pass. Real enabled-model install evidence remains required before the plan
+moves to Completed.
+
+Pages affected: `Cargo.toml`, `Cargo.lock`, `src/main.rs`, `src/progress.rs`,
+`src/search_models.rs`, `src/install.rs`, `README.md`,
+`wiki/plans/install-download-progress.plan.md`,
+`wiki/checklists/observability-contract.checklist.md`,
+`wiki/specs/documentation-model.spec.md`, `wiki/index.md`, `wiki/log.md`.
+
 ## [2026-08-01] update | Claude production MCP 0.2.15 field-test review
 
 Ingested the user-supplied Claude production MCP field-test results for
