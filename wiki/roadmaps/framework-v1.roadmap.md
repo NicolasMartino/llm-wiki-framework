@@ -1072,3 +1072,30 @@ Proof:
 - no page of the way of working tells the coordinator to commit a status, and
   every brief for code, tooling and wiki work carries the plan-status part
 - `just branch-status` lists each pushed branch with the plan its own ref names
+
+### P19 - The Operations Setup Ships With llm-wiki
+
+Status: Draft
+Promise: Any project can set up the coordinated way of working from llm-wiki
+itself: an `operations` pack holds the kit's files, and an `operations_setup`
+MCP prompt holds the steps, so a host like Claude Code runs it as a slash
+command (`/mcp__llm-wiki__operations_setup`) next to the wiki prompts.
+Depends On: P18
+Execution Plan: Not created yet (a proposal first, for the owner to accept)
+
+Included:
+- the owner's decision of 2026-10-06 to propose it ("I think we should propose
+  to include inside llm wiki; I think the pack and mcp make sense")
+- a proposal built from the owner's global operations setup skill, which looks
+  at a repository, asks the standard questions, writes the fitted kit
+  uncommitted, tests it and has it blind-reviewed
+- how it fits llm-wiki's no-shipped-skills posture
+  (`wiki/decisions/skill-projection-template-engine.decision.md` is
+  superseded) and the existing MCP prompts (`wiki_query`, `wiki_ingest`,
+  `wiki_lint`, `wiki_research`)
+
+Excluded:
+- building it, until the proposal is accepted
+
+Proof:
+- the proposal is accepted by the owner
