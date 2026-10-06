@@ -69,11 +69,11 @@ becomes a roadmap entry and an issue, not a workaround.
   `orca orchestration run-use --id <R> --json`; otherwise
   `orca orchestration run-create --objective "<objective>" --json`.
 - **Read the state from the repository first**: the roadmaps and the plans'
-  `Status` lines (`just branch-status` checks plans against the pushed
-  branches; a plan in flight is still Draft on `develop`, so read it on its
-  branch, "The Board"), then the board, the open PRs (`gh pr list`), the
-  run's workers (`orca orchestration worker-list --run <R> --json`) and their
-  unanswered asks (`orca orchestration check --run <R> --peek --json`). Why: a session
+  `Status` lines (`just branch-status` reads each pushed branch's plans
+  from its own ref; a plan in flight is still Draft on `develop`, so read it
+  on its branch, "The Board"), then the board, the open PRs (`gh pr list`),
+  the run's workers (`orca orchestration worker-list --run <R> --json`) and
+  their unanswered asks (`orca orchestration check --run <R> --peek --json`). Why: a session
   starts with none of the previous one's conversation, and the repository is
   the truth.
 - **After a quiet stretch, give the owner a short status first.**
@@ -144,8 +144,8 @@ the status, and the board shows it.
   when landing. So `develop` shows a plan as Draft until its PR merges; what
   is in flight is the pushed branch, its plan as that branch has it, and the
   board; read a plan in flight on its branch
-  (`git show origin/<branch>:wiki/plans/<slug>.plan.md`) until
-  `just branch-status` reads each branch's own plans (issue #31). A settled
+  (`git show origin/<branch>:wiki/plans/<slug>.plan.md`); `just branch-status`
+  lists each pushed branch with the plans its own ref names. A settled
   investigation's or design's roadmap status goes in the wiki PR that records
   its outcome ("Landing A Comment").
 - **Plans already Active on `develop` when this rule came in** (2026-10-06;

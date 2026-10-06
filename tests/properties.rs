@@ -4,6 +4,8 @@ use assert_cmd::Command;
 use proptest::prelude::*;
 use tempfile::TempDir;
 
+mod support;
+
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(8))]
 
@@ -11,8 +13,7 @@ proptest! {
     fn repeated_install_has_stable_file_set(runs in 1usize..5) {
         let home = TempDir::new().expect("home");
         for _ in 0..runs {
-            Command::cargo_bin("llm-wiki")
-                .expect("binary")
+            Command::new(support::llm_wiki_bin())
                 .env("HOME", home.path())
                 .env_remove("RUST_LOG")
                 .env_remove("XDG_CACHE_HOME")

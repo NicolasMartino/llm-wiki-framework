@@ -1005,7 +1005,7 @@ Promise: A lexical search for a page's own title or file name finds that page
 at the top, and a query whose words no single page holds all of still returns
 the pages that hold its phrases.
 Depends On: P9
-Execution Plan: Not created yet (a short plan comes before its worker)
+Execution Plan: `wiki/plans/search-ranking-weights-and-phrase-fallback.plan.md`
 
 Included:
 - the fix the investigation of P9 measured (issue #7, comment of 2026-10-06):
@@ -1046,7 +1046,7 @@ Proof:
 
 ### P18 - A Plan's Status Lands In The PR That Does The Work
 
-Status: Active
+Status: Completed (develop)
 Promise: A plan's status changes in the PR that does its work: the worker sets
 it Active with its Branch line in its first push and Completed before the PR
 leaves draft, and the merge makes it true. The coordinator commits no status,

@@ -384,6 +384,11 @@ impl ProductStory {
         }
     }
 
+    /// `llm-wiki install` puts poman beside the managed binary.
+    fn managed_poman_host(&self) -> PathBuf {
+        self.managed_binary_host.with_file_name(poman_exe_name())
+    }
+
     fn run_artifact(&self, args: &[&str], name: &str) -> Result<CommandReport> {
         self.run(&self.artifact_exec, args, name)
     }
@@ -434,9 +439,7 @@ fn run_search(args: RunArgs) -> Result<RunReport> {
 
 fn run_gguf(args: GgufArgs) -> Result<RunReport> {
     if !args.manual_models {
-        bail!(
-            "release-e2e gguf requires --manual-models because it materializes real GGUF models"
-        );
+        bail!("release-e2e gguf requires --manual-models because it materializes real GGUF models");
     }
 
     let reuse_managed_models_from = args.reuse_managed_models_from.clone();
@@ -528,6 +531,10 @@ fn run_gguf(args: GgufArgs) -> Result<RunReport> {
         &story.managed_binary_host,
     ));
     assertions.push(file_exists_assertion(
+        "managed poman installed",
+        &story.managed_poman_host(),
+    ));
+    assertions.push(file_exists_assertion(
         "managed search profile installed",
         &temp_home.path.join(".llm_wiki/search.toml"),
     ));
@@ -551,7 +558,10 @@ fn run_gguf(args: GgufArgs) -> Result<RunReport> {
         ],
         "init",
     )?;
-    assertions.push(AssertionReport::new("init exits successfully", init.success));
+    assertions.push(AssertionReport::new(
+        "init exits successfully",
+        init.success,
+    ));
     commands.push(init);
 
     write_gguf_fixture(&project_dir)?;
@@ -653,7 +663,7 @@ fn run_gguf(args: GgufArgs) -> Result<RunReport> {
     );
     commands.push(search_all);
 
-    let uninstall = story.run_managed(&["uninstall", "--include-binary"], "uninstall")?;
+    let uninstall = story.run_managed(&["uninstall"], "uninstall")?;
     assertions.push(AssertionReport::new(
         "uninstall exits successfully",
         uninstall.success,
@@ -661,6 +671,10 @@ fn run_gguf(args: GgufArgs) -> Result<RunReport> {
     assertions.push(path_missing_assertion(
         "managed binary removed by uninstall",
         &story.managed_binary_host,
+    ));
+    assertions.push(path_missing_assertion(
+        "managed poman removed by uninstall",
+        &story.managed_poman_host(),
     ));
     commands.push(uninstall);
 
@@ -860,6 +874,7 @@ fn run_product_story(
     commands.push(install);
     assertions.extend([
         file_exists_assertion("managed binary exists", &managed_binary),
+        file_exists_assertion("managed poman exists", &story.managed_poman_host()),
         file_exists_assertion("install manifest exists", &manifest_path),
         file_contains_assertion(
             "search config records disabled search",
@@ -1167,10 +1182,14 @@ fn run_product_story(
     ]);
     commands.push(projects_after_forget);
 
-    let uninstall = story.run_artifact(&["uninstall", "--include-binary"], "uninstall")?;
+    let uninstall = story.run_artifact(&["uninstall"], "uninstall")?;
     assertions.extend([
         AssertionReport::new("uninstall exits successfully", uninstall.success),
         path_missing_assertion("uninstall removes managed binary", &managed_binary),
+        path_missing_assertion(
+            "uninstall removes managed poman",
+            &story.managed_poman_host(),
+        ),
         path_missing_assertion("uninstall removes manifest", &manifest_path),
         path_missing_assertion(
             "uninstall removes staged claude mcp config",
@@ -1236,8 +1255,7 @@ fn run_product_story(
 
 fn write_gguf_fixture(project_dir: &Path) -> Result<()> {
     let proposals = project_dir.join("wiki/proposals");
-    fs::create_dir_all(&proposals)
-        .with_context(|| format!("create {}", proposals.display()))?;
+    fs::create_dir_all(&proposals).with_context(|| format!("create {}", proposals.display()))?;
 
     let target = proposals.join("project-update-command.proposal.md");
     fs::write(
@@ -1292,8 +1310,11 @@ fn copy_managed_model_state(source_managed_home: &Path, target_managed_home: &Pa
     if accepted.is_file() {
         fs::create_dir_all(target_managed_home)
             .with_context(|| format!("create {}", target_managed_home.display()))?;
-        fs::copy(&accepted, target_managed_home.join("accepted-licenses.toml"))
-            .with_context(|| format!("copy {}", accepted.display()))?;
+        fs::copy(
+            &accepted,
+            target_managed_home.join("accepted-licenses.toml"),
+        )
+        .with_context(|| format!("copy {}", accepted.display()))?;
     }
 
     Ok(())
@@ -1419,7 +1440,10 @@ fn append_search_json_assertions(
     ));
 
     let Ok(json) = read_command_json(command) else {
-        assertions.push(AssertionReport::new(format!("{label} search json parses"), false));
+        assertions.push(AssertionReport::new(
+            format!("{label} search json parses"),
+            false,
+        ));
         return;
     };
     assertions.push(AssertionReport::passed(format!(
@@ -1484,7 +1508,11 @@ fn append_search_all_json_assertions(
     ));
 }
 
-fn append_runtime_json_assertions(assertions: &mut Vec<AssertionReport>, label: &str, json: &Value) {
+fn append_runtime_json_assertions(
+    assertions: &mut Vec<AssertionReport>,
+    label: &str,
+    json: &Value,
+) {
     assertions.push(AssertionReport::new(
         format!("{label} requests CPU runtime"),
         json["runtime_backend_requested"].as_str() == Some("cpu"),
@@ -1551,6 +1579,7 @@ fn resolve_raw_artifact(
     let artifact_sha256 = sha256_file(&artifact)?;
     let checksum = verify_checksum(checksum_path, &artifact_sha256)?;
     require_checksum_match(&checksum, &artifact_sha256)?;
+    ensure_poman_beside(&artifact)?;
     Ok(ResolvedArtifact {
         artifact_path: artifact,
         artifact_sha256,
@@ -1583,6 +1612,7 @@ fn resolve_archive_artifact(
     extract_release_archive(&package, &unpack_dir)?;
     let artifact = find_release_binary(&unpack_dir, requirement)?;
     ensure_artifact_requirement(&artifact, requirement)?;
+    add_poman_from_sibling_archive(&package, &unpack_dir, &artifact)?;
     let artifact_sha256 = sha256_file(&artifact)?;
 
     Ok(ResolvedArtifact {
@@ -1592,6 +1622,59 @@ fn resolve_archive_artifact(
         package_sha256: Some(package_sha256),
         checksum,
     })
+}
+
+/// The release ships poman in an archive of its own, `poman-<triple>.tar.xz`
+/// beside `llm-wiki-rs-<triple>.tar.xz` (the owner, 2026-10-06). A person
+/// unpacks both into one folder, so `llm-wiki install` finds poman beside
+/// itself; the lane does the same, checking the poman archive's own `.sha256`
+/// when it is there.
+fn add_poman_from_sibling_archive(
+    package: &Path,
+    unpack_dir: &Path,
+    artifact: &Path,
+) -> Result<()> {
+    let name = package
+        .file_name()
+        .and_then(|name| name.to_str())
+        .with_context(|| format!("archive name of {}", package.display()))?;
+    let rest = name.strip_prefix("llm-wiki-rs-").with_context(|| {
+        format!("release archive {name} is not named llm-wiki-rs-<triple>.<ext>")
+    })?;
+    let poman_package = package.with_file_name(format!("poman-{rest}"));
+    if !poman_package.is_file() {
+        bail!(
+            "no poman archive beside {}: expected {}",
+            package.display(),
+            poman_package.display()
+        );
+    }
+    let mut sidecar = poman_package.clone().into_os_string();
+    sidecar.push(".sha256");
+    let sidecar = PathBuf::from(sidecar);
+    if sidecar.is_file() {
+        let poman_sha256 = sha256_file(&poman_package)?;
+        let checksum = verify_checksum(Some(&sidecar), &poman_sha256)?;
+        require_checksum_match(&checksum, &poman_sha256)?;
+    }
+    let poman_unpack = unpack_dir.join("poman-archive");
+    fs::create_dir_all(&poman_unpack)
+        .with_context(|| format!("create {}", poman_unpack.display()))?;
+    extract_release_archive(&poman_package, &poman_unpack)?;
+    let mut candidates = Vec::new();
+    collect_release_binary_candidates(&poman_unpack, poman_exe_name(), &mut candidates)?;
+    candidates.sort();
+    let poman = candidates.first().with_context(|| {
+        format!(
+            "poman archive {} holds no {}",
+            poman_package.display(),
+            poman_exe_name()
+        )
+    })?;
+    let beside = artifact.with_file_name(poman_exe_name());
+    fs::copy(poman, &beside)
+        .with_context(|| format!("copy {} to {}", poman.display(), beside.display()))?;
+    Ok(())
 }
 
 fn extract_release_archive(archive: &Path, destination: &Path) -> Result<()> {
@@ -1717,6 +1800,23 @@ fn ensure_linux_artifact(path: &Path) -> Result<()> {
         "linux lane requires a Linux ELF llm-wiki artifact, got {}",
         path.display()
     )
+}
+
+fn poman_exe_name() -> &'static str {
+    if cfg!(windows) { "poman.exe" } else { "poman" }
+}
+
+/// `llm-wiki install` refuses without a poman beside the binary it runs from.
+fn ensure_poman_beside(artifact: &Path) -> Result<()> {
+    let poman = artifact.with_file_name(poman_exe_name());
+    if !poman.is_file() {
+        bail!(
+            "no poman beside {}: llm-wiki install needs one ({} missing)",
+            artifact.display(),
+            poman.display()
+        );
+    }
+    Ok(())
 }
 
 fn llm_wiki_exe_name() -> &'static str {
@@ -1942,6 +2042,11 @@ fn run_docker_lane_command(
         .with_context(|| format!("create {}", stderr_path.display()))?;
 
     let artifact_mount = format!("{}:/artifact/llm-wiki:ro", story.artifact_host.display());
+    // Install takes poman from beside llm-wiki, so it is mounted beside it.
+    let poman_mount = format!(
+        "{}:/artifact/poman:ro",
+        story.artifact_host.with_file_name("poman").display()
+    );
     let home_mount = format!("{}:/home/e2e", story.home_host.display());
     let run_mount = format!("{}:/work/run", story.run_dir_host.display());
     let container_name = format!(
@@ -1961,6 +2066,8 @@ fn run_docker_lane_command(
         .arg(&config.network)
         .arg("-v")
         .arg(artifact_mount)
+        .arg("-v")
+        .arg(poman_mount)
         .arg("-v")
         .arg(home_mount)
         .arg("-v")
@@ -2396,6 +2503,62 @@ mod tests {
             parsed,
             "abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd"
         );
+    }
+
+    #[test]
+    fn the_poman_archive_is_unpacked_beside_llm_wiki() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let pack = |name: &str, binary: &str| {
+            let stage = dir.path().join(format!("stage-{name}"));
+            fs::create_dir_all(stage.join(name)).expect("stage");
+            fs::write(stage.join(name).join(binary), binary).expect("binary");
+            let archive = dir.path().join(format!("{name}.tar.gz"));
+            let status = Command::new("tar")
+                .arg("-czf")
+                .arg(&archive)
+                .arg("-C")
+                .arg(&stage)
+                .arg(name)
+                .status()
+                .expect("tar");
+            assert!(status.success());
+            archive
+        };
+        let package = pack("llm-wiki-rs-test", llm_wiki_exe_name());
+        let unpack = dir.path().join("unpack");
+        fs::create_dir_all(&unpack).expect("unpack");
+        extract_release_archive(&package, &unpack).expect("extract");
+        let artifact = find_release_binary(&unpack, ArtifactRequirement::Any).expect("llm-wiki");
+
+        let err = add_poman_from_sibling_archive(&package, &unpack, &artifact)
+            .err()
+            .expect("no poman archive yet");
+        assert!(
+            err.to_string().contains("no poman archive beside"),
+            "{err:#}"
+        );
+
+        pack("poman-test", poman_exe_name());
+        add_poman_from_sibling_archive(&package, &unpack, &artifact).expect("poman archive");
+        assert_eq!(
+            fs::read_to_string(artifact.with_file_name(poman_exe_name())).expect("poman beside"),
+            poman_exe_name()
+        );
+    }
+
+    #[test]
+    fn a_raw_artifact_needs_poman_beside_it() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let artifact = dir.path().join(llm_wiki_exe_name());
+        fs::write(&artifact, b"llm-wiki").expect("artifact");
+
+        let err = resolve_raw_artifact(&artifact, None, ArtifactRequirement::Any)
+            .err()
+            .expect("no poman beside the artifact");
+        assert!(err.to_string().contains("no poman beside"), "{err:#}");
+
+        fs::write(dir.path().join(poman_exe_name()), b"poman").expect("poman");
+        resolve_raw_artifact(&artifact, None, ArtifactRequirement::Any).expect("poman beside");
     }
 
     #[test]

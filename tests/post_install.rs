@@ -11,8 +11,10 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use tempfile::TempDir;
 
+mod support;
+
 fn llm_wiki() -> Command {
-    let mut command = Command::cargo_bin("llm-wiki").expect("binary");
+    let mut command = Command::new(support::llm_wiki_bin());
     command
         .env_remove("RUST_LOG")
         .env_remove("XDG_CACHE_HOME")

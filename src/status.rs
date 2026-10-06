@@ -51,6 +51,9 @@ pub fn run(context: &crate::cli::CliContext) -> Result<()> {
     println!("version: {}", manifest.binary.version);
     println!("installed at: {}", manifest.installed_at);
     println!("managed binary: {}", manifest.binary.path.display());
+    if let Some(poman) = &manifest.poman {
+        println!("managed poman: {}", poman.path.display());
+    }
     println!(
         "mcp server startup: {} ({})",
         mcp_config::SERVER_STARTUP,

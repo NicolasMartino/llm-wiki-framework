@@ -75,16 +75,21 @@ pub fn run(_args: &crate::cli::DoctorArgs, context: &crate::cli::CliContext) -> 
         }
     ));
     if let Some(manifest) = &manifest {
-        if !manifest.binary.path.exists() {
-            findings.push(format!(
-                "Missing managed binary: {}",
-                manifest.binary.path.display()
-            ));
-        } else {
-            match hash_managed_file(&manifest.binary.path, "managed binary") {
-                Ok(current) if current != manifest.binary.hash => findings.push(format!(
-                    "Drifted managed binary: {} (run `{bin} install` to refresh)",
-                    manifest.binary.path.display()
+        let binaries = std::iter::once(("managed binary", &manifest.binary)).chain(
+            manifest
+                .poman
+                .as_ref()
+                .map(|poman| ("managed poman", poman)),
+        );
+        for (label, entry) in binaries {
+            if !entry.path.exists() {
+                findings.push(format!("Missing {label}: {}", entry.path.display()));
+                continue;
+            }
+            match hash_managed_file(&entry.path, label) {
+                Ok(current) if current != entry.hash => findings.push(format!(
+                    "Drifted {label}: {} (run `{bin} install` to refresh)",
+                    entry.path.display()
                 )),
                 Ok(_) => {}
                 Err(finding) => findings.push(finding),

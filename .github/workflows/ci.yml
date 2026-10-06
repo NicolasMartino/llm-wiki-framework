@@ -21,9 +21,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy, llvm-tools-preview
+      # rust-toolchain.toml pins the toolchain and its components; rustup
+      # installs exactly that.
+      - name: Install the pinned toolchain
+        run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@v2
         with:
@@ -38,10 +39,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: nightly-2026-05-01
+      # The dated nightly is named once, in tools/udeps-nightly.
+      - name: Install the dated nightly
+        run: rustup toolchain install "$(tr -d '[:space:]' < tools/udeps-nightly)" --profile minimal
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@cargo-udeps
       - name: Unused Dependency Audit
-        run: cargo +nightly-2026-05-01 udeps --workspace
+        run: cargo +"$(tr -d '[:space:]' < tools/udeps-nightly)" udeps --workspace
+
+  strict:
+    name: just strict
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the pinned toolchain and the dated nightly
+        run: |
+          rustup toolchain install
+          rustup toolchain install "$(tr -d '[:space:]' < tools/udeps-nightly)" --profile minimal
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just,cargo-llvm-cov,cargo-mutants,cargo-deny,cargo-udeps
+      - name: Strict gates
+        run: just strict

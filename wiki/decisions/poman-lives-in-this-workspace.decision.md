@@ -17,6 +17,8 @@
     beside itself, and people installing with `cargo install` also run
     `cargo install poman`
   - `Cargo.toml` and `justfile` at `41ae502`: the workspace and today's gates
+  - The owner's answers of 2026-10-06 to the open choices of
+    `wiki/plans/poman-workspace-and-strict-gates.plan.md`
 - Related:
   - `wiki/decisions/poman-reads-only-its-own-file-types.decision.md`: what the
     shared file types are for
@@ -53,7 +55,12 @@ this project is held to the strictest gates.**
   could have llm wiki install poman").
 - **Where `llm-wiki install` gets poman** (the owner's decisions,
   2026-10-06):
-  - the release archive ships both binaries side by side;
+  - the release ships both binaries, each in an archive of its own per
+    target (`llm-wiki-rs-<triple>`, `poman-<triple>`), because cargo-dist
+    builds one archive per package (the owner, 2026-10-06, amending "the
+    release archive ships both binaries side by side"); dist's shell
+    installers put both in Cargo's bin folder, and a person unpacking by
+    hand unpacks both into one folder;
   - `llm-wiki install` copies poman from beside itself, the folder its own
     binary runs from;
   - people installing with `cargo install llm-wiki-rs` also run
@@ -96,7 +103,7 @@ this project is held to the strictest gates.**
   type.** A type defined twice drifts; defined once, `llm-wiki init` writes
   what poman checks.
 - **One install and one release** keep poman where llm-wiki already puts its
-  managed binary, so the person installing from the release archive is asked
+  managed binary, so the person installing from the release is asked
   nothing new; one installing with `cargo install` runs one more command.
 - **A tool that rewrites boards has to be trusted**, and the owner extended that to every crate here.
 - **`forbid` instead of `deny`**: one `#[expect(lint, reason)]` line lifts a
@@ -115,27 +122,36 @@ this project is held to the strictest gates.**
 
 ## Consequences
 
-- The workspace's `members` list is empty today; PM1 adds the two crates.
-- llm-wiki has no `[lints]` table and no pinned toolchain file today, so the
-  ratchet starts from nothing switched to strict.
+- PM1 added the two crates to the workspace, `crates/llm-wiki-core` and
+  `crates/poman`, and `default-members` builds poman with llm-wiki. The
+  strictest lint table is the workspace's (`[workspace.lints]`), which only the
+  strict crates take; `tools/strict-gates.sh` (`just strict`) runs every gate
+  over them, in the fast check and the full CI.
+- `rust-toolchain.toml` pins the toolchain for the whole repository, but
+  llm-wiki-rs does not take the lint table, so the ratchet starts from nothing
+  of llm-wiki switched to strict.
 - The parser moves crate, so llm-wiki's search reads pages through the shared
   crate (today `src/search/qmd_rs.rs` and `src/search/semantic.rs` import
   it), and the parser is rewritten to the strictest gates as it moves. The parser also accepts
   `---` front matter and bold `**Key:**` lines today, while poman's own types
   use the bullet block only; how the shared reader serves both is PM2's to
   settle. Whoever does the work rechecks every caller.
-- The shared crate's name is not decided; PM1 picks it.
+- The shared crate is `llm-wiki-core`, with a `types` module inside it (the
+  owner, 2026-10-06); its first piece is splitting a wiki filename into its
+  parts.
 - `llm-wiki-binary-distribution.decision.md` describes one binary; this page
   amends it with a second, shipped and installed as "Where `llm-wiki install`
   gets poman" sets out.
-- An `llm-wiki` binary run with no poman beside it has nothing to copy; what
-  `llm-wiki install` says then is PM1's to settle.
+- An `llm-wiki` binary run with no poman of its own version beside it has
+  nothing to copy: `llm-wiki install` keeps a poman it recorded before, and
+  with none recorded it refuses and says how to get one (the owner,
+  2026-10-06: "there should always be a poman besides an llm wiki").
+  `llm-wiki uninstall` removes both binaries ("uninstall uninstalls all").
 - The release tool configured today (cargo-dist, `[workspace.metadata.dist]`
-  in `Cargo.toml`) builds one archive per package, so a second crate could
-  ship as a second archive, with nothing for `llm-wiki install` to copy. PM1
-  makes the release put both binaries in one archive; its plan
-  (`wiki/plans/poman-workspace-and-strict-gates.plan.md`, PR #22) names that
-  risk and stops for the owner if the tool cannot.
+  in `Cargo.toml`) builds one archive per package and cannot put poman in
+  llm-wiki's, as PM1 found; the owner chose two archives from the one release
+  (2026-10-06), and `llm-wiki install` still finds poman beside itself once
+  both are unpacked into one folder or installed by dist's shell installers.
 - `templates/base/project_guidelines.md` keeps describing the wiki's types for
   people and agents; once the types are also defined in code, the two must say
   the same, which PM2 makes sure of.

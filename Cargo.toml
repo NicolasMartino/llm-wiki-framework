@@ -1,5 +1,8 @@
 [package]
 name = "llm-wiki-rs"
+description = "A software project management framework kept as an LLM-maintained wiki."
+keywords = ["llm-wiki", "wiki", "project-management", "cli"]
+categories = ["command-line-utilities", "development-tools"]
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,14 +13,56 @@ name = "llm-wiki"
 path = "src/main.rs"
 
 [workspace]
-members = []
+members = ["crates/llm-wiki-core", "crates/poman"]
+# A bare `cargo build` or `cargo test` at the root leaves `poman` beside
+# `llm-wiki` in the target folder, where `llm-wiki install` looks for it.
+default-members = [".", "crates/poman"]
 resolver = "2"
 
 [workspace.package]
 version = "0.2.15"
 edition = "2024"
+# Equal to the pin in rust-toolchain.toml; the strict gate checks they agree.
+rust-version = "1.99.0"
 license = "MIT"
 repository = "https://github.com/nicolasmartino/llm-wiki-rs"
+
+# The strictest gates' lint table (wiki/decisions/poman-lives-in-this-workspace.decision.md).
+# Only the strict crates opt in with `[lints] workspace = true`; llm-wiki's own
+# modules join one at a time (the ratchet). `tools/strict-gates.sh` fails when
+# any lint below is missing or set below `forbid`.
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "forbid"
+
+[workspace.lints.rustdoc]
+bare_urls = "forbid"
+broken_intra_doc_links = "forbid"
+invalid_codeblock_attributes = "forbid"
+invalid_html_tags = "forbid"
+invalid_rust_codeblocks = "forbid"
+missing_crate_level_docs = "forbid"
+private_doc_tests = "forbid"
+private_intra_doc_links = "forbid"
+redundant_explicit_links = "forbid"
+unescaped_backticks = "forbid"
+
+[workspace.lints.clippy]
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+cargo = { level = "deny", priority = -1 }
+dbg_macro = "forbid"
+exit = "forbid"
+expect_used = "forbid"
+indexing_slicing = "forbid"
+panic = "forbid"
+print_stderr = "forbid"
+print_stdout = "forbid"
+string_slice = "forbid"
+todo = "forbid"
+unimplemented = "forbid"
+unreachable = "forbid"
+unwrap_used = "forbid"
 
 [workspace.dependencies]
 anyhow = "1.0"

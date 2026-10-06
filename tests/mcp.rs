@@ -3,9 +3,10 @@ use std::io::Write;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
-use assert_cmd::cargo::cargo_bin;
 use serde_json::{Value, json};
 use tempfile::TempDir;
+
+mod support;
 
 fn mcp_tool_name(base: &'static str) -> &'static str {
     if option_env!("LLM_WIKI_COMPILED_INSTANCE") != Some("test") {
@@ -989,7 +990,7 @@ fn mcp_search_accepts_compact_pagination_args() {
 }
 
 fn run_mcp_session(home: &Path, project: &Path, requests: &[Value]) -> Vec<Value> {
-    let mut child = Command::new(cargo_bin("llm-wiki"))
+    let mut child = Command::new(support::llm_wiki_bin())
         .args(["mcp", "serve"])
         .current_dir(project)
         .env("HOME", home)
@@ -1026,7 +1027,7 @@ fn run_mcp_session(home: &Path, project: &Path, requests: &[Value]) -> Vec<Value
 }
 
 fn llm_wiki(home: &Path) -> Command {
-    let mut command = Command::new(cargo_bin("llm-wiki"));
+    let mut command = Command::new(support::llm_wiki_bin());
     command
         .env("HOME", home)
         .env_remove("RUST_LOG")

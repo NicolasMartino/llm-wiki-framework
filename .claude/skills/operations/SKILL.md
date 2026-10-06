@@ -27,10 +27,9 @@ do `wiki/plans/development-workflow-setup.plan.md` first, with the owner's go.
    id for every `worker-start`, `check` and `worker-list`.
 3. **Read the state from the repository, then GitHub**:
    - the roadmaps in `wiki/roadmaps/` and the plans' `Status` lines;
-     `just branch-status` checks the plans against the pushed branches. A plan
-     in flight is still Draft on `develop`: read it on its branch
-     (`git show origin/<branch>:wiki/plans/<slug>.plan.md`) until
-     `just branch-status` reads each branch's own plans (issue #31);
+     `just branch-status` lists each pushed branch with the plans its own ref
+     names. A plan in flight is still Draft on `develop`: read it on its branch
+     (`git show origin/<branch>:wiki/plans/<slug>.plan.md`);
    - the board: `gh project item-list 5 --owner NicolasMartino --limit 300 --format json`
      (project 5; its ids are in the checklist, "The Board"); it should match the plans as
      their branches have them, not `develop` ("The Board");

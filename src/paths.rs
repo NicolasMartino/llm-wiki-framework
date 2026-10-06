@@ -95,6 +95,10 @@ impl Paths {
         self.managed_bin_dir().join(managed_binary_name())
     }
 
+    pub fn managed_poman(&self) -> PathBuf {
+        self.managed_bin_dir().join(poman_binary_name())
+    }
+
     pub fn partial_install(&self) -> PathBuf {
         self.managed_home().join("install.partial.json")
     }
@@ -185,6 +189,12 @@ impl Paths {
 
 pub fn managed_binary_name() -> &'static str {
     instance::binary_name()
+}
+
+/// poman keeps its own name in every instance: the test instance's managed
+/// home already keeps it apart from the production one.
+pub fn poman_binary_name() -> &'static str {
+    if cfg!(windows) { "poman.exe" } else { "poman" }
 }
 
 #[cfg(test)]

@@ -5,7 +5,7 @@
 - Date: 2026-05-14
 - Category: Framework core
 - Scope: The validated documentation and execution model for projects using this framework.
-- Sources: raw/legacy/legacy-project-guidelines.md, raw/research/llm-wiki-pattern-research.md, raw/research/niharshrotri-llm-wiki-implementation.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/plans/cli-observability.plan.md, wiki/decisions/composable-project-init.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/decisions/wiki-query-search-first.decision.md, wiki/plans/init-rerun-pack-drift.plan.md, wiki/evals/v1-proof-run.eval.md, wiki/evals/natural-language-search.eval.md
+- Sources: raw/legacy/legacy-project-guidelines.md, raw/research/llm-wiki-pattern-research.md, raw/research/niharshrotri-llm-wiki-implementation.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/plans/cli-observability.plan.md, wiki/decisions/composable-project-init.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/decisions/wiki-query-search-first.decision.md, wiki/plans/init-rerun-pack-drift.plan.md, wiki/evals/v1-proof-run.eval.md, wiki/evals/natural-language-search.eval.md, wiki/plans/poman-workspace-and-strict-gates.plan.md
 - Related: wiki/decisions/three-layer-architecture.decision.md, wiki/decisions/agent-owns-wiki.decision.md, wiki/decisions/typed-documents.decision.md, wiki/references/qmd-rs-search-crate.reference.md, wiki/decisions/search-backend-selection.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/specs/wiki-init-skill.spec.md, wiki/specs/wiki-query-skill.spec.md, wiki/checklists/observability-contract.checklist.md
 
 ## Current State
@@ -163,7 +163,10 @@ future CLI implementation plans and code reviews.
 - `llm-wiki install` materializes the MCP surface (merged Codex
   `config.toml`, staged Claude `claude-project.mcp.json`) with managed-binary
   manifest ownership, scoped backup snapshots, and uninstall symmetry; it writes
-  zero runtime skills
+  zero runtime skills. It installs `poman` from beside its own binary into the
+  managed bin folder and records it (manifest schema 3), refuses when there is
+  no `poman` of its version beside it and none recorded, and `llm-wiki
+  uninstall` removes everything install wrote, both binaries included
 - `llm-wiki path` prints managed-bin PATH guidance
 - `llm-wiki mcp serve` runs the stdio MCP server that hosts spawn on demand,
   exposing `llm_wiki_read`, `llm_wiki_search`, `llm_wiki_search_all`,

@@ -22,12 +22,13 @@ pub fn run(args: &UninstallArgs, context: &CliContext) -> Result<()> {
             instance::binary_stem()
         );
     }
-    full_uninstall(args.include_binary, context)
+    full_uninstall(context)
 }
 
-fn full_uninstall(include_binary: bool, context: &CliContext) -> Result<()> {
+/// Removes everything install wrote, both binaries included (the owner,
+/// 2026-10-06: "uninstall uninstalls all").
+fn full_uninstall(context: &CliContext) -> Result<()> {
     context.diagnostic("command: uninstall");
-    context.diagnostic(format!("include managed binary: {include_binary}"));
     let paths = Paths::from_env()?;
     let manifest_path = paths.manifest();
     context.diagnostic(format!("manifest: {}", manifest_path.display()));
@@ -39,7 +40,7 @@ fn full_uninstall(include_binary: bool, context: &CliContext) -> Result<()> {
         // the host keeps trying to spawn the now-deleted managed binary.
         cleanup_codex_mcp_config(&paths, context)?;
         cleanup_staged_claude_mcp_config(&paths, context)?;
-        remove_global_runtime_state(&paths, include_binary, None, context)?;
+        remove_global_runtime_state(&paths, None, context)?;
         return Ok(());
     };
     context.diagnostic("manifest state: present");
@@ -81,7 +82,7 @@ fn full_uninstall(include_binary: bool, context: &CliContext) -> Result<()> {
         fs::remove_file(&manifest_path)
             .with_context(|| format!("failed to remove {}", manifest_path.display()))?;
     }
-    remove_global_runtime_state(&paths, include_binary, Some(&manifest.binary.path), context)?;
+    remove_global_runtime_state(&paths, Some(manifest), context)?;
     Ok(())
 }
 
@@ -227,8 +228,7 @@ fn cleanup_search_artifacts(force: bool, context: &CliContext) -> Result<()> {
 
 fn remove_global_runtime_state(
     paths: &Paths,
-    include_binary: bool,
-    manifest_binary: Option<&Path>,
+    manifest: Option<&Manifest>,
     context: &CliContext,
 ) -> Result<()> {
     remove_file_if_exists(&paths.partial_install(), context)?;
@@ -240,14 +240,21 @@ fn remove_global_runtime_state(
     remove_file_if_exists(&paths.project_registry(), context)?;
     remove_dir_all_if_exists(&paths.cache_home(), context)?;
 
-    if include_binary {
-        let binary = manifest_binary
-            .map(Path::to_path_buf)
-            .unwrap_or_else(|| paths.managed_binary());
-        remove_file_if_exists(&binary, context)?;
-        sweep_leaked_binary_temps(&paths.managed_bin_dir(), context);
-        remove_empty_dir(&paths.managed_bin_dir(), context)?;
+    let (binary, poman) = match manifest {
+        Some(manifest) => (
+            manifest.binary.path.clone(),
+            manifest.poman.as_ref().map(|poman| poman.path.clone()),
+        ),
+        // Without a manifest, the managed bin folder still holds only what
+        // install put there.
+        None => (paths.managed_binary(), Some(paths.managed_poman())),
+    };
+    remove_file_if_exists(&binary, context)?;
+    if let Some(poman) = poman {
+        remove_file_if_exists(&poman, context)?;
     }
+    sweep_leaked_binary_temps(&paths.managed_bin_dir(), context);
+    remove_empty_dir(&paths.managed_bin_dir(), context)?;
     remove_empty_dir(&paths.managed_home(), context)?;
     remove_empty_dir(&paths.data_home(), context)?;
     Ok(())

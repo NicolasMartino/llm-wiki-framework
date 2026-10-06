@@ -1,0 +1,20 @@
+[package]
+name = "poman"
+description = "The project manager for projects kept with llm-wiki."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme = "README.md"
+keywords = ["llm-wiki", "project-management", "cli"]
+categories = ["command-line-utilities"]
+
+[dependencies]
+clap.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true
