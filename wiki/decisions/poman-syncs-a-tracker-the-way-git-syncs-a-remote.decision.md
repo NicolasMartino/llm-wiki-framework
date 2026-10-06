@@ -60,7 +60,9 @@ the first adapter.**
 2. **`poman diff`** compares the files with the mirror and writes the
    changeset to a file anyone can read: items to create, update, move or
    close, and links to add or remove.
-3. **`poman push`** applies exactly that changeset, and refuses if the tracker
+3. **`poman push`** applies exactly that changeset, refuses while `poman check` fails
+   (`deadline-files-hold-one-deadline-each.decision.md`, "How the files
+   land"), and refuses if the tracker
    changed since the fetch.
 
 - **The mirror is a local cache, never committed**, like `.git`; fetch can

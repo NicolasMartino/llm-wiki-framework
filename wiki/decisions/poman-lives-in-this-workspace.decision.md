@@ -96,7 +96,8 @@ this project is held to the strictest gates.**
   type.** A type defined twice drifts; defined once, `llm-wiki init` writes
   what poman checks.
 - **One install and one release** keep poman where llm-wiki already puts its
-  managed binary, so nothing new is asked of the person installing.
+  managed binary, so the person installing from the release archive is asked
+  nothing new; one installing with `cargo install` runs one more command.
 - **A tool that rewrites boards has to be trusted**, and the owner extended that to every crate here.
 - **`forbid` instead of `deny`**: one `#[expect(lint, reason)]` line lifts a
   `deny` rule past every gate; with `forbid`, that line stops the build.
@@ -129,6 +130,12 @@ this project is held to the strictest gates.**
   gets poman" sets out.
 - An `llm-wiki` binary run with no poman beside it has nothing to copy; what
   `llm-wiki install` says then is PM1's to settle.
+- The release tool configured today (cargo-dist, `[workspace.metadata.dist]`
+  in `Cargo.toml`) builds one archive per package, so a second crate could
+  ship as a second archive, with nothing for `llm-wiki install` to copy. PM1
+  makes the release put both binaries in one archive; its plan
+  (`wiki/plans/poman-workspace-and-strict-gates.plan.md`, PR #22) names that
+  risk and stops for the owner if the tool cannot.
 - `templates/base/project_guidelines.md` keeps describing the wiki's types for
   people and agents; once the types are also defined in code, the two must say
   the same, which PM2 makes sure of.

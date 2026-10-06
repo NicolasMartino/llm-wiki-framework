@@ -128,9 +128,10 @@ Included:
   itself, and no loop forms
 - whether a deadline file also carries the wiki's metadata fields, and whether
   it is listed in `wiki/index.md` or exempt from the orphan check (open)
-- where a repository sets its landing branch, master by default, as
+- the landing branch, master by default and settable, as
   `deadline-files-hold-one-deadline-each.decision.md`, "How the files land",
-  sets it (the owner's decisions, 2026-10-06)
+  sets it (the owner's decisions, 2026-10-06); where and how a repository
+  sets it is open, and PM3's plan decides it
 
 Excluded:
 - the importance buffer in `should-start` (PM7)
@@ -151,7 +152,7 @@ places the deadline decision, "How the files land", names (the owner's
 decisions, 2026-10-06), although such files land with no pull request: a
 pre-push hook stops it for those who turn it on, `poman push` keeps it off the
 tracker, and CI flags it once it is on the landing branch.
-Depends On: PM3
+Depends On: PM3; PM6 for the `poman push` refusal
 Execution Plan: Not created yet
 
 Included:
@@ -212,6 +213,9 @@ Included:
 - poman's tracker-free model: items, links, the board, the mirror and the
   changeset, and their formats
 - the adapter boundary, and the GitHub adapter behind it
+- `poman push` refusing while `poman check` fails
+  (`deadline-files-hold-one-deadline-each.decision.md`, "How the files land"),
+  which PM4 then proves
 - the GitHub adapter's API choice, open today: the proposal is octocrab
   for the REST API and graphql_client for the board's GraphQL API, a token
   from `GITHUB_TOKEN` else `gh`'s, and tests that never touch the real GitHub
@@ -243,7 +247,9 @@ Execution Plan: Not created yet (one plan per part, in the order below)
 Included:
 - the forecast: the 15-day window, `should-start` computed backwards through
   the blockers as the deadline decision, "should-start", sets it (the owner's
-  decisions, 2026-10-06), the importance buffer's exact rule (open today), and
+  decisions, 2026-10-06), whether a latest finish means done before that day
+  starts or by its end (open today), the importance buffer's exact rule (open
+  today), and
   the "still not done" nudge for important items with no deadline
 - recurring deadlines: a later type whose occurrences are deadline files named
   by period, one file per occurrence; conditions on a recurrence (only above
