@@ -914,3 +914,45 @@ Excluded:
 Proof:
 - no page of the way of working tells a worker or the coordinator to branch
   from, target or merge into master, except for the PR from `develop`
+
+### P12 - The Release Workflow Off The Retired Runner
+
+Status: Draft
+Promise: A tag release runs again: the release workflow's jobs ask for a
+runner image GitHub still provides, instead of the retired `ubuntu-20.04`
+that cargo-dist 0.28 asks for by default.
+Depends On: None
+Execution Plan: Not created yet (a short plan comes before its worker)
+
+Included:
+- the release workflow's runners, through cargo-dist's own configuration
+  (`github-custom-runners`), with `release.yml` regenerated, not hand-edited
+- whether the release plan job comes back on PRs into master
+
+Excluded:
+- cutting a release, which stays the owner's
+
+Proof:
+- a dry run of the release workflow gets a runner and passes its plan job
+
+Starts only when the owner says so (the owner, 2026-10-06): releases are the
+owner's.
+
+### P13 - Run The Tests Once And Share One CI Cache
+
+Status: Draft
+Promise: `just verify`, and the full CI that runs it, run the test suite once
+instead of twice, and the CI cache is saved only from `develop` and master, so
+every PR starts from `develop`'s cache.
+Depends On: P10
+Execution Plan: wiki/plans/tests-once-shared-ci-cache.plan.md
+
+Included:
+- the `verify` recipe and the full CI's jobs
+- the cache's save rule, and stable job names
+
+Excluded:
+- dropping any test or check, coverage included
+
+Proof:
+- the plan's Done When
