@@ -93,8 +93,8 @@ Whoever does the work rechecks each point against the commit they start from.
 - **Two new members of the root workspace**, each in its own folder under
   `crates/`: the shared library crate and the `poman` crate. The root package
   `llm-wiki-rs` stays where it is; `tools/release-e2e` stays outside.
-- **The shared crate's name** is the owner's choice: "Open For The Owner",
-  choice 1.
+- **The shared crate is `llm-wiki-core`**, with a `types` module inside it
+  ("Open For The Owner", choice 1).
 - **A bare cargo command builds both binaries:** the workspace's
   `default-members` names the root package and poman, so `cargo build` and
   `cargo test` at the root leave `target/debug/poman` beside
@@ -107,8 +107,9 @@ Whoever does the work rechecks each point against the commit they start from.
   the entry point. The binary runs: `poman --version` and `poman --help`
   answer, and an unknown command is refused with an error and a non-zero exit.
 - **A first piece of real behaviour in each crate**, enough that every kind of
-  test has something to test: for the shared crate, "Open For The Owner",
-  choice 5. Moving the parser stays PM2's.
+  test has something to test: for the shared crate, splitting a wiki filename
+  (`[slug].type.md` or `[index]-[slug].type.md`) into its parts ("Open For
+  The Owner", choice 5). Moving the parser stays PM2's.
 - **Publishable:** both crates carry the metadata crates.io asks for (the
   clippy `cargo` group checks it). Publishing them is a release act, the
   owner's.
@@ -148,11 +149,11 @@ is run is a first sketch; whoever does the work rechecks each tool's flags.
   - checked twice: clippy passes, and the script reads each crate's lint table
     and fails if any of these lints is missing or below `forbid`, so loosening
     the table is caught even when the code still passes;
-  - test code: whether it is held to the same `forbid` lints is "Open For The
-    Owner", choice 6. clippy.toml's `allow-*-in-tests` keys lift those lints
-    in tests while the lint table still says `forbid`, so the script also
-    reads clippy.toml and fails on any such key the owner's answer does not
-    allow.
+  - test code is held to the same `forbid` lints ("Open For The Owner",
+    choice 6): tests return `Result` and use `?`. clippy.toml's
+    `allow-*-in-tests` keys lift those lints in tests while the lint table
+    still says `forbid`, so the script also reads clippy.toml and fails on any
+    such key.
 - **Unsafe code, docs and rustdoc:**
   - `unsafe_code` and `missing_docs` forbidden, and the rustdoc lints
     forbidden, in each crate's lint table (checked as above);
@@ -187,7 +188,8 @@ is run is a first sketch; whoever does the work rechecks each tool's flags.
   - a missing tool (cargo-llvm-cov, cargo-mutants, cargo-deny, cargo-udeps,
     the pinned nightly) fails loudly, naming the tool and how to install it.
     A skip is never a pass.
-- **In CI:** "Open For The Owner", choice 4.
+- **In CI:** the gate script runs in both the fast check on PRs into
+  `develop` and the full CI ("Open For The Owner", choice 4).
 
 ### Install and uninstall
 
@@ -220,14 +222,15 @@ Per the owner's decision of 2026-10-06 on install channels:
     the manifest already records, and its file, as they are, and says poman
     was not updated, the way install already carries the recorded assets and
     backups forward; so `status`, `uninstall` and the next install still know
-    it. What install does when none is recorded is "Open For The Owner",
-    choice 2;
+    it. When none is recorded, install refuses and says how to get poman
+    ("Open For The Owner", choice 2);
   - an llm-wiki from before PM1 must not rewrite a manifest that records
     poman, because it would drop the entry it does not know: the manifest's
     `schema_version` goes from 2 to 3, which today's llm-wiki already refuses
     with "unsupported manifest schema_version", and the new llm-wiki reads 1,
     2 and 3.
-- **Uninstall:** "Open For The Owner", choice 3.
+- **Uninstall removes everything it installed**, both binaries included, and
+  the `--include-binary` flag goes away ("Open For The Owner", choice 3).
 - **The install tests do not depend on a build's leftovers:** a test that
   needs poman beside `llm-wiki` copies `llm-wiki` into a temporary folder and
   puts its own `poman` beside it, so `cargo test --test post_install` alone
@@ -264,23 +267,23 @@ Per the owner's decision of 2026-10-06 on install channels:
    the install tests.
 4. **The release build:** the local dist build, and the archive's contents
    listed.
-5. **CI**, as the owner answers choice 4: the gate script where it runs, with
+5. **CI:** the gate script in the fast check and the full CI (choice 4), with
    the tools it needs installed there, and CI's unused-dependencies job on the
    dated nightly.
 
 ## Done When
 
 - **The gates:** `just strict` (or the name chosen) reports every gate run and
-  passed for the two crates, with 0 skipped and 0 failed, locally and in CI
-  as the owner answers choice 4.
+  passed for the two crates, with 0 skipped and 0 failed, locally and in both
+  the fast check and the full CI (choice 4).
 - **The slips:** each deliberate slip of phase 2 made its gate fail, with the
   failing output recorded in the PR.
 - **Install:** an install into a temporary HOME puts `poman` in the managed bin
   folder and the manifest; a second install copies nothing; `uninstall`
-  removes it as the owner answers choice 3; an install with no poman beside
-  `llm-wiki`, or one of another version, keeps a recorded poman and otherwise
-  behaves as the owner answers choice 2; a manifest that records poman is
-  refused by an llm-wiki from before PM1.
+  removes both binaries and everything else it installed (choice 3); an
+  install with no poman beside `llm-wiki`, or one of another version, keeps a
+  recorded poman and refuses when none is recorded (choice 2); a manifest that
+  records poman is refused by an llm-wiki from before PM1.
 - **Release:** the local release build's archive lists `llm-wiki` and `poman`.
 - **llm-wiki unchanged:** `just verify` passes with nothing skipped, on the
   pinned toolchain.
@@ -308,7 +311,8 @@ Whoever does the work rechecks this list:
 
 A first list, to be rechecked by whoever does the work: the root `Cargo.toml`
 (members, the dist config), `Cargo.lock`, a new `rust-toolchain.toml` and
-`deny.toml`, a `clippy.toml` if choice 6 allows any key, the two new crates,
+`deny.toml`, a `clippy.toml` (setting no `allow-*-in-tests` key, choice 6),
+the two new crates,
 the justfile, a gate script under `tools/`,
 `tools/test-instance-live-session-proof.sh`,
 `src/install.rs`, `src/uninstall.rs`, `src/manifest/`, `src/paths.rs`,
@@ -323,43 +327,37 @@ The owner's PASS on the PR that meets "Done When", merged into `develop`.
 
 ## Open For The Owner
 
-Asked on 2026-10-06 and not answered yet; the work starts once they are. When
-the owner answers, each answer is written here with its date, and the text
-that points here follows it.
+Asked on 2026-10-06 and answered by the owner the same day; each answer is
+decided, and the text that pointed here follows it.
 
-1. **The shared crate's name.** Recommended: `llm-wiki-pages`: it holds how
-   the project's pages are read and typed, deadline files included, and the
-   prefix ties it to llm-wiki on crates.io. Alternatives: `llm-wiki-types`
-   (says nothing of the reader) and `llm-wiki-core` (says nothing of what it
-   holds). All three were free on crates.io on 2026-10-06.
-2. **Install with no usable poman beside llm-wiki, and none recorded** (a
-   `cargo install llm-wiki-rs` without `cargo install poman`). Recommended:
-   install goes on without poman, says so and how to get the matching one
-   (`cargo install poman`), records none, and `llm-wiki status` reports it
-   missing. A poman already recorded is kept in every case (Target, "No
-   recorded poman is ever orphaned"). The alternative, failing the install,
-   breaks llm-wiki's install for anyone who has not installed poman.
-3. **Uninstall.** Recommended: poman is removed with `--include-binary`, the
-   rule the managed `llm-wiki` follows today, so both binaries stay or go
-   together. The alternative is removing poman on every uninstall.
-4. **The gate script in CI.** Recommended: the fast check on PRs into
-   `develop` and the full CI both run it, so a slip in a strict crate cannot
-   land between local runs. The alternative, a local gate only until PM8,
-   leaves the new crates' tests out of every check on PRs into `develop`:
-   `just fast-check` runs only the root's test files, without `--workspace`,
-   and only its clippy step covers the two crates; their tests would run only
-   in `just verify` and the full CI on the way to master.
-5. **The shared crate's first piece of behaviour.** Recommended: splitting a
-   wiki filename (`[slug].type.md` or `[index]-[slug].type.md`, AGENTS.MD,
-   "Conventions") into its parts, which PM2's type definitions build on.
-6. **Test code and the `forbid` lints.** The decision sets `forbid` so that
-   nothing local can lift a lint, while clippy.toml's `allow-unwrap-in-tests`,
-   `allow-expect-in-tests`, `allow-indexing-slicing-in-tests`,
-   `allow-panic-in-tests` and `allow-print-in-tests` lift them in test code.
-   Recommended: no exception: tests return `Result` and use `?`, and
-   clippy.toml sets none of those keys, which the gate script checks. The
-   alternative: the owner names the keys allowed, and the script fails on any
-   other.
+1. **The shared crate's name: `llm-wiki-core`, with a `types` module inside
+   it** (the owner, 2026-10-06: "core then in core a types module").
+   `llm-wiki-pages` and `llm-wiki-types` were the alternatives.
+2. **Install with no usable poman beside llm-wiki, and none recorded:
+   install refuses** (the owner, 2026-10-06: "there should always be a poman
+   besides an llm wiki"). It says how to get one: the release archive ships
+   both, and people who ran `cargo install llm-wiki-rs` also run `cargo
+   install poman`. A poman already recorded is never orphaned (Target, "No
+   recorded poman is ever orphaned"). Going on without poman was the
+   alternative.
+3. **Uninstall removes everything it installed, both binaries included**
+   (the owner, 2026-10-06: "uninstall uninstalls all"). The
+   `--include-binary` flag goes away, which changes today's behaviour: its
+   help, the README, the specs and the tests that describe it are updated
+   with it. Removing poman only with `--include-binary` was the alternative.
+4. **The gate script runs in both the fast check on PRs into `develop` and
+   the full CI** (the owner, 2026-10-06). A local gate only until PM8 was
+   the alternative.
+5. **The shared crate's first piece of behaviour: splitting a wiki filename**
+   (`[slug].type.md` or `[index]-[slug].type.md`, AGENTS.MD, "Conventions")
+   into its parts, which PM2's type definitions build on (the owner,
+   2026-10-06).
+6. **No lint exception for test code** (the owner, 2026-10-06: "lint all"):
+   tests return `Result` and use `?`, clippy.toml sets none of the
+   `allow-unwrap-in-tests`, `allow-expect-in-tests`,
+   `allow-indexing-slicing-in-tests`, `allow-panic-in-tests` or
+   `allow-print-in-tests` keys, and the gate script checks that. Naming the
+   keys allowed was the alternative.
 
 ## Out Of Scope
 
