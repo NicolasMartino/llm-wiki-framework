@@ -7,12 +7,19 @@ use serde::{Deserialize, Serialize};
 
 use crate::instance;
 
+pub const SCHEMA_VERSION: u32 = 3;
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Manifest {
     pub schema_version: u32,
     pub installed_by: String,
     pub installed_at: String,
     pub binary: BinaryEntry,
+    /// `poman`, installed beside the managed binary. Its arrival raised the
+    /// schema to 3, so an llm-wiki from before it refuses this manifest
+    /// instead of rewriting it without the entry.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub poman: Option<BinaryEntry>,
     pub skills: Vec<ManifestEntry>,
     /// Non-skill managed assets materialized into the managed runtime home
     /// (currently the MCP server config). Defaulted so existing schema-version 2
@@ -102,15 +109,17 @@ pub enum FileKind {
 impl Manifest {
     pub fn new(
         binary: BinaryEntry,
+        poman: Option<BinaryEntry>,
         skills: Vec<ManifestEntry>,
         assets: Vec<ManagedAssetEntry>,
         backups: Vec<BackupEntry>,
     ) -> Self {
         Self {
-            schema_version: 2,
+            schema_version: SCHEMA_VERSION,
             installed_by: instance::binary_stem().to_string(),
             installed_at: Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true),
             binary,
+            poman,
             skills,
             assets,
             backups,
@@ -125,14 +134,14 @@ impl Manifest {
             .with_context(|| format!("failed to read manifest {}", path.display()))?;
         let mut manifest: Self = serde_json::from_str(&input)
             .with_context(|| format!("failed to parse manifest {}", path.display()))?;
-        if manifest.schema_version != 1 && manifest.schema_version != 2 {
+        if !(1..=SCHEMA_VERSION).contains(&manifest.schema_version) {
             bail!(
-                "unsupported manifest schema_version {} in {}; expected 1 or 2",
+                "unsupported manifest schema_version {} in {}; expected 1 to {SCHEMA_VERSION}",
                 manifest.schema_version,
                 path.display()
             );
         }
-        manifest.schema_version = 2;
+        manifest.schema_version = SCHEMA_VERSION;
         Ok(Some(manifest))
     }
 
@@ -258,5 +267,46 @@ mod tests {
         let manifest: Manifest = serde_json::from_str(legacy).expect("legacy manifest parses");
         assert_eq!(manifest.schema_version, 2);
         assert!(manifest.assets.is_empty());
+        assert!(manifest.poman.is_none());
+    }
+
+    fn manifest_json(schema_version: u32) -> String {
+        format!(
+            r#"{{
+            "schema_version": {schema_version},
+            "installed_by": "llm-wiki",
+            "installed_at": "2026-01-01T00:00:00Z",
+            "binary": {{
+                "path": "/home/u/.llm_wiki/bin/llm-wiki",
+                "version": "0.2.0",
+                "hash_algorithm": "sha256",
+                "hash": "deadbeef",
+                "ownership": "manifest-owned"
+            }},
+            "skills": []
+        }}"#
+        )
+    }
+
+    /// Manifests written before poman are read, and rewritten as schema 3; a
+    /// newer schema than this binary knows is refused, not rewritten.
+    #[test]
+    fn reads_schemas_one_to_three_and_refuses_newer() {
+        let dir = tempfile::TempDir::new().expect("dir");
+        let path = dir.path().join("manifest.json");
+        for version in 1..=3 {
+            std::fs::write(&path, manifest_json(version)).expect("write manifest");
+            let manifest = Manifest::read(&path).expect("read").expect("present");
+            assert_eq!(manifest.schema_version, super::SCHEMA_VERSION);
+            assert!(manifest.poman.is_none());
+        }
+        std::fs::write(&path, manifest_json(4)).expect("write manifest");
+        let error = Manifest::read(&path).expect_err("schema 4 refused");
+        assert!(
+            error
+                .to_string()
+                .contains("unsupported manifest schema_version 4"),
+            "{error:#}"
+        );
     }
 }

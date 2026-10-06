@@ -1,0 +1,6 @@
+# The exact toolchain for the whole repository. The strict crates' `rust-version`
+# equals it, and `tools/strict-gates.sh` checks that they agree. rustup treats an
+# exact pin as a toolchain of its own, so its components are listed here.
+[toolchain]
+channel = "1.99.0"
+components = ["rustfmt", "clippy", "llvm-tools-preview"]
