@@ -60,6 +60,10 @@ Included:
   `uninstall` removing it
 - one release shipping both binaries
 - the shared crate's name
+- where `llm-wiki install` gets poman for each of its channels (a release
+  archive, `cargo install llm-wiki-rs`, a binary run from anywhere): open
+  today, and `wiki/decisions/llm-wiki-binary-distribution.decision.md` is
+  amended to match
 
 Excluded:
 - moving the parser (PM2)
@@ -85,7 +89,11 @@ Execution Plan: Not created yet
 
 Included:
 - `parse_wiki_metadata` (today `src/search/metadata.rs`) moved into the shared
-  crate, and llm-wiki's search reading through it
+  crate and rewritten to its strictest gates (no indexing or slicing, doc
+  comments, unit tests in their own file, full coverage, no surviving
+  mutants), ahead of PM8's ratchet for the rest of llm-wiki
+- both callers reading through it: `src/search/qmd_rs.rs` and
+  `src/search/semantic.rs`
 - llm-wiki's document types defined there: suffix, folder, fields, statuses
 - `llm-wiki init` scaffolding from those definitions
 - how the shared reader serves the wiki's forms (front matter, bold keys) and
@@ -96,6 +104,8 @@ Excluded:
 
 Proof:
 - llm-wiki's search and init tests pass unchanged through the shared crate
+- the gate script reports every gate run and passed for the parser in the
+  shared crate
 - the type definitions agree with `templates/base/project_guidelines.md`
 
 ---
@@ -118,6 +128,11 @@ Included:
   itself, and no loop forms
 - whether a deadline file also carries the wiki's metadata fields, and whether
   it is listed in `wiki/index.md` or exempt from the orphan check (open)
+- deadline files landing straight on master against `AGENTS.MD`,
+  `agent-owns-wiki.decision.md` and
+  `the-pull-request-is-the-review-surface.decision.md` (open; the deadline
+  decision, "Consequences"): settled with the owner before any deadline file
+  lands
 
 Excluded:
 - the start date's importance buffer (PM7)
@@ -133,14 +148,22 @@ Proof:
 ### PM4 - Where poman check Runs
 
 Status: Draft
-Promise: A deadline file cannot reach master without `poman check` having
-passed on it, although such files land with no pull request.
+Promise: A deadline file that `poman check` refuses is caught as close to its
+landing as the chosen means allow, although such files land with no pull
+request: the tracker never shows it, and, by the options chosen, a local hook
+stops it for those who enable it, or a check on GitHub's side flags it once it
+is on master.
 Depends On: PM3
 Execution Plan: Not created yet
 
 Included:
-- the choice, open today: a pre-push hook, `poman push` refusing while the
-  check fails, or both
+- the choice, open today, among:
+  - a pre-push hook, which runs only where it is enabled
+    (`core.hooksPath`) and is skipped by `git push --no-verify`;
+  - `poman push` refusing while the check fails, which keeps the file off the
+    tracker but not off master;
+  - a check on GitHub's side: `poman check` in the CI that already runs on
+    every push to master, which flags the file after it lands
 - the change that puts it in place
 
 Excluded:
@@ -148,7 +171,9 @@ Excluded:
   runs
 
 Proof:
-- a malformed deadline file is refused before it lands, by the chosen means
+- for each means chosen, a malformed deadline file is caught as that means
+  promises: refused by the hook, refused by `poman push`, or a failed CI run
+  on master
 
 ---
 
@@ -199,16 +224,15 @@ Included:
 - which board fields and views poman draws, and the dot folder's name
 
 Excluded:
-- drawing this repository's own board from its roadmaps and plans: a later
-  deliverable after this one (the owner, 2026-10-06, recorded in the sync
-  decision); its roadmap entry comes when this one lands
+- drawing this repository's own board from its roadmaps and plans (PM9)
 - pull requests and comments
 
 Proof:
 - fetch, diff and push against a fake tracker: drift reported, a changeset
   written and applied exactly, a push refused after a change on the tracker
 - the mirror rebuilt from the tracker alone
-- one run against a real GitHub project made for the test
+- one manual run against a real GitHub project made for it, recorded once,
+  outside the test suite
 
 ---
 
@@ -222,7 +246,9 @@ Execution Plan: Not created yet (one plan per part, in the order below)
 
 Included:
 - the forecast: the 15-day window, the importance buffer's exact rule (open
-  today), and the "still not done" nudge for important items with no deadline
+  today), the start-date rule's handling of blockers (open today: the deadline
+  decision, "The start date", recommends a latest finish date per blocker),
+  and the "still not done" nudge for important items with no deadline
 - recurring deadlines: a later type whose occurrences are deadline files named
   by period, one file per occurrence; conditions on a recurrence (only above
   a threshold, only if some event happens)
@@ -257,3 +283,31 @@ Excluded:
 Proof:
 - each module switched records its gate run; the gate script fails on a
   deliberate slip in a strict module
+
+---
+
+### PM9 - poman Draws This Repository's Board
+
+Status: Draft
+Promise: The board of this repository is drawn by poman from its roadmaps and
+plans, and the coordinator stops mirroring statuses by hand.
+Depends On: PM6
+Execution Plan: Not created yet
+
+Included:
+- poman reading this repository's roadmap entries and plans, and how: through
+  the shared type definitions, which amends
+  `wiki/decisions/poman-reads-only-its-own-file-types.decision.md`
+- drawing them onto the board through the tracker sync (the owner,
+  2026-10-06, recorded in
+  `wiki/decisions/poman-syncs-a-tracker-the-way-git-syncs-a-remote.decision.md`)
+- `wiki/decisions/work-is-recorded-in-the-repository.decision.md`, rule 5,
+  and `wiki/checklists/operation-manager.checklist.md`, "The Board", naming
+  the command instead of the hand-mirroring
+
+Excluded:
+- review states, which stay on the pull request
+
+Proof:
+- a `poman diff` against this repository's board shows no change after a
+  push, and a plan's status change shows up as one card move

@@ -121,7 +121,7 @@ Proposed, not decided:
 
 - poman's dot folder is ignored by Git; the change that adds the mirror adds
   the ignore line. Its name is PM6's.
-- Open, for PM6 (found in an earlier review, still unanswered):
+- Open, for PM6:
   - an item whose marker is edited away, or whose file is renamed: the next
     diff would create a second item and leave the first behind;
   - a "Blocked by" link made by hand on the tracker between an item poman

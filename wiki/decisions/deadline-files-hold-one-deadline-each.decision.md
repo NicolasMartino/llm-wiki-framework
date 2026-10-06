@@ -70,6 +70,17 @@ join them is open (`poman-reads-only-its-own-file-types.decision.md`,
 - **Durations count working days, Monday to Friday.** Public holidays
   come later, with absences (PM7).
 - **The buffer's exact rule is not decided** (PM7).
+- **Open: the rule as written takes the blockers' time off the wrong item.**
+  Subtracting "the time its blockers need" moves the blocked item's start
+  earlier, yet the blockers are the ones that must start earlier, and the rule
+  gives a blocker no start date of its own unless it has a deadline. For
+  example, X is due 2026-12-04 and takes 2 days, blocked by A (3 days, no
+  deadline) and B (3 days, no deadline): the rule starts X six or three days
+  early, depending on whether the blockers' times add, and says nothing about
+  when A and B start. Recommended answer, for the owner in PM7: give each
+  blocker a latest finish date, the earliest start date of the items it
+  blocks, or its own deadline if that is earlier, so a blocker's time moves
+  its own start date and not the blocked item's.
 
 ### How the files land
 
@@ -107,6 +118,19 @@ join them is open (`poman-reads-only-its-own-file-types.decision.md`,
 
 - Until PM4 settles where the check runs, nothing stops a malformed deadline
   file from reaching master.
+- **Open: landing straight on master conflicts with three standing rules**, in
+  any repository that holds deadline files under `wiki/` (this one holds none
+  until poman is used here):
+  - `AGENTS.MD`, "How Work Runs": every change goes through a PR, with two
+    named exceptions, neither of them deadline files;
+  - `agent-owns-wiki.decision.md`: people do not edit `wiki/` directly, while
+    a deadline file is written by a person through `poman new`;
+  - `the-pull-request-is-the-review-surface.decision.md`: all work ends in a
+    pull request.
+
+  PM3 settles it with the owner, before any deadline file lands: those three
+  pages name deadline files as an exception, or deadline files live outside
+  `wiki/`.
 - `Status` here is the deadline's own vocabulary, separate from the wiki's
   document statuses and from the board's columns
   (`typed-documents.decision.md`).

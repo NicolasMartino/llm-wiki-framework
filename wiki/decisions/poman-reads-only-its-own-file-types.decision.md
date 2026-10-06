@@ -88,6 +88,12 @@ only files of those types.**
 
 ## What Would Revisit This
 
+- poman drawing this repository's own board
+  (`poman-syncs-a-tracker-the-way-git-syncs-a-remote.decision.md`): it reads
+  the roadmaps and plans, which are the wiki's types, not poman's. That
+  deliverable (PM9) decides whether poman reads them through the shared
+  definitions, and amends this page.
+
 - Types the owner wants to add without a code change.
 - Near-miss warnings that fire so often on legitimate files that they are
   ignored.
