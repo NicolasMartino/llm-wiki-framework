@@ -872,7 +872,7 @@ Proof:
 
 ### P10 - A Fast Check On Develop, The Full CI On The Way To Master
 
-Status: Draft
+Status: Active
 Promise: Work lands on `develop`. A PR into `develop`, and its merge there,
 run one fast Linux check; only the PR from `develop` into master, and master
 itself, run the full CI. Both are green.
@@ -894,7 +894,7 @@ Proof:
 
 ### P11 - The Way Of Working Points At Develop
 
-Status: Draft
+Status: Active
 Promise: Every rule, brief and skill of the way of working says where work
 lands now: work PRs into `develop`, and master only through a PR from
 `develop` with the full CI and the owner's PASS.

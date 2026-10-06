@@ -1,7 +1,8 @@
 # Plan: A Fast Check On Develop, The Full CI On The Way To Master
 
 - Document Class: Plan
-- Status: Draft
+- Status: Active
+- Branch: `NicolasMartino/ci-9`
 - Date: 2026-10-06
 - Category: CI, development process
 - Scope: Split CI by target branch, so that work PRs into `develop` and their

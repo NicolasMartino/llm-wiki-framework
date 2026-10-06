@@ -109,7 +109,7 @@ Plan note: `wiki/evals/headroom-0-32-managed-0-2-13-field-test.eval.md` is now t
 
 - [macOS Installed Binary Codesign Repair](plans/macos-installed-binary-codesign-repair.plan.md) — Implemented; native release archive proof pending — Local managed-install repair for the macOS launch hang: staged same-directory copy, explicit ad-hoc signing before atomic persist, installed-byte/source-byte manifest semantics, bounded launch regression tests, text-preserving Codex MCP config round-trip, and live `llm-wiki-test` proof for `--version`, `--help`, `status`, and MCP tools/list. Native macOS release archive proof remains under the cross-platform release E2E roadmap.
 - [Development Workflow Setup](plans/development-workflow-setup.plan.md) — Draft — One-time start of the coordinated way of working: first commit, the board and its ids, wiki search for this repository, Orca, the first roadmap entries
-- [A Fast Check On Develop, The Full CI On The Way To Master](plans/develop-and-master-ci.plan.md) — Draft — Work PRs into `develop` run one fast Linux check; the PR from `develop` into master and master run the full matrix; fixes the three reasons master's CI is red; `just branch-status` reports against `develop`
+- [A Fast Check On Develop, The Full CI On The Way To Master](plans/develop-and-master-ci.plan.md) — Active — Work PRs into `develop` run one fast Linux check; the PR from `develop` into master and master run the full matrix; fixes the three reasons master's CI is red; `just branch-status` reports against `develop`
 
 ## Experiments
 
