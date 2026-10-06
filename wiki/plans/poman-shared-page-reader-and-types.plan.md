@@ -1,8 +1,7 @@
 # Plan: The Shared Page Reader And File Types
 
 - Document Class: Plan
-- Status: Active
-- Branch: `NicolasMartino/pm2-build-46`
+- Status: Completed (develop)
 - Date: 2026-10-06
 - Category: poman development
 - Scope: Carry out PM2 of the poman roadmap: the page reader moved from
@@ -51,73 +50,62 @@ day the definitions and `templates/base/project_guidelines.md` stop saying
 the same thing. And the reader already gives poman what PM3 needs: its fields
 from the bullet block, each with its line.
 
-## Where It Stands (2026-10-06, `92187d3`)
+## Where It Stands (2026-10-07, after PM2)
 
-Whoever does the work rechecks each point against the commit they start from.
+PM2 is done on its branch; the PR that closes issue #46 holds the evidence.
+The state it started from, at `6bd0d4f`, is in git history and in the plan
+as approved with PR #45.
 
-- **The reader is llm-wiki's own:** `parse_wiki_metadata` in
-  `src/search/metadata.rs` returns a title and a map of fields sorted by key
-  (`WikiMetadata`), with `document_class()`, `status()` and `field()`. It
-  reads, in this order, each later block overriding a key an earlier one
-  set:
-  - a `---` block at the very top, when a second `---` closes it;
-  - a block of `Key: Value` lines just before the first `# ` title, blank
-    lines between allowed;
-  - a block just after the title; with no title, from just after the `---`
-    block, or from the top when there is none.
-
-  A line is a field when it is not indented and holds a colon, with or
-  without a leading `- ` and with `**` around the key stripped; a line
-  indented by two spaces or a tab continues the field above it, joined with
-  one space. The second and third blocks end at the first line that is
-  neither; the `---` block does not: every line up to the closing `---` is
-  read, blank and other lines skipped, so `Sources: a`, a blank line and an
-  indented `b` give `a b`, and a YAML list item indented under `tags:` joins
-  it as `- x`. Seven unit tests sit inline in the module.
-- **One quirk:** any unindented line with a colon right under the title is a
-  field, so a prose line such as "a ratio of 4:1" becomes a field named after
-  the text before the colon. The unit test for prose only checks that
-  `Document Class` and `Status` stay empty.
-- **Two callers:**
-  - `src/search/qmd_rs.rs` reads the title when it indexes a page, and the
-    document class and status when it filters lexical results;
-  - `src/search/semantic.rs` reads the title, document class, status,
-    `Category`, `Scope` and `Sources` into each chunk.
-  Both pass the page after `mask_search_ignored_spans`
-  (`src/search/index_text.rs`), which blanks the text between the search
-  ignore markers that some pages use. No other code calls the parser.
-- **The shared crate:** `crates/llm-wiki-core` holds one `types` module that
-  splits a filename into index, slug and type (`WikiFilename`), with its unit
-  tests in `src/types/tests.rs`, integration tests in `tests/filenames.rs`
-  and property tests in `tests/properties.rs`. Its only dependency is
-  proptest, for its tests, and `llm-wiki-rs` does not depend on it yet. The
-  splitter refuses a type with a hyphen or a second dot.
-- **The gates:** `tools/strict-gates.sh` (`just strict`) runs every gate over
-  `llm-wiki-core` and `poman` only. Coverage and mutants run each crate's own
-  tests, so llm-wiki's search tests count for neither.
-- **`llm-wiki-rs` has no library target**, only the `llm-wiki` binary, so a
-  test under `tests/` cannot call its search code; tests that do sit in its
-  modules, as `metadata.rs`'s and `qmd_rs.rs`'s do.
-- **The types are written down three times, none from the others:**
-  - `templates/base/project_guidelines.md`, for people and agents. Its type
-    tables, short list and folder trees show the seven core types (spec,
-    decision, proposal, roadmap, plan, checklist, reference), and experiment
-    and eval only with the ML pack, whose tree also shows `model-cards/`.
-    Its filename patterns, its Document Class list and its "Status
-    Vocabulary" table name all nine, with or without the ML pack. It lists
-    six metadata fields and four optional entries, one of them
-    `Supersedes` / `Superseded By`;
-  - `src/init/compose.rs`: the core folders init creates and the sections of
-    the `wiki/index.md` it writes, as literal lists;
-  - `src/init/packs.rs`: each pack's types (name, suffix, folder) and some
-    status lists, rendered into the guidelines as "Pack Document Types" and
-    "Pack Status Vocabulary". The ML pack defines experiment and eval again,
-    with the eval statuses again. Some pack suffixes have a hyphen or a
-    second dot (`model-card.md`, `transform.spec.md`), and one pack status
-    list has no type of its own (`Incidents`).
-- **The proof that init is unchanged exists already:** `tests/init.rs` with
-  nine snapshots (`tests/snapshots/init__*.snap`), checked by `just
-  snapshots`.
+- **One reader, in the shared crate:** `crates/llm-wiki-core/src/page.rs`.
+  `Page::read` reads a page's text in one pass: the title with its line, and
+  each field with its key, value, line, block (`FrontMatter`, `BeforeTitle`,
+  `AfterTitle`, or `Untitled` on a page with no title) and form (`Bullet`,
+  `Bare`, `Bold`), in page order. It reads the blocks, continuation lines
+  and the prose-line quirk exactly as `parse_wiki_metadata` did (the owner's
+  choice 3).
+- **Two views:** `Page::wiki_view` gives search the title and each key's
+  value, a later field overriding an earlier one, as before;
+  `Page::bullet_block` gives the `- Key: Value` fields just after the title
+  and, apart, every field found in any other block or form, each with its
+  line, which is what PM3 needs to refuse front matter and bold keys by name.
+- **Both callers read through it:** `src/search/qmd_rs.rs` and
+  `src/search/semantic.rs` call the wiki view; `llm-wiki-rs` depends on
+  `llm-wiki-core` by path and version (a workspace dependency).
+  `src/search/metadata.rs` is gone, and nothing else in llm-wiki parses a
+  page's metadata block.
+- **Search proved unchanged:** `src/search/page_reading_regression.rs` reads
+  every page of the frozen corpus, `tests/fixtures/page-reader/` (the wiki at
+  `6bd0d4f` and a `forms/` page per form and edge, with a README), masked as
+  search masks it. Its `frozen_pages` snapshot was taken with the old reader
+  before any code moved and matches untouched through the new one. While both
+  readers existed, a comparison over the live wiki and every fixture (461
+  pages) and a property test over 4096 generated pages found them agreeing;
+  both were then removed with the old reader. `just audit-legacy` leaves the
+  corpus out.
+- **The nine types are defined once:** `crates/llm-wiki-core/src/types.rs`
+  holds the shape (`DocumentType`: name, plural, suffix, folder, indexed,
+  fields, statuses; `FieldDefinition`: key, required), and
+  `types/llm_wiki.rs` llm-wiki's types: `CORE` (spec, decision, proposal,
+  roadmap, plan, checklist, reference) and `ML` (experiment, eval), each with
+  the six required fields and five optional keys and its statuses from
+  "Status Vocabulary". poman's types are to be a set of their own. A test
+  (`tests/definitions.rs` in the crate) checks every suffix is one the
+  filename splitter accepts.
+- **init scaffolds from them:** `src/init/compose.rs` takes the core folders
+  and the index's section labels (in their old order) from the definitions,
+  and `src/init/packs.rs` the ML pack's experiment and eval rows, their
+  folders and its Evals status row. The other packs' types stay in
+  `packs.rs` (the owner's choice 1). The nine init snapshots pass untouched.
+- **The guidelines are checked against them:** `tests/guidelines_types.rs`
+  runs `llm-wiki init` without and with the ML pack and compares each section
+  that names the types with the definitions, both ways (the owner's choice
+  2). Its folder rule takes `model-cards/` as a literal and checks it, with
+  the rest, against the folders init made, since a test under `tests/` cannot
+  call into the binary's pack table. A status changed in a definition, and a
+  type left out, each made it fail.
+- **The gates:** `just strict` runs every gate over both strict crates, the
+  reader and the definitions included, with nothing skipped; 100 % of the
+  shared crate's lines are covered and no mutant survives.
 
 ## Target
 
