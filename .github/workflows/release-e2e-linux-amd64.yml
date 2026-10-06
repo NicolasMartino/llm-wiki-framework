@@ -2,7 +2,9 @@ name: Release E2E Linux amd64
 
 on:
   workflow_dispatch:
+  # Part of the full CI: PRs into master only, not work PRs into develop.
   pull_request:
+    branches: [master]
     paths:
       - ".github/workflows/release-e2e-linux-amd64.yml"
       - "Cargo.lock"

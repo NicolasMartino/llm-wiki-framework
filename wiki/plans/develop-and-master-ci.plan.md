@@ -47,6 +47,48 @@ A work PR into `develop` gets CI's answer in minutes, and master only takes
     jobs' logs are readable only through
     `gh api --allow-escape-sequences repos/NicolasMartino/llm-wiki-framework/actions/jobs/<id>/logs`.
 
+### What The Logs Showed (2026-10-06, issue #9)
+
+- **The self-install timeout:** `llm-wiki install` sha256-hashed the running
+  binary up to seven times in one self-install (three or four in a first
+  install), and `sha2` was unoptimized in debug builds, where the binary is
+  about 170 MB: about 3.4 s a hash on a laptop, more on a runner, against the
+  test's 30 s bound. Install now hashes the running binary once and reuses the
+  managed binary's hash from its preflight, and `sha2` builds at
+  `opt-level = 3` in the dev profile; a self-install under a temporary HOME
+  went from 24 s to under 1 s. The 30 s bound is unchanged.
+- **`macos-14`:** CI never installed `cargo-insta`, so `cargo insta test`
+  failed with "no such command: insta". The Linux jobs never reached that step.
+- **A gate that passed without running:** CI did not install `ripgrep`, and
+  `! rg …` in `just audit-legacy` turned "command not found" into a pass; two
+  of its paths (`assets`, `crates`) do not exist, and rg's error on them
+  passed the same way. `audit-legacy` now fails, naming the tool, when rg is
+  missing, and passes only when rg finds nothing; `just snapshots` names
+  `cargo-insta` and how to install it when it is missing.
+- **The release plan job** runs on `ubuntu-20.04` (cargo-dist 0.28's default),
+  a retired image: on every PR it stayed queued and was cancelled. cargo-dist
+  has no setting for which PRs it runs on, so `pr-run-mode` is now `"skip"`
+  and `release.yml` was regenerated (its `pull_request:` trigger is the only
+  change). The release plan job no longer runs on PRs into master either, a
+  departure from the Target below, since it never got a runner there. The same
+  retired runner would stall a tag release: that is the owner's, left as is.
+- **Two tests stay ignored, as they were:** `tests/gguf_cpu_smoke.rs` and
+  `tests/natural_language_search_eval.rs` need managed model artifacts under
+  `~/.llm_wiki`, and are run by hand.
+
+### How To Run Each Check
+
+- **The fast check** (PRs into `develop`, pushes to `develop`):
+  `.github/workflows/fast-check.yml`, one `ubuntu-latest` job running
+  `just verify`. Locally, `just verify` needs `just`, `cargo-insta` and
+  `ripgrep`, and says which is missing.
+- **The full CI** (PRs into master, pushes to master): `.github/workflows/ci.yml`
+  (`ubuntu-latest`, `ubuntu-24.04-arm`, `macos-14`, each `just verify` and
+  `just coverage`; the unused-dependencies job on `nightly-2026-05-01`) and the
+  release E2E on PRs into master that touch code. On any other branch:
+  `gh workflow run CI --ref <branch>`, once `ci.yml` with `workflow_dispatch`
+  is on `develop`.
+
 ## Target
 
 - **PRs into `develop`, and pushes to `develop`:** one job on `ubuntu-latest`

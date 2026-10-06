@@ -20,6 +20,7 @@ clippy-strict:
     cargo clippy --workspace --all-targets --all-features -- -D warnings -D dead_code
 
 snapshots:
+    @cargo insta --version >/dev/null 2>&1 || { echo "snapshots needs cargo-insta: install it with \`cargo install cargo-insta\`" >&2; exit 1; }
     cargo insta test --workspace --check
 
 coverage:
@@ -28,9 +29,22 @@ coverage:
 udeps:
     cargo +nightly udeps --workspace
 
+# Passes only when rg finds nothing (exit 1): a bare `! rg` would also pass
+# when rg is missing or a path is wrong.
 audit-legacy:
-    ! rg -n 'Successor:|Will Supersede On D8 Completion|<!-- CLAUDE -->|<!-- CODEX -->|<!-- END -->|skills/build\.sh|bash renderer|(?:^|[^a-z])build\.sh' wiki assets README.md .github src tests crates Cargo.toml
-    ! rg -n 'legacy shell renderer|legacy skill render script|legacy render script|<!-- TAG -->' wiki/specs wiki/decisions wiki/plans wiki/roadmaps wiki/index.md README.md AGENTS.MD CLAUDE.md
+    #!/usr/bin/env bash
+    set -u
+    command -v rg >/dev/null || { echo "audit-legacy needs ripgrep (rg): install it with your package manager, or \`cargo install ripgrep\`" >&2; exit 1; }
+    audit() {
+      rg -n "$@"
+      case $? in
+        1) ;;
+        0) echo "audit-legacy: legacy wording found above" >&2; exit 1 ;;
+        *) echo "audit-legacy: rg failed" >&2; exit 1 ;;
+      esac
+    }
+    audit 'Successor:|Will Supersede On D8 Completion|<!-- CLAUDE -->|<!-- CODEX -->|<!-- END -->|skills/build\.sh|bash renderer|(?:^|[^a-z])build\.sh' wiki README.md .github src tests Cargo.toml
+    audit 'legacy shell renderer|legacy skill render script|legacy render script|<!-- TAG -->' wiki/specs wiki/decisions wiki/plans wiki/roadmaps wiki/index.md README.md AGENTS.MD CLAUDE.md
 
 verify: fmt test clippy-strict snapshots audit-legacy
 
@@ -189,7 +203,8 @@ branch-status:
     echo "branches on origin ($origin_note)"
     while IFS= read -r branch; do
       [ -n "$branch" ] || continue
-      [ "$branch" = "master" ] && { say ok master "the base"; continue; }
+      [ "$branch" = "develop" ] && { say ok develop "the base"; continue; }
+      [ "$branch" = "master" ] && { say ok master "takes develop through a PR"; continue; }
       if hit=$(live_plan_for "$branch"); then
         say ok "$branch" "-> $(basename "${hit%%$'\t'*}") [${hit##*$'\t'}]"
       else
