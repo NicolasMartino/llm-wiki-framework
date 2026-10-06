@@ -48,8 +48,8 @@ a worker's report.
    merge, as `## PASS — <full sha>` saying so.
 4. **A merge needs the owner's PASS naming the PR's current head**, checked by
    the coordinator against the diff, and, for a PR whose kind has gates, the
-   full gates passed on that head. A work PR's merge is a squash merge pinned
-   to that head.
+   full gates passed on that head. Every PR into `develop` or into an
+   integration branch is a squash merge pinned to that head.
 5. **A log PR gets no blind review.** It holds only the coordinator's record of
    merges already reviewed, which the coordinator checks line by line against
    GitHub and Git; the owner's PASS still decides it.
@@ -57,7 +57,9 @@ a worker's report.
    `develop` is GitHub's default branch, and every work PR, log PR and
    integration branch targets it. Master changes only by a PR from `develop`,
    which runs the full CI and needs the owner's PASS on its head like any
-   other. Recommended, until the owner settles it: it gets no blind review,
+   other; it merges only once every job of the full CI passed on that head
+   (`gh pr checks <n>`). Recommended, until the owner settles it: its head is
+   a branch cut from `develop` at a fixed commit, it gets no blind review,
    since every change it carries had its own, and it merges with a merge
    commit, not a squash, pinned to its head, with `develop` never deleted
    (open question (c), "Open For The Owner").
@@ -65,11 +67,14 @@ a worker's report.
 ## Open For The Owner
 
 - **(c) How `develop` reaches master.** Recommended: the coordinator opens the
-  PR from `develop` into master when the owner asks for it, it gets no blind
-  review, and it merges with a merge commit, never deleting `develop`. Why: a squash would put on master
-  one commit `develop` does not have, so the next PR from `develop` would carry
-  every earlier change again and conflict with it; a merge commit keeps
-  master's history a superset of `develop`'s. The steps are in
+  PR into master when the owner asks for it, from a branch cut from `develop`
+  at a fixed commit; it gets no blind review, and it merges with a merge
+  commit, never deleting `develop`. Why a fixed commit: `develop` keeps
+  moving while the PR waits, and a head that moves restarts the slow full CI
+  and leaves the owner's verdict on an older commit. Why a merge commit: a
+  squash would put on master one commit `develop` does not have, so the next
+  PR from `develop` would carry every earlier change again and conflict with
+  it; a merge commit keeps master's history a superset of `develop`'s. The steps are in
   `wiki/checklists/operation-manager.checklist.md`, "Develop And Master".
 
 ## Why

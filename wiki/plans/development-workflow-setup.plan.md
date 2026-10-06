@@ -43,8 +43,8 @@
 
 ## 1. The First Commit
 
-Setup commits straight to master (steps 1 and 8): the review flow this plan
-starts does not exist until it is done.
+Setup commits straight to master (step 1) and to `develop` (step 8): the
+review flow this plan starts does not exist until it is done.
 
 ```bash
 cd <this repository's main checkout>
@@ -71,8 +71,9 @@ existed, ahead of step 8, so that workers started during step 7 do not read
 None yet (LIV): no branch rules, and squash, merge and rebase merges all stay
 allowed. `/operations-land` merges with squash, pinned to the reviewed head.
 When the owner wants GitHub to enforce it, a public repository gets branch
-rules for free: a ruleset on master requiring a PR and CI's `test` checks, and
-squash-only merges with merged branches deleted.
+rules for free: a ruleset on `develop` requiring a PR and CI's fast check,
+with squash-only merges and merged branches deleted, and one on master
+requiring a PR from `develop` and the full CI, with merge commits.
 
 ## 3. The Board
 
@@ -153,7 +154,7 @@ takes it away on removal, and makes a worker's agent wait for it (operation
 manager checklist, "Worktrees"). Prove it once, on a throwaway worktree:
 
 ```bash
-orca worktree create --repo path:<main checkout> --name setup-check --base-branch master --json
+orca worktree create --repo path:<main checkout> --name setup-check --base-branch develop --json
 ~/.llm_wiki/bin/llm-wiki projects | grep -- '--setup-check'     # registered, index-present
 (cd ~/orca/workspaces/llm-wiki-framework/setup-check && ~/.llm_wiki/bin/llm-wiki search "operation manager" --limit 1)
 orca worktree rm --worktree path:$HOME/orca/workspaces/llm-wiki-framework/setup-check --run-hooks --json
@@ -190,10 +191,10 @@ Each with the owner's go, each a roadmap entry and an issue on the board:
 
 - `just branch-status` runs clean.
 - `wiki/log.md` gets one entry at the top for the setup, in this wiki's format.
-- This plan becomes `Completed (master)`, and its index entry says it is the
+- This plan becomes `Completed (develop)`, and its index entry says it is the
   record of how the setup was done. The "First time here?" pointers in
   AGENTS.MD and `/operations` look for "Not set yet", which is gone.
-- Commit and push it, straight to master like step 1:
+- Commit and push it, straight to `develop`, like a status-only commit:
 
   ```bash
   git add -A && git status --short    # the checklist's ids, the skill's <P>, this plan, the log, the index

@@ -53,8 +53,8 @@
   status changes once, at the merge that proves it, and a plan does not sit
   "Active" for weeks after its work merged. `just branch-status` accepts
   `Completed (master)`, `(local)` and `(spike)` today, not `(develop)`: the
-  recommendation needs that check to accept it, which is the CI work's
-  (`wiki/plans/develop-and-master-ci.plan.md`) or a follow-up's.
+  recommendation needs that check to accept it, and that change is the CI
+  work's (issue #9, `wiki/plans/develop-and-master-ci.plan.md`).
 
 ## Why
 

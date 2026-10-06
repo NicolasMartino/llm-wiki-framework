@@ -27,7 +27,9 @@ hears why. Workers are released when their report is read, not here
    nothing skipped. The `## Full gate run — <sha>` comment names the PR's
    current head (`gh pr view <n> --json headRefOid`), and CI passed on that head
    (`gh pr checks <n>`). Anything else: the PR stays draft, and a fix round
-   fixes it; a skip is not a pass.
+   fixes it; a skip is not a pass. The PR from `develop` into master has only
+   the CI part: every job of the full CI passed on its head, with no
+   `## Full gate run` comment expected (checklist, "Develop And Master").
 3. **Ready.** If the PR is draft (`gh pr view <n> --json isDraft`),
    `gh pr ready <n>`, then tell the owner it waits for them, by name.
 4. **The verdict.** The owner brings it: a PR comment whose heading contains
@@ -46,10 +48,12 @@ hears why. Workers are released when their report is read, not here
 6. **Merge.**
 
    ```bash
-   gh pr merge <n> --squash --match-head-commit <full sha> --delete-branch
+   gh pr merge <n> --squash --match-head-commit <full sha> --delete-branch \
+     --subject "<the PR title> (#<n>)"
    ```
 
-   The full SHA, not a short one. One at a time; before the next, wait for its
+   The full SHA, not a short one. `--subject` because a one-commit PR would
+   otherwise squash under its commit's title, not the PR's. One at a time; before the next, wait for its
    `mergeable` to leave UNKNOWN. Then check the issue closed
    (`gh issue view <issue> --json state`; GitHub closes it on a merge into
    `develop`, its default branch), and close it with a pointer to the PR if it

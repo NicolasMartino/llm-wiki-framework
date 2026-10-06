@@ -97,17 +97,21 @@ board true. It writes no product code.
 - **Work in flight is a branch on `origin`**, not a worktree
   (`wiki/decisions/work-in-flight-is-a-pushed-branch.decision.md`). A plan under
   way names its branch (`- Branch: \`<branch>\``), and a plan completed from now
-  on says where its proof holds: `Completed (master)`, `(local)` or `(spike)`.
+  on says where its proof holds: `Completed (develop)`, `(local)` or `(spike)`.
   `just branch-status` checks both against `origin`.
 - **Every PR is reviewed twice**: one blind feedback review that never gives a
   verdict, then the owner's verdict, a PR comment with PASS or FAIL in its
   heading (`wiki/decisions/the-pull-request-is-the-review-surface.decision.md`).
+- **Work PRs go into `develop`**, GitHub's default branch, and workers start
+  from it; master takes `develop` only through a PR from `develop`, with the
+  full CI and the owner's PASS
+  (`wiki/decisions/the-pull-request-is-the-review-surface.decision.md`, rule 6).
 - **Every change goes through a PR**, ingest and lint included, and the
   coordinator writes the log entry at merge, at the top of `wiki/log.md` in its
   usual form. Where "Operations" above says "append to `wiki/log.md`" or "fix
   issues directly", that is how it happens here. The exceptions are the setup
   plan's two commits and the coordinator's status-only commits (plans'
-  `Status` and `Branch` lines), which go straight to master.
+  `Status` and `Branch` lines), which go straight to `develop`.
 - **A worker** follows its spec and the rules pasted under it; it never edits
   `wiki/log.md`, this file, a plan's `Status` or `Branch` lines, or
   `templates/` unless its spec names it, never merges or releases, and never

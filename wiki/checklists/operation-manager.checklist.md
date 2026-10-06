@@ -364,10 +364,12 @@ the coordinator (`orchestration ask`) for anything else.
   the diff yourself against the issue and the plan:
 
   ```bash
-  gh pr merge <n> --squash --match-head-commit <full sha> --delete-branch
+  gh pr merge <n> --squash --match-head-commit <full sha> --delete-branch \
+    --subject "<the PR title> (#<n>)"
   ```
 
-  `--match-head-commit` needs the full SHA. One at a time; wait for the next
+  `--match-head-commit` needs the full SHA; `--subject`, because a one-commit
+  PR would otherwise squash under its commit's title, not the PR's. One at a time; wait for the next
   PR's `mergeable` to leave UNKNOWN. Then check the issue closed: GitHub
   closes it on a merge into `develop`, its default branch. The PR from
   `develop` into master merges another way ("Develop And Master").
@@ -406,19 +408,25 @@ owner settles it (open questions (b) and (c)).
 
   ```bash
   git fetch origin
-  gh pr create --base master --head develop --title "Develop: Bring master up to date" \
+  git push origin origin/develop:refs/heads/to-master-<date>   # develop at a fixed commit
+  gh pr create --base master --head to-master-<date> --title "Develop: Bring master up to date" \
     --body "<the merges it carries, by name and number>"
   ```
 
-  The full CI runs on it (`wiki/plans/develop-and-master-ci.plan.md`). It gets
-  no blind review: each change it carries had one, and the full CI is its
-  check. The owner's PASS on its
-  head decides it, as for any PR ("Landing A PR").
-- **The merge keeps `develop`'s history**: a merge commit, never a squash, and
-  `develop` is never deleted:
+  Why a branch at a fixed commit: `develop` keeps moving while the PR waits
+  for the owner, and a moving head restarts the slow full CI and leaves the
+  owner's verdict on an older commit.
+- **Its check is the full CI**
+  (`wiki/plans/develop-and-master-ci.plan.md`). It gets no blind review: each
+  change it carries had one. It merges only once every job of the full CI
+  passed on its head (`gh pr checks <n>`; there is no `## Full gate run`
+  comment), and with the owner's PASS on that head, as for any PR ("Landing A
+  PR").
+- **The merge keeps `develop`'s history**: a merge commit, never a squash;
+  `develop` is never deleted, only the fixed-commit branch:
 
   ```bash
-  gh pr merge <n> --merge --match-head-commit <full sha>
+  gh pr merge <n> --merge --match-head-commit <full sha> --delete-branch
   ```
 
   Why: a squash would put on master one commit `develop` lacks, so the next PR
