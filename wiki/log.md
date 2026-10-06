@@ -1,5 +1,53 @@
 # Wiki Log
 
+## [2026-10-07] merge | The plan for poman's shared page reader and file types
+
+Merged #45 (closes #44): the plan for PM2 moves the page reader into
+`llm-wiki-core` under the strictest gates, defines llm-wiki's nine document
+types there, and has init take its folders, index labels and the ML pack's rows
+from those definitions; search and init are proved unchanged against a frozen
+copy of the wiki and init's snapshots. The owner accepted its three
+recommendations on 2026-10-07; its build started as #46.
+
+Pages affected: `wiki/plans/poman-shared-page-reader-and-types.plan.md`,
+`wiki/roadmaps/poman.roadmap.md`, `wiki/index.md`.
+
+## [2026-10-07] merge | The plan for shipping the operations setup with llm-wiki
+
+Merged #41 (closes #40): the plan for P19 first gives `AGENTS.md`, `CLAUDE.md`
+and `project_guidelines.md` one marked block that init owns and refreshes,
+leaving the rest of each file to the project (the owner's "needle", extended to
+the three files on 2026-10-06), then ships the `operation-manager` pack, the
+`operations_setup` MCP prompt and a built-in resource through one integration
+branch. The proposal is marked Accepted and promoted to the plan.
+
+Pages affected: `wiki/plans/operations-setup-in-llm-wiki.plan.md`,
+`wiki/proposals/operations-setup-in-llm-wiki.proposal.md`,
+`wiki/roadmaps/framework-v1.roadmap.md`, `wiki/index.md`.
+
+## [2026-10-07] merge | The tests run once and one CI cache is shared
+
+Merged #43 (closes #15): `just verify` and the full CI run the test suite once
+instead of twice (27 test-result lines instead of 53), the coverage gate covers
+`llm-wiki-core` and `poman` again, the CI cache is saved only from `develop` and
+master, each job drops the runner image's toolchains so the cache key stays
+stable, and the fast check also runs `branch-status-test`. Cold, the full CI's
+test job fell from about 13 minutes to about 8 on Linux. P13 is Completed.
+
+Pages affected: `wiki/plans/tests-once-shared-ci-cache.plan.md`,
+`wiki/roadmaps/framework-v1.roadmap.md`, `wiki/index.md`.
+
+## [2026-10-06] merge | The plan for the lexical search ranking fix
+
+Merged #39 (part of #25): the plan weights the file path and title columns in
+the lexical ranking and falls back from the all-words query to phrases in
+lexical search only, with regression tests on the frozen wiki, among them the
+four plan names with and without the plan filter. The owner decided its four
+choices on 2026-10-06.
+
+Pages affected: `wiki/plans/search-ranking-weights-and-phrase-fallback.plan.md`,
+`wiki/roadmaps/framework-v1.roadmap.md`, `wiki/index.md`.
+
 ## [2026-10-06] merge | branch-status reads each branch's own plans
 
 Merged #35 (closes #31): `just branch-status` fetches from origin without a
