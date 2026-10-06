@@ -55,7 +55,7 @@ retried one tier up. Check `launch.effective` in the start receipt.
 Every base text is followed by `base/shared/rules.txt`:
 
 - **Read AGENTS.MD first, and check the start commit**: a new worktree can
-  start from a stale master, and the worker is the last one who can see it.
+  start from a stale `develop`, and the worker is the last one who can see it.
 - **Never edit `wiki/log.md`, AGENTS.MD, or a plan's Status and Branch lines**:
   the log is the rule most often broken when several workers run, a worker must
   not rewrite the instructions it is reviewed against, and the plans' statuses
@@ -66,6 +66,9 @@ Every base text is followed by `base/shared/rules.txt`:
   every worker's files.
 - **Start no workers, subagents or background agents**: fan-out is the
   coordinator's decision, and the machine has run out of memory before.
+- **The PR goes into `develop`, never master**: master takes `develop` only
+  through the coordinator's PR from `develop`, with the full CI and the
+  owner's PASS (`the-pull-request-is-the-review-surface.decision.md`, rule 6).
 - **Titles follow the issue's pattern; push; never force-push; never merge,
   tag or release; no AI, model, agent or tool mentions in commits or on
   GitHub**: a merge needs the owner's PASS on the current head, releases are
@@ -78,7 +81,8 @@ Every base text is followed by `base/shared/rules.txt`:
 
 - **The full gates** (`base/shared/full-gates.txt`), for every kind that
   changes code or tooling:
-  - `just verify` with zero skips, and CI passing on the PR's head, with the PR
+  - `just verify` with zero skips, and CI passing on the PR's head (the fast
+    check on a PR into `develop`, once the CI work lands), with the PR
     draft until the coordinator has read both: a green exit status once hid
     skipped gates;
   - the review ask before the gate run: the blind review's fix lands before
@@ -168,7 +172,7 @@ Every PR's one review before the owner's
 
 - **Base text:** `base/blind-review.txt` is the whole spec, `<PR>` replaced; no
   shared part follows it.
-- **Model:** Opus, xhigh, on a new-child worktree from master; the start
+- **Model:** Opus, xhigh, on a new-child worktree from `develop`; the start
   command is in the operation manager checklist, "Landing A PR".
 - **Why no spec and no worker report:** it judges the change cold, as the owner
   does, so it does not inherit the spec's blind spots.

@@ -67,7 +67,7 @@ view of it, nothing else.**
 
 - Moving a card is never the act that changes a status: the plan changes, and
   the card follows.
-- A plan's status change made on a worker's branch reaches master only when
+- A plan's status change made on a worker's branch reaches `develop` only when
   that branch merges; how status-only edits land before that is settled in
   `wiki/checklists/operation-manager.checklist.md`, "The Board".
 - RepForge's "the GitHub project is where work is tracked" does not apply here.

@@ -8,9 +8,11 @@
   workers: talking with the owner, the plans and the board, issues and names,
   starting a worker, fix rounds, the limits across workers, worktrees,
   integration branches, the blind review, landing a PR or a comment, the log
-  entry and clean-up. Each rule with its reason.
+  entry, taking `develop` to master, and clean-up. Each rule with its reason.
 - Sources:
-  - The owner's decisions of 2026-10-06 on how this repository is worked on
+  - The owner's decisions of 2026-10-06 on how this repository is worked on,
+    and that work lands on `develop` ("all issues/PR should be pointing at
+    develop now")
   - The operation manager runbooks of RepForge and riseon (2026-10-02 to
     2026-10-06), cut down for this repository; the reasons cite what happened
     there
@@ -20,6 +22,7 @@
   - `wiki/decisions/work-is-recorded-in-the-repository.decision.md`
   - `wiki/decisions/work-in-flight-is-a-pushed-branch.decision.md`
   - `wiki/decisions/the-pull-request-is-the-review-surface.decision.md`
+  - `wiki/plans/develop-and-master-ci.plan.md`
 
 ## What This Is For
 
@@ -117,17 +120,19 @@ the status, and the board shows it.
   - Blocked the moment it waits on something: the plan's body says what it
     waits on and what starts it; the issue gets the title note and, when the
     blocker is an issue, GitHub's "Blocked by" link;
-  - Completed when its PR merges: `Completed (master)` (or `(local)`,
-    `(spike)`, per `work-in-flight-is-a-pushed-branch.decision.md`), the
-    Branch line removed, and its roadmap entry updated.
-- **Status-only edits go straight to master.** A commit that changes nothing
+  - Completed when its PR merges into `develop`: `Completed (develop)` (or
+    `(local)`, `(spike)`), the Branch line removed, and its roadmap entry
+    updated. Which word follows Completed is
+    `work-in-flight-is-a-pushed-branch.decision.md`'s, rule 5; `(develop)` is
+    its recommendation until the owner settles it.
+- **Status-only edits go straight to `develop`.** A commit that changes nothing
   but plans' `Status` and `Branch` lines, and the matching roadmap entries'
-  `Status:` lines, is the coordinator's, made in the main checkout and pushed
-  to master with no PR: "Wiki: Mark <plan> Active". Everything else in a plan
-  goes through a PR. Workers never edit a plan's Status or Branch lines. Why:
-  a status written on a worker's branch reaches master only at the merge, so
-  master (and `just branch-status`) would show the work as not started for its
-  whole life.
+  `Status:` lines, is the coordinator's, made in the main checkout on
+  `develop` and pushed to `develop` with no PR: "Wiki: Mark <plan> Active".
+  Everything else in a plan goes through a PR. Workers never edit a plan's
+  Status or Branch lines. Why: a status written on a worker's branch reaches
+  `develop` only at the merge, so `develop` (and `just branch-status`) would
+  show the work as not started for its whole life.
 - **Review states are on the PR, not the board**: draft while worked on or
   fixed, ready while it waits for the owner.
 - **Check every move** with `gh project item-list` afterwards. Nothing moves an
@@ -206,7 +211,7 @@ kind's model, effort and reasons.
 7. **The worker**, with the kind's model and effort. Check what Orca actually
    launched (`launch.effective` in the receipt).
 8. **The status**: the plan to Active with its Branch line (a status-only
-   commit to master), then the issue on the board.
+   commit to `develop`), then the issue on the board.
 
 **Model and effort:** Opus, medium for writing and coding; Opus, high for
 design or a hard bug; Sonnet, medium for an investigation that ends in a report
@@ -215,11 +220,12 @@ or for mechanical work; Opus, xhigh for a blind review, which wins over the
 fails or escalates because the task was harder than it looked is retried one
 tier up (`worker-start --retry-of`).
 
-**Start each worker from a fresh base.** `--base-branch master` means the
-*local* master, which lags GitHub after a merge. Before every start, in the
-main checkout: `git fetch origin && git merge --ff-only origin/master`; then
-pass `--base-branch master` and check `git -C <worktree> log --oneline -1`
-against the SHA in the spec.
+**Start each worker from a fresh base.** Workers start from `develop`, never
+from master. `--base-branch develop` means the *local* `develop`, which lags
+GitHub after a merge. Before every start, in the main checkout, on `develop`:
+`git fetch origin && git merge --ff-only origin/develop`; then pass
+`--base-branch develop` and check `git -C <worktree> log --oneline -1` against
+the SHA in the spec.
 
 **A fix round** (after the owner's FAIL, or when the PR's own worker is gone
 before the blind review's findings): a worker of the same kind, Opus medium,
@@ -229,8 +235,8 @@ Its spec's Goal says "Fix round on PR #<n>: <the review's link>" and its
 Context says "the review already ran: skip the review ask". One blind review
 and one fix round per PR.
 
-**What workers may not do**, which the shared rules tell them: merge, tag or
-release, start workers of their own, touch files outside the spec, edit
+**What workers may not do**, which the shared rules tell them: open a PR into
+master, merge, tag or release, start workers of their own, touch files outside the spec, edit
 `wiki/log.md`, AGENTS.MD, a plan's Status or Branch lines, or the framework's
 output templates unless the spec names them. They push and open PRs, and ask
 the coordinator (`orchestration ask`) for anything else.
@@ -276,19 +282,21 @@ the coordinator (`orchestration ask`) for anything else.
 ## Integration Branches
 
 - **A feature built in several PRs, and of no use until all of them are in,
-  gets one integration branch**, with one draft PR from it into master. Each
-  piece is its own issue, worked on a branch taken from it, with a draft PR
-  into it, landed by the same steps as any PR. Why: master stays releasable
-  while a feature is half built.
+  gets one integration branch**, cut from `develop`, with one draft PR from it
+  into `develop`. Each piece is its own issue, worked on a branch taken from
+  it, with a draft PR into it, landed by the same steps as any PR. Why:
+  `develop` stays usable, and can go to master at any time, while a feature is
+  half built.
 - **Start a piece** after `git fetch origin`, with
   `--base-branch origin/<integration branch>`, that head's SHA in the spec's
   Context, and the PR's base named in the Goal.
-- **Keep it level with master**: a tooling worker merges master into it, never
-  rebases, before each piece branches and before the integration PR's last
+- **Keep it level with `develop`**: a tooling worker merges `develop` into it,
+  never rebases, before each piece branches and before the integration PR's last
   gate run.
 - **It merges once, whole**, with its own gate run and the owner's PASS. Its log
   entry names the pieces; a piece's merge gets none. Close a piece's issue by
-  hand when it merges, since GitHub closes issues only on merges into master.
+  hand when it merges into the integration branch, since GitHub closes issues
+  only on merges into its default branch, `develop`.
 
 ## While Workers Run
 
@@ -316,13 +324,14 @@ the coordinator (`orchestration ask`) for anything else.
 
 `/operations-land` walks these steps.
 
-- **One blind review first.** At the worker's review ask:
+- **One blind review first**, for every PR but a log PR and the PR from
+  `develop` into master ("Develop And Master"). At the worker's review ask:
 
   ```bash
   sed "s/<PR>/<n>/g" .claude/skills/operations-start/base/blind-review.txt > <scratchpad>/review-<n>.txt
   orca orchestration worker-start --run <R> --spec "$(cat <scratchpad>/review-<n>.txt)" \
     --task-title "Blind review of PR #<n>" --agent claude --model opus --effort xhigh \
-    --worktree new-child --base-branch master --name review-<n> \
+    --worktree new-child --base-branch develop --name review-<n> \
     --display-name "#<n> blind review" --json
   ```
 
@@ -337,8 +346,9 @@ the coordinator (`orchestration ask`) for anything else.
 - **The gate check, before a PR leaves draft.** The worker's `just verify` log
   read raw (every step ran and passed, nothing skipped), the
   `## Full gate run — <sha>` comment names the current head, and CI passed on
-  that head (`gh pr checks <n>`; CI also runs coverage and the three operating
-  systems). Why: a verify script once exited 0 with gates skipped, and the
+  that head (`gh pr checks <n>`; which CI runs on a PR into `develop`, and
+  which on the PR into master, is `wiki/plans/develop-and-master-ci.plan.md`'s).
+  Why: a verify script once exited 0 with gates skipped, and the
   owner refused a PR whose gates had been skipped ("no excuses"). Wiki PRs run
   no local gates; CI still runs on them.
 - **Ready**: `gh pr ready <n>`, then tell the owner it waits for them.
@@ -358,24 +368,76 @@ the coordinator (`orchestration ask`) for anything else.
   ```
 
   `--match-head-commit` needs the full SHA. One at a time; wait for the next
-  PR's `mergeable` to leave UNKNOWN. Then check the issue closed.
+  PR's `mergeable` to leave UNKNOWN. Then check the issue closed: GitHub
+  closes it on a merge into `develop`, its default branch. The PR from
+  `develop` into master merges another way ("Develop And Master").
 - **The log entry and the plan's status at merge.** Only the coordinator writes
-  `wiki/log.md`: one entry per merge to master, at the top of the log, in this
-  wiki's format (`## [<date>] <operation> | <subject>`, a paragraph on what
-  changed and why citing the PR, then `Pages affected: …`). The same log PR
-  marks the plan `Completed (master)`, removes its Branch line, and updates its
-  roadmap entry. A log PR may gather several merges; it gets no log entry of
-  its own and no blind review, and the owner's PASS decides it. Then the issue
-  to Completed on the board.
+  `wiki/log.md`: one entry per merge into `develop`, at the top of the log, in
+  this wiki's format (`## [<date>] <operation> | <subject>`, a paragraph on
+  what changed and why citing the PR, then `Pages affected: …`). The same log
+  PR, into `develop`, marks the plan Completed ("The Board"), removes its
+  Branch line, and updates its roadmap entry. A log PR may gather several
+  merges; it gets no log entry of its own and no blind review, and the owner's
+  PASS decides it. Then the issue to Completed on the board. The PR from
+  `develop` into master gets its own entry ("Develop And Master"). Recommended,
+  until the owner settles it (open question (b)): both as written here.
 
   ```bash
-  git fetch origin && git switch -c wiki-log-<n> origin/master   # in the main checkout
+  git fetch origin && git switch -c wiki-log-<n> origin/develop   # in the main checkout
   # add the entries at the top of wiki/log.md; mark the plans and roadmap entries
   git commit -am "Wiki: Log the merge of #<n>" && git push -u origin wiki-log-<n>
-  gh pr create --base master --title "Wiki: Log the merge of #<n>" --body "Logs #<n>." --draft
-  git switch master
+  gh pr create --base develop --title "Wiki: Log the merge of #<n>" --body "Logs #<n>." --draft
+  git switch develop
   ```
 - **Remove the worktree** of a merged PR ("Worktrees").
+
+## Develop And Master
+
+The rule is
+`wiki/decisions/the-pull-request-is-the-review-surface.decision.md`, rule 6:
+work PRs go into `develop`, and master takes `develop` only through a PR from
+`develop`, with the full CI and the owner's PASS. Nothing else ever targets,
+merges into or is pushed to master. What follows is recommended until the
+owner settles it (open questions (b) and (c)).
+
+- **When:** when the owner asks for it, before a release, or when a proof
+  needs master. The coordinator opens the PR; no worker does.
+- **How:**
+
+  ```bash
+  git fetch origin
+  gh pr create --base master --head develop --title "Develop: Bring master up to date" \
+    --body "<the merges it carries, by name and number>"
+  ```
+
+  The full CI runs on it (`wiki/plans/develop-and-master-ci.plan.md`). It gets
+  no blind review: each change it carries had one, and the full CI is its
+  check. The owner's PASS on its
+  head decides it, as for any PR ("Landing A PR").
+- **The merge keeps `develop`'s history**: a merge commit, never a squash, and
+  `develop` is never deleted:
+
+  ```bash
+  gh pr merge <n> --merge --match-head-commit <full sha>
+  ```
+
+  Why: a squash would put on master one commit `develop` lacks, so the next PR
+  from `develop` would carry every earlier change again and conflict with it.
+- **Its log entry** is written in the next log PR into `develop`, after the
+  merge: one entry for the PR into master, naming the PRs it carried. Plans'
+  statuses do not change ("The Board").
+
+### Open For The Owner
+
+- **(b) Where the log entry is written.** Recommended: one entry per merge into
+  `develop`, in a log PR into `develop`, as "Landing A PR" says; and one entry
+  for each PR from `develop` into master, in the next log PR into `develop`
+  after it merges. Why: every change to the log goes through `develop` like
+  any other, and master gets its log with the next PR from `develop`.
+- **(c) When `develop` goes to master, who opens the PR and how it merges**:
+  the steps above.
+- **(a) What follows Completed** is
+  `work-in-flight-is-a-pushed-branch.decision.md`'s, "Open For The Owner".
 
 ## Landing A Comment
 

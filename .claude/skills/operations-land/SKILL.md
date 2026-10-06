@@ -21,7 +21,7 @@ hears why. Workers are released when their report is read, not here
    pushed. If it did not run (a PR from outside a worker, say), start it now
    with the command in the checklist, "Landing A PR", then give its P1s and P2s
    to one fix round (checklist, "Starting A Worker", "A fix round"). A log PR
-   gets no blind review.
+   gets no blind review, nor does the PR from `develop` into master.
 2. **The gate check** (kinds with the full gates; a wiki or log PR skips the
    local part). Read the `just verify` log raw: every step ran and passed,
    nothing skipped. The `## Full gate run — <sha>` comment names the PR's
@@ -51,15 +51,19 @@ hears why. Workers are released when their report is read, not here
 
    The full SHA, not a short one. One at a time; before the next, wait for its
    `mergeable` to leave UNKNOWN. Then check the issue closed
-   (`gh issue view <issue> --json state`), and close it with a pointer to the
-   PR if it did not.
+   (`gh issue view <issue> --json state`; GitHub closes it on a merge into
+   `develop`, its default branch), and close it with a pointer to the PR if it
+   did not. The PR from `develop` into master merges with a merge commit
+   instead (checklist, "Develop And Master").
 7. **The log and the status.** Add the merge's entry at the top of
-   `wiki/log.md` in this wiki's format, mark its plan `Completed (master)`
-   with the Branch line removed, and update its roadmap entry, all in a log PR
+   `wiki/log.md` in this wiki's format, mark its plan Completed (the word after
+   it is in the checklist, "The Board") with the Branch line removed, and update its roadmap entry, all in a log PR
    (checklist, "Landing A PR", has the commands); land that PR by these same
    steps when it is ready. Then the issue to Completed on the board, and any
    plan it blocked: unblock it in the repository first, then on the board. Not
-   for a log PR itself, nor for a piece merged into an integration branch.
+   for a log PR itself, nor for a piece merged into an integration branch. The
+   PR from `develop` into master gets one entry and changes no status
+   (checklist, "Develop And Master").
 8. **Clean up.** The PR's worker and its reviewer were released when their
    reports were read; check
    `orca orchestration worker-list --run <R> --terminal-state reclaimable --json`
