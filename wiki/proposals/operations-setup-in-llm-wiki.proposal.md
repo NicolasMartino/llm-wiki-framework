@@ -322,8 +322,8 @@ of a kit that the pack is meant to replace.
 - **The pack's name.** Recommendation: `operation-manager`, because next to
   the existing `ops` pack, `operations` reads as the same thing. P19 names the
   pack by this proposed name until the owner settles it; the worker who
-  writes P19's plan renames it there if the owner picks another. Not answered
-  yet on 2026-10-06; the plan lists it in "Open For The Owner".
+  writes P19's plan renames it there if the owner picks another. Answered by
+  the owner on 2026-10-06: `operation-manager`.
 
 ## Increments
 

@@ -5,9 +5,9 @@
 - Date: 2026-10-06
 - Category: Project init, MCP prompts, way of working
 - Scope: Carry out P19 of the framework roadmap, as the accepted proposal
-  describes it: first, `AGENTS.md`, `CLAUDE.md` and `project_guidelines.md`
-  each get one marked block that init owns and refreshes, and init leaves
-  everything outside it as it is; then an init pack writes the coordinated way
+  describes it: first, `AGENTS.md` (and, if the owner approves, `CLAUDE.md`
+  and `project_guidelines.md`) gets one marked block that init owns and
+  refreshes, and init leaves everything outside it as it is; then an init pack writes the coordinated way
   of working's files, an `operations_setup` MCP prompt holds the setup steps,
   and a built-in MCP resource carries the same steps.
 - Sources:
@@ -16,7 +16,8 @@
   - `wiki/roadmaps/framework-v1.roadmap.md`, P19, and issue #40
   - The owner's answers of 2026-10-06 to the proposal's open choices: when to
     build it, "asap"; where the kit's AGENTS sections go, "I think we should
-    have a needle, a part of the agents.md file that is dedicated to llm wiki"
+    have a needle, a part of the agents.md file that is dedicated to llm
+    wiki"; the pack's name, `operation-manager`
   - `src/init/scaffold.rs`, `src/init/compose.rs`, `src/init/template.rs`,
     `src/init/packs.rs`, `src/init/manifest.rs`, `src/init/collision.rs`,
     `src/cli.rs` (`InitArgs`), `src/mcp/mod.rs`, `src/wiki_read/mod.rs`
@@ -51,8 +52,8 @@ what it writes for itself:
   passing the setup's own tests and coming back from its blind review with no
   P1 or P2;
 - a rerun of `llm-wiki init` (adding a pack) leaves every kit file, and every
-  byte outside init's marked block in `AGENTS.md`, `CLAUDE.md` and
-  `project_guidelines.md`, as it was;
+  byte outside init's marked block in each root schema file that has one,
+  as it was;
 - a host that shows no MCP prompts can still read the steps, from a built-in
   resource listed in every session;
 - `just verify` passes locally and CI's fast check passes on each PR.
@@ -114,30 +115,42 @@ Whoever does the work rechecks each point against the commit they start from.
 
 ### The block that init owns
 
-Decided by the owner on 2026-10-06 ("a needle, a part of the agents.md file
-that is dedicated to llm wiki"). This changes how init writes the root schema
-files for every project, with or without the operations pack.
+Decided by the owner on 2026-10-06 for `AGENTS.md` ("a needle, a part of the
+agents.md file that is dedicated to llm wiki"). The same block in `CLAUDE.md`
+and `project_guidelines.md` is recommended here and is the owner's to approve
+("Open For The Owner", choice 1); the rules below are written for all three
+and shrink to `AGENTS.md` alone if the owner says no. This changes how init
+writes the root schema files for every project, with or without the
+operations pack.
 
-- **One block per file.** `AGENTS.md`, `CLAUDE.md` and
-  `project_guidelines.md` each hold one block between a begin marker and an
-  end marker, HTML comments in the form init already uses (recommended:
-  `<!-- llm-wiki:managed:start -->` and `<!-- llm-wiki:managed:end -->`, the
-  same pair in all three). Everything init renders today for that file goes
-  inside it, pack fragments included. The block's first line says that init
-  rewrites the text between the markers and that the project's own text goes
-  outside them.
-- **The same rule for all three files.**
-  - `AGENTS.md`: the project's own sections, such as this repository's tuned
-    "How Work Runs", go outside the block.
-  - `CLAUDE.md`: the block holds the one line pointing at `AGENTS.md`;
-    a project's own Claude-only notes, which a rerun drops today, stay
-    outside it.
-  - `project_guidelines.md`: the block holds the documentation model as
-    rendered; its render date changes inside the block only.
+- **One block per file.** Each file holds one block between a begin marker
+  and an end marker, HTML comments in the form init already uses
+  (recommended: `<!-- llm-wiki:managed:start -->` and
+  `<!-- llm-wiki:managed:end -->`, the same pair in each file). Everything
+  init renders today for that file goes inside it, pack fragments included.
+  The block's first line says that init rewrites the text between the markers
+  and that the project's own text goes outside them.
+- **What each block holds.**
+  - `AGENTS.md`: the schema init renders today, with the packs' fragments;
+    the project's own sections, such as this repository's tuned "How Work
+    Runs", go outside the block.
+  - `CLAUDE.md`: the one line pointing at the AGENTS file, naming the file
+    that exists (`See @AGENTS.MD.` in a project whose file is spelled so); a
+    project's own Claude-only notes, which a rerun drops today, stay outside
+    it.
+  - `project_guidelines.md`: the documentation model as rendered; its render
+    date changes inside the block only.
   - `wiki/index.md` and `wiki/log.md` keep their rule (kept when they exist).
 - **The AGENTS file's spelling.** Init writes its block into the AGENTS file
   that exists, `AGENTS.md` or `AGENTS.MD`, and never writes a second one
-  beside it.
+  beside it. The fresh-init collision guard adds `AGENTS.MD` to its list, so
+  a fresh init in a folder that has only `AGENTS.MD` is refused as one with
+  `AGENTS.md` is.
+- **Everything is checked before anything is written.** On every run, init
+  reads the root schema files, checks their markers, renders each block and works
+  out its hash before it writes anything: `.llm_wiki/init.toml`, the folders,
+  the files, the schema-drift audit. A refusal leaves the project exactly as
+  it was, so the next run sees the same previous answers.
 - **A fresh init** writes each file as its block alone.
 - **A rerun, file with a block:** init replaces the text between the markers
   and leaves every byte before the begin marker and after the end marker as
@@ -145,49 +158,56 @@ files for every project, with or without the operations pack.
 - **A rerun, file missing:** written as on a fresh init.
 - **A rerun, file without markers** (every project initialized before this
   change, or a file written by hand). A one-time migration that never loses
-  the project's text:
-  - if the file is exactly what init renders today for it, it becomes the
-    block, with nothing else;
+  the project's text. Init compares the file with what it would render for
+  it from the answers recorded before this rerun (the previous
+  `init.toml`), with the guidelines' `- Date:` line left out on both sides:
+  - if they are the same, the file becomes the block, with nothing else;
   - otherwise init writes the block at the top, then a heading saying the
     text below was kept from before the block (with the date), then the old
     file unchanged. Init warns, naming the file, that the kept text may
-    repeat what the block now says and is the project's to trim. Most
-    projects made before this change land here once, since the templates
-    have changed since their first render.
+    repeat what the block now says and is the project's to trim. A project
+    made with an older release lands here once if the templates have changed
+    since its first render.
 - **Edits made inside the block are refreshed, with a warning.** Init
-  records in `.llm_wiki/init.toml` a hash of each block it writes. At a
-  rerun, a block whose text no longer matches its recorded hash (or that has
-  no recorded hash and differs from today's render) was edited: before
-  replacing it, init saves the edited block under `.llm_wiki/` in a dated
-  file, and warns naming the file, the saved copy, and the edited block's
-  lines that the new block does not hold. A block that matches its hash is
-  refreshed without a word, even when the templates changed.
-- **Broken markers stop the rerun.** A begin marker without its end, an end
+  records the hash of each block it writes in `.llm_wiki/init.toml` (see
+  "The records" below). At a rerun, a block whose text no longer matches its
+  recorded hash was edited; one with no recorded hash is compared, as in the
+  migration, with the render from the previous answers, date line left out.
+  Before replacing an edited block, init saves it under `.llm_wiki/` in a
+  file named with the date and time and never overwrites a saved copy (a
+  counter is added if the name is taken), and warns naming the file, the
+  saved copy, and the edited block's lines that the new block does not hold.
+  A block that matches its hash is refreshed without a word, even when the
+  templates changed.
+- **Broken markers stop the run.** A begin marker without its end, an end
   before its begin, or more than one block in a file: init refuses before
-  writing any of the three files, naming the file and the line, and says how
-  to repair it.
-- **What it does not change:** the fresh-init collision guard, folders, the
-  schema-drift audit, registration and the MCP wiring.
+  writing anything (the check above), naming the file and the line, and says
+  how to repair it.
+- **What it does not change:** folders, the schema-drift audit, registration
+  and the MCP wiring; the collision guard changes only by `AGENTS.MD`.
 
 ### The pack
 
 As the proposal's "The pack holds the files" says, with the owner's answer on
 the AGENTS sections in place of its three placements:
 
-- **Name:** `operation-manager` until the owner settles it ("Open For The
-  Owner").
+- **Name:** `operation-manager`, decided by the owner on 2026-10-06.
 - **The kit's files are compile-time templates** with typed fields, one per
   placeholder, so a missing one is a build error. The source of each
   placeholder (what init knows, the owner's answers, the prompt's look at the
   repository, worked out by the pack, written by the prompt after the write,
   dropped) and which become conditions are as the proposal lists them.
   Reasons that name the owner's other projects are written without the names.
-- **How init gets the values.** The pack is selected with `--pack`; its
-  values come from one answers file the prompt writes, given to init by a
-  flag. Init refuses before writing anything, naming each missing value, when
-  the pack is selected without them and `init.toml` does not already hold
-  them. Init records the values in `.llm_wiki/init.toml` with the pack, so a
-  rerun reuses them without the prompt. Interactive init does not ask the
+- **How init gets the values.** The pack is selected with
+  `--pack operation-manager`; its values come from an answers file the prompt
+  writes, given with `--pack-answers <file>` (see "The records" below). Init
+  refuses before writing anything, `init.toml` included, naming each missing
+  value, when the pack is selected and neither the answers file nor
+  `init.toml` holds them all. Init records the values in `init.toml`, so a
+  rerun reuses them without the answers file. A value given in the file at a
+  rerun replaces the recorded one; since kit files are written only when
+  absent, a changed value reaches the AGENTS block and the kit files not yet
+  written, and init's output says so. Interactive init does not ask the
   pack's questions: it says the pack is set up through the prompt.
 - **Kit files are written only when absent**, on the first run and on every
   rerun. One that exists (`orca.yaml`, `.claude/settings.json`, a commit hook,
@@ -198,6 +218,38 @@ the AGENTS sections in place of its three placements:
   same; a project's own changes to how work runs go outside the block or in
   the operation manager page, a kit file.
 - **One board model**, the repository as the truth, as the proposal says.
+
+### The records
+
+The proposal leaves the answers record's fields to this plan. The names
+below are the recommendation; whoever does the work rechecks each value
+against the kit's fitting guide and says in the PR what changed.
+
+- **The answers file** is TOML with one table per pack that takes values;
+  for this pack, `[operation_manager]`. Its keys are the values the pack
+  takes as input (the proposal's groups "the owner's answers" and "the
+  prompt's look"), the placeholders that become conditions taken as the
+  condition itself:
+  - from the owner's answers: `repo`, `owner`, `main_branch`, `gates`,
+    `gates_setup`, `ci` (true or false, for `CI_CLAUSE` and `CI_DONE_LINE`),
+    `public` (true or false, for `PUBLIC_NOTE`), `log_format`,
+    `repo_settings`, `branch_rules`, `setup_answers` (a list, one clause per
+    answer);
+  - from the look: `tools_dir`, `branch_status` (the command, such as
+    `just status`), `branch_status_in` (`justfile` or `script`, for
+    `BRANCH_STATUS_RECIPE`), `bare_completed` (true or false, for
+    `COMPLETED_LEGACY_NOTE`), `first_work` (a list of bullets).
+  - What init knows (the project, the date, the AGENTS file, the pages'
+    paths and types) is not in the file.
+- **`.llm_wiki/init.toml`** gains two tables beside its fields today:
+  - `[operation_manager]`, the same keys as the answers file, written when
+    the pack is selected, so the file a rerun reads and the file the prompt
+    writes have one shape;
+  - `[managed_blocks]`, one key per file that has a block (`agents`,
+    `claude`, `guidelines`), each the SHA-256 of the text init wrote between
+    that file's markers.
+  - A manifest without them still reads: no values recorded, no hashes
+    recorded.
 
 ### The prompt and its resource
 
@@ -220,31 +272,63 @@ the AGENTS sections in place of its three placements:
 
 ## Phases
 
-Each phase is its own issue and PR, in this order.
+Phase 1 is of use alone and lands on `develop` by itself. Phases 2 to 4 are
+of no use apart (the pack takes its values from a file the prompt writes, and
+interactive init points at a prompt that phase 3 adds), so they go through
+one integration branch with one draft PR into `develop`, as
+`wiki/checklists/operation-manager.checklist.md`, "Integration Branches",
+describes: each is its own issue and PR into that branch.
 
-1. **The block.** The three root schema files get the block; reruns, the
-   migration, the edit warning, broken markers and the AGENTS file's
-   spelling as in the Target. The init snapshots are updated, so the review
-   sees the markers in each blueprint's files. Tests that prove it, each
-   running real init on a temporary project:
+What each PR does with this plan's `Status` and `Branch` lines, under the
+checklist's rule that a plan's status changes in the PR that does the work:
+
+- **Phase 1's PR** sets the plan Active with its Branch line in its first
+  push, and removes the Branch line before it leaves draft, leaving the plan
+  Active: the plan is not finished when it merges.
+- **The integration branch:** the first piece's PR into it adds the Branch
+  line naming the integration branch; the other pieces' PRs change neither
+  line. Before the integration PR into `develop` leaves draft, the plan says
+  `Completed (develop)`, its Branch line is removed, and P19 goes to
+  Completed with it.
+
+1. **The block.** The root schema files get the block; reruns, the
+   migration, the edit warning, broken markers, the AGENTS file's spelling
+   and the collision guard as in the Target. The init snapshots are updated,
+   so the review sees the markers in each blueprint's files. Tests that prove
+   it, each running real init on a temporary project:
    - a rerun with the same answers, and one adding a pack, keep the text
      before and after each block byte for byte (text above and below, CRLF
      lines, no final newline);
-   - an unmarked file equal to today's render becomes the block alone; an
-     unmarked edited file keeps every one of its bytes below the block, and
-     init warns naming it;
+   - an unmarked file equal to the render from the previous answers becomes
+     the block alone, with its fixture rendered on an earlier date, so the
+     guidelines' date line differs; an unmarked edited file keeps every one
+     of its bytes below the block, and init warns naming it;
    - an edit inside a block is replaced, the saved copy holds the edited
-     text, and the warning names the file and the copy; an unedited block
-     after a template change is refreshed without a warning;
-   - broken markers refuse the rerun and leave all three files unchanged;
-   - a project with `AGENTS.MD` gets its block there and no `AGENTS.md`.
+     text, and the warning names the file and the copy; two such reruns in
+     a row leave two saved copies; an unedited block after a template change
+     is refreshed without a warning;
+   - broken markers refuse the run and leave the root schema files,
+     `.llm_wiki/init.toml` and the folders unchanged, including on a run
+     that adds a pack;
+   - a project with `AGENTS.MD` gets its block there and no `AGENTS.md`, and
+     its `CLAUDE.md` block points at `AGENTS.MD`;
+   - a fresh init in a folder with only `AGENTS.MD` is refused.
 2. **The pack.** The templates, the answers file and its record in
    `init.toml`, written-only-when-absent with the list of existing files, the
-   AGENTS fragment inside the block. A golden test (an insta snapshot)
-   renders the pack with fixed answers on each side of every condition (CI or
-   none, public or not, runbook or checklist pages, a justfile or a script),
-   and checks no `{{...}}` is left. A rerun test: every kit file, edited after
-   the first write, is unchanged after a rerun adding a pack.
+   AGENTS fragment inside the block. Tests:
+   - a golden test (an insta snapshot) renders the pack with fixed answers on
+     each side of every condition (CI or none, public or not, runbook or
+     checklist pages, a justfile or a script), and checks no `{{...}}` is
+     left;
+   - the pack selected with a value missing is refused, naming it, and
+     nothing is written, `init.toml` included;
+   - a rerun with no answers file reuses the values in `init.toml` and
+     renders the same AGENTS block; a rerun whose answers file changes one
+     value records it;
+   - a `.gitignore` and a justfile that exist are left byte for byte and
+     listed in init's output; the scripts written are executable;
+   - every kit file, edited after the first write, is unchanged after a
+     rerun adding a pack.
 3. **The prompt and its resource.** The sixth prompt and the built-in
    resource. Tests: `prompts/list` has six prompts; `prompts/get` for
    `operations_setup` returns the six steps; `resources/list` lists the
@@ -268,7 +352,7 @@ Each phase is its own issue and PR, in this order.
   branch-status check reads the scratch `origin`), and its blind review finds
   no P1 or P2.
 - **The rerun:** the checksums of every kit file and of the text outside the
-  three blocks are the same before and after phase 4's second init, and the
+  blocks are the same before and after phase 4's second init, and the
   kit's index entries are still there.
 - **The resource:** a session in a folder with no project lists the
   built-in resource and reads the steps from it.
@@ -289,7 +373,7 @@ Whoever does the work rechecks this list:
 
 - `wiki/decisions/composable-project-init.decision.md`: its rerun rule
   ("refreshes framework-owned root schema files"), amended to say a rerun
-  refreshes only the marked block in the three root schema files, and that
+  refreshes only the marked block in the root schema files, and that
   the pack's kit files are written only when absent;
 - `wiki/specs/wiki-init-skill.spec.md`, "Rerun Behavior", the same;
 - a new decision recording the pack, the prompt and the skills exception
@@ -313,17 +397,27 @@ init snapshots and new ones for the pack.
 
 ### What Closes This Plan
 
-The owner's PASS on the PR that meets "Done When" (phase 4's), merged into
-`develop`. That PR also sets P19 Completed.
+The owner's PASS on the integration PR (phases 2 to 4) that meets "Done
+When", merged into `develop`, after phase 1's PR has merged. The integration
+PR also sets P19 Completed.
 
 ## Open For The Owner
 
-Asked on 2026-10-06; the work starts once the owner has approved this plan.
-When the owner answers, the answer is written here with its date.
+Asked on 2026-10-06; the work starts once the owner has approved this plan
+and answered. When the owner answers, the answer is written here with its
+date, and the text that points here follows it.
 
-1. **The pack's name.** Recommended: `operation-manager`, because next to the
-   existing `ops` pack, `operations` reads as the same thing. P19 and this
-   plan use it until the owner settles it.
+1. **The same block in `CLAUDE.md` and `project_guidelines.md`.** The
+   owner's answer names `AGENTS.md`. Recommended: the same block in the other
+   two root schema files, because a rerun rewrites them whole today too, so
+   a project's own notes in `CLAUDE.md` or its additions to the guidelines
+   are lost the same way, and one rule for the three files is simpler to
+   keep and to test than two. The alternative: `CLAUDE.md` and
+   `project_guidelines.md` stay whole files that a rerun rewrites, and the
+   block's rules apply to `AGENTS.md` alone.
+
+Decided on 2026-10-06 and written into the Target: build it now ("asap");
+the block in `AGENTS.md`; the pack's name, `operation-manager`.
 
 ## Out Of Scope
 
@@ -331,7 +425,7 @@ When the owner answers, the answer is written here with its date.
   they keep their copies.
 - This repository's own `AGENTS.MD`, which init does not manage here.
 - Letting a fresh init write its block into an existing `AGENTS.md` or
-  `CLAUDE.md`: the collision guard stays as it is.
+  `CLAUDE.md`: the collision guard changes only by `AGENTS.MD`.
 - The `llm-wiki update` command (`project-update-command.proposal.md`).
 - The board-as-truth model, the `ops` and `ops-lite` packs, and the wiki
   operation prompts.
