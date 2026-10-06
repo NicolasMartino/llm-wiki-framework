@@ -270,6 +270,18 @@ mod tests {
     }
 
     #[test]
+    fn the_index_has_a_section_for_each_core_type() {
+        let names = |types: &[DocumentType]| {
+            types
+                .iter()
+                .map(|doc_type| doc_type.name)
+                .collect::<BTreeSet<_>>()
+        };
+        assert_eq!(CORE_INDEX.len(), CORE.len());
+        assert_eq!(names(CORE_INDEX), names(CORE));
+    }
+
+    #[test]
     fn blueprint_defaults_resolve_when_no_packs_are_provided() {
         let output = compose(&RenderPlan {
             packs: None,
