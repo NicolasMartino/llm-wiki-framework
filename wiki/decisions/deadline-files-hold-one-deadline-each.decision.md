@@ -8,16 +8,12 @@
   fields and value formats, how the start date is found, and how the files
   land.
 - Sources:
-  - `raw/handover/2026-10-06-riseon-handover-poman-and-coordination.md`,
-    section 2 ("File types and the deadline type"): the owner's answers VIII,
-    XVI and XVII in riseon's coordinating session, 2026-10-06
-  - The owner, 2026-10-06, confirming the handover's open questions: XXIV (a
-    duration is whole days, written `10 days`), XXV (importance is `low`,
-    `medium` or `high`), XXVI (durations count working days, Monday to
-    Friday; public holidays later, with absences), XXIX (no "Part of" field
-    for now)
-  - riseon, `wiki/decisions/deadline-files-hold-the-companys-deadlines.decision.md`,
-    at `5f30a39`; it says "riseon" where it now means poman
+  - The owner's decisions, 2026-10-06: one file per deadline, its fields, the
+    computed start date, and deadline files landing straight on master
+  - The owner's answers, 2026-10-06: a duration is whole days, written
+    `10 days`; importance is `low`, `medium` or `high`; durations count working
+    days, Monday to Friday, with public holidays later, with absences; no
+    "Part of" field for now
 - Related:
   - `wiki/decisions/poman-reads-only-its-own-file-types.decision.md`: the
     rules every poman type follows (fields in the bullet block, reference
@@ -32,7 +28,7 @@
 ## Decision
 
 **Each deadline is one file, `wiki/deadlines/<slug>.deadline.md`, in the
-repository it describes (XVI). poman checks its fields and computes its start
+repository it describes. poman checks its fields and computes its start
 date.**
 
 ### Fields
@@ -40,14 +36,14 @@ date.**
 - **Mandatory:**
   - `Status`: `Todo`, `Doing`, `Waiting` or `Done`;
   - `Deadline`: a date, or `none` written out for an item with no deadline;
-  - `Duration`: a whole number of days, written `10 days` (XXIV);
-  - `Importance`: `low`, `medium` or `high` (XXV);
+  - `Duration`: a whole number of days, written `10 days`;
+  - `Importance`: `low`, `medium` or `high`;
   - `Blocked by`: the deadline files this one waits on, or `none`.
 - **Optional:**
   - `Track`: a plain field naming the stream of work; a track has no file of
     its own;
   - `Who`: who does it.
-- **No "Part of" field for now** (XXIX): a final deadline blocked by its steps
+- **No "Part of" field for now**: a final deadline blocked by its steps
   already reads as a tree.
 
 For example:
@@ -68,17 +64,17 @@ join them is open (`poman-reads-only-its-own-file-types.decision.md`,
 
 ### The start date
 
-- **poman computes it; nobody writes it** (XVII): the deadline, minus the
+- **poman computes it; nobody writes it**: the deadline, minus the
   duration, minus the time its blockers need, minus a buffer set by
   importance.
-- **Durations count working days, Monday to Friday** (XXVI). Public holidays
+- **Durations count working days, Monday to Friday.** Public holidays
   come later, with absences (PM7).
 - **The buffer's exact rule is not decided** (PM7).
 
 ### How the files land
 
 - **Deadline files land straight on master**: no pull request, no blind review,
-  no log entry; Git history is their log (VIII). Every other change goes
+  no log entry; Git history is their log. Every other change goes
   through a pull request.
 - **Nothing runs `poman check` before such a file lands yet.** Where it runs
   (a pre-push hook, `poman push` refusing while the check fails) is open, and
@@ -105,7 +101,7 @@ join them is open (`poman-reads-only-its-own-file-types.decision.md`,
 - **"Blocked by" as tracker issue numbers.** Replaced by paths.
 - **A track as a parent issue or a file of its own.** Not chosen: Track is a
   plain field.
-- **A "Part of" field.** Not now (XXIX).
+- **A "Part of" field.** Not now, by the owner's answer.
 
 ## Consequences
 

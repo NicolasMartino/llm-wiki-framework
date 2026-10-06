@@ -7,17 +7,13 @@
 - Scope: How poman shows its files on a terminal: `poman tree`, `poman list`
   and the filters they share.
 - Sources:
-  - `raw/handover/2026-10-06-riseon-handover-poman-and-coordination.md`,
-    section 2 ("Seeing the deadlines"), proposed in riseon's coordinating
-    session, 2026-10-06, with the owner's addition of `--type`
-  - The owner, 2026-10-06, confirming the handover's XXVII: `poman tree` and
-    `poman list` as section 2 describes them
+  - The owner's decisions, 2026-10-06: `poman tree` and `poman list` as
+    proposed to the owner, with the owner's addition of `--type`
 - Related:
   - `wiki/decisions/poman-reads-only-its-own-file-types.decision.md`: the
     reference fields the tree draws
   - `wiki/decisions/deadline-files-hold-one-deadline-each.decision.md`
-  - `wiki/roadmaps/poman.roadmap.md`, PM5: when they are built (the handover's
-    XXVIII)
+  - `wiki/roadmaps/poman.roadmap.md`, PM5: when they are built
 
 ## Decision
 
@@ -54,7 +50,7 @@ take the same filters.**
 
 - The sort by start date waits on the forecast (PM7); until then `poman list`
   sorts by another key, which PM5 picks.
-- The handover does not say exactly what `--ready` selects; PM5 writes it
+- What `--ready` selects exactly is not written down yet; PM5 writes it
   down.
 
 ## What Would Revisit This

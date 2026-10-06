@@ -4,20 +4,17 @@
 - Status: Draft
 - Date: 2026-10-06
 - Category: poman development
-- Scope: The order in which poman, the project-management binary moved here
-  from riseon, is built: the workspace and the gates, the shared types, the
+- Scope: The order in which poman, the project-management binary, is built: the workspace and the gates, the shared types, the
   deadline type, seeing the deadlines, the tracker sync, the forecast and what
   follows it, and the ratchet that brings llm-wiki's own code to the same
   gates.
 - Sources:
-  - `raw/handover/2026-10-06-riseon-handover-poman-and-coordination.md`,
-    section 8 ("A Suggested First Roadmap For poman Here")
-  - The owner's answers of 2026-10-06, as recorded in the decision pages
-    below; XXVIII (`poman tree` and `poman list` as their own deliverable,
-    after the deadline commands) is recorded here, in PM5
+  - The owner's decisions, 2026-10-06: the suggested order of poman's first
+    deliverables, and the answers recorded in the decision pages below
+  - The owner's answer, 2026-10-06, recorded here in PM5: `poman tree` and
+    `poman list` are their own deliverable, after the deadline commands
 - Related:
-  - `wiki/roadmaps/framework-v1.roadmap.md`, P5 (the handover's ingest, which
-    wrote this roadmap)
+  - `wiki/roadmaps/framework-v1.roadmap.md`, P5, which wrote this roadmap
   - `wiki/decisions/poman-lives-in-this-workspace.decision.md`
   - `wiki/decisions/poman-reads-only-its-own-file-types.decision.md`
   - `wiki/decisions/deadline-files-hold-one-deadline-each.decision.md`
@@ -41,9 +38,8 @@ so that every crate of this project meets the strictest gates.
 4. Open points are settled inside the entry that needs them, with the owner,
    before that entry's plan is written.
 
-The handover notes what waits outside this repository: a repository's founding
-tasks as deadline files wait on PM3, its board on PM6, its recurring
-obligations on PM7.
+Repositories that use poman wait on it too: their deadline files on PM3, their
+boards on PM6, their recurring deadlines on PM7.
 
 ---
 
@@ -96,7 +92,7 @@ Included:
   poman's bullet-only block
 
 Excluded:
-- poman checking the wiki's types (a later choice, XLII)
+- poman checking the wiki's types (a later choice)
 
 Proof:
 - llm-wiki's search and init tests pass unchanged through the shared crate
@@ -122,7 +118,6 @@ Included:
   itself, and no loop forms
 - whether a deadline file also carries the wiki's metadata fields, and whether
   it is listed in `wiki/index.md` or exempt from the orphan check (open)
-- riseon's issue for the deadline commands, which moves here
 
 Excluded:
 - the start date's importance buffer (PM7)
@@ -145,7 +140,7 @@ Execution Plan: Not created yet
 
 Included:
 - the choice, open today: a pre-push hook, `poman push` refusing while the
-  check fails, or both (the handover, section 2)
+  check fails, or both
 - the change that puts it in place
 
 Excluded:
@@ -162,8 +157,8 @@ Proof:
 Status: Draft
 Promise: `poman tree` and `poman list` show the files as
 `poman-tree-and-list-show-the-files.decision.md` sets them.
-Depends On: PM3 (the owner, 2026-10-06, the handover's XXVIII: their own
-deliverable, after the deadline commands)
+Depends On: PM3 (the owner, 2026-10-06: their own deliverable, after the
+deadline commands)
 Execution Plan: Not created yet
 
 Included:
@@ -196,7 +191,7 @@ Included:
 - poman's tracker-free model: items, links, the board, the mirror and the
   changeset, and their formats
 - the adapter boundary, and the GitHub adapter behind it
-- the GitHub adapter's API choice, open today: the handover proposes octocrab
+- the GitHub adapter's API choice, open today: the proposal is octocrab
   for the REST API and graphql_client for the board's GraphQL API, a token
   from `GITHUB_TOKEN` else `gh`'s, and tests that never touch the real GitHub
 - the open cases: a marker edited away or a file renamed; a "Blocked by" link
@@ -205,8 +200,8 @@ Included:
 
 Excluded:
 - drawing this repository's own board from its roadmaps and plans: a later
-  deliverable after this one (the owner, 2026-10-06, the handover's XXXIII,
-  recorded in the sync decision); its roadmap entry comes when this one lands
+  deliverable after this one (the owner, 2026-10-06, recorded in the sync
+  decision); its roadmap entry comes when this one lands
 - pull requests and comments
 
 Proof:

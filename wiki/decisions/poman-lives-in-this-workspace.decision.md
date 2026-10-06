@@ -9,14 +9,12 @@
   crate of this project is held to, and how llm-wiki's existing code reaches
   them.
 - Sources:
-  - `raw/handover/2026-10-06-riseon-handover-poman-and-coordination.md`,
-    sections 1, 2 ("Where poman lives"), 3 (XLV) and 4: the owner's answers
-    XL, XLI and XLII in riseon's coordinating session, 2026-10-06
-  - The owner, 2026-10-06, confirming the handover's XLV: llm-wiki's existing
-    code reaches the strictest gates by a ratchet
-  - riseon, `wiki/decisions/riseon-is-written-in-rust.decision.md` and
-    `wiki/runbooks/rust-gates.runbook.md`, at `5f30a39`: the gates as riseon
-    built them
+  - The owner's decisions, 2026-10-06: poman's place in this workspace, the
+    shared crate, the install, the strictest gates for every crate, and the
+    ratchet for llm-wiki's existing code
+  - The gates as first built and proved in another of the owner's
+    repositories, where poman's design began
+  - `Cargo.toml` and `justfile` at `41ae502`: the workspace and today's gates
 - Related:
   - `wiki/decisions/poman-reads-only-its-own-file-types.decision.md`: what the
     shared file types are for
@@ -34,10 +32,10 @@ this project is held to the strictest gates.**
 ### Where poman lives
 
 - **A crate and a binary named `poman`** (project manager), beside
-  `llm-wiki` in this workspace (XLI). The name was free on crates.io on
+  `llm-wiki` in this workspace. The name was free on crates.io on
   2026-10-06.
-- **A shared library crate holds the page reader and the file types** (XLI;
-  the owner: "they can share types for files"):
+- **A shared library crate holds the page reader and the file types** (the
+  owner: "they can share types for files"):
   - the field-block parser, today llm-wiki's `parse_wiki_metadata`
     (`src/search/metadata.rs`), moves there;
   - each file type (its suffix, folder, fields and statuses) is defined once,
@@ -46,7 +44,7 @@ this project is held to the strictest gates.**
     against them.
 - **poman checks only its own types**, deadline first, even though the
   definitions are shared; checking the wiki's types (decisions, plans) is a
-  later choice (XLII). The rules are in
+  later choice. The rules are in
   `poman-reads-only-its-own-file-types.decision.md`.
 - **`llm-wiki install` installs poman** into `~/.llm_wiki/bin/` and records it
   in its manifest, and one release ships both binaries (the owner: "then we
@@ -55,14 +53,15 @@ this project is held to the strictest gates.**
 ### The strictest gates
 
 - **Every crate of this project gets the strictest gates, llm-wiki's existing
-  code included** (XL: "no all project crates should be strictest").
-- **The gates are the ones riseon built and proved** (handover, section 4;
-  riseon, `wiki/runbooks/rust-gates.runbook.md`, at `5f30a39`):
+  code included** (the owner: "no all project crates should be strictest").
+- **The gates are the ones first built and proved where poman's design
+  began:**
   - an exact pinned toolchain, edition 2024, and `rust-version` equal to it;
   - formatting checked; clippy with warnings as errors, the `pedantic`,
     `nursery` and `cargo` groups, and every strict lint (`unwrap_used`,
-    `expect_used`, `panic`, `indexing_slicing`, `print_stdout` and the rest
-    the handover lists) set to `forbid`, not `deny`, so a local `#[expect]`
+    `expect_used`, `panic`, `todo`, `unimplemented`, `unreachable`,
+    `indexing_slicing`, `string_slice`, `print_stdout`, `print_stderr`,
+    `dbg_macro`, `exit`) set to `forbid`, not `deny`, so a local `#[expect]`
     cannot lift one;
   - `unsafe_code`, `missing_docs` and the rustdoc lints forbidden, and the
     docs built with warnings as errors;
@@ -75,8 +74,8 @@ this project is held to the strictest gates.**
   - one gate script that runs every gate even after one fails, prints how many
     ran, passed, were skipped and failed, and fails loudly on a missing tool.
     A skip is never a pass.
-- **llm-wiki's existing code gets there by a ratchet** (the owner, 2026-10-06,
-  the handover's XLV):
+- **llm-wiki's existing code gets there by a ratchet** (the owner,
+  2026-10-06):
   - poman and the shared crate are strictest from their first commit;
   - llm-wiki's modules are brought up one at a time, as a track of their own,
     and each is switched to strict once it passes;
@@ -89,21 +88,20 @@ this project is held to the strictest gates.**
   what poman checks.
 - **One install and one release** keep poman where llm-wiki already puts its
   managed binary, so nothing new is asked of the person installing.
-- **A tool that rewrites boards has to be trusted** (riseon's reason for the
-  strictest level), and the owner extended that to every crate here.
-- **`forbid` instead of `deny`**: in riseon's blind review, one
+- **A tool that rewrites boards has to be trusted** (the reason for the
+  strictest level where poman began), and the owner extended that to every crate here.
+- **`forbid` instead of `deny`**: in an earlier blind review, one
   `#[expect(lint, reason)]` line lifted a `deny` rule past every gate; with
   `forbid`, that line stops the build.
 - **The ratchet does not hold poman back.** Bringing all of llm-wiki up first
-  would take weeks (about 450 KB of Rust, 80 % coverage today, no `forbid`
-  lints and no mutation testing, per the handover), while poman can start
+  would take weeks (over 900 KB of Rust under `src/` at `41ae502`, a coverage
+  gate of 80 % of lines, no `forbid` lints and no mutation testing), while poman can start
   strict and stay strict.
 
 ## Alternatives Considered
 
-- **poman in its own repository** (riseon, where it started). Not chosen by
-  the owner: the tool moved here so it can share the file types (XXXVIII,
-  XLI).
+- **poman in a repository of its own**, as where it started. Not chosen by
+  the owner: the tool moved here so it can share the file types.
 - **All of llm-wiki brought to the strictest gates before poman starts.** Not
   chosen, for the reason above.
 

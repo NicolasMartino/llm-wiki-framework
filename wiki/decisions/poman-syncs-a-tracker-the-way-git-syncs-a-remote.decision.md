@@ -8,17 +8,12 @@
   and the local mirror), what it manages there, which boards it draws, and
   what is GitHub's part (the first adapter) versus poman's own.
 - Sources:
-  - `raw/handover/2026-10-06-riseon-handover-poman-and-coordination.md`,
-    section 2 ("The repository is the truth; boards are views" and "Talking to
-    GitHub the way Git talks to a remote"): the owner's answers III, XXI, XXII
-    and XXIII in riseon's coordinating session, 2026-10-06
+  - The owner's decisions, 2026-10-06: the repository as the only source of
+    truth, fetch, diff and push with a local mirror, the scope of what poman
+    manages, and poman drawing this repository's own board after fetch, diff
+    and push
   - The owner, 2026-10-06: "gh is just a ui for poman so we should think this
     so as to be able to adapt it to other UIs if needed"
-  - The owner, 2026-10-06, confirming the handover's XXXIII: poman draws this
-    repository's own board, after fetch, diff and push
-  - riseon, `wiki/decisions/riseon-syncs-github-the-way-git-syncs-a-remote.decision.md`
-    and `wiki/decisions/the-repository-is-the-only-source-of-truth.decision.md`,
-    at `5f30a39`; they say "riseon" where they now mean poman
 - Related:
   - `wiki/decisions/work-is-recorded-in-the-repository.decision.md`: every
     board is a view of the repository (not restated here)
@@ -35,8 +30,8 @@ the first adapter.**
 
 ### A tracker is a view, and only a view
 
-- **The repository is the only source of truth; a tracker shows it** (III;
-  for boards, `work-is-recorded-in-the-repository.decision.md`). An edit made
+- **The repository is the only source of truth; a tracker shows it** (for
+  boards, `work-is-recorded-in-the-repository.decision.md`). An edit made
   on the tracker to something poman manages does not count: the next push
   overwrites it. Fetch reports it as drift, so it is seen before it is lost.
 - **A tracked item is a summary of its file that links to it**; the detail is
@@ -72,27 +67,26 @@ the first adapter.**
   always rebuild it.
 - **Each item poman manages names its file**, so fetch can find its items
   again with no other record.
-- **Scope: only the board that shows the repository poman runs in** (XXI), its
+- **Scope: only the board that shows the repository poman runs in**, its
   items and their links. Pull requests and comments stay outside it.
 
 ### Which boards poman draws
 
 - **A repository's own work**: poman draws the board of the repository it runs
   in. Its first files are deadline files.
-- **This repository's own board too** (the owner, 2026-10-06, the handover's
-  XXXIII): poman draws it from this repository's roadmaps and plans, as a
+- **This repository's own board too** (the owner, 2026-10-06): poman draws it from this repository's roadmaps and plans, as a
   later deliverable that comes after fetch, diff and push. Until then the
   coordinator mirrors the plans onto the board by hand, per
   `work-is-recorded-in-the-repository.decision.md`, rule 5.
 
 ### The GitHub adapter
 
-Settled, from the handover:
+Settled:
 
 - each GitHub issue poman manages carries a hidden marker naming its file;
 - a "Blocked by" path becomes GitHub's own "Blocked by" link.
 
-Proposed, not decided (the handover, section 2):
+Proposed, not decided:
 
 - GitHub's REST API through octocrab, and the board's GraphQL API through
   graphql_client, typed against GitHub's schema;
@@ -127,7 +121,7 @@ Proposed, not decided (the handover, section 2):
 
 - poman's dot folder is ignored by Git; the change that adds the mirror adds
   the ignore line. Its name is PM6's.
-- Open, for PM6 (the handover's review findings, still unanswered):
+- Open, for PM6 (found in an earlier review, still unanswered):
   - an item whose marker is edited away, or whose file is renamed: the next
     diff would create a second item and leave the first behind;
   - a "Blocked by" link made by hand on the tracker between an item poman
