@@ -1,5 +1,72 @@
 # Wiki Log
 
+## [2026-10-06] merge | branch-status reads each branch's own plans
+
+Merged #35 (closes #31): `just branch-status` fetches from origin without a
+prompt and reads each pushed branch's plans from that branch's own ref, since a
+plan's Branch line now lives on the work's branch. Only the Branch lines already
+on `develop` when statuses moved into PRs count as in flight; any other Branch
+line on the checkout is stale. Its cases are kept as `tools/branch-status-test.sh`,
+which `just verify` runs. P18 is Completed.
+
+Pages affected: `wiki/checklists/operation-manager.checklist.md`,
+`wiki/decisions/work-in-flight-is-a-pushed-branch.decision.md`,
+`wiki/roadmaps/framework-v1.roadmap.md`.
+
+## [2026-10-06] merge | poman's workspace and strict gates
+
+Merged #28 (closes #26): the workspace gains the `llm-wiki-core` crate (with a
+`types` module whose first behaviour splits a wiki filename) and the `poman`
+crate, both under every gate of the strictest-gates decision, run by
+`just strict` in the fast check and the full CI; `llm-wiki install` copies poman
+from beside itself, keeps a recorded one and otherwise refuses; `uninstall`
+removes both binaries; one release ships two archives per target. PM1 is
+Completed.
+
+Pages affected: `wiki/plans/poman-workspace-and-strict-gates.plan.md`,
+`wiki/roadmaps/poman.roadmap.md`,
+`wiki/decisions/poman-lives-in-this-workspace.decision.md`,
+`wiki/decisions/llm-wiki-binary-distribution.decision.md`,
+`wiki/specs/documentation-model.spec.md`, `wiki/index.md`.
+
+## [2026-10-06] merge | The proposal to ship the operations setup with llm-wiki
+
+Merged #38 (closes #33): the owner accepted the proposal to ship the
+coordinated way of working with llm-wiki, as an init pack holding the kit's
+files (written only when absent) and an `operations_setup` MCP prompt with a
+built-in resource carrying its steps. The owner asked for its plan at once and
+chose a marked llm-wiki block in AGENTS.md for the kit's sections; the plan is
+#40.
+
+Pages affected: `wiki/proposals/operations-setup-in-llm-wiki.proposal.md`,
+`wiki/roadmaps/framework-v1.roadmap.md`, `wiki/index.md`.
+
+## [2026-10-06] merge | A plan's status lands in the PR that does the work
+
+Merged #32 (closes #30): the owner decided that a plan's status changes in the
+PR that does its work. The worker sets its plan Active with its Branch line in
+its first push and Completed before the PR leaves draft; the coordinator
+commits no status, moves the board cards and checks the PR before merging; the
+log PR carries only log entries. A new plan-status part follows the shared
+rules for code, tooling and wiki workers.
+
+Pages affected: `AGENTS.MD`, `wiki/checklists/operation-manager.checklist.md`,
+`wiki/checklists/worker-briefs.checklist.md`,
+`wiki/decisions/work-is-recorded-in-the-repository.decision.md`,
+`wiki/decisions/work-in-flight-is-a-pushed-branch.decision.md`,
+`wiki/decisions/poman-syncs-a-tracker-the-way-git-syncs-a-remote.decision.md`,
+`wiki/plans/development-workflow-setup.plan.md`,
+`wiki/roadmaps/framework-v1.roadmap.md`.
+
+## [2026-10-06] merge | master brought up to date with develop
+
+Merged #14 into master with a merge commit, the first PR from `develop` since
+work moved there: it carried #12, #6, #8, #11, #18, #22, #23 and #13, from a
+branch cut at `develop`'s `85c64d0`, after the full CI passed on every job of
+that head.
+
+Pages affected: none of its own; the pages of the merges it carried.
+
 ## [2026-10-06] merge | The owner's answers on poman's open questions
 
 Merged #23 (closes #21): deadline files land straight on the repository's main
