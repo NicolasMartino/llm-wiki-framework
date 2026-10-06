@@ -58,15 +58,15 @@ a worker's report.
    integration branch targets it. Master changes only by a PR from `develop`,
    which runs the full CI and needs the owner's PASS on its head like any
    other; it merges only once every job of the full CI passed on that head
-   (`gh pr checks <n>`). Recommended, until the owner settles it: its head is
+   (`gh pr checks <n>`). Decided by the owner on 2026-10-06: its head is
    a branch cut from `develop` at a fixed commit, it gets no blind review,
    since every change it carries had its own, and it merges with a merge
    commit, not a squash, pinned to its head, with `develop` never deleted
-   (open question (c), "Open For The Owner").
+   ("How Develop Reaches Master" below).
 
-## Open For The Owner
+## How Develop Reaches Master
 
-- **(c) How `develop` reaches master.** Recommended: the coordinator opens the
+Decided by the owner on 2026-10-06: the coordinator opens the
   PR into master when the owner asks for it, from a branch cut from `develop`
   at a fixed commit; it gets no blind review, and it merges with a merge
   commit, never deleting `develop`. Why a fixed commit: `develop` keeps

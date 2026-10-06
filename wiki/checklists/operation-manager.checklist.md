@@ -123,8 +123,8 @@ the status, and the board shows it.
   - Completed when its PR merges into `develop`: `Completed (develop)` (or
     `(local)`, `(spike)`), the Branch line removed, and its roadmap entry
     updated. Which word follows Completed is
-    `work-in-flight-is-a-pushed-branch.decision.md`'s, rule 5; `(develop)` is
-    its recommendation until the owner settles it.
+    `work-in-flight-is-a-pushed-branch.decision.md`'s, rule 5: `(develop)`,
+    decided by the owner on 2026-10-06.
 - **Status-only edits go straight to `develop`.** A commit that changes nothing
   but plans' `Status` and `Branch` lines, and the matching roadmap entries'
   `Status:` lines, is the coordinator's, made in the main checkout on
@@ -381,8 +381,8 @@ the coordinator (`orchestration ask`) for anything else.
   Branch line, and updates its roadmap entry. A log PR may gather several
   merges; it gets no log entry of its own and no blind review, and the owner's
   PASS decides it. Then the issue to Completed on the board. The PR from
-  `develop` into master gets its own entry ("Develop And Master"). Recommended,
-  until the owner settles it (open question (b)): both as written here.
+  `develop` into master gets its own entry ("Develop And Master"). Both as
+  written here, decided by the owner on 2026-10-06.
 
   ```bash
   git fetch origin && git switch -c wiki-log-<n> origin/develop   # in the main checkout
@@ -399,8 +399,8 @@ The rule is
 `wiki/decisions/the-pull-request-is-the-review-surface.decision.md`, rule 6:
 work PRs go into `develop`, and master takes `develop` only through a PR from
 `develop`, with the full CI and the owner's PASS. Nothing else ever targets,
-merges into or is pushed to master. What follows is recommended until the
-owner settles it (open questions (b) and (c)).
+merges into or is pushed to master. What follows was decided by the owner on
+2026-10-06.
 
 - **When:** when the owner asks for it, before a release, or when a proof
   needs master. The coordinator opens the PR; no worker does.
@@ -435,17 +435,17 @@ owner settles it (open questions (b) and (c)).
   merge: one entry for the PR into master, naming the PRs it carried. Plans'
   statuses do not change ("The Board").
 
-### Open For The Owner
+### Why These Steps
 
-- **(b) Where the log entry is written.** Recommended: one entry per merge into
+- **Where the log entry is written** (decided by the owner on 2026-10-06): one entry per merge into
   `develop`, in a log PR into `develop`, as "Landing A PR" says; and one entry
   for each PR from `develop` into master, in the next log PR into `develop`
   after it merges. Why: every change to the log goes through `develop` like
   any other, and master gets its log with the next PR from `develop`.
-- **(c) When `develop` goes to master, who opens the PR and how it merges**:
-  the steps above.
-- **(a) What follows Completed** is
-  `work-in-flight-is-a-pushed-branch.decision.md`'s, "Open For The Owner".
+- **When `develop` goes to master, who opens the PR and how it merges**:
+  the steps above, decided by the owner on 2026-10-06.
+- **What follows Completed** is
+  `work-in-flight-is-a-pushed-branch.decision.md`'s, "What Completed (master) Became".
 
 ## Landing A Comment
 

@@ -36,24 +36,24 @@
    branch no plan names is listed as "no plan", for information: wiki work,
    investigations and log PRs have none.
 5. **A plan completed from now on says where its proof holds**:
-   `Completed (develop)` once its PR merges into `develop` (recommended, until
-   the owner settles it: open question (a) below), `Completed (local)` or
+   `Completed (develop)` once its PR merges into `develop` (decided by the
+   owner on 2026-10-06, see below), `Completed (local)` or
    `Completed (spike)` when the proof holds only there. Plans completed before
    2026-10-06 keep their bare `Completed`, which the check still accepts, and
    plans marked `Completed (master)` before work moved to `develop` keep it.
 
-## Open For The Owner
+## What Completed (master) Became
 
-- **(a) What `Completed (master)` becomes.** Work now merges into `develop`,
+Work now merges into `develop`,
   and reaches master later, many plans at once, through the PR from `develop`
   (`the-pull-request-is-the-review-surface.decision.md`, rule 6).
-  Recommended: a plan is `Completed (develop)` when its PR merges into
+  Decided by the owner on 2026-10-06: a plan is `Completed (develop)` when its PR merges into
   `develop`, and its status does not change again when `develop` reaches
   master; the log entry of the PR into master names what it carried. Why: the
   status changes once, at the merge that proves it, and a plan does not sit
   "Active" for weeks after its work merged. `just branch-status` accepts
   `Completed (master)`, `(local)` and `(spike)` today, not `(develop)`: the
-  recommendation needs that check to accept it, and that change is the CI
+  decision needs that check to accept it, and that change is the CI
   work's (issue #9, `wiki/plans/develop-and-master-ci.plan.md`).
 
 ## Why
