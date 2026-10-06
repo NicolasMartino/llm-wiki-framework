@@ -15,10 +15,12 @@ Implementation Evidence", `wiki/log.md` records it, and the staged, signed
 install is on master (`src/install.rs`, `manifest.binary.source_hash` in
 `src/manifest/schema.rs`).
 
-Still pending, outside this plan: the macOS release archive half of Phase 5's
-gate. That proof was never run here; it is
+Handed off, not done: the macOS release archive proof. The Objective below
+("and from the macOS release archive flow") and the Phase 5 gate include it, but
+the "Closure Criteria" do not, and it was never run here. It now belongs to
 `wiki/roadmaps/cross-platform-release-e2e.roadmap.md`, "R4 - Native macOS
-Release Archive Proof" (Draft).
+Release Archive Proof" (Draft), whose product story covers install. Nothing
+else is pending here.
 
 ## Objective
 

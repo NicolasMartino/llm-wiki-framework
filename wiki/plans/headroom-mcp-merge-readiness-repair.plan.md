@@ -11,19 +11,31 @@
 
 ## Where This Stands (2026-10-06)
 
-Done: the code repairs of Phases 1 to 5 and 7, with the evidence recorded in
-"2026-06-23 Implementation Evidence" below; they are on master.
+Done, with the evidence in "2026-06-23 Implementation Evidence" below, and on
+master:
+
+- Phase 0: the live test-instance run waited for Phase 1, and
+  `just test-instance-live-session-proof` passed once Phase 1 landed.
+- The code repairs of Phases 1 to 5 and 7.
+- Phase 8's 2026-06-23 bookkeeping: the review, eval, plan, index and log pages
+  record that evidence.
 
 Still pending, and the reason this plan is Blocked rather than Completed:
 
-- Phase 6, the clean no-skill host parity eval, and so item 7 of the "Final
-  Merge Gate". `wiki/evals/mcp-first-host-parity.eval.md` is still `Rejected`:
-  query parity is proven on both harnesses, while the ingest or lint mutation,
-  search fallback/readiness and failure workflows are unrecorded (its "Required
-  Next Action", item 3).
-- It waits on that rerun. No roadmap entry tracks the rerun yet; the plan starts
-  again when one does and the owner gives the go, and it completes when the eval
-  moves to `Accepted` or its remaining blocker is external and non-code.
+- Phase 6, the clean no-skill host parity eval, and with it items 7 and 8 of the
+  "Final Merge Gate". `wiki/evals/mcp-first-host-parity.eval.md` is still
+  `Rejected`: query parity is proven on both harnesses, while the ingest or lint
+  mutation, search fallback/readiness and failure workflows are unrecorded (its
+  "Required Next Action", item 3).
+- The rest of Phase 8, which needs Phase 6's evidence: moving that eval to
+  `Accepted`, and closing `wiki/plans/harness-independent-wiki-read-tool.plan.md`
+  once its read-tool evidence is recorded.
+
+It waits on Phase 8, "Cross-Harness Parity Extension", of
+`wiki/plans/mcp-first-agent-guidance.plan.md` (Active), which reruns that eval on
+both harnesses from clean no-skill profiles with exactly these workflows. No
+roadmap entry names that rerun yet. This plan completes when the eval moves to
+`Accepted`, or when its remaining blocker is external and non-code.
 
 Not pending here: the native Linux, macOS and Windows release proofs, deferred
 to `wiki/roadmaps/cross-platform-release-e2e.roadmap.md` as item 9 of the
