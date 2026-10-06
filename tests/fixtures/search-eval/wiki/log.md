@@ -1,0 +1,5880 @@
+# Wiki Log
+
+## [2026-10-06] update | Development workflow setup closed
+
+Closed the one-time setup of the coordinated way of working (#1): the board
+(GitHub project 5) shows the plan statuses, wiki search works in this
+repository and in each worker's worktree, work lands on `develop` with a fast
+check while the full CI runs on the way to master, and the first four PRs (#6,
+#8, #11, #12) landed through one blind review, a fix round and the owner's
+PASS. `just branch-status` runs clean. The setup plan records how it went.
+
+Pages affected: `wiki/plans/development-workflow-setup.plan.md`,
+`wiki/roadmaps/framework-v1.roadmap.md`, `wiki/index.md`, `wiki/log.md`.
+
+## [2026-10-06] create | Development workflow: plans as the record, a board as their view, one blind review per PR
+
+Started the coordinated way of working carried over from RepForge and riseon,
+adapted to the owner's later decisions of 2026-10-06: the repository
+is the truth (every deliverable a roadmap entry, a plan before any code or
+tooling worker, the plan's Status the record, the GitHub board only a view with
+the plan statuses as columns), work in flight is a pushed branch, and every PR
+gets one blind feedback review before the owner's verdict. Added the
+coordinator's checklists and the `/operations`, `/operations-start` and
+`/operations-land` skills with their worker briefs, the setup plan the next
+session follows (board, ids, wiki search for this repository, Orca, the
+first work), per-worktree wiki search through `orca.yaml`, a
+commit-message hook that strips AI trailers, and `just branch-status`, which
+already reports four plans whose status is outside the vocabulary.
+
+Pages affected: `AGENTS.MD`, `wiki/decisions/work-is-recorded-in-the-repository.decision.md`,
+`wiki/decisions/work-in-flight-is-a-pushed-branch.decision.md`,
+`wiki/decisions/the-pull-request-is-the-review-surface.decision.md`,
+`wiki/checklists/operation-manager.checklist.md`,
+`wiki/checklists/worker-briefs.checklist.md`,
+`wiki/plans/development-workflow-setup.plan.md`, `wiki/index.md`, `wiki/log.md`.
+
+## [2026-08-01] update | Claude production MCP 0.2.15 field-test review
+
+Ingested the user-supplied Claude production MCP field-test results for
+`/Users/nicolasmartino/Documents/keto_diet` using the installed production
+instance (`llm-wiki 0.2.15`, unsuffixed `llm_wiki_*` tools). Updated the Claude
+field-test eval to record the run as an all-19-step production ready-index MCP
+correctness pass: real wiki/raw reads with stable hashes, clear path-safety
+errors, populated lexical/auto/semantic/hybrid search, default thresholds
+without calibration, class/status filtering, explicit rerank diagnostics,
+ready-posture fallback behavior, cross-project readiness/warnings, and working
+documented `include` / `exclude` filters.
+
+Recorded the only new follow-up as minor API hardening: `llm_wiki_search_all`
+silently ignored obsolete `include_projects` / `exclude_projects` keys before
+the run used the documented keys successfully. Updated the MCP field-test
+checklist to name `include` / `exclude` as the tested contract and to classify
+silently ignored unknown filter keys as a follow-up. Updated the
+default-hybrid repair plan, merge-readiness repair plan, MCP-first parent plan,
+merge-readiness review, and index so both Codex and Claude production 0.2.15
+runs are counted as clearing the pure-MCP surface concern, while clean no-skill
+host parity and release-E2E proof scope remain separate pre-merge gates.
+
+Pages affected: `wiki/evals/claude-mcp-field-test-pass.eval.md`,
+`wiki/checklists/mcp-field-test.checklist.md`,
+`wiki/plans/hybrid-default-and-mcp-surface-repair.plan.md`,
+`wiki/plans/headroom-mcp-merge-readiness-repair.plan.md`,
+`wiki/plans/mcp-first-agent-surface.plan.md`,
+`wiki/review/headroom-mcp-branch-merge-readiness.eval.md`, `wiki/index.md`,
+`wiki/log.md`.
+
+## [2026-08-01] update | Codex production MCP 0.2.15 field-test review
+
+Ingested the user-supplied Codex production MCP field-test results for
+`/Users/nicolasmartino/Documents/keto_diet` using the installed production
+instance (`llm-wiki 0.2.15`, unsuffixed `llm_wiki_*` tools). Updated the Codex
+field-test eval to record the run as a production ready-index MCP correctness
+pass: real wiki/raw reads with stable hashes, clear path-safety errors,
+populated lexical/auto/semantic/hybrid search, default thresholds without
+calibration, class/status filtering, explicit rerank diagnostics, and
+`search-all` include/exclude behavior.
+
+Reclassified the submitted Step 18 `BUG` row as a checklist/API contract
+clarification rather than a product defect. The accepted `search-all` contract
+is per-project readiness/backend state in `projects[]` plus a top-level flat,
+globally ranked `results[]` list carrying `project_id` / `project_name` on each
+hit. Updated the field-test checklist, the merge-readiness review/plan, the
+MCP-first parent plan, the default-hybrid repair plan, the Claude field-test
+follow-up wording, and the index so merge reviews see this as cleared MCP
+surface evidence while clean no-skill host parity and release-E2E proof scope
+remain separate gates.
+
+Pages affected: `wiki/evals/codex-mcp-field-test-pass.eval.md`,
+`wiki/checklists/mcp-field-test.checklist.md`,
+`wiki/plans/hybrid-default-and-mcp-surface-repair.plan.md`,
+`wiki/plans/headroom-mcp-merge-readiness-repair.plan.md`,
+`wiki/plans/headroom-mcp-field-test-repair.plan.md`,
+`wiki/plans/mcp-first-agent-surface.plan.md`,
+`wiki/review/headroom-mcp-branch-merge-readiness.eval.md`,
+`wiki/evals/claude-mcp-field-test-pass.eval.md`, `wiki/index.md`,
+`wiki/log.md`.
+
+## [2026-08-01] fix | MCP onboarding review follow-up
+
+Fixed the second review pass on MCP onboarding. Updated the authored Claude
+skill sources under `.claude/skills/` so query, ingest, lint, and research route
+wiki/raw reads, project search, cross-project search, and index refreshes
+through `llm_wiki_*` MCP tools when exposed, with shell/direct reads as fallback
+only. Corrected the documentation model so `llm-wiki register` is no longer
+described as registry-only: it records that register writes/merges
+`<project>/.mcp.json` unless `--no-mcp`, while `forget` and `projects` remain
+registry-only. Reworded skipped-MCP wiring output and adjacent hints to name the
+Claude fallback template path and `install` materialization step instead of
+claiming the template is already staged in a fresh HOME. Added no-MCP/no-register
+output assertions covering that fresh-HOME behavior.
+
+Verification: `cargo fmt`; `cargo test --test mcp_onboarding` (7 passed);
+`cargo test --test status_doctor doctor_` (18 passed, 4 filtered out);
+`cargo clippy -- -D warnings` (no issues); `git diff --check`; targeted scan
+confirmed the old `Claude template staged at`, `copy the staged template`, and
+`without writing to project files` claims are absent from the checked live
+surfaces, and remaining `.claude` shell commands are fallback-only;
+`llm_wiki_index({"force":true})` indexed 108 files.
+
+Pages affected: `.claude/skills/wiki-query/SKILL.md`,
+`.claude/skills/wiki-ingest/SKILL.md`, `.claude/skills/wiki-lint/SKILL.md`,
+`.claude/skills/wiki-research/SKILL.md`, `src/mcp_wiring.rs`,
+`src/registry/mod.rs`, `src/init/command.rs`, `src/doctor.rs`,
+`tests/mcp_onboarding.rs`, `wiki/specs/documentation-model.spec.md`,
+`wiki/plans/mcp-onboarding-init-register.plan.md`, `wiki/log.md`.
+
+## [2026-08-01] fix | MCP onboarding review repairs
+
+Addressed the follow-up review on the MCP onboarding init/register plan. The
+wiring core now treats an existing project `.mcp.json` as already current when
+the active server entry is structurally correct, preserving compact/custom JSON
+bytes instead of pretty-printing. Updated repo-local `.agents` and `.codex`
+wiki skills to route wiki/raw reads, search, search-all, and index refreshes
+through `llm_wiki_*` MCP tools when exposed, with shell/direct file access as
+fallback only. Cleaned the active onboarding plan and accepted decision by
+removing brittle source line anchors, narrowing doctor wording to registered
+projects, replacing pre-implementation "Today" wording, and replacing stale
+decision-promotion text with accepted-decision closure evidence. Aligned the
+query skill spec, documentation model, and index summaries with MCP-first query
+routing.
+
+Verification: `cargo fmt`; `cargo test --test mcp_onboarding` (7 passed);
+`cargo test ensure_claude_project_mcp_config_preserves_compact_wired_json_bytes`
+(1 passed, 378 filtered out); `cargo test --test status_doctor doctor_` (18
+passed, 4 filtered out); `cargo test --bin llm-wiki mcp_config` (20 passed, 158
+filtered out); `cargo clippy -- -D warnings` (no issues); `git diff --check`;
+limited skill-tree scan confirmed shell commands remain fallback-only;
+`llm_wiki_index({"force":true})` indexed 108 files.
+
+Pages affected: `src/mcp_wiring.rs`, `tests/mcp_onboarding.rs`,
+`.agents/skills/wiki-query/SKILL.md`, `.agents/skills/wiki-ingest/SKILL.md`,
+`.agents/skills/wiki-lint/SKILL.md`, `.agents/skills/wiki-research/SKILL.md`,
+`.codex/skills/wiki-query/SKILL.md`, `.codex/skills/wiki-ingest/SKILL.md`,
+`.codex/skills/wiki-lint/SKILL.md`, `.codex/skills/wiki-research/SKILL.md`,
+`wiki/plans/mcp-onboarding-init-register.plan.md`,
+`wiki/decisions/mcp-onboarding-at-init-register.decision.md`,
+`wiki/specs/wiki-query-skill.spec.md`,
+`wiki/specs/documentation-model.spec.md`, `wiki/index.md`, `wiki/log.md`.
+
+## [2026-07-31] decide | MCP onboarding at init/register accepted
+
+Accepted the MCP onboarding decision after the production `llm-wiki 0.2.14`
+field test and the follow-up Claude config check showed the current gap in
+ordinary use: production is installed and Codex is globally wired, but Claude
+only sees project-local `.mcp.json` from its launch directory, and existing
+projects may be unwired or still point at `llm-wiki-test`. Updated the decision
+of record to Accepted, resolved its implementation notes, and marked the active
+plan as the implementation plan of record. Pages affected:
+`wiki/decisions/mcp-onboarding-at-init-register.decision.md`,
+`wiki/plans/mcp-onboarding-init-register.plan.md`, `wiki/index.md`,
+`wiki/log.md`.
+
+## [2026-07-31] update | Codex production MCP field-test pass
+
+Updated `wiki/evals/codex-mcp-field-test-pass.eval.md` with the user-supplied
+2026-07-31 production MCP field-test transcript for
+`/Users/nicolasmartino/Documents/keto_diet`. The addendum records that the
+unsuffixed production `llm_wiki_*` tools backed by `llm-wiki 0.2.14` passed the
+pure-MCP correctness gate in the existing ready-index posture: real wiki/raw
+reads with hashes, safe path rejection, populated lexical/auto/semantic/hybrid
+search with default thresholds, class/status filtering, explicit rerank
+diagnostics, and search-all include/exclude behavior. No BUG rows were found;
+fresh registration and deliberately not-ready semantic fallback remain
+follow-ups. Pages affected: `wiki/evals/codex-mcp-field-test-pass.eval.md`,
+`wiki/index.md`, `wiki/log.md`.
+
+## [2026-07-21] decide | Headroom Option A posture
+
+Recorded the product decision to adopt Option A for Headroom support after the
+clean managed `llm-wiki 0.2.13` field test: compact search/search-all are the
+supported Headroom discovery surfaces, full read/full search mutations fail
+loudly, and exact large `wiki/` / `raw/` reads are performed outside Headroom.
+The framework will not add Headroom read pagination in the current posture; a
+future exact-read-under-Headroom design would require a separate decision.
+Updated the accepted Headroom decision, context-compression reference, active
+repair plan, launch-smoke checklist, README, generated project guidelines, and
+index. Pages affected:
+`wiki/decisions/headroom-single-posture-mcp-first.decision.md`,
+`wiki/references/headroom-context-compression.reference.md`,
+`wiki/plans/headroom-mcp-field-test-repair.plan.md`,
+`wiki/checklists/headroom-launch-smoke.checklist.md`, `wiki/index.md`,
+`wiki/log.md`.
+
+## [2026-07-21] create | Headroom managed 0.2.13 field test
+
+Created `wiki/evals/headroom-0-32-managed-0-2-13-field-test.eval.md` from a
+fresh nested Codex smoke launched through the installed managed binary:
+`/Users/nicolasmartino/.llm_wiki/bin/llm-wiki headroom -v -- wrap codex --port
+8795 ...`. The nested MCP server reported `llm-wiki 0.2.13`, removing the
+managed-binary version caveat from the prior wildcard run. Full payloads still
+failed under Headroom 0.32.0: `llm_wiki_read wiki/index.md` returned
+`<<ccr:8969776157a9,html,38.1KB>>`, and full `llm_wiki_search` omitted
+`result_count`/`results`. Compact `llm_wiki_search` and compact include-filtered
+`llm_wiki_search_all` both returned real hit arrays with first hit
+`wiki/checklists/headroom-launch-smoke.checklist.md`. Pages affected:
+`wiki/evals/headroom-0-32-managed-0-2-13-field-test.eval.md`,
+`wiki/evals/headroom-0-32-wildcard-exclude-field-test.eval.md`,
+`wiki/plans/headroom-mcp-field-test-repair.plan.md`,
+`wiki/checklists/headroom-launch-smoke.checklist.md`, `wiki/index.md`,
+`wiki/log.md`.
+
+## [2026-07-21] operate | Managed binary refresh to 0.2.13
+
+Installed the current source package with
+`cargo install --path . --root /Users/nicolasmartino/.llm_wiki --force --locked`,
+then refreshed the managed install manifest with the existing balanced LLM-search
+posture. Verified `/Users/nicolasmartino/.llm_wiki/bin/llm-wiki --version`,
+`cargo run -- --version`, managed `status -v`, and a fresh stdio MCP
+`llm_wiki_status` probe all report `0.2.13`. The already-connected Codex MCP
+server in the active session continued to report `0.2.12` until restart because
+it was an old long-running process.
+
+## [2026-07-21] create | Headroom wildcard exclude field test
+
+Created `wiki/evals/headroom-0-32-wildcard-exclude-field-test.eval.md` from a
+nested Codex smoke launched through
+`HEADROOM_EXCLUDE_TOOLS='*llm_wiki*' cargo run --quiet -- headroom -v -- wrap
+codex --port 8794 ...`. The run used source package `llm-wiki 0.2.13`, nested
+MCP reported managed binary `0.2.12`, and Headroom reported `0.32.0`. The
+wildcard did not preserve full payloads: `llm_wiki_read wiki/index.md` returned
+`<<ccr:587da98b165c,html,37.6KB>>`, and full `llm_wiki_search` still omitted
+`result_count`/`results`. Pages affected:
+`wiki/evals/headroom-0-32-wildcard-exclude-field-test.eval.md`,
+`wiki/plans/headroom-mcp-field-test-repair.plan.md`,
+`wiki/checklists/headroom-launch-smoke.checklist.md`, `wiki/index.md`,
+`wiki/log.md`.
+
+## [2026-07-21] implement | Headroom wildcard exclude and version bump
+
+Added the broad `*llm_wiki*` Headroom exclude glob to the `llm-wiki headroom`
+launcher while preserving the generated production/test MCP route-key entries
+and parent `HEADROOM_EXCLUDE_TOOLS` merge behavior. Bumped the package version
+from `0.2.12` to `0.2.13` and updated the README, generated project guidelines,
+Headroom decision/reference/plan, and index language to describe the wildcard as
+best-effort only, not a provenance boundary. Pages affected:
+`wiki/decisions/headroom-single-posture-mcp-first.decision.md`,
+`wiki/references/headroom-context-compression.reference.md`,
+`wiki/plans/headroom-passthrough-launcher.plan.md`,
+`wiki/checklists/headroom-launch-smoke.checklist.md`, `wiki/index.md`,
+`wiki/log.md`.
+
+## [2026-07-21] create | Headroom 0.32 compact search field test
+
+Created `wiki/evals/headroom-0-32-compact-search-field-test.eval.md` from the
+post-fix nested Codex probe launched through
+`llm-wiki headroom -- wrap codex --port 8792` after commit `a04a270`
+(`Implement Headroom-safe compact search`). The run isolated Headroom 0.32.0,
+confirmed `llm-wiki 0.2.12`, and showed `llm_wiki_status` survived. Overall
+Headroom launch smoke still fails because `llm_wiki_read wiki/index.md` returned
+`<<ccr:0a005237b58f,html,37.1KB>>` and full non-compact `llm_wiki_search` lost
+`results`/`result_count`; however compact `llm_wiki_search` and compact
+include-filtered `llm_wiki_search_all` both returned real hit arrays with first
+hit `wiki/checklists/headroom-launch-smoke.checklist.md`. Updated the active
+repair plan, launch-smoke checklist, and index to record compact search as the
+current viable Headroom search mitigation while read pagination remains deferred.
+
+Pages affected: `wiki/evals/headroom-0-32-compact-search-field-test.eval.md`,
+`wiki/plans/headroom-mcp-field-test-repair.plan.md`,
+`wiki/checklists/headroom-launch-smoke.checklist.md`, `wiki/index.md`,
+`wiki/log.md`.
+
+## [2026-07-21] implement | Headroom compact search and loud payload detection
+
+Implemented the narrowed Headroom MCP field-test repair slice without read
+pagination. Added payload-integrity detection for Headroom CCR markers,
+compressed-output envelopes, read `content` hash/length mismatch, and omitted
+search hits; wired the checks through MCP read/CLI-JSON responses. Added compact
+paged search for CLI and MCP (`--compact`, `--page-size`, `--offset` /
+`compact`, `page_size`, `offset`) so Headroom-launched sessions can retrieve
+small inspectable search hits while full search JSON remains the default.
+Preserved the staged stale-project `search-all` degradation and quiet GGUF/Metal
+diagnostics fixes as part of the same repair work. Updated the active plan,
+launch-smoke checklist, and index to state that read pagination is deferred.
+
+Pages affected: `src/cli.rs`, `src/main.rs`, `src/mcp/mod.rs`,
+`src/payload_integrity.rs`, `src/search/commands.rs`,
+`tests/mcp.rs`, `tests/search_commands.rs`,
+`wiki/plans/headroom-mcp-field-test-repair.plan.md`,
+`wiki/checklists/headroom-launch-smoke.checklist.md`, `wiki/index.md`,
+`wiki/log.md`.
+
+## [2026-07-20] create | Headroom 0.32 Codex route-key field test
+
+Created `wiki/evals/headroom-0-32-codex-route-key-field-test.eval.md` from the
+autonomous nested Codex probe launched through
+`llm-wiki headroom -- wrap codex --port 8791`. The run isolated a current
+Headroom 0.32.0 proxy on port 8791 while an older 0.24.0 proxy remained active
+on 8787, confirmed `llm-wiki 0.2.12` and production MCP readiness, and verified
+that the launcher generated the expected `llm_wiki_*` route-key exclusions.
+Full-payload preservation still failed: `llm_wiki_read` returned CCR
+placeholders for `wiki/index.md` and the Headroom launch-smoke checklist,
+`llm_wiki_search` / include-filtered `llm_wiki_search_all` omitted hit arrays,
+and `llm_wiki_index` stderr was CCR-compressed. Updated the launch-smoke
+checklist and index so pagination or compact-output mitigation remains in scope.
+
+Pages affected: `wiki/evals/headroom-0-32-codex-route-key-field-test.eval.md`,
+`wiki/plans/headroom-mcp-field-test-repair.plan.md`,
+`wiki/checklists/headroom-launch-smoke.checklist.md`, `wiki/index.md`,
+`wiki/log.md`.
+
+## [2026-07-20] update | Headroom 0.32 Responses exclude re-scope
+
+Re-scoped the Headroom MCP field-test repair after user review and local source
+verification showed the installed Headroom is now `headroom-ai 0.32.0`, not the
+0.24.0 build used for the prior failure diagnosis. The repair plan, passthrough
+plan, launch-smoke checklist, Headroom reference, generated guidance template,
+repo `AGENTS.MD`, README, and index now distinguish the historical 0.24.0
+Codex/OpenAI-Responses exclude failure from the current 0.32.0 source state,
+where Responses call ids appear to be mapped to function names and excluded
+output slots protected. Pagination remains a possible mitigation, but it is now
+gated behind a fresh 0.32.0 live field test and measured full-output envelope
+size rather than treated as mandatory upfront work.
+
+Verification: `rtk git diff --check`; `rtk cargo insta test --test init
+--accept` (22 passed; 9 snapshots accepted); `llm_wiki_index({"force":true})`
+(`Indexed project: llm-wiki-framework-headroom-impl (104 files)`, with large
+GGUF/Metal stderr still present as the active diagnostics work item).
+
+Pages affected: `wiki/plans/headroom-mcp-field-test-repair.plan.md`,
+`wiki/plans/headroom-passthrough-launcher.plan.md`,
+`wiki/checklists/headroom-launch-smoke.checklist.md`,
+`wiki/references/headroom-context-compression.reference.md`, `wiki/index.md`,
+`wiki/log.md`, `AGENTS.MD`, `templates/base/project_guidelines.md`,
+`README.md`.
+
+## [2026-07-18] update | Headroom Responses exclude limitation
+
+Corrected the Headroom MCP field-test repair plan after the user supplied a
+source-backed review of installed `headroom-ai 0.24.0`. The plan now records that
+Headroom's Chat-Completions/Anthropic path honors `HEADROOM_EXCLUDE_TOOLS`, but
+the Codex/OpenAI-Responses tool-output compression path does not consult
+`exclude_tools`; therefore extending launcher route names cannot preserve full
+`llm_wiki_*` payloads on Codex. Reframed the repair around upstream Headroom
+exclude support for full outputs plus llm-wiki-owned mitigations: instance/version
+preflight, compression-marker detection, compression-aware paginated read/search
+surfaces, stale-project `search-all` degradation, and concise GGUF diagnostics.
+Updated generated/local agent guidance, the Headroom decision/reference,
+passthrough plan, launch-smoke checklist, README caveat, and index summaries.
+
+Verification: `rtk cargo insta test --test init --accept` (22 passed; 9
+snapshots accepted), `rtk git diff --check`, and `llm_wiki_index({"force":true})`
+(`Indexed project: llm-wiki-framework-headroom-impl (104 files)`, with large
+GGUF/Metal stderr still present as Phase 6 evidence).
+
+Pages affected: `wiki/plans/headroom-mcp-field-test-repair.plan.md`,
+`wiki/plans/headroom-passthrough-launcher.plan.md`,
+`wiki/checklists/headroom-launch-smoke.checklist.md`,
+`wiki/decisions/headroom-single-posture-mcp-first.decision.md`,
+`wiki/references/headroom-context-compression.reference.md`, `wiki/index.md`,
+`wiki/log.md`, `AGENTS.MD`, `templates/base/project_guidelines.md`, `README.md`.
+
+## [2026-07-18] update | Claude Headroom field-test wiring blocker
+
+Updated the Headroom MCP field-test repair plan and launch-smoke checklist with
+the same date's Claude pre-Phase-A failure. The Claude session had only
+`llm-wiki-test` connected, exposing `mcp__llm-wiki-test__llm_wiki_*_test` tools
+backed by `llm-wiki-test 0.2.8`, while the requested run required production
+unsuffixed `llm_wiki_*` tools; production `llm-wiki 0.2.11` existed on disk but
+was not connected to the project `.mcp.json`, and Claude requires relaunch after
+MCP config changes. The repair plan now has an explicit host MCP
+instance/version preflight before Phase A and treats wrong-instance tool
+substitution as an invalid field test.
+
+Pages affected: `wiki/plans/headroom-mcp-field-test-repair.plan.md`,
+`wiki/checklists/headroom-launch-smoke.checklist.md`, `wiki/index.md`,
+`wiki/log.md`.
+
+## [2026-07-18] create | Headroom MCP field-test repair plan
+
+Created `wiki/plans/headroom-mcp-field-test-repair.plan.md` from the user-supplied
+Codex + Headroom `keto-diet` field-test report. The plan records that local
+deployment and LLM-search setup reached `llm-wiki 0.2.11`, but the live
+Headroom-launched MCP surface failed the provenance/usability gate:
+`llm_wiki_index` output was Headroom-compressed, `llm_wiki_read` returned
+`<<ccr:...>>` placeholders instead of real wiki/raw content, search payloads
+omitted result arrays despite ready metadata, `search-all` failed globally on a
+stale missing project root, and GGUF stderr made diagnostics difficult. Updated
+the passthrough launcher plan, Headroom launch-smoke checklist, and index so the
+live Headroom gate is tracked as active repair work rather than optional pending
+evidence.
+
+Pages affected: `wiki/plans/headroom-mcp-field-test-repair.plan.md`,
+`wiki/plans/headroom-passthrough-launcher.plan.md`,
+`wiki/checklists/headroom-launch-smoke.checklist.md`, `wiki/index.md`,
+`wiki/log.md`.
+
+## [2026-07-18] fix | Headroom passthrough review follow-up
+
+Addressed the follow-up review on the Headroom passthrough implementation:
+tightened generated and repo-local agent guidance so exact wiki/raw provenance
+is attributed to `llm_wiki_*` MCP routing rather than `HEADROOM_EXCLUDE_TOOLS`,
+fixed the Windows resolver contract so PATH search tries bare `headroom` before
+PATHEXT-derived candidates, added direct resolver coverage for Windows candidate
+construction and PATH candidate ordering, and updated the MCP onboarding
+decision's retired-proxy note to point at the current
+`llm-wiki headroom [--] <headroom args...>` passthrough surface.
+
+Verification: `rtk cargo fmt`; `rtk cargo test --test headroom` (8 passed);
+`rtk cargo test headroom` (16 passed, 327 filtered out); `rtk cargo test --test
+identity_lint` (3 passed); `rtk cargo insta test --test init --accept` (22
+passed; 9 snapshots accepted); `rtk cargo check`; `rtk cargo clippy -- -D
+warnings`; `rtk cargo test` (341 passed, 2 ignored); `rtk git diff --check`.
+
+Pages affected: `src/headroom.rs`, `AGENTS.MD`,
+`templates/base/project_guidelines.md`,
+`wiki/decisions/mcp-onboarding-at-init-register.decision.md`,
+`wiki/plans/headroom-passthrough-launcher.plan.md`, `wiki/index.md`,
+`wiki/log.md`.
+
+## [2026-07-18] implement | Headroom passthrough launcher
+
+Implemented `wiki/plans/headroom-passthrough-launcher.plan.md`: replaced the
+nested `llm-wiki headroom wrap -- <command>` process model with
+`llm-wiki headroom [--headroom-bin <PATH>] [--unsafe-mcp-read] [--]
+<headroom args...>`, which resolves and execs the real `headroom` binary after
+injecting the merged `HEADROOM_EXCLUDE_TOOLS` and `HEADROOM_MCP_READ` guard env.
+Preserved the parent exclude merge invariant, added PATH/explicit-binary
+resolution, rewrote headroom integration tests around a fake Headroom binary,
+updated guidance/docs, superseded the old wrap-plan process model, amended the
+Headroom decision/reference wording, and added the separate optional Headroom
+launch-smoke checklist without changing the pure MCP field-test gate.
+
+Verification: `rtk cargo fmt`; `rtk cargo test --test headroom` (8 passed);
+`rtk cargo test headroom` (12 passed, 327 filtered out); `rtk cargo test --test
+identity_lint` (3 passed); `rtk cargo insta test --test init --accept` (22
+passed; 9 snapshots accepted); `rtk cargo check`; `rtk cargo clippy -- -D
+warnings`; `rtk cargo test` (337 passed, 2 ignored). No live interactive
+Headroom/Codex smoke was run; the new optional checklist records that future
+external-host procedure.
+
+Pages affected: `src/cli.rs`, `src/headroom.rs`, `tests/headroom.rs`,
+`README.md`, `AGENTS.MD`, `templates/base/project_guidelines.md`,
+`wiki/plans/headroom-passthrough-launcher.plan.md`,
+`wiki/plans/headroom-wrap-command.plan.md`,
+`wiki/decisions/headroom-single-posture-mcp-first.decision.md`,
+`wiki/references/headroom-context-compression.reference.md`,
+`wiki/checklists/headroom-launch-smoke.checklist.md`, `wiki/index.md`,
+`wiki/log.md`.
+
+## [2026-07-18] lint | Headroom passthrough launcher plan cleanup
+
+Clarified the draft passthrough launcher plan after review: the target CLI now
+documents `[--] <headroom args...>` because the separator is recommended but
+optional, the help text no longer implies only post-`--` forwarding, and the
+resolver test wording now uses two temporary PATH directories instead of an
+impossible same-name file/directory in one directory.
+
+Pages affected: `wiki/plans/headroom-passthrough-launcher.plan.md`,
+`wiki/index.md`, `wiki/log.md`.
+
+## [2026-07-06] refactor | Consolidate to a single MCP field-test checklist
+
+Collapsed the field-test surface to one live checklist and one result deliverable,
+matching the single MCP-first posture
+([Single MCP-First Posture](decisions/headroom-single-posture-mcp-first.decision.md)).
+Retitled `wiki/checklists/mcp-field-test.checklist.md` from "MCP Field Test (Proxy
+Off)" to "MCP Field Test", reframed its environment gate and `<<ccr:...>>` tripwire
+around *external* Headroom (the framework ships no proxy), and made a proxy-in-path run
+*invalidate-and-rerun* instead of redirecting to a second checklist. Deleted the legacy
+`wiki/checklists/mcp-field-test-headroom-proxy.checklist.md` (Superseded Mode C carve-out
+gate); how that carve-out was validated is preserved in
+`wiki/review/mcp-field-test-proxy-off-and-launcher-defect.eval.md`. Fixed dangling
+references in `wiki/index.md`, `wiki/plans/mcp-onboarding-init-register.plan.md`, and
+`wiki/evals/claude-mcp-field-test-proxy-on-invalid.eval.md`; left the two historical
+evals' period references to the retired checklist intact as record.
+
+Pages affected: `wiki/checklists/mcp-field-test.checklist.md` (retitled/reframed),
+`wiki/checklists/mcp-field-test-headroom-proxy.checklist.md` (deleted), `wiki/index.md`,
+`wiki/plans/mcp-onboarding-init-register.plan.md`,
+`wiki/evals/claude-mcp-field-test-proxy-on-invalid.eval.md`, `wiki/log.md`.
+
+## [2026-07-06] ingest | Codex MCP field-test proxy-off pass
+
+Created `wiki/evals/codex-mcp-field-test-proxy-off-pass.eval.md` from the
+user-provided Codex result transcript for `keto_diet`. The eval records an
+Accepted proxy-off MCP correctness pass for the existing migrated-project
+posture: a running Headroom proxy was detected and stopped before the run,
+`ANTHROPIC_BASE_URL` was unset, no `<<ccr:...>>` marker appeared, wiki/raw reads
+returned real content, lexical/auto/semantic/hybrid/search-all all returned
+expected payloads, rerank diagnostics were explicit, and no `BUG` rows were
+found. Updated the eval index entry. This is proxy-off evidence, not Headroom
+carve-out proof.
+
+Pages affected: `wiki/evals/codex-mcp-field-test-proxy-off-pass.eval.md`,
+`wiki/index.md`, `wiki/log.md`.
+
+## [2026-07-06] ingest | Claude MCP field-test proxy-on invalid result
+
+Created `wiki/evals/claude-mcp-field-test-proxy-on-invalid.eval.md` from the
+user-provided 2026-06-30 `keto_diet` field-test transcript and the later
+clarification that it was Claude results. The new result file maps the supplied
+run against `wiki/checklists/mcp-field-test.checklist.md` and records the
+correct verdict: invalid/rejected for the proxy-off MCP correctness checklist
+because a Headroom proxy was active and llm-wiki MCP read/search outputs were
+CCR-compressed or stripped. Updated the eval index entry.
+
+Pages affected: `wiki/evals/claude-mcp-field-test-proxy-on-invalid.eval.md`,
+`wiki/index.md`, `wiki/log.md`.
+
+## [2026-07-06] update | Headroom field evidence host attribution correction
+
+User clarified that the pasted 2026-06-30 `keto_diet` field-test result was
+Claude results, not Codex results. Revised the Headroom proxy MCP read eval,
+launcher plan source trail, and index summary so the artifact is treated as
+host-attribution-disputed negative evidence: it proves a proxy carve-out failure
+with CCR-compressed read content and stripped search payloads, but it is no
+longer cited as Codex-specific proof. The later 2026-07-06 Codex corrected
+launch remains an operator-reported retry that still needs a raw archived result
+before acceptance.
+
+Pages affected: `wiki/evals/headroom-codex-mcp-read-uncompressed.eval.md`,
+`wiki/plans/headroom-external-convenience-launcher.plan.md`, `wiki/index.md`,
+`wiki/log.md`.
+
+## [2026-07-06] update | Headroom field evidence correction
+
+Corrected the Headroom proxy MCP read eval after the user supplied the full
+2026-06-30 `keto_diet` field-test transcript. That artifact is negative
+evidence: the run compressed `llm_wiki_read_test` content into `<<ccr:...>>`,
+stripped search hit payloads, and did not expose `HEADROOM_EXCLUDE_TOOLS` on the
+proxy process. Updated the eval to distinguish that recorded carve-out failure
+from the later 2026-07-06 operator-reported corrected retry, updated the
+external launcher plan source trail, and revised the index summary. The
+immediately preceding log entry supersedes this entry's original Codex-specific
+attribution after the user clarified the pasted result was Claude-side.
+
+Pages affected: `wiki/evals/headroom-codex-mcp-read-uncompressed.eval.md`,
+`wiki/plans/headroom-external-convenience-launcher.plan.md`, `wiki/index.md`,
+`wiki/log.md`.
+
+## [2026-07-06] create | Headroom/Codex MCP read uncompressed proof
+
+Created `wiki/evals/headroom-codex-mcp-read-uncompressed.eval.md` as Candidate
+evidence for the live successful operator path: start Headroom's HTTP proxy with
+llm-wiki test MCP tool names excluded, wait for `/livez`, launch Codex with
+`OPENAI_BASE_URL=http://127.0.0.1:8790/v1`, and read wiki content through
+`llm_wiki_read_test` so the result is real content rather than a `<<ccr:...>>`
+marker. The eval records the failed dead-port diagnosis, the working commands,
+why the MCP read path worked, the safety caveats, a reproduction checklist, and
+the evidence still needed before promoting it to release-grade accepted proof.
+
+Pages affected: `wiki/evals/headroom-codex-mcp-read-uncompressed.eval.md`,
+`wiki/index.md`, `wiki/log.md`.
+
+## [2026-07-06] create | External Headroom convenience launcher plan
+
+Created `wiki/plans/headroom-external-convenience-launcher.plan.md` as a Draft
+execution plan for an optional external `llm-wiki-headroom` wrapper. The plan
+captures the desired one-command ergonomics (`wrap`, `proxy`, `env`, `doctor`),
+derived production/test MCP tool-name exclusions, `HEADROOM_MCP_READ=off`,
+health-gated proxy startup, Codex/Claude base URL injection, lifecycle cleanup,
+strict provenance warnings, fake-proxy tests, gated real-Headroom smoke, and an
+optional host-level smoke that fails on `<<ccr:...>>`. It deliberately preserves
+the accepted single MCP-first posture by keeping the launcher outside core
+`llm-wiki install`/`doctor` unless a future decision productizes it.
+
+Pages affected: `wiki/plans/headroom-external-convenience-launcher.plan.md`,
+`wiki/index.md`, `wiki/log.md`.
+
+## [2026-06-29] fix | Headroom active probe follow-up
+
+Tightened the Headroom carve-out repair after review: default `doctor` now fails
+when `/stats` shows routed proxy activity with `excluded_tool: 0`, added
+`doctor --headroom-active-probe` to launch the managed wrapper against a local
+mock upstream, strengthened the gated e2e probe to assert byte-for-byte
+`llm_wiki_read` and `llm_wiki_search` passthrough, and recorded the semantic
+default-floor trade-off in `wiki/plans/hybrid-default-and-mcp-surface-repair.plan.md`.
+
+## [2026-06-29] fix | Headroom carve-out probe and diagnostic correction
+
+Closed the active `doctor` probe gap in
+`wiki/plans/hybrid-default-and-mcp-surface-repair.plan.md`: when
+`ANTHROPIC_BASE_URL` targets the Mode C proxy, `doctor` now queries the local
+Headroom `/stats` route and fails unless
+`router.route_counts.excluded_tool` shows that the active proxy has observed the
+instance-specific wiki read route. If it has not, `doctor` exits nonzero and
+tells the operator to use the shipped `headroom/run-proxy.sh` launcher so
+`HEADROOM_EXCLUDE_TOOLS` is honored. Also corrected the prior Phase 0 diagnostic
+trail: the June 25 record's
+stale-profile/parser/serializer explanation is superseded by the launcher
+entrypoint finding recorded in
+`wiki/plans/hybrid-default-and-mcp-surface-repair.plan.md` and the correction
+note in `wiki/plans/mcp-first-agent-guidance.plan.md`.
+
+## [2026-06-25] fix | MCP correctness Phase 0 gate + field-test checklist
+
+Landed the Phase 0 bug-fix gate of `wiki/plans/mcp-first-agent-guidance.plan.md`,
+diagnosed from the live `keto-diet` MCP pass. Issue 0.2: loosened
+`parse_wiki_metadata` to accept the real external format (bare `Key: Value` block
+placed *before* the H1, plus `**bold**` and `---` frontmatter variants) so search
+hits stop reporting `class: null`/`status: null`; the keto-diet header is now a
+parser test. Issue 0.3: `mode:auto` now degrades to lexical with an explicit
+`fallback_reason` instead of hard-failing on `thresholds_unconfigured`, and the
+readiness guidance names the exact calibration command
+(`llm-wiki eval calibrate --record`). Issue 0.4: search JSON now reports
+`rerank_applied` plus a `rerank_reason` (e.g. `reranker_model_unconfigured`)
+instead of a silent no-op. Issue 0.1: added a regression test that the shipped
+Headroom profile excludes `llm_wiki_read` in every envelope form for both
+production and test instances (rendering/install were already correct; the live
+symptom was a stale installed profile). Authored
+`wiki/checklists/mcp-field-test.checklist.md` (Phase 1) as the paste-ready agent
+protocol to run per posture. Verification: `cargo test` green (incl. 7 new
+focused tests), `cargo clippy --all-targets` clean; also refreshed the 9 init
+snapshots stale from the 0.2.3 version bump.
+
+Pages affected: `src/search/metadata.rs`, `src/search/commands.rs`,
+`src/instance.rs`, `wiki/checklists/mcp-field-test.checklist.md`,
+`wiki/plans/mcp-first-agent-guidance.plan.md`, `tests/snapshots/init__*.snap`,
+`wiki/index.md`, `wiki/log.md`.
+
+## [2026-06-25] create | MCP-first agent guidance hardening plan
+
+Created `wiki/plans/mcp-first-agent-guidance.plan.md` to address the observed
+gap between the implemented MCP surface and ordinary agent behavior in fresh LLM
+Wiki projects. The plan makes generated `AGENTS.md` the primary MCP router,
+requires instance-aware production/test tool names, strengthens query/search,
+ingest, lint, maintenance, and research-handoff guidance, aligns MCP initialize
+instructions/resources/prompts with project guidance, and extends host parity
+evidence beyond query into mutation, fallback, failure, and research handoff
+scenarios.
+
+Pages affected: `wiki/plans/mcp-first-agent-guidance.plan.md`, `wiki/index.md`,
+`wiki/log.md`.
+
+## [2026-06-25] implement | macOS managed-binary codesign repair
+
+Implemented the local macOS managed-binary repair. `install` now stages the
+current executable in the managed binary directory, applies permissions, ad-hoc
+signs the staged file on macOS with `/usr/bin/codesign --force --sign -`, and
+atomically persists it over the managed binary path. The manifest now records
+both final installed bytes (`binary.hash`) and source executable bytes
+(`binary.source_hash`) so preflight, partial recovery, backup snapshots, and
+uninstall ownership semantics remain correct when signing changes the Mach-O
+bytes.
+
+Added bounded installed-binary launch checks, manifest hash checks against final
+installed bytes, and a tighter live test-instance proof that runs
+`llm-wiki-test --version`, `--help`, `status`, and `mcp serve`/`tools/list` from
+the managed home. Fixed Codex MCP config merge/uninstall to preserve existing
+TOML text around the managed server block; this keeps production Codex config
+byte-identical after `llm-wiki-test` install/uninstall.
+
+Verification passed: `rtk cargo test --test post_install`; `rtk cargo test
+--test install`; `rtk cargo test --test mcp_install`; `rtk cargo test --test
+headroom_fixtures`; `rtk cargo test --test headroom_install`; `rtk cargo test
+--test identity_lint`; `rtk cargo check --tests`; `rtk cargo test --test mcp`;
+`rtk cargo test --test status_doctor`; `rtk cargo test --test search_commands`;
+`rtk cargo insta test --test init --accept`; `rtk cargo clippy`; `rtk cargo
+test` (314 passed, 2 ignored); and `rtk just test-instance-live-session-proof`.
+Native macOS release archive proof remains governed by
+`wiki/roadmaps/cross-platform-release-e2e.roadmap.md`.
+
+Pages affected: `src/install.rs`, `src/manifest/schema.rs`,
+`src/mcp_config.rs`, `tests/install.rs`, `tests/post_install.rs`,
+`tests/mcp_install.rs`, `tools/test-instance-live-session-proof.sh`,
+`wiki/plans/macos-installed-binary-codesign-repair.plan.md`, `wiki/index.md`,
+`wiki/log.md`.
+
+## [2026-06-23] fix | MCP-first Headroom wording cleanup
+
+Clarified the Headroom reference so the shared MCP-first profile route list is
+not framed as Codex-only, and documented in the profile asset that
+`mcp__llm_wiki__*` entries are defensive compatibility while observed Claude
+Code route keys use `mcp__llm-wiki__*`.
+
+## [2026-06-23] fix | MCP-first Headroom profile route-name review
+
+Corrected the MCP-first Headroom profile after review: the profile now reserves
+observed Claude Code `mcp__llm-wiki__*` tool-use names, retains
+underscore-normalized `mcp__llm_wiki__*` compatibility names, and uses observed
+`ReadMcpResource` / `ListMcpResources` and
+`ReadMcpResourceTool` / `ListMcpResourcesTool` resource-tool names. Updated
+test-instance
+profile materialization, embedded/fixture tests, generated init snapshots, and
+durable guidance so Codex posture is consistently MCP-first for MCP-routed
+wiki/raw reads with Mode D or Mode B fallback for shell-routed wiki/raw content.
+The live Headroom Mode-C router-bypass proof with negative control remains a
+merge-gate requirement. A local Claude/Headroom probe ran with the proxy bound
+on `127.0.0.1:8791` and confirmed Claude Code init exposes
+`mcp__llm-wiki__*`, `ReadMcpResourceTool`, and `ListMcpResourcesTool` names, but
+Claude returned `authentication_failed` / `Not logged in` before any model or
+tool execution.
+
+## [2026-06-23] implement | MCP-first Headroom profile narrowing
+Narrowed `assets/headroom/llm-wiki.profile.env` to framework-owned MCP
+read/search/resource route exclusions, removed broad Codex shell/apply/permission
+exclusions from the normal MCP-first profile, added conservative profiles for
+Codex shell output, updated Codex/MCP guidance in `AGENTS.md`,
+`templates/base/project_guidelines.md`, generated init snapshots, and the
+Headroom reference/decision, and added fixture coverage for captured Headroom
+router keys, MCP resource reads, and Codex shell negative controls.
+
+## [2026-06-23] update | MCP-first Headroom profile narrowing scope correction
+Tightened the active narrowing plan after a second review: the deliverable is now explicitly Codex-focused, Claude native-tool compression is documented as expected upstream-blocked by Headroom 0.24.0 additive defaults, the structural-to-behavioral safety trade-off is named with a conservative-profile mitigation, Codex read/output tool names are separated from non-read names, host-native defensive re-adds are retained unless an override exists, related active plans are cross-linked, and closure now requires verifying the exact proxy envelope field used for MCP tool routing plus updating stale Mode C/reference guidance. Documentation-only update; no code tests run.
+
+Pages affected: `wiki/plans/mcp-first-headroom-profile-narrowing.plan.md`, `wiki/index.md`, `wiki/log.md`.
+
+
+
+
+## [2026-06-23] update | MCP-first Headroom profile narrowing review hardening
+Rewrote the active narrowing plan to address review blockers before implementation: exact Headroom routing keys must be proven for bare, `_test`, namespaced MCP, resource-read, and shell/native negative-control routes; guidance and repo-local skill cleanup now precede profile narrowing; MCP resources are treated as an in-scope wiki/raw content path; and deterministic router/proxy behavior tests with bulky payloads are required before removing broad Codex shell-family exclusions. Documentation-only update; no code tests run.
+
+Pages affected: `wiki/plans/mcp-first-headroom-profile-narrowing.plan.md`, `wiki/index.md`, `wiki/log.md`.
+
+## [2026-06-23] create | headroom/MCP merge-readiness repair plan
+
+Created `wiki/plans/headroom-mcp-merge-readiness-repair.plan.md` as a Draft
+execution plan for the merge-readiness review findings. The plan sequences
+test-instance MCP identity namespacing before any live full-instance test,
+then covers stale generated-skill upgrade cleanup, README MCP-first install
+documentation, repo-local skill dogfood posture, registered/unregistered MCP
+search behavior, clean no-skill Phase 5 parity evidence, verification gates,
+and wiki closure steps.
+
+Pages affected: `wiki/plans/headroom-mcp-merge-readiness-repair.plan.md`,
+`wiki/index.md`, `wiki/log.md`.
+
+## [2026-06-23] review | headroom/MCP branch merge-readiness
+
+Authored `wiki/review/headroom-mcp-branch-merge-readiness.eval.md`
+(Candidate) reviewing `impl/headroom-runtime-companion` against `master`
+(merge-base `782858e`, 234 files / ~48k insertions). Verified `cargo check
+--tests` clean and a sound MCP config install/uninstall lifecycle on both
+harnesses (correcting an earlier sub-review claim of a Claude-config
+uninstall gap; the staged Claude config is `ManifestOwned` and is removed).
+Two merge blockers stand: (1) by the project's own gates the branch is not
+closeable — `wiki/evals/mcp-first-host-parity.eval.md` is Rejected for
+Phase 5 and the MCP-first and harness-independent-read plans are Active, so
+the proposed full-instance test is the required Phase 5 evidence and must
+run on a clean no-skill profile; (2) the upgrade path orphans previously
+generated skills with no migration/pruning step (`src/install.rs:1748-1754`
+renders no skills; stale skills drop out of manifest tracking and survive
+uninstall). Also flagged a factually stale `README.md` install section and
+the repo's own committed skills shadowing MCP during self-dogfooding.
+Indexed under Evals/review.
+
+Follow-up cross-check updated the review: added the missing blocker that
+test-instance MCP server/tool identity is not namespaced, can collide with
+production MCP config, and must be fixed before the live full-instance test;
+added the closed-window nuance that this branch built the MCP tools after the
+decision's "not yet built" caveat; added current-checkout unregistered search
+impact; corrected the README finding to include both false generated-skill
+install text and missing MCP-first install/migration documentation; and recorded
+the `identity_lint` blind spot plus remaining unused `Path` warning.
+
+## [2026-06-20] promote | headroom runtime companion proposal to draft plan
+
+Promoted `wiki/proposals/headroom-runtime-companion.proposal.md` from
+Proposed to Accepted and authored
+`wiki/plans/headroom-runtime-companion.plan.md` as the seven-phase
+tactical plan against the proposal's ten Acceptance Criteria. The plan
+sequences (1) wiki-side documentation foundation — new reference page,
+AGENTS.MD and `templates/base/project_guidelines.md` updates for the
+Read-only access contract and the `headroom_read` ban; (2) the embedded
+profile asset under `assets/headroom/llm-wiki.profile.env`; (3) three
+upstream-pinning fixture tests covering the Headroom proxy CLI,
+`DEFAULT_EXCLUDE_TOOLS`, and the Codex tool names; (4) the
+`llm-wiki install --with-headroom` install flag with the install-time
+Headroom release-pin check against `sources/17`; (5) the minimal
+`llm-wiki doctor` advisory for `ANTHROPIC_BASE_URL=http://127.0.0.1:8787`;
+(6) a conditional dogfood research bundle that promotes a
+`wiki/references/headroom-dogfood-evidence.reference.md` page only if
+measurements warrant it; and (7) decision promotion to
+`wiki/decisions/headroom-runtime-companion.decision.md`.
+
+In-scope and out-of-scope items mirror the proposal exactly: no SDK
+adoption, no Headroom vendoring, no default-bootstrap Headroom, no
+`headroom_stats` capture into framework-owned wiki files. The plan
+identifies `src/install.rs`, `src/doctor.rs`, and `src/embed.rs` as the
+load-bearing implementation touchpoints, plus `src/cli.rs` and
+`src/uninstall.rs` as supporting sites. Each phase has its own
+verification gate; the plan completion criteria require workspace
+tests, clippy, audit-legacy, insta, `git diff --check`, and a clean
+wiki lint pass.
+
+Bookkeeping: proposal Status changed Proposed → Accepted with a
+`Promoted:` line pointing at the plan; the proposal's index summary
+updated to read "Accepted — Promoted to draft implementation plan…";
+new plan added to the Plans section of `wiki/index.md` immediately
+after `Init Rerun Schema Drift`.
+
+Pages affected: wiki/proposals/headroom-runtime-companion.proposal.md,
+wiki/plans/headroom-runtime-companion.plan.md (new),
+wiki/index.md, wiki/log.md.
+
+## [2026-06-20] resolve | headroom runtime companion open questions
+
+Closed the two Open Questions in
+`wiki/proposals/headroom-runtime-companion.proposal.md`.
+
+Q1 (observability signal from proxy back into wiki) was resolved as a
+scope refusal. `headroom_stats` capture into `wiki/log.md` or any other
+framework-owned wiki file is now explicitly out of scope; measurement of
+Headroom's real wins is deferred to a dogfood research bundle under
+`raw/research/`, and only if those measurements justify durable
+documentation does the work promote to a
+`wiki/references/headroom-dogfood-evidence.reference.md` page. The
+rationale recorded in Out Of Scope is that the dependency direction must
+stay one-way: wiki content does not assume Headroom is installed or
+running.
+
+Q2 (doctor advisory on `ANTHROPIC_BASE_URL` pointing at the Headroom
+proxy without the vetted profile sourced) was resolved as a minimal
+detection plus pointer. The new Acceptance Criterion 9 specifies that
+`llm-wiki doctor` emits one advisory line only when `ANTHROPIC_BASE_URL`
+points at the exact documented Mode C address `http://127.0.0.1:8787`,
+references the reference page, and tells the user to source
+`~/.llm_wiki/headroom/llm-wiki.profile.env`. It does not read or validate
+`HEADROOM_*` env vars (a user may set a superset of the vetted profile
+and still be safe; validating would be brittle), does not fail `doctor`,
+and does not require Headroom to be installed. The previous Codex-names
+AC was renumbered from 9 to 10; two cross-references inside the proposal
+were updated to match. The Open Questions section was removed (both items
+now resolved).
+
+Pages affected: wiki/proposals/headroom-runtime-companion.proposal.md,
+wiki/log.md.
+
+## [2026-06-20] revise | headroom runtime companion codex source capture and exclude-list correction
+
+Captured a new raw research bundle at
+`raw/research/2026-06-20-codex-tool-surface/` to evidence the OpenAI Codex
+CLI tool names that `wiki/proposals/headroom-runtime-companion.proposal.md`
+needs in its Part 2 exclude list, then revised the proposal to match what
+the captures actually show. The trigger was a claim-by-claim review of the
+proposal's previous Codex revision (the entry immediately below this one):
+it cited `codex-rs/core/src/openai_tools.rs` — a file that does not exist
+at `openai/codex` `main`-tip on 2026-06-20 — and listed two Codex tool
+names (`shell`, `local_shell`) that could not be located in the actual
+handler files.
+
+The new bundle includes verbatim captures of
+`codex-rs/core/src/tools/handlers/shell_spec.rs`,
+`apply_patch_spec.rs`, the relevant portion of `mod.rs`, and
+`request_permissions.rs`. It also records what was checked and not found
+(`shell` and `local_shell` are absent from `shell_spec.rs`, `shell.rs`,
+`hosted_spec.rs`, `unified_exec.rs`, `registry.rs`, and `function_tool.rs`
+on the capture date) and notes that `local_shell` would be a dead exclude
+entry under the captured Headroom router anyway, because that router only
+extracts the routing key from `tool_call.function.name` and `block.name`
+(`raw/research/2026-06-11-headroom-llm-wiki-comparison/sources/10-headroom-source-content-router.py:1828, :1838`),
+not from OpenAI Responses-API tool `type` fields.
+
+Proposal revisions, in order:
+
+1. Sources list extended with the new raw bundle's manifest, summary, and
+   four captured source files.
+2. New Source Capture paragraph documents the second bundle and the broken
+   `openai_tools.rs` citation it replaces.
+3. Failure-modes Codex paragraph now cites the captured handler files at
+   their upstream line numbers, lists only the verified five Codex function
+   tool names (`shell_command`, `exec_command`, `write_stdin`,
+   `apply_patch`, `request_permissions`), and corrects the skill projection
+   path from `.codex/skills/` to `.codex/<skill>/`.
+4. Part 1's Codex contract paragraph drops the unverified `shell` and
+   `local_shell` mentions and cites the captured Rust files for the
+   remaining Codex tool names.
+5. Part 2's `HEADROOM_EXCLUDE_TOOLS` value drops `shell` and `local_shell`,
+   adds `request_permissions`, and the surrounding comment block explains
+   what was dropped and why (with a forward-compatibility note that the
+   install-time pin in Acceptance Criterion 9 catches future renames).
+6. Part 3's Mode C paragraph rewords to match the new Codex name list.
+7. The Configuration Reference's "Harness-neutral tool naming" bullet now
+   cites the captured Codex sources instead of the broken path.
+8. Acceptance Criterion 9 reshaped: the Codex-name fixture test now pins
+   against the raw captures (catches upstream Codex renames), not only
+   against the bundled profile (which would catch only local edits). The
+   broader install-time Codex verification is named as a follow-up rather
+   than a first-promotion requirement.
+
+The immediately-prior log entry's content stands as the historical record
+of the previous (uncorrected) revision; this entry supersedes it for the
+parts identified above. No design moves beyond what that earlier extension
+intended; substance is unchanged except for the two dropped names and the
+added `request_permissions`.
+
+Pages affected: wiki/proposals/headroom-runtime-companion.proposal.md,
+wiki/log.md, wiki/index.md (date),
+raw/research/2026-06-20-codex-tool-surface/manifest.md (new),
+raw/research/2026-06-20-codex-tool-surface/research-summary.md (new),
+raw/research/2026-06-20-codex-tool-surface/sources/01-codex-handlers-shell-spec.rs (new),
+raw/research/2026-06-20-codex-tool-surface/sources/02-codex-handlers-apply-patch-spec.rs (new),
+raw/research/2026-06-20-codex-tool-surface/sources/03-codex-handlers-mod.rs (new),
+raw/research/2026-06-20-codex-tool-surface/sources/04-codex-handlers-request-permissions.rs (new).
+
+## [2026-06-20] revise | headroom runtime companion Codex tool-name carve-out
+
+Closed a Claude-Code-centric gap in
+`wiki/proposals/headroom-runtime-companion.proposal.md`. The exclude-by-tool-name
+carve-out was written entirely in Claude Code's tool vocabulary (`Read`,
+`Glob`, `Grep`, `Bash`), but the framework ships its search skill identically
+to both harnesses as `llm-wiki search --mode auto --format json` via shell-out
+(`assets/skills/wiki-query/SKILL.md` → `.claude/skills/`, `.codex/skills/`).
+On Claude that rides the excluded `Bash` tool; on the OpenAI Codex CLI it
+rides the unexcluded `shell` tool. Codex also has no native `Read` tool, so
+wiki and raw reads likewise flow through `shell` — meaning the carve-out
+protected none of read, raw, or search on Codex. Codex tool names verified
+against `openai/codex` (`codex-rs/core/src/openai_tools.rs`,
+`tools/handlers/shell_spec.rs`), reviewed 2026-06-20.
+
+Revisions: (1) Observed Problem now notes the failure modes were framed in
+Claude vocabulary and are reachable on Codex through ordinary read/search;
+(2) Part 1 replaces "Codex skills must adopt the same rule" with the real
+asymmetry (no native Read tool → profile-level shell/patch exclusion + Mode
+D/B, MCP migration as the durable harness-independent fix); (3) Part 2 adds
+`shell,local_shell,shell_command,exec_command,write_stdin,apply_patch` to
+`HEADROOM_EXCLUDE_TOOLS` with a note that excluding shell neuters compression
+on Codex broadly; (4) Part 3 documents Mode B as the safest harness-neutral
+opt-in, the Codex caveat on Mode C, and Mode D as the recommended Codex
+default; (5) Configuration Reference adds a "harness-neutral tool naming"
+non-feature; (6) Acceptance Criteria #2 now requires the Codex formulation
+and new #9 pins the Codex names via fixture test. Design move: extends the
+carve-out to a second harness; does not change framework ownership or the
+single-binary invariant.
+
+Pages affected: wiki/proposals/headroom-runtime-companion.proposal.md,
+wiki/log.md.
+
+## [2026-06-20] fix | headroom runtime companion citation off-by-one
+
+Corrected the `sources/03-headroom-docs-architecture.mdx` line cite in the
+Configuration Reference's "What Headroom does not provide" bullet for the
+system-prompts protection. Line 127 of that source is "User messages: Never
+compressed"; the System prompts protection is line 128. The system-prompts
+claim now cites `:128`, and `:127` is noted separately as the independent
+basis for the `HEADROOM_COMPRESS_USER_MESSAGES=0` pin in Part 2. No design
+moves.
+
+Pages affected: wiki/proposals/headroom-runtime-companion.proposal.md,
+wiki/log.md.
+
+## [2026-06-15] clarify | headroom runtime companion proposal follow-up nits
+
+Three clarifications to `wiki/proposals/headroom-runtime-companion.proposal.md`
+after a follow-up review pass: (1) Acceptance Criterion 5 now states that
+`DEFAULT_TOOL_PROFILES` values are intentionally not pinned because the
+captured excerpt represents them as paraphrased placeholders rather than
+verbatim `PROFILE_PRESETS` references; (2) the inline comment on the
+`HEADROOM_TOOL_PROFILES` line in Part 2 now flags `WebFetch:conservative`
+as a deliberate downgrade from the upstream default of `WebFetch:aggressive`
+(`sources/17` DEFAULT_TOOL_PROFILES) for ingest-heavy workloads; (3) the
+Source Capture section now notes that `sources/17` is contemporaneous with
+the proposal date (both 2026-06-15) and is therefore a snapshot, with the
+install-time release pin in Acceptance Criterion 6 carrying the actual
+defense against upstream drift. No design moves; clarifications only.
+
+Pages affected: wiki/proposals/headroom-runtime-companion.proposal.md,
+wiki/log.md.
+
+## [2026-06-15] revise | headroom runtime companion proposal after source-verification review
+
+Revised `wiki/proposals/headroom-runtime-companion.proposal.md` after a
+claim-by-claim cross-check against the captured Headroom sources surfaced ten
+load-bearing inaccuracies in the first draft. The revisions, in order:
+
+1. Captured `sources/17-headroom-config-excerpt.py` to evidence the literal
+   `DEFAULT_EXCLUDE_TOOLS` and `DEFAULT_TOOL_PROFILES` values (the original
+   `raw/` bundle only had circumstantial evidence). The captured set as of
+   `chopratejas/headroom` main-tip on 2026-06-15 is
+   `{Read, Glob, Grep, Write, Edit, Bash}` (plus lowercase variants), which
+   is broader than the earlier "Read/Glob only" assumption.
+2. Documented an upstream consistency bug: `headroom/config.py:210` says
+   "Bash is NOT excluded" but `:211-227` includes `"Bash"` in the literal.
+   Runtime behavior follows the literal. The proposal now defensively
+   re-adds the full default set into `HEADROOM_EXCLUDE_TOOLS` so the
+   framework's guarantee survives upstream reconciling the comment.
+3. Re-targeted failure mode #2 from "JSON contract corruption at `--format
+   json` boundaries consumed by `src/eval.rs`" to "agent reasoning over
+   compressed Bash tool_result." The proxy is an HTTP interceptor between
+   model and agent; it does not sit in the Rust binary's
+   `std::process::Command` path.
+4. Softened failure mode #3 from "silent context hole" to "recoverable
+   stale-retrieval error mid-task," citing the explicit error strings
+   returned at `sources/12:96-107`.
+5. Added a normative `headroom_read` ban for Modes B and C, citing
+   `sources/13:72, :76-78, :557, :758, :850`. Without that ban Part 1's
+   Read-only contract is bypassable via a single env var.
+6. Replaced Mode C "if and only if" with "only if" and promoted pinned-
+   release verification from Open Question to a hard prerequisite (now
+   Acceptance Criterion 6).
+7. Replaced the cosmetic `unset HEADROOM_COMPRESS_USER_MESSAGES` with
+   `export HEADROOM_COMPRESS_USER_MESSAGES=0` and dropped the overstated
+   "pins against upstream flip" framing.
+8. Added a footnote that the 500-token `HEADROOM_MIN_TOKENS` floor is a
+   proxy-layer default and is not load-bearing if the SDK is used directly;
+   SmartCrusher's underlying default is 200 (`sources/11:121`).
+9. Marked Mode D's "observability without compression" claim as documented
+   but not source-verified by the captured bundle, since the per-request
+   handler that invokes the pipeline is not in the bundle.
+10. Recommended Mode D unconditionally for ingest, without dependency on a
+    future lint capability, because it is the only mode robust to future
+    framework-added tools that are not yet on the exclude list.
+
+Also: the framework-owned tool names `llm_wiki_search` and
+`llm_wiki_search_all` were moved from a passing mention to an explicit
+Out-Of-Scope reservation. The "no path-based exclusion" claim was qualified
+as upstream behavior at review-time, not a permanent invariant.
+
+The reviewer's evidence-grade for the original 10 claims was upheld
+end-to-end: every claim was verified against the captured sources before
+edits were applied.
+
+Pages affected: wiki/proposals/headroom-runtime-companion.proposal.md,
+wiki/log.md (this entry),
+raw/research/2026-06-11-headroom-llm-wiki-comparison/manifest.md (added
+sources/17 to the source inventory),
+raw/research/2026-06-11-headroom-llm-wiki-comparison/sources/17-headroom-config-excerpt.py
+(new capture).
+
+## [2026-06-15] create | headroom runtime companion proposal
+
+Created `wiki/proposals/headroom-runtime-companion.proposal.md` from the
+existing `raw/research/2026-06-11-headroom-llm-wiki-comparison/` bundle. The
+proposal makes Headroom an opt-in agent-runtime companion and pins a vetted
+configuration that keeps `wiki/` and `raw/` content out of the compression
+pipeline. Headroom routes by tool name, not by filesystem path, so the carve-
+out is achieved by combining Headroom's existing `DEFAULT_EXCLUDE_TOOLS` (which
+already excludes `Read` and `Glob`, per
+`sources/10-headroom-source-content-router.py:2242`) with a Read-only access
+contract for wiki and raw paths, an extended `HEADROOM_EXCLUDE_TOOLS` list, a
+conservative `HEADROOM_TOOL_PROFILES` bias for `Bash` and `Grep`, a 7200-second
+`HEADROOM_CCR_TTL_SECONDS`, and a recommended `HEADROOM_OPTIMIZE=false`
+passthrough mode for `wiki-ingest` sessions. The proposal explicitly refuses
+adopting the Headroom TypeScript or Python SDK so the single-binary
+distribution invariant from `wiki/decisions/llm-wiki-binary-distribution.decision.md`
+and `wiki/decisions/binary-path-bootstrap.decision.md` holds.
+
+The supporting `wiki/references/headroom-context-compression.reference.md`
+described in the research summary follow-up is named as a completion criterion
+for the future plan but is not authored by this ingest pass.
+
+Pages affected: wiki/proposals/headroom-runtime-companion.proposal.md,
+wiki/index.md, wiki/log.md.
+
+## [2026-06-04] create | cross-platform release E2E roadmap
+
+Created `wiki/roadmaps/cross-platform-release-e2e.roadmap.md` to fix the
+missing roadmap layer between the cross-platform release E2E / Windows support
+proposal and the active harness plan. The roadmap now coordinates deliverables
+for the completed runner and Linux Docker archive simulation, active native
+Linux amd64 host proof, draft native macOS archive proof, draft Windows
+runtime/artifact and host E2E proof, draft GGUF CPU release proof, and a future
+release evidence gate.
+
+Updated the parent proposal to reference both the roadmap and tactical plan
+without claiming Windows support is complete. Updated the tactical plan to name
+the roadmap as its parent deliverable-ordering layer, added a P3 pointer in the
+Framework V1 roadmap, and refreshed the index catalog.
+
+Pages affected: wiki/roadmaps/cross-platform-release-e2e.roadmap.md,
+wiki/proposals/full-windows-support.proposal.md,
+wiki/plans/cross-platform-release-e2e-harness.plan.md,
+wiki/plans/gguf-runtime-portability.plan.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
+
+## [2026-06-04] update | native Linux amd64 release E2E workflow
+
+Added a native Linux amd64 release-E2E workflow and host recipes. The new
+`release-e2e-native-linux-dist-build-and-test` just recipe builds the
+`x86_64-unknown-linux-gnu` cargo-dist archive on the current host, verifies the
+archive checksum through the release E2E runner's `search` lane, and runs the
+no-model product story from the extracted packaged binary. The new
+`.github/workflows/release-e2e-linux-amd64.yml` workflow runs this recipe on
+`ubuntu-24.04`, asserts `Linux/x86_64`, installs native qmd/llama build
+dependencies plus `cargo-dist`, inspects the report and `ldd`, and uploads the
+report tree plus built archive/checksum as evidence.
+
+This does not close native Linux amd64 proof yet. The current local checkout is
+macOS arm64 and has no configured git remote, so the workflow could not be
+triggered from here. Native Linux amd64 proof remains pending until this
+workflow passes on a real x86_64 Linux runner.
+
+Verification: `just --dry-run release-e2e-native-linux-dist-build-and-test`;
+Ruby YAML parse of `.github/workflows/release-e2e-linux-amd64.yml`.
+
+Pages affected: .github/workflows/release-e2e-linux-amd64.yml, justfile,
+wiki/plans/cross-platform-release-e2e-harness.plan.md, wiki/index.md,
+wiki/log.md
+
+## [2026-06-04] update | release E2E Linux amd64 archive smoke
+
+Ran the Linux release E2E archive path for `x86_64-unknown-linux-gnu` through
+Docker Desktop amd64 emulation on this macOS arm64 machine. The run built
+`target/release-e2e-linux-dist-x86_64/distrib/llm-wiki-rs-x86_64-unknown-linux-gnu.tar.xz`
+inside the Linux Docker builder, verified its `.sha256`, unpacked the archive,
+and passed the no-model product story in `debian:bookworm-slim` with 19
+commands, 63 assertions, and no failed assertions. The report is deliberately
+labeled `execution.proof_kind = emulated_linux_container_packaging_smoke` and
+`execution.architecture_native = false`; this is packaging smoke, not native
+Linux amd64 support proof.
+
+Added an optional `output_dir` argument to the Linux just recipes so arm64,
+amd64, native, and emulated evidence can be kept in separate report trees. A
+follow-up `ldd` check on the extracted amd64 binary showed only standard C/C++
+runtime libraries and no `libgomp` dependency.
+
+Verification: `just --dry-run release-e2e-linux-dist-build-and-test
+linux/amd64 llm-wiki-release-e2e-linux-builder:bookworm-amd64
+x86_64-unknown-linux-gnu target/release-e2e-linux-dist-x86_64
+debian:bookworm-slim target/release-e2e-linux-amd64`; `just
+release-e2e-linux-dist-build-and-test linux/amd64
+llm-wiki-release-e2e-linux-builder:bookworm-amd64
+x86_64-unknown-linux-gnu target/release-e2e-linux-dist-x86_64
+debian:bookworm-slim target/release-e2e-linux-amd64`; `docker run --rm
+--platform linux/amd64 -v
+/Users/nicolasmartino/Documents/local_llm_wiki/llm_wiki_framework/target/release-e2e-linux-amd64/linux/state/artifact/llm-wiki-rs-x86_64-unknown-linux-gnu/llm-wiki:/artifact/llm-wiki:ro
+debian:bookworm-slim sh -lc 'ldd /artifact/llm-wiki && /artifact/llm-wiki
+--version'`.
+
+Pages affected: justfile,
+wiki/plans/cross-platform-release-e2e-harness.plan.md, wiki/index.md,
+wiki/log.md
+
+## [2026-06-04] update | deterministic E2E versioned update intent
+
+Extended the deterministic workspace E2E proposal with a future versioned
+`llm-wiki update` lane. The proposal now records the intent to use git-managed
+release or compatibility tags to create simulated old-version workspaces, run
+the current release artifact's update command against them, and verify current
+generated artifacts, preserved wiki/raw content, update archives, stable
+registry identity, search behavior, and canonical tree manifests.
+
+The proposal also records that old-version snapshots may be used only as a
+labeled fallback when an old tagged binary cannot be built or acquired on the
+current platform.
+
+Pages affected: wiki/proposals/deterministic-e2e-backbone.proposal.md,
+wiki/log.md
+
+## [2026-06-04] create | deterministic workspace E2E proposal
+
+Created a proposal to make deterministic fixture-backed workspaces the backbone
+of routine multi-platform release E2E. The proposed scenario creates isolated
+home/workspace state, installs the release artifact, initializes a project with
+committed raw fixtures through `--initial-sources`, verifies copied raw
+provenance, registers/indexes/searches the project, writes a canonical tree
+manifest, compares against expected fixture state, and asserts cleanup.
+
+The proposal keeps LLM/agent ingest characterization as future non-deterministic
+work with structural invariants instead of byte-for-byte prose snapshots.
+
+Pages affected: wiki/proposals/deterministic-e2e-backbone.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-06-04] update | release E2E cargo-dist archive proof
+
+Extended the release E2E runner so `smoke`, `search`, and Docker-backed
+`linux` lanes accept either `--artifact` or `--archive`. Archive inputs are
+checksum-verified before extraction, checked for unsafe member paths, unpacked
+under the lane state directory, and resolved to the packaged `llm-wiki`
+binary. Report schema version 2 now records both package archive metadata and
+the extracted artifact metadata.
+
+Added Docker-builder support for `cargo-dist` and top-level just recipes for
+building and testing a Linux release archive inside the Linux container:
+`release-e2e-linux-archive`, `release-e2e-linux-dist-build`, and
+`release-e2e-linux-dist-build-and-test`. The successful Linux arm64 run built
+`target/release-e2e-linux-dist-aarch64/distrib/llm-wiki-rs-aarch64-unknown-linux-gnu.tar.xz`,
+verified its `.sha256`, unpacked the archive, and passed the Docker product
+story in `debian:bookworm-slim` with 19 commands, 63 assertions, and no failed
+assertions.
+
+Verification: `just release-e2e-linux-dist-build-and-test`; `docker run --rm
+--platform linux/arm64 -v
+/Users/nicolasmartino/Documents/local_llm_wiki/llm_wiki_framework/target/release-e2e/linux/state/artifact/llm-wiki-rs-aarch64-unknown-linux-gnu/llm-wiki:/artifact/llm-wiki:ro
+debian:bookworm-slim sh -lc 'ldd /artifact/llm-wiki && /artifact/llm-wiki
+--version'`.
+
+Pages affected: tools/release-e2e/src/main.rs, justfile,
+infra/release-e2e/linux-builder.Dockerfile,
+wiki/plans/cross-platform-release-e2e-harness.plan.md, wiki/index.md,
+wiki/log.md
+
+## [2026-06-04] update | include release E2E helper in just test
+
+Updated the top-level `just test` recipe so it runs both the main workspace
+test suite and the independent `tools/release-e2e` helper crate tests. This
+keeps the release E2E runner covered by the normal pre-commit test command even
+though the helper crate intentionally remains outside the Cargo workspace and
+release package.
+
+Verification: `just test`.
+
+Pages affected: justfile, wiki/log.md
+
+## [2026-06-04] update | release E2E checksum guard review follow-up
+
+Fixed the release E2E runner review finding where a provided checksum mismatch
+was recorded as a failed assertion but the artifact was still executed. The
+`smoke`, `search`, and Docker-backed `linux` product-story paths now reject a
+mismatched `--checksum` immediately after hashing the artifact and before
+creating the isolated execution environment or running the binary. Added a
+focused unit test using a bogus artifact to prove the checksum guard fails
+before command execution.
+
+Verification: `cargo fmt --manifest-path tools/release-e2e/Cargo.toml`;
+`cargo test --manifest-path tools/release-e2e/Cargo.toml`.
+
+Pages affected: tools/release-e2e/src/main.rs, wiki/log.md
+
+## [2026-05-26] update | release E2E Linux artifact proof
+
+Reworked the Linux release E2E path to build the Linux artifact inside Docker
+instead of relying on macOS cross-compilation through Zig. Added
+`infra/release-e2e/linux-builder.Dockerfile` as a reusable ARM64 Linux builder
+image based on `rust:1-bookworm` with the native Linux build prerequisites
+needed by `llama-cpp-sys`: compiler toolchain, CMake, pkg-config, clang, and
+libclang. Added `just release-e2e-linux-build` and `just
+release-e2e-linux-build-and-test`; the build recipe writes the artifact to
+`target/release-e2e-linux-aarch64/release/llm-wiki` and keeps Docker Cargo
+state under `target/`.
+
+The first run against `debian:bookworm-slim` exposed a real Linux portability
+issue: the default `llama-cpp-2` feature set enabled OpenMP, causing the built
+binary to require `libgomp.so.1`, which is absent from a minimal Debian runtime
+image. Patched the vendored qmd dependency to disable `llama-cpp-2` default
+features, removing the OpenMP/libgomp dynamic dependency. The rebuilt binary now
+runs in `debian:bookworm-slim`, and `ldd` shows only standard C/C++ runtime
+libraries.
+
+The Linux Docker lane now passes end to end against the built ARM64 Linux ELF:
+`just release-e2e-linux target/release-e2e-linux-aarch64/release/llm-wiki`
+reported 19 commands, 60 assertions, and no failed assertions under
+`target/release-e2e/linux/report.json`. The report records
+`execution.proof_kind = virtualized_linux_container`,
+`execution.architecture_native = true`, and `execution.docker_platform =
+linux/arm64`.
+
+Verification: `just --dry-run release-e2e-linux-build`; `cargo tree -e
+features -i llama-cpp-2`; `just release-e2e-linux-build`; `docker run --rm
+--platform linux/arm64 -v
+/Users/nicolasmartino/Documents/local_llm_wiki/llm_wiki_framework/target/release-e2e-linux-aarch64/release/llm-wiki:/artifact/llm-wiki:ro
+debian:bookworm-slim sh -lc 'ldd /artifact/llm-wiki &&
+/artifact/llm-wiki --version'`; `just release-e2e-linux
+target/release-e2e-linux-aarch64/release/llm-wiki`; `cargo fmt --check`;
+`cargo fmt --manifest-path tools/release-e2e/Cargo.toml --check`; `git diff
+--check`; `cargo test --workspace`; `cargo check --manifest-path
+tools/release-e2e/Cargo.toml`; `cargo test --manifest-path
+tools/release-e2e/Cargo.toml`; `just release-e2e search`; `just
+release-plan`.
+
+Pages affected: justfile, infra/release-e2e/linux-builder.Dockerfile,
+vendor/qmd-0.3.2/Cargo.toml, vendor/qmd-0.3.2/Cargo.toml.orig,
+wiki/plans/cross-platform-release-e2e-harness.plan.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-26] update | release E2E Linux container lane
+
+Extended the release E2E harness with the first Stage 3 Linux/container slice.
+The runner now has a `linux` lane that reuses the same no-model product story
+as the host `search` lane, but runs each command through Docker with the Linux
+artifact mounted at `/artifact/llm-wiki`, an isolated HOME mounted at
+`/home/e2e`, and the scratch project/build directory mounted at `/work/run`.
+Reports now include execution metadata (`kind`, `proof_kind`, Docker image,
+platform, network, and architecture-native status) so native Linux containers,
+architecture-native virtualized containers, and emulated packaging smoke are
+labeled distinctly. The lane refuses non-ELF artifacts before starting Docker,
+which prevents the host macOS debug binary from being misreported as Linux
+proof.
+
+Added `release-e2e-linux`, `release-e2e-linux-skip-infra`,
+`release-e2e-linux-infra-up`, and `release-e2e-linux-infra-down` just recipes.
+Added `infra/release-e2e/` as a minimal Pulumi stack that creates a
+stack-specific internal Docker network and exports the image/platform/mount
+profile for the runner. Docker is available locally, but the actual Linux lane
+was not completed end-to-end because `dist build --artifacts=local --target
+aarch64-unknown-linux-gnu` requires missing `cargo-zigbuild`.
+
+Verification: `cargo fmt --manifest-path tools/release-e2e/Cargo.toml
+--check`; `cargo check --manifest-path tools/release-e2e/Cargo.toml`; `cargo
+test --manifest-path tools/release-e2e/Cargo.toml`; `cargo run --manifest-path
+tools/release-e2e/Cargo.toml -- linux --help`; `just release-e2e smoke`; `just
+release-e2e search`; `docker ps`; expected guard failure for `cargo run
+--manifest-path tools/release-e2e/Cargo.toml -- linux --artifact
+target/debug/llm-wiki`; expected artifact-build blocker from `dist build
+--artifacts=local --target aarch64-unknown-linux-gnu`.
+
+Pages affected: justfile, infra/release-e2e/Pulumi.yaml,
+infra/release-e2e/Pulumi.e2e.yaml, infra/release-e2e/package.json,
+infra/release-e2e/tsconfig.json, infra/release-e2e/index.ts,
+tools/release-e2e/src/main.rs,
+wiki/plans/cross-platform-release-e2e-harness.plan.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-26] update | release E2E no-model search lane
+
+Extended the cross-platform release E2E harness with a Stage 2 local no-model
+`search` lane. The lane runs the supplied `llm-wiki` artifact through 19
+black-box commands from an isolated HOME/XDG environment and a scratch project
+path containing a space. It verifies disabled no-model install, managed binary
+execution, stable second install, path/status/doctor output, build output,
+init/register/projects JSON, qmd-rs lexical index/search/search-all,
+semantic/hybrid fail-closed JSON with `llm_search_disabled`, forget
+`--delete-cache`, empty registry after forget, and uninstall cleanup. The report
+records every command status and stdout/stderr path plus 60 filesystem/JSON
+assertions under `target/release-e2e/search/`.
+
+Verification: `cargo fmt --manifest-path tools/release-e2e/Cargo.toml`;
+`cargo check --manifest-path tools/release-e2e/Cargo.toml`; `cargo test
+--manifest-path tools/release-e2e/Cargo.toml`; `just release-e2e smoke`;
+`just release-e2e search`; `just release-plan`; `cargo test --workspace`;
+`git diff --check`.
+
+Pages affected: tools/release-e2e/src/main.rs,
+wiki/plans/cross-platform-release-e2e-harness.plan.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-26] update | release E2E runner Stage 1 skeleton
+
+Implemented the first Stage 1 slice of the cross-platform release E2E harness.
+The repo now exposes an independent helper tool crate, `llm-wiki-release-e2e`,
+under `tools/release-e2e/`. Its initial `smoke` lane accepts a supplied
+`llm-wiki` artifact, optional checksum, target triple, output directory, and
+debug/lifecycle flags; invokes the artifact through the platform shell with an
+isolated `HOME`; runs `--version`; and writes `report.json`, `junit.xml`,
+`state-manifest.json`, stdout logs, and stderr logs under
+`target/release-e2e/smoke/`. Added `just release-e2e smoke` and
+`just release-e2e-skip-infra smoke`, recorded the passing local smoke against
+`target/debug/llm-wiki`, and kept the helper out of the product package so
+default release archives do not ship the harness binary. Verification with
+`just release-plan` confirmed each release archive still lists only `[bin]
+llm-wiki`.
+
+Verification: `cargo fmt --check`; `cargo fmt --manifest-path
+tools/release-e2e/Cargo.toml --check`; `cargo test --workspace`; `cargo test
+--manifest-path tools/release-e2e/Cargo.toml`; `cargo check --manifest-path
+tools/release-e2e/Cargo.toml`; `just release-e2e smoke`; `just
+release-e2e-skip-infra smoke`; `just release-plan`; `git diff --check`.
+
+Pages affected: justfile, tools/release-e2e/.gitignore,
+tools/release-e2e/Cargo.lock, tools/release-e2e/Cargo.toml,
+tools/release-e2e/src/main.rs,
+wiki/plans/cross-platform-release-e2e-harness.plan.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-26] update | review follow-up for managed GGUF proof and CQRS sourcing
+
+Fixed review findings on the GGUF runtime and release-E2E planning work. The
+ignored GGUF CPU smoke now clears deterministic and runtime-failure test-hook
+environment variables before proving real GGUF execution. The CQRS
+Pulumi/test-runner precedent is captured under
+`raw/research/2026-05-26-cqrs-release-e2e-source-capture/` with copied source
+snapshots and SHA-256 hashes, and the wiki plan and proposal now cite that raw
+bundle instead of external absolute paths. The previously stale managed binary
+at `~/.llm_wiki/bin/llm-wiki` was refreshed via the non-interactive LLM-search
+install path, verified byte-identical to the current build, reindexed under
+forced CPU, and then proved through managed auto and forced-CPU hybrid searches
+returning the project-update page first with parseable JSON. Updated the wiki
+index date to 2026-05-26.
+
+Pages affected: tests/gguf_cpu_smoke.rs,
+raw/research/2026-05-26-cqrs-release-e2e-source-capture/manifest.md,
+raw/research/2026-05-26-cqrs-release-e2e-source-capture/research-summary.md,
+wiki/plans/cross-platform-release-e2e-harness.plan.md,
+wiki/proposals/full-windows-support.proposal.md,
+wiki/plans/gguf-runtime-portability.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-26] update | associate release E2E plan with Windows proposal
+
+Made the cross-platform release E2E harness plan explicitly associated with
+the Windows support proposal. The proposal now has an Associated Tactical Plan
+section, the plan metadata names the parent proposal, and the index summary
+calls out the relationship.
+
+Pages affected: wiki/plans/cross-platform-release-e2e-harness.plan.md,
+wiki/proposals/full-windows-support.proposal.md, wiki/index.md, wiki/log.md
+
+## [2026-05-25] create | cross-platform release E2E harness plan
+
+Created a CQRS-informed tactical plan for cross-platform release E2E. The plan
+keeps the useful Pulumi/Docker pattern for Linux/container lanes while making
+host/VM/CI runners the required proof for macOS and Windows support claims. It
+specifies a Rust release-E2E runner, profile and required-key validation,
+isolated homes, checksum-verified artifact acquisition, command/file
+verification, JUnit/report output, no-download readiness checks, and a separate
+real-model GGUF CPU lane. Updated the Windows proposal and GGUF portability
+plan to point at this harness and to avoid overstating what Docker proves.
+
+Pages affected: wiki/plans/cross-platform-release-e2e-harness.plan.md,
+wiki/proposals/full-windows-support.proposal.md,
+wiki/plans/gguf-runtime-portability.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-25] update | GGUF runtime Stage 4 local CPU proof
+
+Added the Stage 4 tiny-fixture GGUF CPU smoke proof. The new ignored
+`tests/gguf_cpu_smoke.rs` integration test creates a temporary wiki project,
+reuses existing managed GGUF artifact records by absolute path without
+downloading or mutating the real managed home, forces
+`LLM_WIKI_GGUF_RUNTIME=cpu`, indexes only the small fixture, and verifies
+semantic, hybrid, and `search-all` hybrid JSON all return the project-update
+fixture page first with CPU runtime metadata. Local macOS arm64 dogfood also
+refreshed the full repository index under forced CPU and verified semantic,
+hybrid, and `search-all` against the current repo. Linux and Windows CPU proof
+remain pending.
+
+Pages affected: wiki/plans/gguf-runtime-portability.plan.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-25] update | GGUF runtime doctor probe hardening
+
+Hardened the smoke-probe follow-up after review. `doctor` now verifies that
+artifact records point to existing files and that each file's SHA-256 still
+matches the recorded observed hash before invoking the current GGUF runtime
+probe. Missing, inaccessible, unreadable, or hash-mismatched files now produce a
+skipped current-probe diagnostic rather than reaching llama.cpp. Unit tests that
+set `LLM_WIKI_TEST_GGUF_RUNTIME_PROBE` now use a shared crate-level env guard
+to avoid parallel test races.
+
+Pages affected: wiki/plans/gguf-runtime-smoke-probes.plan.md, wiki/log.md
+
+## [2026-05-25] update | GGUF runtime smoke probe review follow-up
+
+Fixed review findings in the completed smoke-probe slice. Failed required
+runtime probes now disable any previously enabled LLM search profile with a
+runtime-probe failure reason. The fake model-download environment hook was
+removed from production paths, runtime probe messages truncate safely on
+character boundaries, probe records now mark required versus advisory roles,
+install and doctor share probe-target selection, and probe staleness uses
+Cargo's real target triple. Post-review isolated dogfood at
+`/private/tmp/llmwiki-probe-review.Pg1H7U` verified forced-CPU install probes,
+target-triple and required-role records, forced-CPU index/search/search-all,
+and the previously-enabled-config failure case disabling `search.toml`.
+
+Pages affected: wiki/plans/gguf-runtime-smoke-probes.plan.md, wiki/log.md
+
+## [2026-05-25] update | GGUF runtime smoke probes dogfood
+
+Closed the dedicated smoke-probe plan after an isolated real managed-model
+dogfood run. The run used copied managed GGUF artifacts under
+`/private/tmp/llmwiki-probe-dogfood.Z4VvGN`, forced CPU runtime for clean
+install/doctor/index/search proof, and verified enabled-search install probe
+ordering, recorded probe metadata, doctor current probes, fresh qmd-rs and
+semantic indexes, hybrid search, semantic search, and search-all returning the
+project-update proposal first. Auto mode also succeeded by falling back to CPU,
+but still emitted llama.cpp Metal failure logs on stderr before fallback; that
+is recorded as parent portability diagnostics work rather than a smoke-probe
+blocker.
+
+Pages affected: wiki/plans/gguf-runtime-smoke-probes.plan.md,
+wiki/plans/gguf-runtime-portability.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-25] update | GGUF runtime smoke probes implementation
+
+Implemented the Stage 3 GGUF runtime smoke-probe code path. The runtime probe
+module now owns versioned probe records, stale checks, deterministic test
+hooks, and embedding/query-expansion/rerank probe execution. Enabled-search
+install records licenses before materialization, artifacts after
+materialization, then writes probe records before enabling `search.toml`.
+Failed required probes leave reusable license/artifact state but do not promote
+LLM search. `doctor` reports last and current runtime probe status, and
+search-artifact cleanup removes the probe store.
+
+Pages affected: wiki/plans/gguf-runtime-smoke-probes.plan.md,
+wiki/plans/gguf-runtime-portability.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-25] update | GGUF runtime smoke probe plan review fixes
+
+Aligned the smoke-probe plan with the established install ordering: accepted
+licenses are recorded after consent and before model materialization, artifact
+records follow materialization, and runtime probes run before enabled
+`search.toml` is written. Updated the parent GGUF runtime portability plan to
+link back to the split-out smoke-probes plan and delegate Stage 3 details to it
+to avoid drift.
+
+Pages affected: wiki/plans/gguf-runtime-smoke-probes.plan.md,
+wiki/plans/gguf-runtime-portability.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-25] create | GGUF runtime smoke probes plan
+
+Created a dedicated Stage 3 plan for install and doctor GGUF runtime smoke
+probes. The plan scopes probe records, install gating, doctor reporting,
+forced-CPU diagnostics, deterministic test hooks, no-hidden-download
+constraints, and verification gates separately from the broader runtime
+portability plan.
+
+Pages affected: wiki/plans/gguf-runtime-smoke-probes.plan.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-25] update | search promotion race follow-up fixes
+
+Fixed follow-up review findings from the sandbox-safe cache and GGUF runtime
+work. The project index lock file is no longer unlinked on drop, mixed
+metadata/sqlite completed-store reads during promotion are classified as
+transient, `projects` reports metadata-only publication windows as
+`index-transient`, and forced CPU GGUF runtime failures preserve
+`runtime_backend_requested=cpu` in JSON.
+
+Pages affected: wiki/log.md
+
+## [2026-05-24] update | GGUF runtime CPU fallback implementation
+
+Recorded Stage 2 GGUF runtime portability progress. The runtime boundary now
+supports explicit CPU mode through `LLM_WIKI_GGUF_RUNTIME=cpu`, auto-to-CPU
+fallback after accelerator/context failures, and success-side runtime metadata
+for semantic, hybrid, and rerank paths. qmd 0.3.2 is patched locally under
+`vendor/qmd-0.3.2` to expose runtime options, CPU device selection, and engine
+reload methods. Redirected/headless dogfood now returns the project-update page
+for hybrid auto fallback and forced-CPU semantic search.
+
+Pages affected: wiki/plans/gguf-runtime-portability.plan.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-24] update | GGUF runtime boundary implementation
+
+Implemented the first Stage 0/1 slice of the GGUF runtime portability plan.
+The code now routes qmd embedding, query-expansion, and rerank calls through a
+typed runtime boundary, classifies runtime failures by role/stage/kind, and
+keeps semantic/hybrid runtime failures parseable in JSON command output. The
+real redirected hybrid dogfood failure now emits parseable JSON with
+`runtime_backend_failed`, `query_expansion`, and `context_creation_failed`
+metadata while the raw stderr still shows the underlying Metal command-queue
+failure. The plan remains active because CPU baseline execution and
+install/doctor smoke probes are still pending.
+
+Pages affected: wiki/plans/gguf-runtime-portability.plan.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-24] update | GGUF runtime dogfood evidence
+
+Recorded the post-qmd-metadata-v2 dogfood pass in the GGUF runtime portability
+plan. The current repository reindexed successfully with the real GGUF
+embedding model in a normal terminal, real-model hybrid returned
+`wiki/proposals/project-update-command.proposal.md` as the top result for
+`what is project update`, and a redirected stdout/stderr run reproduced a Metal
+command-queue failure with no JSON stdout.
+
+Pages affected: wiki/plans/gguf-runtime-portability.plan.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-24] lint | GGUF runtime plan bookkeeping
+
+Corrected the GGUF runtime plan creation log entry so it references the staged
+`wiki/plans/gguf-runtime-portability.plan.md` file instead of the superseded
+combined draft path.
+
+Pages affected: wiki/log.md
+
+## [2026-05-24] update | sandbox-safe search completed-store hardening
+
+Recorded follow-up review hardening for sandbox-safe qmd-rs cache reads:
+direct backend search now fails closed on non-searchable status, completed-store
+proof now compares active sqlite `(path, hash)` rows against metadata, and
+project cache size reporting distinguishes unavailable size from an empty cache.
+
+Pages affected: wiki/plans/sandbox-safe-search-cache-reads.plan.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-24] update | GGUF runtime portability plan review revision
+
+Revised the draft GGUF runtime plan after review. The plan is now scoped to
+runtime portability, typed runtime failures, CPU baseline probing, and
+install/doctor smoke checks. Hybrid-quality work is no longer a committed
+implementation track; it is gated on reproducing the deterministic dogfood miss
+under the real GGUF runtime, and schema-breaking page-level embeddings were
+removed from the plan scope.
+
+Pages affected: wiki/plans/gguf-runtime-portability.plan.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-24] create | GGUF runtime portability plan
+
+Created the initial draft execution plan for making GGUF-backed semantic/hybrid
+search portable through a CPU-safe runtime baseline, typed runtime readiness,
+install/doctor smoke probes, accelerator fallback reporting, and real-model
+triage before committing to any hybrid-quality redesign.
+
+Pages affected: wiki/plans/gguf-runtime-portability.plan.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-24] update | sandbox-safe search registry directory permissions
+
+Addressed review feedback on unreadable project cache directories. Registry
+project status now uses permission-preserving existence checks for selected
+qmd-rs store paths, routes unreadable cache directories through backend status
+labels as `index-permission-denied`, and treats permission errors during cache
+size collection as size-unavailable instead of failing `projects --format json`.
+
+Pages updated: wiki/plans/sandbox-safe-search-cache-reads.plan.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-23] update | sandbox-safe search cache plan review fixes
+
+Incorporated review findings into the sandbox-safe search cache reads plan.
+The plan now requires parseable single-project JSON readiness/status envelopes
+on cache access failures, project-aware qmd-rs status/search APIs for metadata
+project validation, explicit semantic/hybrid status-path handling,
+permission-preserving path checks instead of lossy existence checks, and a
+strict candidate-proof mode that treats transient or incomplete temp stores as
+fatal before promotion.
+
+Pages affected: wiki/plans/sandbox-safe-search-cache-reads.plan.md,
+wiki/log.md
+
+## [2026-05-23] update | sandbox-safe search cache dogfood evidence
+
+Recorded the local post-plan reproduction evidence in the sandbox-safe search
+cache reads plan. A fresh `llm-wiki index --force` completed for the current
+framework project, but immediate lexical search still returned forced-reindex
+guidance, `doctor` reported the qmd-rs FTS index as corrupt while semantic
+metadata/vectors existed, and `projects --format json` classified several
+registered stores as `index-unusable` with `qmd-rs store could not be opened`.
+
+Pages affected: wiki/plans/sandbox-safe-search-cache-reads.plan.md,
+wiki/log.md
+
+## [2026-05-23] promote | sandbox-safe search cache reads plan
+
+Promoted the sandbox-safe search cache reads proposal to an active
+implementation plan and added post-V1 P2 roadmap tracking. The plan chooses an
+adapter-owned immutable SQLite read path for completed qmd-rs stores as the
+first implementation path, keeps qmd-rs as the writer/indexer, requires
+writer-side completed-store proof before live promotion, threads
+`transient` and `permission_denied` states through search/doctor/registry
+consumers, and defines JSON/verbose observability and parity-test coverage.
+
+Pages affected: wiki/plans/sandbox-safe-search-cache-reads.plan.md,
+wiki/proposals/sandbox-safe-search-cache-reads.proposal.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
+
+## [2026-05-23] update | sandbox-safe search cache completed-store gates
+
+Incorporated review feedback on completed-store proof and publication
+semantics into the sandbox-safe search cache reads proposal. The proposal now
+requires writer-side checkpoint or immutable-read verification before live
+promotion, defines a completed store as a matching sqlite+metadata unit,
+requires metadata-first readiness checks where possible, treats promotion races
+as completed old/new stores or retryable transient states, specifies
+`search-all --format json` per-project access reporting, and places `open_mode`
+in backend-status metadata.
+
+Pages affected: wiki/proposals/sandbox-safe-search-cache-reads.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-23] update | sandbox-safe search cache mechanism preference
+
+Updated the sandbox-safe search cache reads proposal after follow-up review.
+The proposal now explicitly rejects a read-write to immutable cascade for
+ordinary read commands, names a narrow qmd-rs immutable read-only constructor
+as the preferred mechanism if cheap enough to land, keeps adapter-owned SQL as
+the pragmatic fallback with parity tests, and clarifies that fresh immutable
+completed-store reads should expose their open mode without being marked
+degraded solely because they are read-only.
+
+Pages affected: wiki/proposals/sandbox-safe-search-cache-reads.proposal.md,
+wiki/log.md
+
+## [2026-05-23] update | sandbox-safe search cache read-path architecture
+
+Tightened the sandbox-safe search cache reads proposal to make immutable reads
+the normal completed-store query and status path, not a fallback after a
+writable qmd-rs open fails. The proposal now requires search behavior,
+ranking, readiness labels, and diagnostics to be permission-independent across
+writable and non-writable cache environments, and requires parity tests for any
+adapter-owned SQL read path.
+
+Pages affected: wiki/proposals/sandbox-safe-search-cache-reads.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-23] update | sandbox-safe search cache reads review fixes
+
+Incorporated review feedback into the sandbox-safe search cache reads proposal.
+The proposal now treats SQLite `mode=ro&immutable=1` as a core requirement for
+completed qmd-rs store reads, records why plain `mode=ro` is insufficient for
+WAL-backed stores on read-only media, documents the uncheckpointed-WAL tradeoff
+and atomic-promotion dependency, and requires permission-denied states to bypass
+forced-reindex guidance across search, doctor, registry status, and freshness
+labels.
+
+Pages affected: wiki/proposals/sandbox-safe-search-cache-reads.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-23] create | sandbox-safe search cache reads proposal
+
+Created a separate proposal for sandbox-safe read access to managed qmd-rs
+search caches. The proposal keeps cache writes owned by `index`, `index-all`,
+and future `update --reindex`, while requiring read-only commands such as
+`search`, `search-all`, `doctor`, and registry status checks to inspect
+existing `~/.llm_wiki` stores without write permission and without
+misclassifying permission failures as corruption.
+
+Pages affected: wiki/proposals/sandbox-safe-search-cache-reads.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-23] complete | non-interactive LLM search install
+
+Implemented the non-interactive LLM search install plan. The install command
+now supports explicit scripted enabled-search posture with
+`--non-interactive --enable-llm-search --profile balanced`,
+`--confirm-model-downloads`, and `--accept-profile-licenses`; it runs an early
+no-write preflight before managed install/search state mutation, keeps
+download and license consent as separate runtime gates, accepts redundant
+`--configure-search` beside explicit posture, and records verbose diagnostics
+for posture, profile, artifact, license, skipped-prompt, and refusal decisions.
+The package version was bumped from `0.2.0` to `0.2.1`, init snapshots were
+refreshed, and the managed-binary proof showed the installed binary moved from
+`llm-wiki 0.2.0` to `llm-wiki 0.2.1` while reusing verified search model
+artifacts.
+
+Pages affected: wiki/plans/noninteractive-llm-search-install.plan.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-23] promote | non-interactive LLM search install plan
+
+Promoted the non-interactive LLM search install proposal to an active
+implementation plan. The plan breaks the work into CLI validation, early
+no-write preflight, runtime confirmation validation, install-flow integration,
+observability, tests/fixtures, documentation, and one-off version-proof phases.
+It preserves install-owned model materialization and requires missing runtime
+confirmations to fail before any managed install/search state is mutated.
+
+Pages affected: wiki/plans/noninteractive-llm-search-install.plan.md,
+wiki/proposals/noninteractive-llm-search-install.proposal.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-23] update | non-interactive install proposal fail-closed review
+
+Tightened the non-interactive LLM search install proposal after a second
+review. The proposal now distinguishes the recommended full automation command
+from the minimum runtime-state-specific flags, requires missing runtime
+confirmation failures to occur before any managed install/search state is
+mutated, expands the test matrix to cover stale licenses, missing artifacts,
+hash mismatches, extra consent flags, and no-write refusals, and adds explicit
+observability requirements tied to the active CLI observability checklist.
+
+Pages affected: wiki/proposals/noninteractive-llm-search-install.proposal.md,
+wiki/log.md
+
+## [2026-05-23] update | non-interactive install proposal review fixes
+
+Revised the non-interactive LLM search install proposal after review. The
+canonical scripted command now starts with `--non-interactive` and uses
+expressive consent flags:
+`--confirm-model-downloads` and `--accept-profile-licenses`. The proposal now
+distinguishes static clap validation from state-dependent runtime validation,
+defines the relationship with `--configure-search`, states that enabled
+non-interactive install writes the same `[project_default]` and
+`[global_search]` config as the interactive path, and treats the one-off
+version bump as implementation-proof evidence.
+
+Pages affected: wiki/proposals/noninteractive-llm-search-install.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-23] create | non-interactive LLM search install proposal
+
+Created a proposal for explicit non-interactive LLM search installation. The
+proposed command is
+`llm-wiki install --enable-llm-search --profile balanced --yes --accept-all-licenses`.
+The proposal keeps model materialization and license acceptance install-owned,
+preserves the lexical-only `--disable-llm-search` automation path, requires
+`--force` for hash-mismatch replacement, and records version bumping only as a
+one-off implementation proof signal.
+
+Pages affected: wiki/proposals/noninteractive-llm-search-install.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-23] update | wiki-query search-first retrieval
+
+Accepted search-first retrieval for `wiki-query`. The canonical skill now reads
+`wiki/index.md` for orientation and then attempts
+`llm-wiki search --mode auto --format json` for every registered-project query.
+Search metadata must be inspected before trusting results, snippets remain
+navigation aids only, returned wiki pages must be read directly before
+answering, and unregistered/stale/unready/unhelpful search falls back to
+index-based navigation.
+
+Recorded the durable rationale in a decision, updated the active query and
+documentation specs, and refreshed qmd-rs guidance in the base project
+guidelines template so generated projects dogfood search by default.
+
+Pages affected: assets/skills/wiki-query/SKILL.md,
+wiki/decisions/wiki-query-search-first.decision.md,
+wiki/specs/wiki-query-skill.spec.md, wiki/specs/documentation-model.spec.md,
+wiki/decisions/semantic-hybrid-search-mode.decision.md,
+templates/base/project_guidelines.md,
+templates/packs/qmd-rs-scale/project_guidelines.md,
+wiki/plans/semantic-hybrid-search.plan.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
+
+## [2026-05-14] update | idempotent search model install implementation
+
+Implemented the idempotent search model install plan. Added managed model
+artifact classification, explicit reused/downloaded materialization outcomes,
+enabled-search install planning, license-only prompting for verified artifacts
+with stale acceptance records, missing-only downloads, force-scoped corrupt
+artifact replacement, disabled-search license invalidation, and explicit
+cleanup guidance when model or semantic index artifacts remain.
+
+Added `llm-wiki uninstall --search-artifacts` for targeted model/search
+artifact cleanup with an enabled-search refusal unless `--force` is supplied.
+Full `llm-wiki uninstall` now removes global framework-owned registry, search
+config, accepted licenses, model artifacts, managed indexes, thresholds,
+backups, and legacy cache state while preserving project-local repositories and
+project-local `.llm_wiki/` folders.
+
+Verification: `cargo fmt --check`; `cargo test search_models --workspace`;
+`cargo test install::tests --workspace`; `cargo test --test install`;
+`cargo clippy --all-targets --all-features -- -D warnings`; `git diff
+--check`; `cargo test --workspace`.
+
+Pages affected: src/search_models.rs, src/install.rs, src/uninstall.rs,
+src/cli.rs, src/main.rs, tests/install.rs,
+wiki/plans/idempotent-search-model-install.plan.md,
+wiki/references/llm-search-model-licensing.reference.md,
+wiki/plans/project-registry-search-artifacts.plan.md,
+wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-11] update | eval mode applicability and C3/C9 calibration blockers
+
+Continued the natural-language search eval improvement path after the C10
+no-match split fix. Added an `Applies` column to
+`wiki/evals/natural-language-search.eval.md` so individual rows can opt out of
+irrelevant modes. C1 now applies to lexical, hybrid, and auto only because it
+is a paper-trail query in this framework wiki, not a pure semantic
+battery-domain query. Expanded C5's expected targets to include
+`wiki/proposals/search-query-interpretation.proposal.md` and
+`wiki/specs/wiki-query-skill.spec.md`, which the real-model run showed are
+valid answers for the scale/question-answering prompt.
+
+Tightened `llm-wiki eval calibrate` so non-applicable modes are skipped during
+floor derivation and failed low-rank expected hits are not treated as valid
+threshold evidence. Added per-mode min-expected / max-no-match diagnostics to
+the calibration JSON/text report. Also fixed the future threshold application
+constructor so calibrated semantic and hybrid pre-fusion floors preserve the
+seeded final hybrid gate, semantic-only gate, strong lexical gate, reranker
+gate, and exact-identifier guard instead of zeroing them.
+
+Reran the balanced real-model eval into
+`target/evals/20260511-mode-applicability-c5-balanced/`. Report
+`eval-run.json` measured lexical 14 pass / 12 fail / 4 not applicable,
+semantic 24 / 5 / 1, hybrid 22 / 8, and auto 22 / 8. Calibration report
+`eval-calibration.json` is still non-promotable with status
+`blocked_missing_expected_targets`: C1 and C5 are resolved, but C3 and C9 miss
+the required hybrid top 5. C3's expected decision target is semantic rank 1
+but hybrid rank 6; C9's expected wiki-init spec target is semantic rank 1 but
+below hybrid top 5. C10 remains the calibration no-match sentinel and still
+returns candidates, so no thresholds were applied.
+
+Documented the findings in the eval page, updated the semantic/hybrid plan,
+updated the index summaries, and documented the optional eval `Applies` column
+in README. Next work is C3/C9 hybrid ranking, then no-match relevance tuning
+for C10/H9/H11/H20, with an explicit note that hybrid calibration must
+distinguish fused scores from semantic branch scores before any hybrid
+pre-fusion floor is promoted.
+
+Verification: `cargo fmt --check`; `cargo test --bin llm-wiki eval::`;
+`cargo test --bin llm-wiki search_models::`; `cargo test --test
+eval_commands`; `cargo test --test natural_language_search_eval`; real-model
+`cargo run -- eval run`; real-model `cargo run -- eval calibrate`;
+`cargo test --workspace`; `cargo clippy --workspace --all-targets
+--all-features -- -D warnings -D dead_code`; `git diff --check`.
+
+Pages updated: README.md, src/eval.rs, src/search_models.rs,
+tests/natural_language_search_eval.rs,
+wiki/evals/natural-language-search.eval.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-11] update | real eval calibration rerun and C10 no-match coverage
+
+Ran the real-model `llm-wiki eval run` / `eval calibrate` path against the
+balanced profile to establish a baseline before changing the eval split.
+Baseline report `target/evals/20260511T184522Z-53329/eval-run.json` measured
+lexical at 14 pass / 12 fail / 4 not applicable, semantic at 23 / 7, and
+hybrid/auto at 21 / 9. Calibration report
+`target/evals/20260511T184522Z-53329/eval-calibration.json` proposed
+`semantic_similarity_floor = 0.328` and
+`hybrid_pre_fusion_semantic_floor = 0.020`, but was
+`blocked_no_calibration_no_match` because the calibration split had zero
+no-match rows.
+
+Updated `wiki/evals/natural-language-search.eval.md` so C10 is now the
+calibration no-match sentinel and H10 now holds the displaced agent-ownership
+expected-match query. Updated
+`tests/natural_language_search_eval.rs` so the Rust table guard expects
+no-match IDs `C10`, `H9`, `H11`, and `H20`. Rebuilt the local wiki index with
+`cargo run -- index --project llm-wiki-framework-semantic-search --force`.
+
+Reran the full real-model eval into
+`target/evals/20260511-c10-no-match-balanced/`. The second report kept the
+same aggregate counts (lexical 14 / 12 / 4, semantic 23 / 7, hybrid/auto
+21 / 9), but calibration now sees 9 expected calibration rows and 1
+calibration no-match row. The proposal remains non-promotable with status
+`blocked_missing_expected_targets` because C1 and C5 still miss required
+semantic evidence. C10 also exposes the no-match weakness directly in
+calibration: semantic and hybrid/auto still return qmd-rs/search-backend pages
+for the unrelated PostgreSQL query. No `--apply` was run; thresholds remain
+seeded.
+
+Documented the before/after reports, blockers, no-apply decision, and tool UX
+findings in the eval page. Updated the semantic/hybrid plan and index so the
+next work is clear: C-split no-match coverage is fixed, but threshold
+promotion is still blocked by C1/C5 and no-match relevance behavior.
+
+Verification: `cargo fmt --check`; `cargo test --test
+natural_language_search_eval`; `cargo test --test eval_commands`;
+`cargo test --bin llm-wiki eval::`; `cargo test --workspace`; `git diff
+--check`.
+
+Pages updated: tests/natural_language_search_eval.rs,
+wiki/evals/natural-language-search.eval.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-11] update | implement model-aware eval subcommands
+
+Implemented the first `llm-wiki eval` command surface. `eval run` parses eval
+markdown tables, evaluates lexical/semantic/hybrid/auto for one or more
+candidate model/profile bundles, records model IDs, repository revisions,
+artifact hashes, sizes, dimensions, accepted-license state, source
+fingerprints, vector counts, per-query outcomes, and JSON/markdown reports
+under `target/evals/<run-id>/` by default. Candidate semantic metadata and
+vectors are written under the eval output directory, not the production managed
+index, and missing artifacts or licenses are readiness failures rather than
+download side effects.
+
+Added `eval calibrate` to consume an eval run report or run measurement inline,
+derive candidate-specific floor proposals from Calibration rows only, report
+blocked proposals when no feasible threshold exists or when the calibration
+split has no no-match coverage, and require explicit `--apply` /
+`--apply-profile` gates before writing thresholds. The current natural-language
+eval still blocks threshold promotion until calibration no-match coverage is
+added or explicitly handled.
+
+Verification: `cargo fmt --check`; `cargo check`; `cargo test --test
+eval_commands`; `cargo test --bin llm-wiki eval::`; `cargo test --test
+natural_language_search_eval`; `cargo test --workspace`; `cargo clippy
+--workspace --all-targets --all-features -- -D warnings -D dead_code`;
+`cargo insta test --workspace --check`; `just audit-legacy`; `git diff
+--check`.
+
+Pages updated: README.md, src/cli.rs, src/eval.rs, src/main.rs,
+src/search/commands.rs, src/search_models.rs, tests/eval_commands.rs,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-11] update | model-aware search eval calibration scope
+
+Refined `wiki/plans/semantic-hybrid-search.plan.md` so Stage 7 treats model
+and profile bundles as first-class eval candidates. The plan now splits
+measurement from tuning with `llm-wiki eval run` and `llm-wiki eval
+calibrate`, records exact model IDs, revisions, artifact hashes, dimensions,
+license state, source fingerprints, candidate indexes, latency, disk cost, and
+pass/fail changes, and requires explicit `--apply-profile` when accepting a
+candidate that is not the active project profile.
+
+This preserves the current scope boundary: the tool can compare and calibrate
+different verified models, but it does not silently download models, mutate
+production state, or auto-tune as a side effect of search/index/wiki-query.
+Updated the plan summary and index entry so the multi-model tuning requirement
+is visible outside the detailed Stage 7 section.
+
+Pages updated: wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-11] update | scope eval calibrate subcommand in plan
+
+Added `Stage 7 - Eval Calibration Subcommand` to
+`wiki/plans/semantic-hybrid-search.plan.md`. Stage 7 scopes
+`llm-wiki eval calibrate`: a subcommand that parses the eval markdown's
+query table, runs each query with the relevance floor lowered to zero,
+collects per-(query, doc) semantic and hybrid pre-fusion scores, derives
+proposed floors from the C-split only, and reports the proposal. Explicit
+`--apply` rotates the threshold file aside and writes the proposed values;
+explicit `--record` appends an `Observed Runs` entry. Without either flag,
+calibration is a dry run.
+
+Calibration is intentionally non-automatic. Re-tuning on every run would
+Goodhart the eval gate against C1-C10 and weaken H1-H20 as a regression
+check, so `--apply` is a human-confirmed step per run. Updated `In Scope`,
+`Pages To Update On Completion`, and `What Closes The Plan` to require at
+least one accepted calibrated run before plan closure.
+
+Pages updated: wiki/plans/semantic-hybrid-search.plan.md, wiki/log.md
+
+## [2026-05-11] update | rust natural-language search eval run
+
+Added `tests/natural_language_search_eval.rs` so the natural-language search
+suite lives inside the Rust project. The default test validates the 30-query
+wiki table without loading models; the ignored test runs lexical, semantic,
+hybrid, and auto modes against the managed `~/.llm_wiki` GGUF artifacts and
+writes `target/evals/natural-language-search-results.json` plus
+`target/evals/natural-language-search-summary.md`.
+
+Ran the ignored harness against the local semantic index. The run confirmed
+clean JSON stdout and `auto -> hybrid` selection for all 30 queries, with
+lexical at 16/26 applicable passes, semantic at 25/30, and hybrid/auto at
+23/30. The observed failures keep the seeded threshold table from being
+promoted: C5, C9, H9, H10, H11, H12, and H20 still fail hybrid/auto.
+
+Implementation fixes from the run: pinned the model catalog to observed
+upstream revisions and hashes, made semantic chunk spans UTF-8 boundary safe,
+and changed hybrid query expansion to retain the raw query before adding
+expansion variants.
+
+Verification: `cargo test --test natural_language_search_eval`;
+`cargo test --test natural_language_search_eval -- --ignored --nocapture`.
+
+Pages updated: src/search_models.rs, src/search/semantic.rs,
+src/search/commands.rs, tests/search_commands.rs,
+tests/natural_language_search_eval.rs,
+wiki/evals/natural-language-search.eval.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-11] update | semantic/hybrid thresholds adopt seeded defaults
+
+Replaced the `TBD` row in `wiki/evals/natural-language-search.eval.md` with
+seeded runtime thresholds so the semantic/hybrid pipeline can execute
+end-to-end and produce the first observed eval results: semantic floor 0.35,
+hybrid pre-fusion floor 0.35, reranker floor 0.50, exact-identifier guard
+`preserve_lexical_top_3`. The eval now distinguishes seeded from calibrated
+values and pins promotion to seeded->calibrated to a recorded 30-query run
+plus human confirmation.
+
+This adopts the simpler approach of running the full implementation against
+sane defaults and recording observed results, instead of blocking
+implementation behind an offline calibration. Mismatched
+`~/.llm_wiki/search-thresholds.toml` metadata keeps the fail-closed
+behavior; only matching metadata enables runtime execution.
+
+Pages updated: wiki/evals/natural-language-search.eval.md, wiki/log.md
+
+## [2026-05-11] update | project search profile seeding
+
+Continued Stage 1 by seeding project-local search state during `llm-wiki init`
+when a global `~/.llm_wiki/search.toml` exists. The new project
+`.llm_wiki/search.toml` copies the global `[project_default]` profile into a
+project `[project]` profile, records `source = "project_default"`, and carries
+the install hash/ID from `.llm_wiki/runtime.toml`. Legacy projects or installs
+without a global search profile still get no project search profile, preserving
+the profile-missing lexical path for later mode resolution.
+
+Verification: `cargo fmt`; `cargo test --test init`; `git diff --check`.
+
+Pages updated: src/search_profile.rs, src/init/scaffold.rs, tests/init.rs,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/log.md
+
+## [2026-05-11] update | project runtime manifest breadcrumb
+
+Continued Stage 1 by adding project-local runtime breadcrumbs during
+`llm-wiki init`. Generated projects now get `.llm_wiki/runtime.toml` beside
+`init.toml`, recording the framework version, managed runtime home, managed
+binary path, install manifest path, install state, and install SHA-256 ID/hash
+when a completed managed install exists. Updated init snapshots to include the
+new runtime manifest file and added an integration test that installs into a
+redirected `HOME`, initializes a project, and asserts the project records the
+managed install metadata.
+
+Verification: `cargo fmt`; `INSTA_UPDATE=always cargo insta test --test init`;
+`cargo test --test init`; `git diff --check`.
+
+Pages updated: src/init/mod.rs, src/init/runtime.rs, src/init/scaffold.rs,
+tests/init.rs, tests/snapshots/init__init_*.snap,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/log.md
+
+## [2026-05-11] update | semantic hybrid Stage 1 install profile slice
+
+Implemented the first Stage 1 runtime-state slice for semantic/hybrid search.
+`llm-wiki install` now accepts `--configure-search` and
+`--disable-llm-search`; the declined path writes disabled
+`[project_default]` and `[global_search]` records to
+`~/.llm_wiki/search.toml` and an empty
+`~/.llm_wiki/external-dependencies.toml`. Added managed path helpers for the
+search profile, external dependency inventory, managed model root, and managed
+index root. `doctor` now reports search-profile and external-dependency state.
+
+Verification: `cargo fmt`; `cargo test --test install`;
+`cargo test --test status_doctor`; `cargo test --workspace`;
+`git diff --check`.
+
+Pages updated: src/cli.rs, src/doctor.rs, src/install.rs, src/main.rs,
+src/paths.rs, src/search_profile.rs, tests/install.rs,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-11] proposal | search model selection (per-project override and global default)
+
+Drafted `wiki/proposals/search-model-selection.proposal.md` (Status: Proposed)
+extending the accepted semantic/hybrid search proposal with a two-scope model
+selection contract. `search --choose-model` administers a per-project override
+in `.llm_wiki/search.toml`; `search-all --choose-model` administers the global
+default in `~/.llm_wiki/search.toml`. Splits the existing schema into
+`[project_default]` (template seeded by `init`), `[global_search]` (used by
+`search-all`), and `[project]` (per-project, read by single-project `search`).
+Adds a non-interactive `--model <id>` sibling that fails fast when the model
+is not installed, preserving the "no silent downloads" gate. Install-on-demand
+inside `--choose-model` delegates to the existing install flow.
+
+Pages created: wiki/proposals/search-model-selection.proposal.md
+Pages updated: wiki/index.md, wiki/log.md
+
+## [2026-05-11] ingest | semantic hybrid Stage 0 artifacts
+
+Created the Stage 0 research bundle and promoted it into two wiki artifacts:
+`wiki/references/llm-search-model-licensing.reference.md` records the accepted
+embedding, query-expansion, and reranker candidates with licenses, terms,
+source-reported hashes, sizes, and qmd-rs resolver implications; and
+`wiki/evals/natural-language-search.eval.md` records the 30-query eval shape,
+10/20 calibration split, draft target labels, candidate threshold inputs,
+fail-closed threshold gate, no-match maintenance, and landed observability
+evidence for `CliContext` plus `search` / `search-all` diagnostics.
+
+Pages created: wiki/references/llm-search-model-licensing.reference.md,
+wiki/evals/natural-language-search.eval.md,
+raw/research/2026-05-11-llm-search-model-licensing/manifest.md,
+raw/research/2026-05-11-llm-search-model-licensing/research-summary.md,
+raw/research/2026-05-11-llm-search-model-licensing/sources/01-qmd-rs-docs.md,
+raw/research/2026-05-11-llm-search-model-licensing/sources/02-embeddinggemma-model.md,
+raw/research/2026-05-11-llm-search-model-licensing/sources/03-qwen3-reranker-model.md,
+raw/research/2026-05-11-llm-search-model-licensing/sources/04-qmd-query-expansion-model.md,
+raw/research/2026-05-11-llm-search-model-licensing/sources/05-observability-implementation.md
+Pages updated: wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-11] update | semantic hybrid plan review fixes
+
+Hardened `wiki/plans/semantic-hybrid-search.plan.md` after plan review. The
+plan now freezes `--allow-lexical-fallback`, adds Stage 0 output artifacts and
+a hard gate before Stage 1, distinguishes missing base install from declined or
+interrupted LLM-search profile state, chooses migration of search stores into
+`~/.llm_wiki/indexes/` with legacy cache cleanup guidance, makes query
+expansion required for baseline hybrid, defines eval labeling and threshold
+requirements, adds mixed-readiness `search-all` result tagging, and ties plan
+closure to the verification gates.
+
+Pages updated: wiki/plans/semantic-hybrid-search.plan.md, wiki/log.md
+
+## [2026-05-11] promote | semantic hybrid search plan
+
+Promoted `wiki/proposals/search-query-interpretation.proposal.md` to Accepted
+and created `wiki/plans/semantic-hybrid-search.plan.md` as the active
+implementation plan. The plan treats CLI verbose diagnostics as completed in a
+separate worktree for sequencing purposes, while keeping semantic/hybrid gates
+explicit: model licensing, natural-language eval shape, threshold methodology,
+interactive install profile state, semantic indexes under `~/.llm_wiki`,
+mode/readiness contracts, hybrid fusion, optional reranking, rank-merged
+`search-all`, and `wiki-query` metadata consumption.
+
+Pages created: wiki/plans/semantic-hybrid-search.plan.md
+Pages updated: wiki/proposals/search-query-interpretation.proposal.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
+
+## [2026-05-11] test | Observability coverage for CLI blueprint
+
+After rebasing the CLI observability branch onto the completed code-pack/CLI
+blueprint work, added explicit `-v init --blueprint cli-tool` coverage. The
+test asserts that init diagnostics report the `cli-tool` blueprint and its
+resolved `code` pack, keeping the new blueprint behavior under the standing
+observability contract.
+
+Pages updated: tests/init.rs, wiki/log.md
+
+## [2026-05-11] update | Observability as core engineering contract
+
+Promoted CLI observability from a completed implementation plan into a standing
+framework contract. `wiki/specs/documentation-model.spec.md` now requires future
+`llm-wiki` command work to preserve the `CliContext` / `tracing` diagnostic
+boundary, keep stdout and JSON clean, preserve exit semantics, and add nearby
+verbose tests. Added `wiki/checklists/observability-contract.checklist.md` as
+the review gate for future CLI plans and code reviews.
+
+Pages updated: wiki/specs/documentation-model.spec.md,
+wiki/checklists/observability-contract.checklist.md, wiki/index.md, wiki/log.md
+
+## [2026-05-11] fix | CLI observability review follow-up
+
+Addressed follow-up review findings for the CLI observability branch. Verbose
+no-result diagnostics now distinguish explicit `--limit 0` requests from
+backend/filter misses, `init` builds one `RenderPlan` and passes it through to
+scaffold creation, and integration test helpers clear inherited `RUST_LOG` so
+CLI stderr assertions stay environment-independent.
+
+Pages updated: src/search/commands.rs, src/init/command.rs,
+src/init/scaffold.rs, tests/build.rs, tests/init.rs, tests/install.rs,
+tests/post_install.rs, tests/properties.rs, tests/registry.rs,
+tests/search_commands.rs, tests/status_doctor.rs, wiki/log.md
+
+## [2026-05-11] propose | Always-on crash reports
+
+Added `wiki/proposals/crash-reports.proposal.md` proposing that every panic
+and every post-parse error-exit of `llm-wiki` writes a report under
+`~/.llm_wiki/crashes/<UTC-nanosecond>-<pid>-<tid>.log` with no opt-in flag.
+The panic path captures a full origin-aware backtrace via
+`std::backtrace::Backtrace::force_capture()` inside a chained panic hook;
+the error-return path carries the `anyhow` error chain (origin-frame
+backtrace for returned errors is deferred to Future Improvements). `main`
+switches to `fn main() -> ExitCode` + `run(&cli) -> Result<()>` so the
+binary owns its own `Error: ...` line plus a trailing `crash report: ...`
+pointer; clap retains ownership of CLI parse errors. Environment dumps are
+gated by a two-layer allowlist plus a `(?i)token|secret|key|password|auth
+|credential` redactor. Retention prunes to 20 files; reports fall back to
+a temp dir when `HOME` is unset.
+
+Deferred: origin backtraces for returned errors, `try_parse` integration
+for clap parse-error reports, crash-file collision retry, embedding the
+verbose diagnostic tail, doctor listing recent reports, and an
+env-configurable retention cap.
+
+Pages updated: wiki/proposals/crash-reports.proposal.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-11] complete | CLI observability full command coverage
+
+Completed Stage 2 of `wiki/plans/cli-observability.plan.md`. The binary now
+emits concise `-v` / `--verbose` diagnostics for every remaining command:
+`build`, `install`, `init`, `register`, `forget`, `projects`, `index`,
+`index-all`, `path`, `status`, `doctor`, and `uninstall`. Diagnostics stay on
+stderr through `CliContext` / `tracing` and cover build targets, install render
+and collision decisions, init blueprint/pack/source inputs, registry mutations,
+index store/lock/promotion facts, and managed home/status/doctor paths.
+
+Updated the proposal implementation check, promoted the plan to Completed,
+recorded the validated CLI diagnostics in the documentation model spec, and
+documented the user-visible verbose surface in README.
+
+Verification: `cargo fmt`; `cargo test --test build --test init --test install
+--test registry --test status_doctor --test search_commands`;
+`cargo test --workspace`; `just verify`; `git diff --check`.
+
+Pages updated: README.md, wiki/plans/cli-observability.plan.md,
+wiki/proposals/cli-observability.proposal.md,
+wiki/specs/documentation-model.spec.md, wiki/index.md, wiki/log.md
+
+## [2026-05-11] update | CLI observability stage 1 review fixes
+
+Addressed Stage 1 review feedback for `wiki/plans/cli-observability.plan.md`.
+No-result explanations now run only when verbose diagnostics are enabled, so
+non-verbose filtered-zero searches do not perform the extra explanatory backend
+query. Added search command tests for empty sanitized queries and filters that
+exclude otherwise matching hits. Tidied the plan verification section so the
+Stage 1 gates remain the contract and the proof block records observed evidence.
+
+Verification: `cargo fmt`; `cargo test --test search_commands`;
+`cargo test --workspace`; `just verify`; `git diff --check`.
+
+Pages updated: wiki/plans/cli-observability.plan.md, wiki/log.md
+
+## [2026-05-11] update | CLI observability stage 1 implemented
+
+Implemented Stage 1 of `wiki/plans/cli-observability.plan.md`. The binary now
+has a global Clap `-v/--verbose` flag that works before and after subcommands,
+threads `CliContext` through every command handler, installs a CLI-owned
+`tracing` / `tracing-subscriber` stderr subscriber, and emits verbose
+diagnostics for `search` and `search-all` covering registry paths, project
+selection, qmd-rs store paths, backend/index state, query normalization,
+filters, per-project counts, fused counts, and no-result explanations.
+
+Verification: `cargo fmt`; `cargo test --test search_commands`;
+`cargo test --workspace`; `just verify`; `git diff --check`.
+
+Pages updated: wiki/plans/cli-observability.plan.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-11] update | CLI observability plan hardened for implementation
+
+Hardened `wiki/plans/cli-observability.plan.md` after review. The plan now
+requires Clap global verbose semantics before and after subcommands, commits to
+`CliContext` and `tracing` / `tracing-subscriber`, threads context through every
+handler in Stage 1, maps verbose facts to their implementation sources, defines
+search no-result explanations, pins deterministic `search-all` diagnostic
+ordering, mirrors TTY/color policy, adds `just verify` to Stage 1 gates, and
+points Stage 2 assertions at existing command test files.
+
+Pages updated: wiki/plans/cli-observability.plan.md, wiki/log.md
+
+## [2026-05-11] promote | CLI observability implementation plan
+
+Promoted `wiki/proposals/cli-observability.proposal.md` to Accepted and created
+`wiki/plans/cli-observability.plan.md`. The plan is Active and pins the
+implementation start point: Stage 1 adds the shared verbose CLI context and
+proves diagnostics with `search` / `search-all`; Stage 2 extends concise
+diagnostics across the remaining binary commands. Updated the index proposal
+status and added the new active plan entry.
+
+Pages created: wiki/plans/cli-observability.plan.md
+Pages updated: wiki/proposals/cli-observability.proposal.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-11] update | CLI observability staged before implementation
+
+Tightened `wiki/proposals/cli-observability.proposal.md` for implementation
+readiness. Added explicit promotion targets, separated conversational
+provenance from code implementation references, and reframed closure as a
+staged plan: Stage 1 proves the shared verbose surface with `search` and
+`search-all`, while Stage 2 extends diagnostics across the remaining command
+set. Updated the index summary to reflect the staged scope.
+
+Pages updated: wiki/proposals/cli-observability.proposal.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-11] update | semantic search proposal promotion review fixes
+
+Applied promotion-review fixes to
+`wiki/proposals/search-query-interpretation.proposal.md`. Resolved the
+`auto`/semantic-index readiness contradiction by making missing or stale
+semantic indexes hard errors with `llm-wiki index` guidance, updated JSON reason
+taxonomy to distinguish zero-result outcomes from readiness failures, promoted
+threshold methodology to a decision precondition, documented partial install
+recovery and Time Machine exclusion timing, named the audience for
+`--allow-lexical-fallback`, rejected query-shape routing in `auto`, and split
+pre-promotion gates from post-promotion implementation work.
+
+Pages updated: wiki/proposals/search-query-interpretation.proposal.md,
+wiki/log.md
+
+## [2026-05-11] update | interactive install prerequisite made explicit
+
+Tightened `wiki/proposals/search-query-interpretation.proposal.md` so
+interactive-only install is a decision precondition, not just an implementation
+task. The proposal now requires retiring or explicitly superseding Cargo,
+Homebrew, scripted, release-installer, and other non-interactive install
+guidance before hybrid search can be promoted. Also collapsed default `auto`
+selection to the saved interactive install profile: hybrid when LLM search is
+enabled, lexical when declined or unconfigured.
+
+Pages updated: wiki/proposals/search-query-interpretation.proposal.md,
+wiki/log.md
+
+## [2026-05-11] update | interactive install and managed-state backup policy
+
+Updated `wiki/proposals/search-query-interpretation.proposal.md` with the
+agreed install and storage contract for LLM search: v1 install is
+interactive-only, model downloads happen during the consented install flow, and
+binaries invoked before install should fail with clear `llm-wiki install`
+guidance. Kept `~/.llm_wiki` as the byte root for model/index state, addressed
+the macOS Time Machine concern by excluding large rebuildable subdirectories
+where supported while keeping control-plane manifests backup-friendly, and
+required each generated project's `.llm_wiki/` metadata to record the managed
+install path for future agents and upgrade tooling.
+
+Pages updated: wiki/proposals/search-query-interpretation.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-11] update | external dependency inventory for LLM search
+
+Extended `wiki/proposals/search-query-interpretation.proposal.md` with
+`~/.llm_wiki/external-dependencies.toml` as the inventory for LLM search
+dependencies that cannot reasonably live under the managed runtime home. The
+proposal now requires external path/resolver, reason, version/hash, owning tool,
+last-checked time, removability, and cleanup guidance so `~/.llm_wiki` remains
+the control-plane source of truth even when some bytes live elsewhere.
+Updated the index summary accordingly.
+
+Pages updated: wiki/proposals/search-query-interpretation.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-11] update | LLM search state anchored in managed runtime home
+
+Updated `wiki/proposals/search-query-interpretation.proposal.md` so LLM search
+availability is configured during interactive install and all new LLM search
+artifacts live under `~/.llm_wiki` when practical. The proposal now calls for
+machine diagnostics, ordered model/profile recommendations, persisted
+`~/.llm_wiki/search.toml`, model files, diagnostics, semantic indexes, and
+profile/index metadata under the managed runtime home for easier inspection and
+removal. Updated the index summary accordingly.
+
+Pages updated: wiki/proposals/search-query-interpretation.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-11] update | semantic search proposal skill framing corrected
+
+Adjusted `wiki/proposals/search-query-interpretation.proposal.md` so the
+question and skill contract no longer frame the work as teaching `wiki-query`
+to handcraft better FTS keywords. The proposal now treats query expansion,
+semantic retrieval, fusion, and reranking as mostly transparent search-layer
+behavior; `wiki-query` consumes selected-mode, fallback, and zero-result
+metadata while remaining responsible for reading pages and citing answers.
+
+Pages updated: wiki/proposals/search-query-interpretation.proposal.md,
+wiki/log.md
+
+## [2026-05-11] update | semantic hybrid search proposal contract tightened
+
+Updated `wiki/proposals/search-query-interpretation.proposal.md` after product
+review. The proposal now answers the default-mode question by making
+`--mode auto` the no-flag behavior, distinguishes user-facing `lexical`,
+`semantic`, and `hybrid` modes, makes reranking opt-in, and defines relevance
+floors plus zero-result reasons so hybrid search can fail honestly instead of
+returning unrelated top-K results. Added chunk-level semantic indexing with
+document rollup, incremental re-embedding by content hash, rank-merged
+cross-project search, model licensing as a decision precondition, and CLI
+verbose diagnostics as a prerequisite for shipping hybrid search.
+
+Pages updated: wiki/proposals/search-query-interpretation.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-11] update | search proposal reframed around semantic hybrid retrieval
+
+Reframed `wiki/proposals/search-query-interpretation.proposal.md` from an
+FTS stopword/OR fallback proposal into the larger search product direction:
+semantic retrieval, hybrid fusion, query expansion, and reranking behind the
+qmd-rs adapter. The AND-only failure remains as motivating evidence, but the
+proposal now treats keyword rewriting as a fallback rather than the main fix.
+Updated `wiki/index.md` so the active proposal is discoverable under the
+semantic/hybrid search direction.
+
+Pages updated: wiki/proposals/search-query-interpretation.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-11] update | CLI observability narrowed to verbose
+
+Narrowed `wiki/proposals/cli-observability.proposal.md` to the agreed current
+scope: universal `-v/--verbose` diagnostics for every `llm-wiki` binary
+command. Deferred `--quiet`, `--dry-run`, richer default summaries, new
+structured output, and `--explain` mode. Updated the proposal title, output
+model, implementation shape, command-specific targets, risks, and acceptance
+criteria accordingly.
+
+Pages updated: wiki/proposals/cli-observability.proposal.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-11] update | search query interpretation proposal revised after review
+
+Revised `wiki/proposals/search-query-interpretation.proposal.md` after review.
+The CLI fix is now a two-pass strategy — strict implicit-AND first, then
+stopword-stripped OR fallback only when strict underdelivers — instead of a
+blanket OR rewrite that would regress precise queries like `qmd-rs search-all`.
+Tightened the skill wording so the LLM derives phrases from `wiki/index.md`,
+page metadata, and already-read pages, with lexical extraction from the user's
+question as fallback, and is explicitly told not to invent domain vocabulary
+the corpus has not surfaced. Removed the "documentation-only" claim about the
+skill change and expanded closure to include regenerating committed runtime
+projection snapshots per the skill projection contract. Fixed the D8/D9
+reference to search backend selection.
+
+Pages updated: wiki/proposals/search-query-interpretation.proposal.md,
+wiki/log.md
+
+## [2026-05-11] create | search query interpretation proposal
+
+Filed `wiki/proposals/search-query-interpretation.proposal.md` after the
+electric-car dogfooding session showed `llm-wiki search 'what are the most
+cutting edge battery technologies'` returned zero results while
+`llm-wiki search 'solid state battery'` worked. The proposal makes the split
+explicit: the `wiki-query` skill owns query interpretation (extract keyword
+phrases from the corpus before calling search); the CLI owns being a forgiving
+primitive (strict-first with a stopword-stripped OR fallback when strict
+underdelivers).
+
+Pages created: wiki/proposals/search-query-interpretation.proposal.md
+Pages updated: wiki/index.md, wiki/log.md
+
+## [2026-05-11] create | code-folders opt-in pack proposal
+
+Filed `wiki/proposals/code-folders-opt-in.proposal.md` after the same session
+exposed that `llm-wiki init` creates `src/ tests/ scripts/ infra/` for every
+new project regardless of blueprint (`src/init/compose.rs:25,73-75`). The
+proposal moves those folders behind a new `Pack::Code` and updates the five
+software-shaped blueprints' default pack selections to include it, leaving
+`research / generic / custom` blueprints with no code folders by default.
+
+Pages created: wiki/proposals/code-folders-opt-in.proposal.md
+Pages updated: wiki/index.md, wiki/log.md
+
+## [2026-05-11] update | CLI observability proposal tightened
+
+Tightened `wiki/proposals/cli-observability.proposal.md` after review. Removed
+duplicative proposal structure, added cross-command policies for TTY/color,
+exit codes, long-running progress, and the tracing versus summary boundary,
+promoted the `RUST_LOG` stance into the body, clarified why search verbose
+output shows both raw and sanitized queries, added verbose-output contract risk,
+and converted the close criteria into testable acceptance criteria.
+
+Pages updated: wiki/proposals/cli-observability.proposal.md, wiki/log.md
+
+## [2026-05-11] update | CLI observability proposal broadened
+
+Updated `wiki/proposals/cli-observability.proposal.md` after the electric-car
+search debugging incident. The proposal now treats universal `--verbose`
+diagnostics as the minimum requirement for every `llm-wiki` binary command,
+with search/search-all diagnostics called out explicitly for project
+selection, registry/index paths, backend status, query normalization, filters,
+result counts, and zero-hit explanations. Dry-run and richer report work remain
+command-specific follow-up.
+
+Pages updated: wiki/proposals/cli-observability.proposal.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-10] create | CLI observability proposal
+
+Filed `wiki/proposals/cli-observability.proposal.md` after real debug-binary
+install testing exposed sparse CLI feedback. The proposal defines concise
+default summaries, global `--verbose` / `--quiet`, dry-run previews for
+install/uninstall/indexing, a report-backed implementation shape, and a
+tracing-based diagnostic layer that stays local to the CLI.
+
+Pages created: wiki/proposals/cli-observability.proposal.md
+Pages updated: wiki/index.md, wiki/log.md
+
+## [2026-05-10] lint | qmd-rs search surface cleanup
+
+Removed active references to the standalone markdown-search package surface.
+The init pack is now `qmd-rs-scale`, generated guidance tells skills and agents
+to use the managed `llm-wiki` binary for `search` and `index --force`, and the
+Rust qmd crate remains an implementation detail behind the binary. Archived
+legacy skill trees were left unchanged.
+
+Pages updated: README.md, assets/skills/wiki-init/SKILL.md,
+assets/skills/wiki-query/SKILL.md, assets/skills/wiki-ingest/SKILL.md,
+templates/base/project_guidelines.md, templates/packs/qmd-rs-scale/,
+src/init/, src/search/qmd_rs.rs, tests/, crates/llm-wiki-schema/tests/snapshots/,
+wiki/index.md, wiki/specs/, wiki/decisions/, wiki/proposals/, wiki/plans/,
+wiki/roadmaps/, wiki/references/, wiki/evals/, wiki/log.md
+Verification: old standalone package string scan passed; `cargo insta test --workspace --accept` passed; isolated temp-HOME `target/debug/llm-wiki index --force` passed.
+
+## [2026-05-09] lint | project review consistency fixes
+
+Reviewed active framework docs and small Rust quality issues file by file.
+Corrected stale proof limitations in the documentation model, aligned the V1
+fixture smoke checklist with the checklist status vocabulary, updated current
+post-D10/D11 source paths and layout references, and clarified archive guidance
+for completed-but-still-current documents. Fixed two code issues found during
+review: template blank-line compaction now preserves blank lines inside fenced
+blocks, and `search-all --limit` can retrieve more than the old per-project
+default of 20 results.
+
+Pages updated: src/init/template.rs, src/search/commands.rs,
+tests/search_commands.rs, templates/base/project_guidelines.md,
+wiki/specs/documentation-model.spec.md,
+wiki/checklists/v1-fixture-smoke.checklist.md, wiki/index.md,
+wiki/decisions/llm-wiki-binary-distribution.decision.md,
+wiki/decisions/typed-documents.decision.md,
+wiki/plans/llm-wiki-product-layout-addendum.plan.md,
+wiki/plans/knowledge-research-intake.plan.md,
+wiki/plans/composable-project-init.plan.md,
+wiki/plans/binary-path-bootstrap.plan.md,
+wiki/plans/llm-wiki-binary.plan.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/log.md
+Verification: `cargo fmt -- --check`, `cargo test --workspace`,
+`cargo clippy --workspace --all-targets --all-features -- -D warnings -D dead_code`,
+and `llm-wiki index --force` passed.
+
+## [2026-05-09] update | D11 legacy symlink migration completed
+
+Completed the one-off D11 legacy migration. Reconstructed frozen pre-rename
+runtime mirrors from commit `5d33b9e` into `.claude.legacy/` and
+`.codex.legacy/` in this repo, preserving `init-project` plus the
+`knowledge*` skill surface that older home-level links still expected.
+Repointed the known legacy symlinks under `~/.claude/skills/` and
+`~/.codex/skills/` to those frozen trees, verified that the targets now
+resolve, and left `~/.codex/skills/knlg` untouched. With the repoint complete,
+D11 returns to completed state in the index, roadmap, and rename plan.
+
+Pages created: .claude.legacy/skills/init-project/SKILL.md,
+.claude.legacy/skills/knowledge-ingest/SKILL.md,
+.claude.legacy/skills/knowledge-lint/SKILL.md,
+.claude.legacy/skills/knowledge-query/SKILL.md,
+.claude.legacy/skills/knowledge-research/SKILL.md,
+.codex.legacy/skills/init-project/SKILL.md,
+.codex.legacy/skills/init-project/agents/openai.yaml,
+.codex.legacy/skills/knowledge/SKILL.md,
+.codex.legacy/skills/knowledge/agents/openai.yaml,
+.codex.legacy/skills/knowledge-ingest/SKILL.md,
+.codex.legacy/skills/knowledge-ingest/agents/openai.yaml,
+.codex.legacy/skills/knowledge-lint/SKILL.md,
+.codex.legacy/skills/knowledge-lint/agents/openai.yaml,
+.codex.legacy/skills/knowledge-query/SKILL.md,
+.codex.legacy/skills/knowledge-query/agents/openai.yaml,
+.codex.legacy/skills/knowledge-research/SKILL.md,
+.codex.legacy/skills/knowledge-research/agents/openai.yaml
+Pages updated: wiki/index.md, wiki/plans/project-and-skill-rename.plan.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/log.md
+
+## [2026-05-08] lint | D11 completion and migration bookkeeping corrected
+
+Reviewed the D11 rename plan against the live home-level skill state. The
+one-off legacy migration has not yet been performed: the legacy
+`knowledge*` symlinks under `~/.claude/skills/` and `~/.codex/skills/` still
+point into this repo's live `.claude/skills/` and `.codex/skills/` trees
+instead of frozen `.claude.legacy/` / `.codex.legacy/` mirrors in the older
+repos that still depend on them. Reset D11 from completed bookkeeping back to
+active in the index, roadmap, and plan; updated the D11 proof text to reflect
+framework-side rename completion plus outstanding external migration work;
+fixed stale renamed-file references in the plan; and corrected active
+current-truth docs that still referenced retired template paths or the old
+`knowledge*` command surface.
+
+Pages updated: AGENTS.md, wiki/index.md,
+wiki/plans/project-and-skill-rename.plan.md,
+wiki/roadmaps/framework-v1.roadmap.md,
+wiki/specs/documentation-model.spec.md,
+wiki/decisions/knowledge-research-intake.decision.md,
+wiki/checklists/v1-fixture-smoke.checklist.md, wiki/log.md
+
+## [2026-05-08] update | D11 rename executed end-to-end
+
+Executed the D11 project and skill rename. Renamed the Cargo package from
+`llm-wiki-framework` to `llm-wiki-rs`, the embedded canonical skills under
+`assets/skills/` from `knowledge*` to `wiki-*`, the Codex dispatcher from
+`knowledge` to `wiki`, and the active `wiki/specs/` skill specs to match.
+Updated `src/embed.rs`, `build.rs`, the schema projector dispatcher alias, and
+all install/build/doctor/uninstall test fixtures to the new names. Regenerated
+`.claude/skills/` and `.codex/skills/` runtime mirrors via
+`llm-wiki build --out .` and re-accepted the `real_skills` projector
+snapshots. Archived the `knowledge-command-namespace.decision.md` as
+superseded and updated index, roadmap (D11 → Completed), README, and the
+binary/path-bootstrap/composable-init decisions where they still named the
+old surface as current truth. The historical log entries below remain as
+written; they describe what was true at the time. Legacy in-repo symlink
+migration for the few outside repos is still a one-off step outside this
+framework.
+
+Pages updated: Cargo.toml, Cargo.lock, build.rs, src/embed.rs,
+src/init/scaffold.rs, crates/llm-wiki-schema/src/projector/codex.rs, tests/*,
+crates/llm-wiki-schema/tests/*, README.md,
+wiki/proposals/project-and-skill-rename.proposal.md,
+wiki/plans/project-and-skill-rename.plan.md,
+wiki/roadmaps/framework-v1.roadmap.md,
+wiki/decisions/llm-wiki-binary-distribution.decision.md,
+wiki/decisions/binary-path-bootstrap.decision.md,
+wiki/decisions/composable-project-init.decision.md, wiki/index.md,
+wiki/log.md
+Pages renamed: assets/skills/{wiki,wiki-init,wiki-query,wiki-ingest,wiki-research,wiki-lint}/,
+wiki/specs/wiki-{init,query,ingest,research,lint}-skill.spec.md,
+crates/llm-wiki-schema/tests/snapshots/real_skills__wiki*.snap
+Pages moved: wiki/decisions/knowledge-command-namespace.decision.md ->
+wiki/archive/knowledge-command-namespace.decision.md
+
+## [2026-05-08] update | Rename work promoted to D11 roadmap deliverable
+
+Reclassified the project/package/skill rename from an unnumbered draft effort
+to D11 on the active roadmap. Updated the roadmap, index stage line, and the
+rename execution plan so active docs now treat the rename as its own
+deliverable rather than as incidental cleanup under D10. The boundary is now
+explicit: D10 owns composable init and template retirement; D11 owns the
+`llm-wiki-rs` / `wiki-*` rename plus the one-off local legacy migration.
+
+Pages updated: wiki/roadmaps/framework-v1.roadmap.md,
+wiki/plans/project-and-skill-rename.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-08] create | Rename execution plan and one-off legacy migration inventory
+
+Filed `wiki/plans/project-and-skill-rename.plan.md` to turn the rename
+proposal into executable work. Captured the live local symlink inventory:
+`~/.claude` and `~/.codex` are real directories, while the legacy linkage sits
+under `~/.claude/skills/` and `~/.codex/skills/` as skill-level symlinks
+pointing into this repo's `.claude/skills/` and `.codex/skills/` trees.
+Recorded the agreed migration boundary: the next framework version stays clean
+and legacy handling is a one-off repo migration only, using frozen
+`.claude.legacy/` / `.codex.legacy/` trees in the few old repos that still
+depend on the pre-rename surface. Also recorded a local filesystem pre-flight:
+both `wiki-*` and `wiki:*` directory names are accepted on this host, though
+`wiki-*` remains the intended portable canonical form. Baseline
+`cargo build` and `cargo test --workspace` were run on the pre-rename branch
+and both passed, so the rename sweep starts from a green Rust workspace.
+
+Pages updated: wiki/plans/project-and-skill-rename.plan.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-08] update | Rename proposal now defaults to wiki-* over wiki:*
+
+Revised `wiki/proposals/project-and-skill-rename.proposal.md` after review.
+The proposal now treats `wiki-*` as the intended canonical namespace and
+narrows `wiki:*` to a speculative variant that must overcome cross-platform
+filesystem objections before it can stay alive. The scope/sources list now
+includes `assets/templates/`, the root `AGENTS.md`, and the accepted
+research-intake split; the runtime-proof section distinguishes installed
+skill-directory names from user-facing invocation surfaces; consequences now
+call out the `cargo install` crate-name discontinuity and explicitly keep
+`~/.llm_wiki/` and per-project `.llm_wiki/init.toml` unchanged.
+
+Pages updated: wiki/proposals/project-and-skill-rename.proposal.md,
+wiki/log.md
+
+## [2026-05-08] update | D10 plan tightened around template retirement and AGENTS.md
+
+Revised `wiki/plans/composable-project-init.plan.md` so D10 explicitly owns
+the bookkeeping around `assets/templates/project_guidelines.md` and
+`assets/templates/CLAUDE.md`: retire both static assets into
+`templates/base/`, switch generated schema output from `CLAUDE.md` to
+`AGENTS.md`, and sweep active wiki pages so no current documentation claims
+that `init` still writes `CLAUDE.md`. Verification gates now require the
+post-D10 scaffold shape and an active-doc audit, not just code-level template
+migration.
+
+Pages updated: wiki/plans/composable-project-init.plan.md, wiki/log.md
+
+## [2026-05-07] ingest | Askama D10 implementation research
+
+Ingested the Askama research bundle at
+`raw/research/2026-05-07-askama-rust-d10-composable-init/` into a sourced
+reference page for D10 implementation. Captured Askama 0.16 as the starting
+dependency candidate, root `templates/` behavior, explicit `escape = "none"`
+for Markdown/TOML, preserve-first whitespace guidance, runtime-selected pack
+fragment composition via exhaustive Rust matches, and the schema-crate
+template-root caveat for the later skill-projection proposal.
+
+Pages created: wiki/references/askama-template-engine.reference.md
+Pages updated: wiki/plans/composable-project-init.plan.md,
+wiki/proposals/skills-template-engine.proposal.md, wiki/index.md,
+wiki/log.md
+Verification: `llm-wiki index --force` completed after re-running with filesystem access
+to update the local search index.
+
+## [2026-05-07] lint | D10 bookkeeping consistency
+
+Cleaned up stale D10 wiki bookkeeping from the composable-init promotion.
+Updated the accepted proposal's closure section to point at D10 instead of
+the earlier "likely D9" placeholder, moved resolved first-cut pack questions
+out of the open-question list, and left only the dogfooding catalog question
+open. Aligned the D10 plan and roadmap verification gates with the intentional
+`AGENTS.md` canonical file plus `CLAUDE.md` shim transition. Refreshed the
+three-layer architecture summary to describe a runtime agent schema instead of
+only `CLAUDE.md`, with D10 recorded as the amendment.
+
+Pages updated: wiki/proposals/blueprint-pack-init.proposal.md,
+wiki/plans/composable-project-init.plan.md,
+wiki/roadmaps/framework-v1.roadmap.md,
+wiki/decisions/three-layer-architecture.decision.md, wiki/index.md,
+wiki/log.md
+## [2026-05-07] lint | D10 pre-implementation cleanup
+
+Resolved D10 documentation inconsistencies before implementation starts.
+Clarified that generated projects use canonical `AGENTS.md` plus a small
+`CLAUDE.md` compatibility shim, that Markdown Askama templates use `.md`
+filenames with `escape = "none"`, and that pack fragments are selected by
+exhaustive Rust matches rather than runtime template path lookup.
+
+Tightened the D10 plan around the `--type` / `--scale` retirement, the
+`--blueprint` / repeatable `--pack` final CLI surface, `llm-wiki doctor`
+remaining an install/runtime diagnostic, and the Phase 1 byte-stability
+exception for the intentional agent-schema file transition. Added a pending
+D10 note to the active `knowledge-init` spec and recorded in the documentation
+model that composable init is accepted but not implemented yet.
+
+Pages updated: wiki/plans/composable-project-init.plan.md,
+wiki/decisions/composable-project-init.decision.md,
+wiki/proposals/blueprint-pack-init.proposal.md,
+wiki/proposals/skills-template-engine.proposal.md,
+wiki/roadmaps/framework-v1.roadmap.md,
+wiki/specs/knowledge-init-skill.spec.md,
+wiki/specs/documentation-model.spec.md, wiki/index.md, wiki/log.md
+
+## [2026-05-07] create | Composable project init proposal
+
+Filed `wiki/proposals/blueprint-pack-init.proposal.md`. Captures the
+discussion shift from "one static template with two conditional flags" to a
+composition model where `llm-wiki init` picks a blueprint (or `custom`),
+pre-ticks a default pack selection, and renders `AGENTS.md` plus
+`project_guidelines.md` from a base spine plus pack fragments. Also
+introduces a per-project `.llm_wiki/` folder with `init.toml` as the
+breadcrumb for a future `upgrade` command. Vocabulary fixed as
+blueprint / pack / template / render. One-shot init only; upgrade is
+out of scope.
+
+Pages updated: wiki/proposals/blueprint-pack-init.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-07] update | Blueprint catalog and generator crate selection
+
+Extended `wiki/proposals/blueprint-pack-init.proposal.md` with a first-cut
+blueprint catalog (`generic`, `web-product`, `library-sdk`, `ml-research`,
+`ops-infra`, `security`, `research`, plus `custom`), an initial pack catalog
+(`api`, `frontend`, `library`, `ml`, `data`, `ops`, `ops-lite`, `security`,
+`research`, `qmd-rs-scale`), and a generator-implementation section. Recommended
+crate additions: `minijinja` (template rendering with light conditionals),
+`inquire` (Select for blueprint, MultiSelect with default-checked packs for
+step 2), and `toml` (pack and blueprint manifest parsing). Composition logic
+stays inside `src/init/` rather than a new workspace crate until a second
+caller justifies extraction.
+
+Pages updated: wiki/proposals/blueprint-pack-init.proposal.md, wiki/log.md
+
+## [2026-05-07] create | Skills template-engine sibling proposal
+
+Filed `wiki/proposals/skills-template-engine.proposal.md` as a follow-on to
+the composable-init proposal. Argues that once init lands the compile-time
+template engine, skill projection in
+`crates/llm-wiki-schema/src/projector/{claude,codex}.rs` should move onto the
+same engine: per-runtime variants become template inheritance, the typed
+`SkillDoc` and projector trait surface stay, golden-file outputs must remain
+byte-identical. Depends on `blueprint-pack-init` so that init is the engine
+pilot and skills are the second adopter. Open questions captured: whether
+the schema crate is the right home for the engine dependency, and whether
+the runtime-config emission belongs in templates or stays Rust-side.
+
+Pages updated: wiki/proposals/skills-template-engine.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-07] decide | askama as the D10 template engine
+
+Locked the template-engine choice for D10 to `askama` (decision was previously
+`rinja` or `askama`, deferred to a Phase 0 spike). Rationale: `askama` has
+the larger ecosystem and prior in-house experience. `rinja` (the actively
+maintained fork) remains a drop-in fallback if `askama` stalls — same
+template syntax, swap is a Cargo dependency change. Plan Phase 0 collapses
+from "engine spike" to "add dependencies + smoke-test the macro derive."
+
+Pages updated: wiki/decisions/composable-project-init.decision.md,
+wiki/plans/composable-project-init.plan.md,
+wiki/proposals/blueprint-pack-init.proposal.md,
+wiki/proposals/skills-template-engine.proposal.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/log.md
+
+## [2026-05-07] promote | Composable project init to D10 decision and plan
+
+Promoted `wiki/proposals/blueprint-pack-init.proposal.md` to Accepted with
+Promoted To pointing at the new decision and plan. Filed
+`wiki/decisions/composable-project-init.decision.md` (distilled choice
+rationale, alternatives rejected, consequences) and
+`wiki/plans/composable-project-init.plan.md` (ten-phase execution covering
+the engine spike, existing-template migration, Pack/Blueprint enums, render
+composer, full pack catalog, interactive and non-interactive flows,
+`.llm_wiki/init.toml` writer, and documentation cleanup).
+
+Added D10 to `wiki/roadmaps/framework-v1.roadmap.md` (Status: Draft, depends
+on D8.1) so implementation can begin in a sibling worktree the same way
+D9 search work is being executed on `d9-search-backend-eval`. The
+skill-projection sibling proposal stays Proposed and is unblocked once D10
+lands the engine.
+
+Pages updated: wiki/decisions/composable-project-init.decision.md,
+wiki/plans/composable-project-init.plan.md,
+wiki/proposals/blueprint-pack-init.proposal.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
+
+## [2026-05-07] update | Shared templates root, runtime-config on engine
+
+Closed the remaining two open questions in
+`wiki/proposals/skills-template-engine.proposal.md`. Project-guidelines
+fragments and skill templates share a single `templates/` root rather than
+sibling roots — one tool, one purpose, one place to look. Codex runtime
+config moves through the same engine as a typed template
+(`templates/skills/codex_runtime_config.toml.jinja` driven by a newtype
+wrapper), replacing the ad-hoc `CodexProjector::with_runtime_config_template`
+string mechanism. Asset-layout diagram and "What Closes This Proposal" list
+updated accordingly.
+
+Pages updated: wiki/proposals/skills-template-engine.proposal.md, wiki/log.md
+
+## [2026-05-07] update | Schema-direct skill annotations, drop context types
+
+Revised `wiki/proposals/skills-template-engine.proposal.md` to use thin
+newtype wrappers (`ClaudeSkill<'a>(&'a SkillDoc)`,
+`CodexSkill<'a>(&'a SkillDoc)`) carrying the `#[derive(Template)]`
+annotations directly on the schema crate's types, instead of separate
+`ClaudeSkillCtx`/`CodexSkillCtx` context structs. Templates reference
+`SkillDoc` fields directly and call methods on it for derived values.
+`rewrite_invocation` and `description_for` move from free functions in
+`projector/{format,idiom}.rs` onto `SkillDoc` as methods. The earlier open
+question about where the engine dependency lives is closed: it goes in the
+schema crate, on the basis that projecting `SkillDoc` to per-runtime
+markdown is the crate's reason for existing — the dependency wraps rendering
+complexity, not architectural drift.
+
+Pages updated: wiki/proposals/skills-template-engine.proposal.md, wiki/log.md
+
+## [2026-05-07] update | Switch to compile-time templates, drop pack.toml
+
+Revised `wiki/proposals/blueprint-pack-init.proposal.md` to use a compile-time
+template engine (`rinja` or `askama`) instead of `minijinja`, on the grounds
+that every template ships with the binary so runtime loading buys nothing and
+forfeits the build-time check. The existing init template migrates onto the
+same engine in the same change set, eliminating the two-rendering-path smell.
+`pack.toml` and the per-blueprint TOML files are dropped: packs and
+blueprints are now Rust enums with accessor methods, so adding a pack is "add
+an enum variant + a template fragment file." The `toml` crate stays only for
+serializing `.llm_wiki/init.toml`. Skill projection is flagged as a possible
+future migration onto the same engine but kept out of scope. The pack-conflict
+open question is closed by the compile-time model.
+
+Pages updated: wiki/proposals/blueprint-pack-init.proposal.md, wiki/log.md
+
+## [2026-04-23] ingest | Karpathy LLM Wiki research
+
+Compiled raw/research/llm-wiki-pattern-research.md into wiki reference page.
+Source covers: original Karpathy gist, v2 extensions, Fulkerson production
+deployment, wiki vs RAG tradeoffs.
+Pages created: wiki/references/llm-wiki-pattern.reference.md
+
+## [2026-04-23] ingest | Legacy project guidelines
+
+Compiled raw/legacy/legacy-project-guidelines.md into framework decisions
+and spec. Extracted key architectural choices as decision records. Merged
+typed document system with LLM Wiki pattern into documentation model spec.
+Pages created: wiki/decisions/three-layer-architecture.decision.md, wiki/decisions/agent-owns-wiki.decision.md, wiki/decisions/typed-documents.decision.md, wiki/specs/documentation-model.spec.md
+
+## [2026-04-23] create | Framework V1 roadmap
+
+Created roadmap for framework development with 7 deliverables: bootstrap,
+ingest cycle, lint operation, query produces knowledge, spawn new project,
+scale test, self-replicating framework. D1 (bootstrap) marked completed.
+Pages created: wiki/roadmaps/framework-v1.roadmap.md
+
+## [2026-04-23] create | Wiki index and log
+
+Created wiki/index.md (master catalog) and wiki/log.md (this file).
+Initial index catalogs 6 wiki pages across 4 document types.
+Pages created: wiki/index.md, wiki/log.md
+
+## [2026-04-23] ingest | qmd-rs search engine and NiharShrotri/llm-wiki implementation
+
+Ingested two new raw sources:
+- raw/research/markdown-search-engine.md (Tobi Lutke's on-device markdown search)
+- raw/research/niharshrotri-llm-wiki-implementation.md (full LLM Wiki implementation)
+
+Key findings:
+- qmd-rs solves our scale ceiling (>100 pages) with local hybrid search via MCP
+- 3-pass ingest pipeline (extraction → drafting → bookkeeping) improves quality
+- Source audit pages provide provenance tracking
+- Our typed-document approach (spec/decision/proposal) is differentiated from
+  the entity/concept/synthesis model — both valid, ours better for software projects
+
+Pages created: wiki/references/qmd-rs-search-crate.reference.md, wiki/references/niharshrotri-llm-wiki.reference.md
+Pages updated: wiki/specs/documentation-model.spec.md (navigation, limitations, sources), wiki/references/llm-wiki-pattern.reference.md (cross-references), wiki/index.md
+
+## [2026-04-23] create | Init project skill and template
+
+Created /init-project skill for spawning new projects from the framework.
+Renamed project_guidelines.md to project_guidelines.template.md with
+conditional section markers (ML_AI, SEARCH). Skill asks 6 questions to
+determine project profile, generates tailored guidelines and CLAUDE.md,
+scaffolds folder structure, optionally ingests initial sources. Supports
+create and update modes.
+Pages created: .claude/skills/init-project.md, wiki/specs/init-project-skill.spec.md
+Files modified: project_guidelines.template.md (renamed, added conditional markers)
+Pages updated: wiki/index.md
+
+## [2026-04-23] ingest | LLM Wiki ecosystem survey
+
+Ingested raw/research/llm-wiki-ecosystem-survey.md — a GitHub-wide survey
+of 30+ implementations of Karpathy's LLM Wiki pattern, three weeks after
+publication.
+
+Key findings organized by architectural innovation, not by repo:
+- Five delivery models: agent skill, CLI, desktop app, web app, Obsidian plugin
+- Agent-skill form dominates (lowest friction, no infra needed)
+- Notable innovations: two-phase compilation (order-independent ingest),
+  L1/L2 cache architecture, parallel multi-agent research, automated feed
+  monitoring, write-back from queries, multimodal ingest, anti-repetition
+  memory, codebase-as-source, wiki-as-training-data
+- Top adoption candidates for our framework: write-back from queries,
+  codebase as source, L1/L2 cache formalization, two-phase compilation
+
+Pages created: wiki/references/llm-wiki-ecosystem.reference.md
+Pages updated: wiki/references/llm-wiki-pattern.reference.md (cross-ref), wiki/references/niharshrotri-llm-wiki.reference.md (cross-ref), wiki/index.md
+
+## [2026-04-23] create | Knowledge query skill
+
+Created /knowledge-query skill for querying the project wiki with citations
+and optional save-back. Single-project scope. Reads index.md to orient,
+identifies relevant pages, synthesizes answer with citations, flags gaps
+and contradictions, offers to save durable answers as new wiki pages.
+Optionally uses qmd-rs if available. Symlinked to global skills.
+Pages created: .claude/skills/knowledge-query/SKILL.md, wiki/specs/knowledge-query-skill.spec.md
+Pages updated: wiki/index.md
+
+## [2026-04-23] create | Knowledge ingest skill
+
+Created /knowledge-ingest skill for processing raw sources into wiki pages.
+Three-phase pipeline: extraction, page drafting, bookkeeping. Handles merge
+vs create, contradiction detection, provenance tracking, auto-discovery of
+unprocessed files. Supports markdown, text, PDF, images, URLs, transcripts,
+code. Symlinked to global skills.
+Pages created: .claude/skills/knowledge-ingest/SKILL.md, wiki/specs/knowledge-ingest-skill.spec.md
+Pages updated: wiki/index.md
+
+## [2026-04-23] create | Codex skill translations
+
+Translated the three Claude framework skills into Codex skill folders under
+`.codex/skills/` and exposed them globally through symlinks in
+`~/.codex/skills/`.
+Pages created: .codex/skills/init-project/SKILL.md, .codex/skills/knowledge-query/SKILL.md, .codex/skills/knowledge-ingest/SKILL.md, wiki/decisions/project-local-codex-skills.decision.md
+Pages updated: wiki/specs/init-project-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/index.md
+
+## [2026-04-23] create | Knowledge namespace and research skill
+
+Added a Codex-only `/knowledge` dispatcher skill so framework operations share
+one slash-style command surface. Added `knowledge-research` as the pre-ingest
+acquisition step for gathering source material into `raw/` from local paths,
+explicit URLs, one site, or broader web search.
+
+Refined `knowledge-ingest` to operate on explicit raw sources only, with web
+or site discovery routed through research first. Updated the framework docs to
+record the `/knowledge` namespace and the new raw acquisition workflow.
+
+Pages created: .codex/skills/knowledge/SKILL.md, .codex/skills/knowledge/agents/openai.yaml, .codex/skills/knowledge-research/SKILL.md, .codex/skills/knowledge-research/agents/openai.yaml, wiki/decisions/knowledge-command-namespace.decision.md, wiki/specs/knowledge-research-skill.spec.md
+Pages updated: .codex/skills/init-project/SKILL.md, .codex/skills/knowledge-query/SKILL.md, .codex/skills/knowledge-ingest/SKILL.md, wiki/specs/init-project-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/documentation-model.spec.md, wiki/decisions/project-local-codex-skills.decision.md, wiki/index.md
+
+## [2026-04-23] correct | Knowledge invocation surface
+
+Corrected the Codex command surface after discovering that custom `/...`
+strings are intercepted by the product and produce an unrecognized command
+error before skills can run. Updated the framework to use explicit skill
+invocation with `$knowledge`, `$knowledge-research`, and existing direct skill
+names instead of claiming support for custom slash commands.
+
+Pages updated: .codex/skills/knowledge/SKILL.md, .codex/skills/knowledge/agents/openai.yaml, .codex/skills/knowledge-research/SKILL.md, .codex/skills/knowledge-research/agents/openai.yaml, .codex/skills/init-project/SKILL.md, .codex/skills/knowledge-query/SKILL.md, .codex/skills/knowledge-ingest/SKILL.md, wiki/decisions/knowledge-command-namespace.decision.md, wiki/specs/init-project-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-research-skill.spec.md, wiki/index.md
+
+## [2026-04-23] create | Knowledge lint skill
+
+Promoted lint into a dedicated Codex skill so `$knowledge lint` routes to a
+real skill instead of an inline dispatcher note. Added `knowledge-lint`
+metadata, updated the dispatcher to call it directly, and documented the new
+skill in the framework wiki.
+
+Pages created: .codex/skills/knowledge-lint/SKILL.md, .codex/skills/knowledge-lint/agents/openai.yaml, wiki/specs/knowledge-lint-skill.spec.md
+Pages updated: .codex/skills/knowledge/SKILL.md, wiki/specs/documentation-model.spec.md, wiki/decisions/knowledge-command-namespace.decision.md, wiki/decisions/project-local-codex-skills.decision.md, wiki/index.md
+
+## [2026-04-23] lint | wiki consistency pass
+
+Scanned the wiki for contradictions, stale claims, orphan pages, and missing
+cross-references.
+Issues found: orphaned reference page `wiki/references/llm-wiki-ecosystem.reference.md` missing from `wiki/index.md`; stale claim that lint had not yet been exercised; stale namespace language claiming `/init-project` remained an acceptable alias.
+Pages updated: wiki/index.md, wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-lint-skill.spec.md, wiki/decisions/knowledge-command-namespace.decision.md, wiki/decisions/project-local-codex-skills.decision.md, wiki/specs/init-project-skill.spec.md, wiki/roadmaps/framework-v1.roadmap.md
+Outstanding questions: none
+
+## [2026-04-23] ingest | Web sources on three-phase ingest pipeline
+
+Saved two primary web source snapshots under `raw/web/`:
+- `raw/web/gist.github.com/2026-04-23-karpathy-llm-wiki.md`
+- `raw/web/github.com/2026-04-23-niharshrotri-llm-wiki-readme.md`
+
+Synthesized a new reference page that explains the three-phase ingest pipeline
+in detail using web sources only. The page distinguishes the conceptual ingest
+responsibilities in Karpathy's gist from the explicit three-pass implementation
+described in NiharShrotri's README.
+
+Pages created: wiki/references/three-phase-ingest-pipeline.reference.md
+Pages updated: wiki/index.md
+
+## [2026-05-02] create | Knowledge intake command proposal
+
+Recorded a proposal for a possible `knowledge-intake` skill and
+`$knowledge intake` namespace entry. The proposal keeps the accepted boundary
+between source acquisition (`knowledge-research`) and wiki compilation
+(`knowledge-ingest`), and defines intake as a user-facing orchestration layer
+above those two operations.
+
+Pages created: wiki/proposals/knowledge-intake-command.proposal.md
+Pages updated: wiki/index.md
+
+## [2026-05-02] update | Knowledge research intake direction
+
+Refined the earlier intake proposal after clarifying the intended behavior.
+The recommendation now is to improve `knowledge-research` itself into a guided
+research-intake flow that asks what to research, gathers material from local
+and web sources, saves coherent bundles under `raw/research/`, and leaves
+`knowledge-ingest` as a separate explicit step.
+
+Pages updated: wiki/proposals/knowledge-intake-command.proposal.md, wiki/index.md
+
+## [2026-05-02] update | Per-source research summaries
+
+Extended the knowledge research intake proposal to require one summary file
+per collected source inside each research bundle. This makes the research
+output more legible and creates a cleaner handoff into later ingest work while
+preserving raw-source provenance.
+
+Pages updated: wiki/proposals/knowledge-intake-command.proposal.md
+
+## [2026-05-02] update | Bundle-level research summary
+
+Revised the proposal again to use one `research-summary.md` per research
+bundle instead of one summary per source. The bundle now centers on three
+artifacts: raw source files, a manifest for provenance and inventory, and a
+single synthesis file for the overall research run.
+
+Pages updated: wiki/proposals/knowledge-intake-command.proposal.md
+
+## [2026-05-02] create | Knowledge research intake implementation plan
+
+Created a plan for implementing the proposed `knowledge-research` upgrade.
+The plan covers spec and skill updates, bundle structure under
+`raw/research/`, dispatcher wording review, one exercised research run, and
+the verification needed before treating the new behavior as accepted truth.
+
+Pages created: wiki/plans/knowledge-research-intake.plan.md
+Pages updated: wiki/index.md
+
+## [2026-05-02] update | Claude research skill added to plan scope
+
+Expanded the implementation plan after confirming that `knowledge-research`
+exists only on the Codex side today. The plan now explicitly includes creating
+the missing Claude `knowledge-research` skill and aligning its invocation and
+workflow shape with the existing Claude `knowledge-ingest` skill.
+
+Pages updated: wiki/plans/knowledge-research-intake.plan.md
+
+## [2026-05-02] create | Knowledge research skill implementation
+
+Implemented the guided research-intake workflow across the framework surfaces.
+Updated the research spec, rewrote the Codex `knowledge-research` skill around
+research bundles, created the missing Claude `knowledge-research` skill, and
+refined the Codex `$knowledge` dispatcher wording so research is clearly the
+pre-ingest intake path.
+
+Exercised the workflow with a local path-based proof run and created:
+- `raw/research/2026-05-02-knowledge-research-intake-proof/manifest.md`
+- `raw/research/2026-05-02-knowledge-research-intake-proof/research-summary.md`
+- `raw/research/2026-05-02-knowledge-research-intake-proof/sources/...`
+
+Pages updated: wiki/specs/knowledge-research-skill.spec.md, wiki/proposals/knowledge-intake-command.proposal.md, wiki/plans/knowledge-research-intake.plan.md, wiki/index.md, wiki/log.md
+Files created: .claude/skills/knowledge-research/SKILL.md, raw/research/2026-05-02-knowledge-research-intake-proof/manifest.md, raw/research/2026-05-02-knowledge-research-intake-proof/research-summary.md
+Files updated: .codex/skills/knowledge-research/SKILL.md, .codex/skills/knowledge/SKILL.md
+
+## [2026-05-02] update | Research spec verification correction
+
+Corrected the `knowledge-research` spec after verification to remove a Claude
+global symlink claim that was not actually present on disk. The spec now only
+asserts the repo-local Claude skill, the existing Codex global symlink, and
+the proof bundle artifact that were verified directly.
+
+Pages updated: wiki/specs/knowledge-research-skill.spec.md, wiki/log.md
+
+## [2026-05-06] update | Rename path and skill consistency repair
+
+Fixed framework rename drift after the project moved from
+`software_project_management` to `llm_wiki_framework`.
+
+Key changes:
+- Updated Codex and Claude `init-project` skills to resolve the framework root
+  from the skill file location instead of a hardcoded absolute path.
+- Added a durable decision for framework path resolution.
+- Rebuilt broken global framework symlinks for Codex and Claude to point at
+  this repository.
+- Made this framework repo consistently treat `project_guidelines.template.md`
+  as its canonical reusable schema while generated projects still receive
+  `project_guidelines.md`.
+- Aligned Claude ingest with the research-first URL/site/web acquisition
+  boundary.
+- Promoted the accepted research-intake choice into a decision and archived
+  the old proposal.
+
+Pages created: wiki/decisions/framework-path-resolution.decision.md, wiki/decisions/knowledge-research-intake.decision.md
+Pages moved: wiki/proposals/knowledge-intake-command.proposal.md -> wiki/archive/knowledge-intake-command.proposal.md
+Pages updated: wiki/index.md, wiki/specs/documentation-model.spec.md, wiki/specs/init-project-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-research-skill.spec.md, wiki/decisions/project-local-codex-skills.decision.md, wiki/decisions/typed-documents.decision.md, wiki/roadmaps/framework-v1.roadmap.md, wiki/plans/knowledge-research-intake.plan.md, wiki/log.md
+Files updated: .codex/skills/init-project/SKILL.md, .claude/skills/init-project/SKILL.md, .claude/skills/knowledge-ingest/SKILL.md, .claude/skills/knowledge-research/SKILL.md, CLAUDE.md, AGENTS.MD
+Contradictions found: stale path and canonical-file claims resolved
+
+## [2026-05-06] update | Single-source skill consolidation
+
+Implemented the skill consolidation plan.
+
+Key changes:
+- Created canonical skill sources under `skills/`.
+- Added `legacy skill render script` to render `.claude/skills/` and `.codex/skills/`
+  outputs from canonical sources.
+- Moved the root `plan.md` into `wiki/plans/single-source-skills.plan.md`
+  and marked it Active pending runtime smoke tests.
+- Added the accepted single-source skills decision.
+- Generated Claude and Codex variants for shared skills.
+- Added Claude `knowledge-lint` and its global symlink.
+- Kept the Codex-only `$knowledge` dispatcher generated only for Codex.
+- Updated skill specs to point at canonical `skills/` sources and generated
+  runtime outputs.
+- Superseded the older project-local Codex-only skills decision.
+- Rebuilt canonical skill sources from the full pre-consolidation runtime
+  baselines before rendering, avoiding instruction loss from shortened drafts.
+
+Pages created: wiki/decisions/single-source-skills.decision.md
+Pages moved: plan.md -> wiki/plans/single-source-skills.plan.md
+Pages updated: wiki/index.md, wiki/log.md, wiki/specs/init-project-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-research-skill.spec.md, wiki/specs/knowledge-lint-skill.spec.md, wiki/decisions/project-local-codex-skills.decision.md
+Files created: skills/README.md, legacy skill render script, skills/init-project/SKILL.md, skills/knowledge-ingest/SKILL.md, skills/knowledge-query/SKILL.md, skills/knowledge-research/SKILL.md, skills/knowledge-lint/SKILL.md, skills/knowledge/SKILL.md, skills/*/codex/openai.yaml, .claude/skills/knowledge-lint/SKILL.md
+Files regenerated: .claude/skills/*/SKILL.md, .codex/skills/*/SKILL.md, .codex/skills/*/agents/openai.yaml
+Verification: `bash legacy skill render script` is idempotent; no skill body contains an absolute `/Users/...` path; URL routing is research-first in both runtimes; every indexed skill has a canonical source under `skills/`. Runtime smoke tests in Claude Code and Codex remain pending.
+
+## [2026-05-06] create | LLM Wiki framework binary proposal
+
+Proposed packaging the framework as a single Rust binary (`llm-wiki`) with
+embedded canonical skill content, `clap`-driven subcommands (install, build,
+init, status, doctor, uninstall), and direct global writes to
+`~/.claude/skills/` and `~/.codex/skills/` instead of symlinks. Folds in the
+agent-vs-binary split for `init-project` (agent owns intake, binary owns
+file generation), the `--env local|global` target flag for self-dogfooding,
+`cargo-dist` multi-arch distribution, and a `git`-style backward-compat
+versioning model (no per-project pinning).
+
+Rationale: closes review.md §9.2 (broken global symlinks) by construction,
+eliminates per-runtime skill drift via a typed projector with `insta`
+snapshot tests, and is the operational form of D7 (self-replicating
+framework) — `llm-wiki init <path>` becomes the single bootstrap operation.
+
+If accepted, this proposal supersedes the legacy shell renderer in
+`wiki/plans/single-source-skills.plan.md` and the symlink-based installation
+model recorded in `wiki/decisions/project-local-codex-skills.decision.md`
+and `wiki/decisions/framework-path-resolution.decision.md`.
+
+Pages created: wiki/proposals/llm-wiki-binary.proposal.md
+Pages updated: wiki/index.md
+
+## [2026-05-06] update | Revise llm-wiki binary proposal per external review
+
+Applied reviewer-blocking fixes and high-value improvements to
+`wiki/proposals/llm-wiki-binary.proposal.md`:
+
+- Added Roadmap Position section: proposal now explicitly recommends adding
+  D8 to the roadmap rather than reframing D7. Resolves the contradiction
+  with `framework-v1.roadmap.md:246` "GUI or CLI tooling" exclusion.
+- Added Install State And Manifest section: defines manifest schema
+  (`~/.local/share/llm-wiki/manifest.json`), collision policy table
+  (path-absent, manifest-owned/match, manifest-owned/drift, user-authored,
+  symlink), and `--force` backup-and-overwrite behavior.
+- Narrowed `init` to Create mode only; Update mode marked out of scope and
+  remains agent-owned. Binary refuses `init` against a non-empty `wiki/`.
+- Removed staged-delivery row from risk table (V1 ships only install+build,
+  init in V1.1) which contradicted Acceptance Criterion requiring init
+  golden-file fixtures. `init` is now non-negotiable for V1.
+- Replaced placeholder canonical-schema example with a real schema:
+  required/optional frontmatter fields with types, fixed body section
+  shape, projection rules, schema snapshot test commitment.
+- Defined "wiki shape" precisely (document type suffixes, metadata block
+  fields, folder layout, status vocabulary, three-layer architecture
+  invariant) and committed to compat fixtures under `tests/fixtures/wikis/`.
+- Replaced the muddy E2E test claim ("claude --version discovers skills")
+  with concrete post-install file-and-manifest verification. Manual smoke
+  testing documented but not automated; no runtime exposes a stable
+  skill-listing API.
+- Cited measured line-loss deltas (init-project Claude 369 -> 155;
+  knowledge-research Codex 200 -> 124) instead of "~400 lines" handwave.
+- Reworded "no network dependency" to clarify it applies to operations
+  after install, not to distribution acquisition.
+- Softened "per-runtime skill drift eliminated" claim: projector
+  eliminates cross-runtime drift on the same canonical content, not
+  authoring drift in the canonical itself; golden-file tests are the
+  discipline against the second class.
+- Added two new risk rows: user-authored skill collision; manifest-vs-FS
+  desync. Mitigations documented (refuse default, --force backup, atomic
+  manifest writes via temp-file + rename).
+- Acceptance Criteria reorganized into Functional / Test / Distribution /
+  Roadmap groupings; expanded from 12 items to 16; manifest, collision
+  matrix, compat fixture, and roadmap update added as explicit gates.
+
+Pages updated: wiki/proposals/llm-wiki-binary.proposal.md, wiki/log.md
+
+## [2026-05-06] update | Address second-round review of llm-wiki binary proposal
+
+Fixed five reviewer findings on `wiki/proposals/llm-wiki-binary.proposal.md`:
+
+1. Compat fixture / agent-driven contradiction: rewrote the fixture
+   contract so it asserts only what the binary can actually verify
+   (parseability, metadata extraction, template compatibility, skill
+   availability). Operations-level compatibility (ingest/query/lint
+   succeed) moved to a separate agent-driven smoke-test checklist at
+   `wiki/checklists/v1-fixture-smoke.checklist.md` (to be created when
+   the fixture lands), run manually as part of release gating. Dropped
+   the round-trip identity gate because the binary does not write into
+   `wiki/` content.
+2. Bad citations corrected: `plan.md` -> `wiki/plans/single-source-skills.plan.md`
+   (Sources, Implementation Outline x2). Imaginary `review.md §11`
+   replaced with the real `wiki/log.md` 2026-05-06 entry plus `review.md
+   §10` for the audit wording. Sources field updated.
+3. D7 proof overcompression: reworded "the proof becomes" to "the setup
+   step becomes" and added explicit text noting that `init` produces
+   scaffolding, not a navigable self-managing wiki — the latter requires
+   the agent to run end-to-end against the scaffolded project.
+4. Local-dev manifest collision edge case eliminated by removing
+   `install --env local` entirely. New surface: `install` is global-only
+   and manifest-tracked; `build [--target] [--out]` covers all local
+   rendering (snapshot tests, self-dogfooding) without a manifest.
+   Self-dogfooding now uses `llm-wiki build --out .`. Updated the
+   subcommand surface, the install/build/uninstall descriptions, the
+   self-referential dev workflow section, the test sections, the
+   non-goals, the revisit-when triggers, and the implementation outline.
+5. Fixed `<path>.bak` collision risk: switched to timestamped backup
+   suffix `<path>.bak.<UTC-ISO8601>` (e.g. `<path>.bak.20260506T123456Z`),
+   so repeated `--force` runs never overwrite an earlier backup. Updated
+   the manifest collision-policy table, the risk table, and the
+   acceptance criteria.
+
+Pages updated: wiki/proposals/llm-wiki-binary.proposal.md, wiki/log.md
+
+## [2026-05-06] promote | Accept llm-wiki binary proposal; add D8; supersede predecessors
+
+Formal acceptance pass per the framework promotion rule
+(`project_guidelines.template.md:344-356`). Status flips, decision page,
+roadmap addition, and supersession bookkeeping for the binary proposal.
+
+Created:
+- `wiki/decisions/llm-wiki-binary-distribution.decision.md` — records the
+  choice, six rejected alternatives (status quo, legacy shell renderer +
+  conditional blocks, Python script, per-project install, MCP, agent-only
+  scaffolding), consequences, and the bounded backward-compatibility
+  promise.
+
+Status changes:
+- `wiki/proposals/llm-wiki-binary.proposal.md`: Proposed -> Accepted; added
+  Promoted To pointing at the new decision and roadmap D8.
+- `wiki/decisions/single-source-skills.decision.md`: Accepted -> Superseded
+  (Superseded By: binary distribution). Bash renderer + conditional-block
+  approach is replaced by the binary's typed projector.
+- `wiki/decisions/framework-path-resolution.decision.md`: Accepted ->
+  Superseded. Binary embeds canonical content, eliminating the framework-
+  root path-resolution problem entirely.
+- `wiki/decisions/project-local-codex-skills.decision.md`: already
+  Superseded by single-source-skills; now transitively superseded by binary
+  distribution. Chronological chain preserved.
+- `wiki/plans/single-source-skills.plan.md`: Active -> Superseded. Repo-
+  local consolidation work landed but the smoke-test gates from §6 will be
+  discharged by the D8 implementation rather than by completing this plan.
+
+Roadmap:
+- `wiki/roadmaps/framework-v1.roadmap.md`: D8 added with full Promise,
+  Included, Excluded, Proof, Promotion Target, Unlocks, Closes sections.
+  D7 unchanged; D7's Unlocks updated to note D8 as the faster proof path.
+
+Index:
+- `wiki/index.md`: Stage line updated to include D8 (Draft); proposal
+  status flipped to Accepted; new decision listed; three predecessor
+  decisions and one plan marked Superseded with reasons.
+
+No skill files, canonical sources, or repo-local skill outputs were
+modified by this pass. The legacy shell renderer continues to operate the repo's
+self-dogfooding workflow until D8 ships.
+
+Next step: write `wiki/plans/llm-wiki-binary.plan.md` to execute D8.
+
+Pages created: wiki/decisions/llm-wiki-binary-distribution.decision.md
+Pages updated: wiki/proposals/llm-wiki-binary.proposal.md, wiki/decisions/single-source-skills.decision.md, wiki/decisions/framework-path-resolution.decision.md, wiki/plans/single-source-skills.plan.md, wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
+
+## [2026-05-06] update | Normalize acceptance pass per third-round review
+
+Reviewer caught five issues in the prior acceptance pass. All addressed.
+
+**Premature supersession (high).** Predecessor decisions were marked
+`Superseded` while the binary that supersedes them does not yet exist.
+The new decision's own consequences section even said the legacy shell renderer
+remains in operation. Reverted statuses to reflect what is actually
+running:
+
+- `wiki/decisions/single-source-skills.decision.md`: Superseded -> Accepted.
+  Added forward-pointing `Successor field:` field.
+- `wiki/decisions/framework-path-resolution.decision.md`: Superseded ->
+  Accepted. Added `Successor field:` field.
+- `wiki/plans/single-source-skills.plan.md`: Superseded -> Active. Added
+  `Successor field:` field. Smoke-test gates from §6 will be folded into D8
+  rather than discharged separately.
+- `wiki/decisions/project-local-codex-skills.decision.md`: unchanged
+  (already Superseded by single-source; chain stays chronologically
+  accurate; will collapse forward when D8 ships).
+- Index lines updated to match the reverted statuses with explicit
+  "in operation now, will be superseded by binary distribution when D8
+  ships" annotations.
+
+The binary-distribution decision's metadata changed `Supersedes:` to
+`deferred supersession field:`. The `Consequences` section was split
+into **Immediately** (forward-pointing annotations only) and **On D8
+completion (planned, not yet effected)** (the actual flips, file
+removals, and spec updates). This makes the deferred-supersession model
+explicit instead of implied.
+
+**Invalid AC #11 (high).** Compat-fixture acceptance criterion still
+required "framework operations succeed" and "round-trip is byte-identical"
+even though the proposal's Compat Fixtures section had already dropped
+both claims (binary does not own ingest/query/lint; binary does not
+write into `wiki/` content). Rewrote AC #11 to match: parseability,
+metadata extraction against hand-coded structs, template compatibility
+via `init` re-render, skill-availability cross-check. Operations-level
+compatibility is the agent's checklist responsibility.
+
+**Install upgrade semantics underspecified (high).** The collision-policy
+table used a two-way comparison (current file vs manifest) that
+conflated "no-op" with "upgrade." Rewrote the table as a three-way hash
+comparison: `current` (file on disk) vs `manifest` (last installed) vs
+`bundled` (this binary). Eight cases now distinguished:
+- absent + no manifest entry = fresh install
+- absent + manifest entry = recovery
+- match + match = no-op
+- match + differ = upgrade (file untouched, framework moved on)
+- differ + match = user edited the framework file (refuse default)
+- differ + differ = user edited AND framework moved on
+- non-manifest path = collision (refuse default)
+- symlink = pre-binary residue (refuse default; suggest doctor)
+
+**`init` non-empty-dir contradiction (medium).** Earlier wording
+("refuses against a non-empty `wiki/`") contradicted the existing
+`init-project` spec's IS_EXISTING profile. Rewrote: the binary's `init`
+collision check is on framework artifacts only (`wiki/`, `raw/`,
+`CLAUDE.md`, `project_guidelines.md`), not on directory emptiness.
+IS_EXISTING happy path preserved: existing source code, configs, and
+tests are left untouched. D8 roadmap entry updated to match.
+
+**"Seven deliverables" stale text (low).** Index line updated to "Eight
+deliverables: bootstrap through self-replicating framework, plus D8
+distribution tooling."
+
+**Untracked decision file note.** `wiki/decisions/llm-wiki-binary-
+distribution.decision.md` remains untracked in git. Not added in this
+pass — staging and commit are the user's call. Flagging here so it is
+not lost in the next commit.
+
+Knowledge base now coherent: the operating model is the legacy shell renderer +
+canonical `skills/` source; the binary is an accepted future direction
+recorded as D8; predecessor decisions show their forward path without
+misrepresenting current state.
+
+Next step (unchanged): write `wiki/plans/llm-wiki-binary.plan.md` to
+execute D8.
+
+Pages updated: wiki/proposals/llm-wiki-binary.proposal.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/single-source-skills.decision.md, wiki/decisions/framework-path-resolution.decision.md, wiki/plans/single-source-skills.plan.md, wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
+
+## [2026-05-06] create | D8 implementation plan for the llm-wiki binary
+
+Wrote `wiki/plans/llm-wiki-binary.plan.md` to execute the accepted D8
+deliverable. Plan is `Status: Draft` until stage 5.1 begins.
+
+Structure:
+- 13 sequenced stages (5.1 scaffold + CI -> 5.13 cleanup and supersession
+  bookkeeping)
+- Crate lives at `tools/llm-wiki/` with explicit module layout (schema,
+  projector, manifest, install/build/init/status/doctor/uninstall)
+- 16 verification gates mapped one-to-one to the proposal's acceptance
+  criteria
+- Tightest-first ordering inside the implementation phase: schema ->
+  projector -> canonical migration (the bug-prevention spine that would
+  have caught the legacy shell renderer's content-loss class), then manifest,
+  init, diagnostics
+- Stage 5.4 (canonical migration) is explicitly a content-completeness
+  audit with PR review of every diff between today's rendered outputs
+  and the new projector output. The bug we just hit is the headline
+  reason this stage exists.
+- Stage 5.13 collapses the deferred-supersession wording recorded
+  earlier today into effective supersession when D8 ships
+- Implementation risks separated from design risks (design risks live
+  in the proposal); seven implementation-specific risks documented
+- Four open implementation questions flagged as sequencing details, not
+  design forks: crate name for crates.io, workspace vs standalone
+  Cargo.toml, dirs crate vs hand-rolled HOME resolution, git2 for
+  .gitignore awareness in IS_EXISTING profile
+
+Index updated to list the new plan.
+
+Pages created: wiki/plans/llm-wiki-binary.plan.md
+Pages updated: wiki/index.md, wiki/log.md
+
+## [2026-05-06] update | Revise D8 implementation plan per fourth-round review
+
+Fixed five reviewer findings on `wiki/plans/llm-wiki-binary.plan.md`:
+
+1. **Release-before-skill-migration ordering bug (high).** Earlier draft
+   tagged v0.1.0 in stage 5.11, then migrated `init-project` skill in
+   5.12. Since canonical skills are embedded at compile time (5.5), v0.1.0
+   would have shipped with the legacy markdown-driven skill, not the
+   wrapper. Reordered: 5.11 is now the wrapper migration (must precede
+   release); 5.12 is `cargo-dist` and v0.1.0; 5.13 is cleanup. Added an
+   explicit "Critical reordering note" in §10 documenting the constraint.
+
+2. **Stage 5.3 unverifiable as written (high).** Earlier draft said
+   stage-5.3 golden tests use canonicals "after stage 5.4," contradicting
+   the per-stage checkpoint commit rule. Split: 5.3 now uses hand-coded
+   `SkillDoc` values and tiny inline canonicals (decoupled from real skill
+   content) to verify projector logic; the "snapshot tests against real
+   skills" gate moved to 5.4 where the migrated canonicals exist.
+
+3. **`build.rs` cannot depend on the package being built (medium).** A
+   Rust build script cannot use items from the crate it is building.
+   Restructured into a workspace with two crates: `crates/llm-wiki-schema/`
+   (pure library — parsing + projection) and `tools/llm-wiki/` (binary).
+   The binary depends on `llm-wiki-schema` as both a normal dep and a
+   `[build-dependencies]` entry, so the binary's `build.rs` can validate
+   embedded canonicals at compile time. Added a CI negative test asserting
+   that a malformed canonical fails the build.
+
+4. **Initial-source handling agent/binary split (medium).** Earlier draft
+   accepted `--initial-sources` without specifying behavior. Clarified:
+   the binary copies sources into `<path>/raw/initial/` deterministically
+   and writes a manifest; it does not invoke ingest. The agent's wrapper
+   skill handles the conversational handoff to `knowledge-ingest`. This
+   preserves the principle: deterministic file ops in the binary,
+   LLM-driven judgment in the agent.
+
+5. **Fixture path inconsistency (medium).** Earlier draft alternated
+   between `tests/fixtures/wikis/v1/` and `tools/llm-wiki/tests/fixtures/
+   wikis/v1/`. Standardized on the qualified path everywhere, since
+   fixtures live next to the tests that use them per Rust convention.
+
+6. **Crate naming open question resolved (low).** Specified explicitly:
+   package name `llm-wiki-framework` (matches `cargo install llm-wiki-
+   framework` in the distribution gate); binary name `llm-wiki` (`[[bin]]
+   name = "llm-wiki"` in Cargo.toml). Open question struck through and
+   marked resolved.
+
+Also updated the §10 sequencing diagram to reflect new stage numbers,
+fixed two stragglers in §11 (risk references to old stage numbers), and
+fixed one straggler in stage 5.8 (cross-reference to wrapper migration
+updated from 5.12 to 5.11).
+
+Pages updated: wiki/plans/llm-wiki-binary.plan.md, wiki/log.md
+
+## [2026-05-06] update | D8 plan: nuclear no-legacy discipline
+
+User directive: D8 ships clean-slate; no dead code, no old features
+lingering, no main-branch state where legacy shell renderer and binary coexist.
+
+Added §2a "No-Legacy Discipline (Load-Bearing)" to
+`wiki/plans/llm-wiki-binary.plan.md`. Seven principles, non-negotiable:
+
+1. Single source of truth at any moment. No coexistence of legacy shell renderer
+   and binary on main.
+2. Dead code is a release blocker. No legacy parsing paths in the binary.
+3. Old prose is deleted, not migrated. The current `init-project` skill
+   prose is `git rm`-ed when the wrapper lands.
+4. Spec rewrites, not spec patches. The binary-relevant specs are
+   rewritten from scratch.
+5. Superseded predecessors move to `wiki/archive/`. Per the framework's
+   own rule (project_guidelines.template.md:327), they leave the active
+   index.
+6. Open questions resolve before stage 5.1. No "we'll figure it out
+   during implementation."
+7. Backward compatibility is bounded — external project wikis preserved,
+   internal bash-renderer canonical format is dead code.
+
+Stage updates to enforce the discipline:
+
+- **5.4** (canonical migration): explicit "no `<!-- TAG -->` markers
+  anywhere," CI grep gate added that fails the build on any reintroduction.
+  Removed the "if approached cleanly" hedge.
+- **5.11** (init-project wrapper): explicit `git rm` of the old prose;
+  fresh canonical under 60 lines; verification asserts `git log -p` shows
+  delete-then-rewrite, not an accumulating patch.
+- **5.13** (cleanup): reframed as a single-merge operation. Predecessors
+  archived (`git mv` to `wiki/archive/`), not just status-flipped.
+  Specs rewritten (delete-then-rewrite), not edited. Deferred-supersession
+  framing dropped from the binary-distribution decision once D8 lands.
+  `Successor field:` annotations removed entirely.
+
+New §6 verification gates (No-Legacy Audit, gates 17-22):
+
+- 17: `cargo +nightly udeps` reports zero unused dependencies.
+- 18: `cargo clippy --all-targets -- -D warnings -D dead_code` passes;
+  no unjustified `#[allow(dead_code)]`.
+- 19: CI grep gate — no `legacy Claude runtime marker`/`legacy Codex runtime marker`/`legacy end marker`
+  anywhere in the working tree.
+- 20: CI grep gate — no legacy shell rendering references in
+  active wiki docs (allowed only in `wiki/archive/` and `wiki/log.md`).
+- 21: No `parse_legacy()` / `SchemaVersion` enum / fallback paths in the
+  binary. The codebase handles only the current schema.
+- 22: No `Successor field:` fields remain on active documents.
+
+§12 reframed from "open questions" to "implementation decisions
+(pre-stage-5.1)." All four resolved:
+
+1. Package: `llm-wiki-framework`; binary: `llm-wiki`. Reserve crates.io name.
+2. Workspace layout (mandated by `build.rs` build-dependency requirement).
+3. Hand-rolled `HOME`/XDG path resolution, not `dirs` crate (avoids the
+   macOS `~/Library/Application Support/` mismatch).
+4. IS_EXISTING profile operates on literal paths only; no `git2`, no
+   implicit `.gitignore` walking. Predictability over convenience.
+
+Pages updated: wiki/plans/llm-wiki-binary.plan.md, wiki/log.md
+## [2026-05-06] update | D8 binary implementation started
+
+Started implementation of `wiki/plans/llm-wiki-binary.plan.md` on branch
+`d8-llm-wiki-binary`. Added the Rust workspace scaffold with the
+`llm-wiki-schema` library crate and `llm-wiki-framework` binary crate,
+baseline CI workflow, and coverage configuration. The D8 implementation plan
+is now Active.
+
+Pages updated: wiki/plans/llm-wiki-binary.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-06] create | Project registry and search artifacts proposal
+
+Created a post-D8 proposal for adding project registration, centralized
+per-project search artifacts, and explicit cross-project search to the
+`llm-wiki` binary.
+
+The proposal keeps D8 unchanged and treats the active
+`wiki/plans/llm-wiki-binary.plan.md` as the baseline implementation. It
+recommends a later D9-style deliverable with a visible command split:
+`llm-wiki search` for one project and `llm-wiki search-all` for explicitly
+registered projects. Search artifacts are rebuildable caches under
+`~/.cache/llm-wiki/`; `wiki/` remains the canonical knowledge source.
+
+The proposal records the Rust `qmd` crate as the preferred candidate backend
+because its docs expose Store, SQLite FTS5/BM25 search, local GGUF embeddings,
+hybrid search, reranking, collection helpers, and model download support. It
+requires a search-quality eval before accepting the backend as the framework's
+search engine.
+
+Also corrected D8 status in `wiki/index.md` and
+`wiki/roadmaps/framework-v1.roadmap.md` from Draft to Active, matching the
+existing D8 implementation-start log entry.
+
+Pages created: wiki/proposals/project-registry-search-artifacts.proposal.md
+Pages updated: wiki/index.md, wiki/roadmaps/framework-v1.roadmap.md, wiki/log.md
+
+## [2026-05-06] update | D8 binary implementation completed
+
+Completed the D8 `llm-wiki` binary implementation on
+`d8-llm-wiki-binary`.
+
+Implemented:
+
+- Rust workspace with `llm-wiki-schema` and `llm-wiki-framework`
+- typed canonical skill parser and runtime projectors
+- compile-time embedded canonical validation
+- `build`, `install`, `uninstall`, `init`, `status`, and `doctor`
+- manifest ownership with hash-based drift/collision handling
+- deterministic Create-mode scaffolding with profile snapshots
+- v1 compatibility fixture and fixture smoke checklist
+- release and post-install verification workflows
+
+Cleanup:
+
+- removed the legacy skill render script
+- rewrote `init-project` as a thin wrapper over `llm-wiki init`
+- archived predecessor decisions and plan under `wiki/archive/`
+- rewrote the affected skill specs under the binary distribution model
+- marked D8 completed on the roadmap and index
+
+Verification run locally:
+
+- `cargo test --workspace`
+- `cargo clippy --workspace --all-targets --all-features -- -D warnings`
+- no legacy runtime marker strings remain in `skills/`
+
+External release gates still require human/repository action: reserve/publish
+the crates.io package, tag `v0.1.0`, run the generated release workflow, and
+complete manual Claude/Codex smoke checks.
+
+Pages updated: wiki/index.md, wiki/log.md, wiki/roadmaps/framework-v1.roadmap.md,
+wiki/plans/llm-wiki-binary.plan.md, wiki/decisions/llm-wiki-binary-distribution.decision.md,
+wiki/specs/documentation-model.spec.md, wiki/specs/init-project-skill.spec.md,
+wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md,
+wiki/specs/knowledge-research-skill.spec.md, wiki/specs/knowledge-lint-skill.spec.md,
+wiki/archive/single-source-skills.decision.md, wiki/archive/framework-path-resolution.decision.md,
+wiki/archive/project-local-codex-skills.decision.md, wiki/archive/single-source-skills.plan.md
+
+## [2026-05-06] update | Sharpen project registry search proposal
+
+Applied review feedback to
+`wiki/proposals/project-registry-search-artifacts.proposal.md`.
+
+Changes:
+- Split external markdown search and the Rust `qmd` crate into distinct concepts. Added
+  `wiki/references/qmd-rs-search-crate.reference.md` for the Rust crate and
+  updated the proposal to call it qmd-rs.
+- Made qmd-rs feature parity with external markdown search explicitly unconfirmed and part of
+  the required eval before backend acceptance.
+- Defined stale-index detection: store `last_indexed_wiki_max_mtime` and
+  `indexed_file_count`, then compare against current `wiki/**/*.md` state.
+- Fixed project registration validation to accept `project_guidelines.md`,
+  `CLAUDE.md`, or `AGENTS.md`.
+- Promoted cross-project result fusion from optional wording to a default:
+  federated per-project retrieval followed by RRF with `k=60`.
+- Added the required future `documentation-model.spec.md` update so D9's
+  search surface becomes `llm-wiki search` / `search-all`, not direct framework search surface.
+- Made `knowledge-query` integration explicitly out of scope unless a later
+  accepted plan chooses to add it.
+
+Pages created: wiki/references/qmd-rs-search-crate.reference.md
+Pages updated: wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/index.md, wiki/log.md
+
+## [2026-05-06] update | D8 review verification gaps closed
+
+Addressed review findings against the D8 implementation. CI now runs the
+`cargo +nightly udeps --workspace` unused-dependency audit. The tag-triggered
+post-install workflow now runs a concrete redirected-HOME integration test
+that installs the binary output, reads the manifest, verifies the expected
+file count, verifies every manifest path exists, verifies each SHA-256 hash,
+and checks that installed skill files are manifest-owned.
+
+The reported coverage concern was reviewed against the actual local
+`cargo llvm-cov --workspace --fail-under-lines 80` gate: line coverage is
+above the configured threshold, so no status rollback was needed.
+
+Pages updated: .github/workflows/ci.yml, .github/workflows/post-install.yml,
+tools/llm-wiki/tests/post_install.rs, justfile, wiki/log.md
+
+## [2026-05-06] update | Split search backend selection from registry proposal
+
+Applied second-round review feedback to the D9 search direction.
+
+Changed `wiki/proposals/project-registry-search-artifacts.proposal.md` to keep
+it focused on registry, command surface, lifecycle, cache ownership, and output
+contracts. Backend choice is no longer part of that proposal's acceptance
+criteria.
+
+Added `wiki/proposals/search-backend-selection.proposal.md` to evaluate qmd-rs,
+external markdown search shell-out, direct SQLite FTS5/BM25, or deferring D9 if no backend clears
+the bar.
+
+Registry proposal revisions:
+- Added `forget`, `register --update`, project ID derivation, and D9-era
+  `init --no-register` with default auto-registration after successful init.
+- Documented uninstall behavior: `llm-wiki uninstall` leaves registry, indexes,
+  and model caches untouched.
+- Added host-local registry note for absolute paths.
+- Added per-project lockfile, temp index build, atomic swap, and crash handling.
+- Pinned `--include` / `--exclude` to repeated project-ID flags.
+- Pinned output formats to `--format text|json`, with stable JSON for agents.
+- Defined snippet semantics: 200 characters around best match span with
+  ellipses.
+- Tied `--class` and `--status` filters to
+  `wiki/specs/documentation-model.spec.md`.
+- Added RRF top-20-per-project cap before global fusion.
+- Added transitional note that documentation-model search wording remains
+  current until D9 lands, then must point at `llm-wiki search` / `search-all`.
+
+Pages created: wiki/proposals/search-backend-selection.proposal.md
+Pages updated: wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/index.md, wiki/log.md
+
+## [2026-05-06] create | D8 product layout addendum
+
+Created a post-D8 layout addendum. D8 remains completed behaviorally; the
+addendum corrects repository shape so the binary is the root product crate and
+embedded product assets live under `assets/` instead of root `skills/` or root
+`project_guidelines.template.md`.
+
+Target layout:
+
+- root `Cargo.toml` is both workspace root and `llm-wiki-framework` package
+- root `src/` contains the `llm-wiki` binary
+- root `build.rs` validates embedded assets
+- `assets/skills/` contains canonical skill assets
+- `assets/templates/` contains scaffold templates
+- `crates/llm-wiki-schema/` remains the pure parser/projector library
+- generated `.claude/skills/` and `.codex/skills/` outputs remain convenience
+  outputs
+
+Pages created: wiki/plans/llm-wiki-product-layout-addendum.plan.md
+Pages updated: wiki/plans/llm-wiki-binary.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-06] update | Complete D8 product layout correction
+
+Moved `llm-wiki` into the root product crate layout and moved embedded product
+assets under `assets/`. The root package is now `llm-wiki-framework`, with the
+installed binary still named `llm-wiki`; `src/` contains the binary, root
+`build.rs` validates embedded assets, `tests/` contains binary integration
+tests and fixtures, `assets/skills/` contains canonical skill assets, and
+`assets/templates/` contains scaffold templates.
+
+Regenerated committed Claude/Codex runtime outputs from the moved canonical
+assets. While doing that, removed stale references to the retired template
+filename from the ingest and lint canonical skill text and accepted the
+corresponding projection snapshots.
+
+Verification run locally:
+
+- `cargo fmt --all --check`
+- `cargo test --workspace`
+- `cargo clippy --workspace --all-targets --all-features -- -D warnings -D dead_code`
+- `cargo insta test --workspace --accept`
+- `cargo run -- build --out .`
+- `cargo llvm-cov --workspace --fail-under-lines 80`
+- `cargo +nightly udeps --workspace`
+- `cargo install --path . --force`
+- `dist plan` using pinned cargo-dist 0.28.0
+
+The cargo-dist workflow was regenerated with the pinned generator. Nontrivial
+implementation was also moved out of `mod.rs` files into named modules so
+`mod.rs` files only declare and re-export modules.
+
+Pages updated: wiki/plans/llm-wiki-product-layout-addendum.plan.md,
+wiki/index.md, wiki/log.md, wiki/roadmaps/framework-v1.roadmap.md,
+wiki/checklists/v1-fixture-smoke.checklist.md,
+wiki/specs/documentation-model.spec.md, wiki/specs/init-project-skill.spec.md,
+wiki/specs/knowledge-query-skill.spec.md,
+wiki/specs/knowledge-ingest-skill.spec.md,
+wiki/specs/knowledge-research-skill.spec.md,
+wiki/specs/knowledge-lint-skill.spec.md,
+wiki/decisions/typed-documents.decision.md,
+wiki/plans/knowledge-research-intake.plan.md
+
+## [2026-05-06] create | Managed binary install proposal
+
+Created `wiki/proposals/binary-path-bootstrap.proposal.md` to capture the
+manual-download install gap: `llm-wiki install` can install skills while the
+skills later fail because `llm-wiki` is not discoverable on `PATH`.
+
+The proposal now recommends that `llm-wiki install` always create and verify a
+managed runtime home (`~/.llm_wiki/bin/llm-wiki` on Unix-like systems, future
+`%LOCALAPPDATA%\llm_wiki\bin\llm-wiki.exe` on Windows), render installed skills
+to call that managed absolute path, and only then check PATH as a convenience
+diagnostic. It rejects silent shell profile edits, moves the manifest target to
+`~/.llm_wiki/manifest.json` with migration from the D8 manifest path, and
+includes future Windows compatibility requirements for `.exe` naming,
+PATHEXT-aware lookup, PowerShell PATH guidance, and Windows-specific tests.
+It also adds a scoped backup snapshot before replacing known framework skill
+paths and renames `init-project` to `knowledge-init` with legacy path backup
+and conflict handling. The proposal explicitly records this as future behavior,
+keeps install scoped to the full bundled framework skill set, and proposes a
+clean rename without installing a temporary `init-project` alias by default.
+
+Pages created: wiki/proposals/binary-path-bootstrap.proposal.md
+Pages updated: wiki/index.md, wiki/log.md
+
+## [2026-05-06] update | Harden managed binary install proposal
+
+Updated `wiki/proposals/binary-path-bootstrap.proposal.md` after proposal
+review. The proposal now pins all file and binary hashes to `sha256`, resolves
+the managed runtime home as `~/.llm_wiki` and the manifest migration as
+one-way replacement, adds `current_exe()` failure handling, defines
+copy-over-self behavior, and introduces `install.partial.json` transaction
+recovery for interrupted installs.
+
+The revision also adds a manifest schema sketch, makes the `init-project` to
+`knowledge-init` rename a separable migration phase, replaces overloaded
+`install --print-path-guidance` behavior with `llm-wiki path`, clarifies shell
+profile guidance, expands acceptance criteria for end-to-end outside-PATH
+testing, and keeps unresolved questions limited to cleanup and optional future
+behavior.
+
+Pages updated: wiki/proposals/binary-path-bootstrap.proposal.md, wiki/log.md
+
+## [2026-05-06] promote | Managed binary runtime install
+
+Accepted `wiki/proposals/binary-path-bootstrap.proposal.md` as the D8.1 managed
+runtime bootstrap direction and promoted it to
+`wiki/decisions/binary-path-bootstrap.decision.md` plus
+`wiki/plans/binary-path-bootstrap.plan.md`.
+
+The decision amends the completed D8 binary distribution model: future
+`llm-wiki install` behavior will manage `~/.llm_wiki/bin/llm-wiki`, migrate the
+D8 manifest once into `~/.llm_wiki/manifest.json`, render installed skills to
+call the managed binary by absolute path, keep PATH setup as convenience only,
+and rename `init-project` to `knowledge-init` in a separable migration phase.
+
+Added D8.1 to the Framework V1 roadmap as a planned follow-up deliverable. Specs
+were intentionally not updated because this behavior is accepted direction, not
+validated runtime behavior yet.
+
+Pages created: wiki/decisions/binary-path-bootstrap.decision.md,
+wiki/plans/binary-path-bootstrap.plan.md
+Pages updated: wiki/proposals/binary-path-bootstrap.proposal.md,
+wiki/decisions/llm-wiki-binary-distribution.decision.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
+
+## [2026-05-06] update | Clarify install acquisition convergence
+
+Updated the D8.1 decision and plan to make acquisition-path convergence
+explicit. `cargo install llm-wiki-framework` is documented as requiring a
+follow-up `llm-wiki install`, because Cargo does not provide a reliable
+package-defined post-install hook for mutating user home directories. The
+release installer may invoke or offer to invoke `llm-wiki install`, but must not
+duplicate skill-copy, manifest, backup, or managed-binary logic.
+
+Pages updated: wiki/decisions/binary-path-bootstrap.decision.md,
+wiki/plans/binary-path-bootstrap.plan.md, wiki/log.md
+
+## [2026-05-06] update | Tighten D8.1 implementation contract
+
+Applied follow-up review feedback to the D8.1 managed runtime plan and
+decision. The plan now includes manifest v2 and `install.partial.json` schema
+sketches, defines stale-marker and marker-leak semantics, names the current
+rendering implementation touchpoints, adds a Phase 0 rendering/test-harness
+spike, and states that managed path injection should happen at a structured
+rendering boundary rather than a blind Markdown post-process.
+
+The plan now also makes the `knowledge-init` rename explicitly cover Rust
+references and snapshots, adds a documentation update phase for Cargo and
+release installer guidance, requires `doctor` to warn when a `which`-resolved
+`llm-wiki` differs from the managed binary, clarifies default uninstall as
+removing manifest-owned skills while leaving the managed binary, and grounds the
+outside-PATH test in the existing `assert_cmd` plus redirected-`HOME`
+integration harness.
+
+Pages updated: wiki/plans/binary-path-bootstrap.plan.md,
+wiki/decisions/binary-path-bootstrap.decision.md, wiki/log.md
+
+## [2026-05-06] update | Remove D8.1 compatibility assumptions
+
+Revised the D8.1 managed runtime proposal, decision, plan, roadmap, and amended
+D8 decision to reflect that there is no public install surface yet. The
+active contract now treats the old D8 manifest location and `init-project` name
+as pre-release state corrected before public release, not compatibility surfaces
+that require migration machinery.
+
+The plan no longer requires one-way manifest migration from
+`~/.local/share/llm-wiki/manifest.json`, D8 manifest migration fixtures,
+`init-project` backup behavior, or doctor checks for D8 manifest compatibility
+state.
+Local dogfood and development state can be handled through normal fresh install
+or `install --force` behavior.
+
+Pages updated: wiki/proposals/binary-path-bootstrap.proposal.md,
+wiki/decisions/binary-path-bootstrap.decision.md,
+wiki/plans/binary-path-bootstrap.plan.md,
+wiki/decisions/llm-wiki-binary-distribution.decision.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/log.md
+
+## [2026-05-06] update | Resolve D8.1 consistency nits
+
+Tightened the accepted D8.1 docs after another consistency pass. The plan now
+names `wiki/plans/binary-path-bootstrap.plan.md` as the permanent home for the
+Phase 0 implementation note, explains that backups protect user-authored or
+local dogfood edits rather than public legacy state, names Codex
+`agents/openai.yaml` runtime config files in uninstall scope, and makes the
+Phase 7 grep sweep explicitly include `wiki/specs/init-project-skill.spec.md`
+and `Sources` / `Related` metadata.
+
+The decision now states that drift after `cargo install --force` or a release
+installer upgrade is the default until `llm-wiki install` is rerun. The proposal
+rename policy was also adjusted to call `init-project` outputs pre-release
+state.
+
+Pages updated: wiki/plans/binary-path-bootstrap.plan.md,
+wiki/decisions/binary-path-bootstrap.decision.md,
+wiki/proposals/binary-path-bootstrap.proposal.md, wiki/log.md
+
+## [2026-05-06] implement | D8.1 managed runtime bootstrap
+
+Implemented the D8.1 managed runtime bootstrap on branch
+`d8-1-managed-runtime-bootstrap` with staged commits. The installer now copies
+or verifies the running binary at `~/.llm_wiki/bin/llm-wiki`, writes manifest v2
+under `~/.llm_wiki/manifest.json`, uses `install.partial.json` transaction
+state, writes scoped backup manifests, and renders installed skills to call the
+managed binary path directly. `llm-wiki path` prints optional PATH guidance,
+`doctor` checks managed binary and PATH drift, and `uninstall --include-binary`
+is the explicit managed-binary removal path.
+
+The pre-release `init-project` skill was renamed to `knowledge-init` across
+canonical assets, embedded Rust references, dispatcher routing, and projection
+snapshots. Specs were promoted after verification: the documentation model now
+records the managed runtime home and manifest v2, and the initialization skill
+spec now points at `knowledge-init`.
+
+Verification run: `cargo test --workspace`; `cargo insta test --workspace
+--accept`.
+
+Pages updated: README.md, wiki/index.md,
+wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-init-skill.spec.md,
+wiki/decisions/binary-path-bootstrap.decision.md,
+wiki/decisions/llm-wiki-binary-distribution.decision.md,
+wiki/decisions/knowledge-command-namespace.decision.md,
+wiki/plans/binary-path-bootstrap.plan.md, wiki/roadmaps/framework-v1.roadmap.md,
+wiki/log.md
+
+## [2026-05-07] update | Close D8.1 merge-review gaps
+
+Closed merge-review gaps in the D8.1 managed runtime implementation. Added
+tests for stale partial-marker rejection, stale partial-marker `--force`
+recovery, unmanaged managed-binary collision refusal, forced unmanaged-binary
+replacement with a backup snapshot, unsupported manifest schema rejection, and
+unsupported partial-marker schema rejection.
+
+The implementation now validates `schema_version` on manifest and partial
+marker reads, improves the interrupted-install error message when a partial
+managed binary is found, uses the shared binary marker constant in doctor, and
+records displaced managed binaries in backup snapshots with an explicit
+`managed-binary` entry kind.
+
+Pages updated: wiki/proposals/binary-path-bootstrap.proposal.md,
+wiki/decisions/binary-path-bootstrap.decision.md,
+wiki/plans/binary-path-bootstrap.plan.md,
+wiki/specs/documentation-model.spec.md, wiki/log.md
+
+## [2026-05-07] implement | D10 composable project init
+
+Implemented D10 on branch `d10-composable-project-init` with staged commits.
+`llm-wiki init` now uses Askama templates under `templates/base/` and
+`templates/packs/`, writes canonical `AGENTS.md` plus a `CLAUDE.md` shim,
+accepts `--blueprint <name>` with repeatable `--pack <name>`, rejects retired
+`--type` / `--scale` flags with guidance, and writes `.llm_wiki/init.toml`
+after project files and initial sources are created.
+
+The shipped catalog includes blueprints `generic`, `web-product`,
+`library-sdk`, `ml-research`, `ops-infra`, `security`, `research`, and
+`custom`, plus packs `api`, `frontend`, `library`, `ml`, `data`, `ops`,
+`ops-lite`, `security`, `research`, and `qmd-rs-scale`.
+
+Verification run: `cargo insta test --workspace --accept`.
+
+Pages updated: README.md, assets/skills/knowledge-init/SKILL.md,
+.claude/skills/knowledge-init/SKILL.md, .codex/skills/knowledge-init/SKILL.md,
+.codex/skills/knowledge/SKILL.md, wiki/specs/knowledge-init-skill.spec.md,
+wiki/specs/documentation-model.spec.md,
+wiki/plans/composable-project-init.plan.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
+
+## [2026-05-07] create | Search backend selection eval
+
+Created the first eval artifact required by the search backend selection
+proposal. The eval fixes the corpus and query set, records a external markdown search BM25-only
+baseline against this repo's `wiki/`, captures measured index size and latency,
+and documents observed concurrent-search lock failures. qmd-rs, hybrid search, and
+first-party SQLite FTS5 checks remain pending before a backend decision can be
+accepted.
+
+Pages created: wiki/evals/search-backend-selection.eval.md
+Pages updated: wiki/index.md, wiki/log.md
+
+## [2026-05-07] promote | Search backend selection
+
+Completed the search backend eval increment. Tested qmd-rs 0.3.2 through a
+temporary Rust harness, recorded its fast FTS path plus query-sanitization,
+metadata, CLI/MCP parity, and `llama-cpp-2` packaging concerns, then tested a
+direct SQLite FTS5 BM25 prototype on the same 37-file corpus. Initially
+promoted the backend selection toward direct SQLite FTS5 BM25 for D9 V1; this
+was revised by the following log entry after product weighting clarified that
+qmd-rs should be selected for the LLM-enhanced search path.
+
+Pages created: wiki/decisions/search-backend-selection.decision.md
+Pages updated: wiki/evals/search-backend-selection.eval.md,
+wiki/proposals/search-backend-selection.proposal.md,
+wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-07] update | Search backend decision weighting
+
+Revised the accepted backend decision after human product judgment clarified
+that LLM-enhanced search is expected to matter and that qmd-rs adapter work is
+worth paying now. The eval measurements remain recorded, but the recommendation
+and decision now select qmd-rs as the D9 backend, with direct SQLite FTS5 kept as
+a fallback if qmd-rs packaging or runtime behavior cannot ship safely.
+
+Pages updated: wiki/decisions/search-backend-selection.decision.md,
+wiki/evals/search-backend-selection.eval.md,
+wiki/proposals/search-backend-selection.proposal.md,
+wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-07] create | qmd-rs backend implementation plan
+
+Created the active execution plan for the D9 backend slice. The plan keeps the
+broader D9 registry/search command surface separate while specifying the qmd-rs
+adapter contract, query sanitization, metadata extraction, result shaping,
+doctor/model-cache reporting, direct SQLite fallback guardrail, and fixed eval
+query replay required before implementation can close.
+
+Pages created: wiki/plans/qmd-rs-search-backend.plan.md
+Pages updated: wiki/index.md,
+wiki/proposals/search-backend-selection.proposal.md,
+wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/log.md
+
+## [2026-05-07] update | qmd-rs backend plan review fixes
+
+Tightened the qmd-rs backend plan after review. Fixed the `src/init/` touchpoint,
+clarified that wiki metadata uses a leading bullet-list block rather than YAML
+frontmatter, committed the backend slice to CWD project discovery and a concrete
+qmd-rs store path before the registry lands, clarified adapter-computed match
+spans, made Phase 0 produce a default-on versus feature-gated decision with
+license, cargo-dist, binary-size, and install-footprint checks, and made direct
+SQLite FTS5 a deferred fallback rather than a parallel implementation.
+
+Pages updated: wiki/plans/qmd-rs-search-backend.plan.md, wiki/log.md
+
+## [2026-05-07] update | qmd-rs backend plan scope tightening
+
+Updated the qmd-rs backend plan to treat the work as a backend-only search
+subsystem. The plan now explicitly defers user-visible `index`, `search`, and
+`search-all` command behavior until the D9 registry and command surface lands,
+adds the intended `src/search/` module layout, requires cache/index/model path
+helpers in `src/paths.rs` before qmd-rs wiring, keeps qmd-rs feature-gated with
+stable disabled behavior through Phase 0, factors `doctor` into install,
+current-project, search-index, and semantic-model sections, and adds concrete
+metadata-parser and query-sanitizer requirements.
+
+Pages updated: wiki/plans/qmd-rs-search-backend.plan.md, wiki/log.md
+
+## [2026-05-07] update | qmd-rs backend implementation checkpoint
+
+Recorded Phase 0 implementation findings after adding the internal search
+subsystem and feature-gated qmd-rs adapter. qmd-rs remains optional behind the
+`qmd-rs` Cargo feature, default builds report a stable feature-disabled backend
+state, `just verify` passes, `cargo test --workspace --features qmd-rs` passes,
+and local release measurements show the default dist artifact remains small
+while the optional qmd-rs feature release binary is larger but below the plan's
+default-on thresholds.
+
+Pages updated: wiki/plans/qmd-rs-search-backend.plan.md, wiki/log.md
+
+## [2026-05-07] update | qmd-rs production adapter eval replay
+
+Updated the search backend eval with the production adapter replay. The
+feature-enabled qmd-rs adapter indexed the real repository `wiki/` corpus and
+kept the fixed eval query targets in the top two for all eight queries through
+the production `search_project` path, including sanitization, metadata parsing,
+result shaping, snippets, and canonical paths.
+
+Pages updated: wiki/evals/search-backend-selection.eval.md, wiki/log.md
+
+## [2026-05-07] promote | D9 project registry and search artifacts
+
+Closed the qmd-rs backend slice as completed and accepted the project registry
+and search artifacts proposal for D9 implementation. Created the active D9 plan
+for the user-visible registry/search command surface: `register`, `forget`,
+`projects`, `index`, `index-all`, `search`, `search-all`, init
+auto-registration, registry-backed doctor diagnostics, text/JSON output, and
+cross-project RRF. Updated the roadmap to make D9 active.
+
+Pages created: wiki/plans/project-registry-search-artifacts.plan.md
+Pages updated: wiki/plans/qmd-rs-search-backend.plan.md,
+wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/index.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/log.md
+
+## [2026-05-07] fix | qmd-rs freshness and staleness review
+
+Fixed review findings in the qmd-rs backend adapter. Search results now receive
+fresh/stale/unknown markers from adapter status, qmd-rs store metadata records
+per-file content hashes in addition to timestamp/count summaries, and the eval
+replay accepts the active D9 registry/search plan as the promoted Q7 target.
+
+Pages updated: wiki/evals/search-backend-selection.eval.md, wiki/log.md
+
+## [2026-05-07] update | D9 registry plan lifecycle contracts
+
+Clarified D9 registry/search implementation contracts before coding. The plan
+now requires explicit default-build feature-disabled diagnostics while qmd-rs
+remains gated, makes canonical project roots unique and repeated registration
+idempotent, defines stale indexes as searchable with warnings while missing
+indexes are refused, specifies init registry-write failure as recoverable
+partial success, and fixes the orientation-file casing to `AGENTS.md`.
+
+Pages updated: wiki/plans/project-registry-search-artifacts.plan.md,
+wiki/log.md
+
+## [2026-05-08] fix | D9 pre-merge quality and safety hardening
+
+Implemented the D9 pre-merge hardening sweep across registry mutation safety,
+search promotion retry behavior, registry validation, and CLI output
+contracts. Registry writes now serialize across processes with a shared lock and
+unique temp files, `search`/`search-all` retry through the qmd-rs promotion
+window, project-root and `wiki_path` invariants are revalidated when
+`projects.json` is read, and `register --update` can rename an existing project
+without retyping the path.
+
+The JSON search contract is now emitted from typed structs, stale warnings are
+structured per project in `search-all`, and the integration suite now covers
+cross-process index locking, crashed indexer recovery, concurrent registry
+writers, structured warning output, JSON field presence, and stale-promotion
+retry behavior. A manual cached-source license check was also recorded for the
+qmd/qmd-rs dependency chain because `cargo-deny` is not installed in this local
+environment.
+
+Pages updated: wiki/roadmaps/framework-v1.roadmap.md,
+wiki/plans/qmd-rs-search-backend.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-07] complete | default-on qmd-rs release behavior
+
+Implemented the default-on qmd-rs release addendum. The `qmd-rs` Cargo feature
+and disabled backend stub were removed, `qmd = 0.3.2` is now a normal
+dependency, and default builds exercise real qmd-rs-backed `index`,
+`index-all`, `search`, `search-all`, and `doctor` behavior.
+
+The hardening items from the addendum also landed: safe project ID validation,
+per-project index locks, temp-store promotion that preserves prior indexes on
+failed rebuilds, `projects` freshness reporting, stale-search warnings in text
+and JSON, `search-all --exclude` validation, and tolerant `AGENTS.md` /
+`AGENTS.MD` project validation.
+
+Verification: `cargo test --workspace`; `just verify`; `just release-plan`;
+local `just release-build` for `aarch64-apple-darwin`.
+
+Pages updated: wiki/plans/project-registry-search-artifacts.plan.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
+
+## [2026-05-07] fix | qmd-rs promotion and lock hardening
+
+Closed follow-up review findings in the search indexing path. Store promotion
+rollback now removes any partially promoted new files before restoring all old
+backups, with a unit test that injects a promotion-phase failure. Project index
+locking now uses an advisory lock held by an open `qmd-rs.lock` file, so a
+leftover lockfile from a killed process does not permanently block future index
+commands.
+
+Updated active documentation to remove stale feature-gated search wording from
+the documentation model spec and made the qmd-rs backend plan's feature-gated
+section explicitly historical/superseded.
+
+Pages updated: wiki/specs/documentation-model.spec.md,
+wiki/plans/qmd-rs-search-backend.plan.md,
+wiki/plans/project-registry-search-artifacts.plan.md, wiki/log.md
+
+## [2026-05-07] complete | D9 project registry and search artifacts
+
+Implemented the D9 registry and search command surface in `llm-wiki`.
+The binary now supports host-local project registration (`register`, `forget`,
+`projects`), init auto-registration with `--no-register`, project indexing
+(`index`, `index-all`), project-local search, explicit cross-project
+`search-all` with include/exclude filters and RRF fusion, and registry-aware
+doctor diagnostics.
+
+Default builds keep qmd-rs feature-gated and report clear
+qmd-rs-feature-disabled diagnostics for search-backed commands. Feature-enabled
+tests cover search indexing/search and two-project `search-all` behavior.
+
+Verification: `just verify`; `cargo test --workspace --features qmd-rs`.
+
+Pages updated: wiki/specs/documentation-model.spec.md,
+wiki/roadmaps/framework-v1.roadmap.md,
+wiki/plans/project-registry-search-artifacts.plan.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-07] update | default-on qmd-rs release addendum
+
+Added a post-completion addendum to the D9 registry/search plan. The addendum
+supersedes the earlier feature-gated release contract and sets the next target:
+remove the `qmd-rs` Cargo feature, make qmd-rs part of normal `llm-wiki`
+builds and release artifacts, delete feature-disabled diagnostics, and make
+default builds exercise real search index/search behavior.
+
+The qmd-rs backend plan now points to this addendum so implementers do not
+continue treating feature-gated qmd-rs as the target release state.
+
+Pages updated: wiki/plans/project-registry-search-artifacts.plan.md,
+wiki/plans/qmd-rs-search-backend.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-07] update | qmd-rs release hardening scope
+
+Expanded the default-on qmd-rs release addendum with the D9 review fixes that
+must land before removing the Cargo feature. The hardening scope now explicitly
+requires safe project ID validation, per-project index locks, temp-store
+promotion, `projects` freshness reporting, stale-search CLI warnings,
+`search-all` freshness/exclude cleanup, and tolerant `AGENTS.md` / `AGENTS.MD`
+validation.
+
+Pages updated: wiki/plans/project-registry-search-artifacts.plan.md,
+wiki/log.md
+
+## [2026-05-09] complete | skill projection template engine and v1 fixture smoke
+
+Accepted and completed the skill-projection template-engine follow-on. Claude
+and Codex skill markdown now render from `templates/skills/` through Askama
+contexts in `crates/llm-wiki-schema`, and Codex runtime config renders through
+a typed YAML template fed by `CodexRuntimeConfig`.
+
+Ran the V1 fixture smoke in `/private/tmp/llm-wiki-v1-smoke-20260509`: copied
+the committed fixture, added a raw smoke note, ingested it into a typed
+reference page, answered a query from the fixture spec and decision, and ran
+lint. Lint fixed the temp copy's stale index date and left no unresolved
+bookkeeping issues.
+
+Verification: `cargo test -p llm-wiki-schema`; `cargo test --workspace`.
+
+Pages updated: wiki/decisions/skill-projection-template-engine.decision.md,
+wiki/plans/skill-projection-template-engine.plan.md,
+wiki/proposals/skills-template-engine.proposal.md,
+wiki/checklists/v1-fixture-smoke.checklist.md, wiki/index.md, wiki/log.md
+
+## [2026-05-09] eval | D4-D7 framework proof run
+
+Filed the D4-D7 proof evidence as `wiki/evals/v1-proof-run.eval.md`.
+The proof records durable query knowledge, a spawned web-product temp project,
+a 50-page index-first scale check, and two distinct self-replicating temp
+projects (`web-product` and `ml-research`) bootstrapped through `llm-wiki init`
+and agent-owned wiki ingest.
+
+Pages updated: wiki/evals/v1-proof-run.eval.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
+
+## [2026-05-09] fix | post-rename stale references before commit
+
+Aligned remaining current-truth product references before committing the D11
+rename and follow-on work. Updated the Cargo metadata and README release
+installer URL to the `llm-wiki-rs` repository name, and replaced stale
+`knowledge-query` / `llm-wiki-framework` examples in the completed D9 registry
+and search plan with `wiki-query` / `llm-wiki-rs`.
+
+Verification: `git diff --check`; `cargo test -p llm-wiki-schema`.
+
+Pages updated: wiki/plans/project-registry-search-artifacts.plan.md,
+wiki/log.md
+
+## [2026-05-11] update | code pack proposal CLI blueprint
+
+Expanded the open code-scaffolding proposal to include a `cli-tool` blueprint
+for command-line tools and developer utilities. The proposal now treats CLI as
+a project archetype that defaults to the new `code` pack, while deferring any
+separate `cli` pack until repeated CLI-specific documentation conventions
+justify it.
+
+Pages updated: wiki/proposals/code-folders-opt-in.proposal.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-11] promote | code pack and CLI tool blueprint
+
+Accepted the code-scaffolding proposal and promoted it to a durable decision
+plus a planned implementation page. The accepted choice moves root code/deploy
+folders behind an explicit `code` pack, adds `cli-tool` as a command-line
+product blueprint, keeps research/generic/custom no-code by default, and
+defers a separate `cli` pack until repeated CLI-specific conventions justify
+one.
+
+No implementation changes landed in this operation. The planned implementation
+page now owns the Rust/template/test checklist for the next coding pass.
+
+Pages updated: wiki/decisions/code-pack-cli-blueprint.decision.md,
+wiki/plans/code-pack-cli-blueprint.plan.md,
+wiki/proposals/code-folders-opt-in.proposal.md,
+wiki/decisions/composable-project-init.decision.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-11] update | code pack implementation plan review fixes
+
+Tightened the planned implementation checklist after review. The plan now fixes
+the `Pack::Code` and `Blueprint::CliTool` description strings, specifies that
+`code` is appended after `qmd-rs-scale` in `Pack::ALL`, names the existing
+`pack_catalog_accessors_are_populated` test that needs a `code` exemption,
+adds explicit `.llm_wiki/init.toml` assertions, preserves the D10 dogfooding
+revision note unconditionally, and calls for a source comment explaining why
+`infra/` remains folded into `code`.
+
+Pages updated: wiki/plans/code-pack-cli-blueprint.plan.md, wiki/log.md
+
+## [2026-05-11] complete | code pack and CLI tool blueprint
+
+Implemented the accepted code-pack and `cli-tool` blueprint change. The init
+pack catalog now includes `code`, `cli-tool` is a selectable blueprint, and
+root `src/`, `tests/`, `scripts/`, and `infra/` folders are created only when
+`code` is resolved. Software-shaped blueprints default to `code`; `generic`,
+`research`, and `custom` remain no-code by default.
+
+Updated the code pack templates, removed the unconditional base-template code
+folder section, regenerated init and real-skill snapshots, updated the
+canonical `wiki-init` skill plus committed Claude/Codex runtime mirrors, and
+aligned active docs with the new blueprint/pack catalog.
+
+Verification: `cargo fmt`; `cargo test --test init`; `cargo run -- build --out .`;
+`cargo test --workspace`; `git diff --check`.
+
+Pages updated: src/init/blueprints.rs, src/init/packs.rs, src/init/compose.rs,
+src/init/template.rs, templates/base/project_guidelines.md,
+templates/packs/code/, tests/init.rs, tests/snapshots/,
+assets/skills/wiki-init/SKILL.md, .claude/skills/wiki-init/SKILL.md,
+.codex/skills/wiki-init/SKILL.md,
+crates/llm-wiki-schema/tests/snapshots/, README.md,
+wiki/plans/code-pack-cli-blueprint.plan.md,
+wiki/specs/wiki-init-skill.spec.md, wiki/specs/documentation-model.spec.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-11] fix | remove dead init existing flag
+
+Removed the dead `--existing` / `is_existing` init plumbing after the code-pack
+implementation eliminated its last template consumer. The init command no
+longer asks for or accepts an existing-codebase mode flag; existing directories
+remain protected by framework-artifact collision checks and can still receive a
+wiki scaffold without a special mode.
+
+The cleanup removed the CLI flag, interactive prompt, answer/profile/render
+plumbing, redundant snapshot case, and stale wiki-init documentation. A
+negative integration test now asserts `--existing` is rejected. A follow-up
+dead-flag scan found no comparable no-op init flag; the hidden `--type` and
+`--scale` fields remain intentional compatibility guidance for old callers.
+
+Verification: `cargo fmt`; `cargo build`; `cargo run -- build --out .`;
+`cargo test --test init`; `cargo test --workspace`;
+`cargo clippy --workspace --all-targets`; `git diff --check`.
+
+Pages updated: src/cli.rs, src/init/answers.rs, src/init/scaffold.rs,
+src/init/profile.rs, src/init/compose.rs, tests/init.rs, tests/snapshots/,
+assets/skills/wiki-init/SKILL.md, .claude/skills/wiki-init/SKILL.md,
+.codex/skills/wiki-init/SKILL.md,
+crates/llm-wiki-schema/tests/snapshots/,
+wiki/plans/code-pack-cli-blueprint.plan.md,
+wiki/specs/wiki-init-skill.spec.md, wiki/log.md
+
+## [2026-05-11] lint | retire stale IS_EXISTING references
+
+Updated completed roadmap and plan text that still described the old
+IS_EXISTING init profile as current behavior. The historical D8 notes now
+record that the profile existed during the binary implementation and was later
+retired by the code-pack cleanup.
+
+Pages updated: wiki/roadmaps/framework-v1.roadmap.md,
+wiki/plans/llm-wiki-binary.plan.md, wiki/log.md
+
+## [2026-05-11] update | search model selection proposal review fixes
+
+Revised the search model selection proposal after review. The proposal now
+treats uninstalled interactive selections as inactive pending state, launches
+the install-owned materialization flow instead of making search commands
+download directly, promotes pending choices only after license acceptance,
+download, hash verification, and managed records succeed, and preserves the
+previous active project profile on failed or cancelled install.
+
+The proposal now models profile bundles rather than a single embedding-model
+string, records declined LLM-search state, defines legacy missing-profile
+behavior, removes `project_default` as a search-time model source, adds
+readiness requirements for non-interactive `--model`, clarifies runtime catalog
+ownership, and makes `search-all`'s single `[global_search]` profile an explicit
+product simplification while preserving rank-based result fusion.
+
+Pages updated: wiki/proposals/search-model-selection.proposal.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-11] update | semantic hybrid search implementation slices
+
+Implemented the next semantic/hybrid search slices through the current
+threshold gate. The binary now records managed model catalog state, accepted
+license records, verified model artifact records, and search-threshold paths;
+new qmd-rs FTS stores live under `~/.llm_wiki/indexes/` with a legacy
+`~/.cache/llm-wiki/indexes/` read bridge; `index` writes a
+`semantic-index.json` metadata sidecar for enabled profiles; and `search` /
+`search-all` expose the `auto`, `lexical`, `semantic`, and `hybrid` mode
+contract with explicit lexical fallback and structured JSON readiness metadata.
+
+Semantic/hybrid retrieval remains intentionally fail-closed at
+`thresholds_unconfigured` because the natural-language eval still records
+accepted runtime thresholds as `TBD`. This preserves the Stage 0 contract that
+the implementation must not invent arbitrary relevance floors before approved
+calibration.
+
+Verification so far: `cargo fmt`; `cargo check`; `cargo test --test install`;
+`cargo test --test status_doctor`; `cargo test --test registry`;
+`cargo test --test search_commands`; focused semantic metadata and path tests;
+`git diff --check`.
+
+Pages updated: Cargo.toml, Cargo.lock, src/search_models.rs,
+src/search/semantic.rs, src/search/commands.rs, src/search/adapter.rs,
+src/search/mod.rs, src/search_profile.rs, src/paths.rs, src/doctor.rs,
+src/install.rs, src/registry/mod.rs, src/cli.rs, tests/search_commands.rs,
+tests/registry.rs, wiki/plans/semantic-hybrid-search.plan.md,
+wiki/evals/natural-language-search.eval.md, wiki/index.md, wiki/log.md
+
+## [2026-05-11] update | semantic hybrid search runtime execution
+
+Implemented semantic and hybrid retrieval behind the accepted-threshold gate.
+`llm-wiki index` now writes `semantic-vectors.json` when thresholds match the
+current model artifact, dimensions, qmd-rs version, adapter schema, and
+chunking strategy. `--mode semantic` embeds the query, scores chunk vectors,
+applies floors and filters, rolls chunks up to wiki pages, and returns semantic
+snippets. `--mode hybrid` runs configured query expansion, lexical qmd-rs FTS,
+semantic vector retrieval, reciprocal-rank fusion, exact-identifier lexical
+guarding, and optional reranking when a reranker profile exists. `search-all`
+JSON now includes per-project requested/selected mode, selection/fallback/
+readiness reason, result count, and zero-result reason. The canonical
+`wiki-query` skill now consumes `search --mode auto --format json` as a
+supplemental navigation surface and inspects mode/readiness/result metadata
+before reading returned pages.
+
+Runtime still fails closed with `thresholds_unconfigured` until the human-owned
+calibration table is filled. Integration tests use explicit deterministic
+embedding/query-expansion environment gates; normal runtime uses managed GGUF
+artifacts and never silently downloads models.
+
+Verification: `cargo fmt`; `cargo check`; `cargo test semantic`;
+`cargo test --test search_commands`; `cargo test --test status_doctor`;
+`cargo clippy --workspace --all-targets`; `cargo test --workspace`;
+`cargo run -- build --out .`; `cargo test -p llm-wiki-schema --test
+real_skills`; `just verify`.
+
+Pages updated: src/paths.rs, src/search/semantic.rs, src/search/commands.rs,
+src/doctor.rs, tests/search_commands.rs, assets/skills/wiki-query/SKILL.md,
+.claude/skills/wiki-query/SKILL.md, .codex/skills/wiki-query/SKILL.md,
+crates/llm-wiki-schema/tests/snapshots/,
+wiki/plans/semantic-hybrid-search.plan.md,
+wiki/evals/natural-language-search.eval.md, wiki/index.md, wiki/log.md
+
+## [2026-05-11] update | semantic hybrid branch-aware calibration
+
+Completed the next semantic/hybrid eval implementation slice. Hybrid search
+results now expose branch evidence (`lexical_rank`, `lexical_score`,
+`semantic_rank`, `semantic_score`) in JSON and eval reports, and
+`eval calibrate` derives hybrid pre-fusion semantic floor evidence from the
+semantic branch score rather than the rank-fused hybrid display score.
+
+The branch-aware real-model run
+`target/evals/20260511-branch-evidence-docflow-balanced/eval-run.json`
+measured the balanced profile at lexical 14 pass / 12 fail / 4 not applicable,
+semantic 24 / 5 / 1, hybrid 25 / 5, and auto 25 / 5. The C3 and C9 hybrid
+ranking blockers are fixed: the search-backend decision and wiki-init skill
+spec now rank first in hybrid and auto. Calibration still correctly refuses
+promotion with `blocked_no_feasible_threshold` because the weakest hybrid
+semantic branch evidence (`0.103599`) is below the C10 calibration no-match
+semantic branch score (`0.194490`). The report also records that H12 still
+misses the expected documentation-flow targets and H9/H11/H20 remain no-match
+hold-out risks.
+
+Updated the documentation model to clarify proposal promotion: accepted
+proposals record approved direction, roadmaps coordinate deliverables, plans
+own tactical execution and proof gates, and specs/decisions receive only
+validated durable outcomes. Thresholds were not applied.
+
+Pages updated: README.md, src/search/adapter.rs, src/search/commands.rs,
+src/search/qmd_rs.rs, src/search/semantic.rs, src/eval.rs,
+tests/search_commands.rs,
+wiki/specs/documentation-model.spec.md,
+wiki/evals/natural-language-search.eval.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-12] update | eval proposal simulation diagnostics
+
+Closed the Stage 7 calibration-reporting gaps identified in review.
+`eval calibrate` proposals now include proposed pass summaries, hold-out
+summaries, verdict changes, no-match precision, exact-identifier preservation,
+model artifact bytes, and candidate index bytes. The proposal simulation
+re-judges captured eval results with the proposed calibrated floors plus the
+production default hybrid final gates, using branch evidence where available.
+`--record` now appends proposed floors, summaries, verdict-change count, model
+bytes, and index bytes to the eval page instead of writing only a JSON pointer.
+
+The eval command integration test now runs two candidates in one report and
+asserts that their candidate vector indexes are written to distinct output
+directories. It also asserts the new calibration JSON diagnostics. The unused
+`unix_seconds` helper was removed.
+
+Recomputed
+`target/evals/20260511-branch-evidence-docflow-balanced/eval-calibration.json`
+with the richer report. The source run remains non-promotable:
+`blocked_no_feasible_threshold`, `proposed_calibration_pass=false`,
+`holdout_pass=false`, 34 verdict changes, simulated hybrid/auto 17 / 13,
+simulated hold-out hybrid/auto 12 / 8, no-match precision hybrid/auto 4 / 4,
+exact-identifier preservation hybrid/auto 3 / 4, model artifact bytes
+`1616029856`, and candidate index bytes `2707024`. Thresholds were not applied.
+
+Pages updated: README.md, src/eval.rs, tests/eval_commands.rs,
+wiki/evals/natural-language-search.eval.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-12] ingest | natural-language search raw eval data
+
+Implemented and used the raw eval-data evidence flow. `eval calibrate` now
+accepts `--export-raw-data`, which writes redacted `eval-run.json` and
+`eval-calibration.json` reports from scratch `target/evals/` output into
+`raw/data/eval/<corpus-slug>/<run-id>/<candidate-name>/` and writes a
+hash-bearing `manifest.toml`.
+
+Exported the current branch-evidence run into
+`raw/data/eval/natural-language-search/20260511T205231Z-79135/balanced/` and
+ingested it into `wiki/evals/natural-language-search-impact.md`. The impact
+page records the run ledger, current/proposed/hold-out mode summary,
+no-match precision, exact-identifier preservation, verdict changes, and the
+optimization reading. The earlier uncommitted flat raw bundles were removed
+after the PII preflight found absolute home paths.
+
+Pages updated: README.md, src/cli.rs, src/eval.rs, tests/eval_commands.rs,
+raw/data/eval/natural-language-search/20260511T205231Z-79135/balanced/,
+wiki/evals/natural-language-search.eval.md,
+wiki/evals/natural-language-search-impact.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-12] eval | natural-language search optimization replay
+
+Started optimization from the raw impact ledger. The calibration replay now
+uses the same path-anchor clause that production hybrid search uses after the
+final semantic gate, and raw eval bundles now use the corpus/run/candidate
+layout so candidates can be compared within a run.
+
+Re-calibrated the existing branch-evidence run and exported the second attempt
+to
+`raw/data/eval/natural-language-search/20260511T205231Z-79135/balanced/`.
+The candidate remains `blocked_no_feasible_threshold`, but the impact improved:
+proposal changes dropped from 34 to 26, hybrid/auto proposed totals recovered
+from 17 / 13 to 25 / 5, and hold-out hybrid/auto improved from 12 / 8 to
+17 / 3. Remaining blockers are C5/C8 calibration regressions, H6/H17 hold-out
+regressions, hybrid/auto exact-identifier preservation at 3 / 4, and the
+hybrid branch floor overlap between the 0.103599 weakest expected score and
+the 0.194490 C10 no-match maximum.
+
+Pages updated: README.md, src/eval.rs, src/search/commands.rs,
+tests/eval_commands.rs,
+raw/data/eval/natural-language-search/20260511T205231Z-79135/balanced/,
+wiki/evals/natural-language-search.eval.md,
+wiki/evals/natural-language-search-impact.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-12] update | autonomous eval test bed preflight
+
+Incorporated the eval-testbed review into the Stage 7 plan and started the
+implementation path. The plan now requires a PII/history preflight before raw
+exports are committed, documents the corpus/run/candidate raw bundle schema,
+clarifies that old flat bundles stay only if safe and historical, and defines
+the shared semantic state as the corpus snapshot rather than the
+model-specific semantic metadata wrapper.
+
+Audit results: `git log --diff-filter=A -- raw/data/eval/` found no committed
+raw eval bundle history. `rg -n "/Users/|/home/" raw/data/eval/` found
+absolute home paths in the staged, uncommitted flat bundles, so those bundles
+were removed and regenerated as
+`raw/data/eval/natural-language-search/20260511T205231Z-79135/balanced/`.
+The regenerated raw bundle grep is clean.
+
+Implementation progress: `eval run --project-root <path>` now builds a
+scratch lexical qmd-rs store under the eval output directory, no longer
+requires registry lookup or a managed prebuilt project index, records
+per-candidate and per-mode timing fields, supports
+`--time-budget-warn-ms`, and shares lexical indexing plus the semantic corpus
+snapshot across candidates. Added the vendored
+`tests/fixtures/eval-testbed/` corpus and documented the canonical invocation.
+
+Pages updated: README.md, src/cli.rs, src/eval.rs, src/search/semantic.rs,
+tests/eval_commands.rs, tests/fixtures/eval-testbed/,
+raw/data/eval/natural-language-search/20260511T205231Z-79135/balanced/,
+wiki/evals/natural-language-search.eval.md,
+wiki/evals/natural-language-search-impact.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-12] update | electric-car eval corpus fixture
+
+Vendored the electric-car battery technology wiki as a richer domain corpus
+for repeated semantic/hybrid model comparison. The fixture keeps a separate
+raw research provenance bundle, the compiled wiki corpus, and a hidden
+`wiki/evals/electric-cars.eval.md` input/output query table so eval labels do
+not contaminate the searchable corpus.
+
+Pages updated: README.md,
+tests/fixtures/eval-corpora/electric-cars/,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-12] update | eval promotion hardening
+
+Tightened the semantic/hybrid eval base after critical review. Calibration now
+requires explicit candidate selection for apply/record actions in multi-candidate
+runs, promotion gating requires hybrid and auto hold-out rows to pass under
+proposed thresholds, and promotable proposals record that post-apply validation
+is still required before durable promotion.
+
+Reconciled wiki status so the balanced threshold proposal is described as
+applied locally but pending post-apply production validation and electric-car
+domain-corpus confirmation.
+
+Pages updated: README.md, src/cli.rs, src/eval.rs, tests/eval_commands.rs,
+wiki/evals/natural-language-search.eval.md,
+wiki/evals/natural-language-search-impact.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-12] update | eval reranker execution
+
+Fixed the semantic/hybrid eval reranker path so `eval run --rerank` performs
+actual hybrid result reranking instead of only checking model readiness. Eval
+mode JSON now records `rerank_applied` and `rerank_ms`; readiness failures stay
+explicit when reranker configuration, artifact materialization, or license
+acceptance is missing. Added deterministic command coverage proving that
+reranking changes hybrid top paths.
+
+Pages updated: README.md, src/eval.rs, src/search/commands.rs,
+tests/eval_commands.rs, wiki/plans/semantic-hybrid-search.plan.md,
+wiki/index.md, wiki/log.md
+
+<!-- llm-wiki-search-ignore-start -->
+
+## [2026-05-12] update | anchor-aware production validation
+
+Ran post-apply production validation for the balanced threshold proposal. The
+project index rebuilt successfully and the ignored natural-language search
+harness passed its broad regression budgets, but the strict promotion gate still
+fails H11 because hybrid and auto return `wiki/log.md` for the H11 no-match
+query.
+
+Fixed the calibrator mismatch that made the prior replay over-optimistic:
+eval reports now store top-result anchor-match counts computed over the same
+path/title/snippet evidence used by production search. The new raw bundle
+`raw/data/eval/natural-language-search/20260512T145231Z-68005/balanced/`
+reports `status=blocked_holdout_regression`, proposed hybrid/auto 29 / 1,
+hold-out hybrid/auto 19 / 1, no-match precision 3 / 4, and exact-ID
+preservation 4 / 4. The earlier
+`raw/data/eval/natural-language-search/20260512T091123Z-10597/balanced/`
+bundle is retained as superseded evidence, not durable promotion evidence.
+
+Verification: `cargo fmt`; `cargo test --bin llm-wiki eval::`;
+`cargo test --test eval_commands`; raw bundle PII grep returned no matches.
+
+Pages updated: README.md, src/eval.rs,
+raw/data/eval/natural-language-search/20260512T145231Z-68005/balanced/,
+wiki/evals/natural-language-search.eval.md,
+wiki/evals/natural-language-search-impact.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+<!-- llm-wiki-search-ignore-end -->
+
+## [2026-05-12] update | electric-car domain confirmation
+
+Ran the vendored electric-car domain corpus as the independent semantic/hybrid
+search confirmation check. Run `20260512T162918Z-86751` reports
+`status=promotable` for the balanced candidate, proposed hybrid/auto 20 / 0,
+hold-out hybrid/auto 12 / 0, no-match precision 3 / 3, and exact-identifier
+preservation 5 / 5.
+
+Exported the raw bundle to
+`raw/data/eval/electric-cars/20260512T162918Z-86751/balanced/`. The proposal
+was not applied because it requires higher semantic and hybrid pre-fusion floors
+than the framework-wiki thresholds, and the current apply path writes one active
+threshold file.
+
+Pages updated: raw/data/eval/electric-cars/20260512T162918Z-86751/balanced/,
+wiki/evals/natural-language-search.eval.md,
+wiki/evals/natural-language-search-impact.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-12] update | scoped search thresholds
+
+Implemented scoped semantic/hybrid threshold storage. The managed
+`search-thresholds.toml` file now supports multiple records keyed by
+project/corpus, profile, embedding artifact, dimensions, qmd-rs adapter, and
+chunking identity. Legacy single-record files remain readable as fallback input,
+but once scoped records exist, search and indexing require a matching project
+scope.
+
+Updated runtime search readiness, semantic vector indexing, `doctor`, and
+`eval calibrate --apply` to use the scoped store. Applied the framework and
+electric-car balanced calibration reports under separate scopes, so the
+electric-car floors no longer overwrite the framework-wiki floors.
+
+Pages updated: README.md, src/doctor.rs, src/eval.rs, src/search/commands.rs,
+src/search/semantic.rs, src/search_models.rs, tests/search_commands.rs,
+wiki/evals/natural-language-search.eval.md,
+wiki/evals/natural-language-search-impact.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+<!-- llm-wiki-search-ignore-start -->
+
+## [2026-05-12] update | anchor-leak final floor calibration
+
+Resolved the H11 anchor-leak blocker in the semantic/hybrid eval calibrator.
+No-match rows that would survive production hybrid gating only because of
+path/title/snippet anchor evidence now raise the derived
+`hybrid_final_semantic_floor`. The new balanced run
+`20260512T154322Z-77945` reports `status=promotable`, proposed hybrid/auto
+30 / 0, hold-out hybrid/auto 20 / 0, no-match precision 4 / 4, exact-ID
+preservation 4 / 4, and applied
+`hybrid_final_semantic_floor=0.399904`.
+
+Exported the raw bundle to
+`raw/data/eval/natural-language-search/20260512T154322Z-77945/balanced/`,
+applied the candidate thresholds locally, rebuilt the project index, removed
+unignored catalog wording that described the no-match sentinel, and reran the
+ignored natural-language production harness. Hybrid and auto now pass every
+row, including zero-result handling for H11.
+
+Pages updated: README.md, src/eval.rs,
+raw/data/eval/natural-language-search/20260512T154322Z-77945/balanced/,
+wiki/evals/natural-language-search.eval.md,
+wiki/evals/natural-language-search-impact.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+<!-- llm-wiki-search-ignore-end -->
+
+## [2026-05-12] update | natural-language eval label acceptance
+
+Recorded human acceptance for all current framework and electric-car
+natural-language search eval labels. The applied balanced framework thresholds
+and scoped electric-car thresholds now rest on a durable accepted label
+baseline rather than pending operational evidence.
+
+No label text or expected-target table entries changed, so no recalibration was
+required for this acceptance step. Future label, corpus, retrieval, model,
+qmd-rs, or chunking changes must rerun `eval run` and `eval calibrate` before
+another threshold promotion.
+
+Pages updated: wiki/evals/natural-language-search.eval.md,
+wiki/evals/natural-language-search-impact.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-12] promote | semantic/hybrid search completion
+
+Promoted the validated semantic/hybrid search outcome into durable wiki state.
+The semantic/hybrid search plan is completed, the roadmap P1 status is
+completed, and the accepted mode contract now lives in
+`wiki/decisions/semantic-hybrid-search-mode.decision.md`.
+
+Updated the documentation model and wiki-query specs with the validated
+auto/lexical/semantic/hybrid behavior, scoped-threshold invariant, zero-result
+and readiness metadata expectations, and the rule that future label, corpus,
+retrieval, model, qmd-rs, or chunking changes require fresh eval and
+calibration before threshold promotion.
+
+Verification for the closure pass: `cargo test --workspace`; `just verify`;
+`git diff --check`.
+
+Pages updated: src/eval.rs, src/search/commands.rs,
+wiki/decisions/semantic-hybrid-search-mode.decision.md,
+wiki/proposals/search-query-interpretation.proposal.md,
+wiki/specs/documentation-model.spec.md, wiki/specs/wiki-query-skill.spec.md,
+wiki/evals/natural-language-search-impact.md,
+wiki/plans/semantic-hybrid-search.plan.md,
+wiki/roadmaps/framework-v1.roadmap.md, wiki/index.md, wiki/log.md
+
+## [2026-05-12] update | semantic search readiness hardening
+
+Closed the post-completion review findings against the semantic/hybrid search
+implementation. `search-all` now resolves readiness per project and reports
+skipped projects in JSON, semantic/hybrid/rerank runtime paths require current
+accepted-license records, semantic indexing only requires the embedding model,
+eval `auto` records readiness failure instead of falling back to lexical for
+unready candidates, and install/index attempt best-effort macOS Time Machine
+exclusion for rebuildable model and index roots.
+
+Verification for this pass: `cargo check`;
+`cargo test --test search_commands`; `cargo test --test eval_commands`;
+`cargo test --bin llm-wiki`; `cargo test --workspace`; `just verify`;
+`git diff --check`.
+
+Pages updated: src/backup_policy.rs, src/eval.rs, src/install.rs, src/main.rs,
+src/search/commands.rs, src/search/semantic.rs, src/search_models.rs,
+tests/search_commands.rs, wiki/decisions/semantic-hybrid-search-mode.decision.md,
+wiki/evals/natural-language-search.eval.md,
+wiki/references/llm-search-model-licensing.reference.md,
+wiki/specs/documentation-model.spec.md, wiki/specs/wiki-query-skill.spec.md,
+wiki/plans/semantic-hybrid-search.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-13] update | default install search prompt addendum
+
+Added a semantic/hybrid search plan addendum for interactive install UX. Plain
+`llm-wiki install` should prompt users to choose semantic/hybrid LLM search or
+lexical-only search, reflect the current configured choice on reinstalls,
+default to semantic/hybrid when no current choice exists, preserve explicit
+license consent before model downloads, and require scripts/CI to pass an
+explicit search posture flag.
+
+Pages updated: wiki/plans/semantic-hybrid-search.plan.md, wiki/log.md
+
+## [2026-05-13] update | default install search prompt implementation
+
+Implemented the addendum: `llm-wiki install` now always configures search,
+interactive installs prompt for semantic/hybrid or lexical-only posture,
+unconfigured installs default to semantic/hybrid, existing profiles preselect
+their current posture, and plain non-interactive installs fail with guidance to
+use an explicit search posture flag. Automated tests now pass
+`--disable-llm-search` where they need lexical-only/no-LLM installation, and
+search tests that need the missing-profile readiness branch remove the disabled
+profile explicitly.
+
+Verification: `cargo test --test install`; `cargo test --test search_commands`;
+`cargo test --test status_doctor`;
+`cargo test --test init init_runtime_manifest_records_managed_install`;
+`cargo test search_posture_cursor_defaults_to_semantic_hybrid`. The
+`post_install` and `properties` targets also passed during the grouped run. Full
+`cargo test --test init` is still blocked by the pre-existing package-version
+snapshot drift from `0.1.1` to `0.1.1-SNAPSHOT`.
+
+Pages updated: src/install.rs, tests/init.rs, tests/install.rs,
+tests/post_install.rs, tests/properties.rs, tests/search_commands.rs,
+tests/status_doctor.rs, wiki/plans/semantic-hybrid-search.plan.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-13] update | semantic search review cleanup
+
+Removed stale dead-code allowances from the search adapter mode variants and
+deleted the obsolete single-record `SearchThresholds::write_atomic`; scoped
+threshold stores now own threshold writes. Clarified the public reranker
+contract in the README and semantic-hybrid search-mode decision: `--rerank` is
+readiness-gated and remains deferred for the shipped balanced profile until a
+future reranker profile has artifact materialization, accepted licenses, eval
+evidence, calibration, and threshold scope.
+
+Verification: `cargo clippy --all-targets --all-features -- -D warnings -D dead_code`;
+`cargo test --bin llm-wiki threshold_store_upserts_without_clobbering_other_project_scopes`;
+`git diff --check`. The strict clippy command was first attempted with
+`--locked`, but the existing staged `Cargo.lock` version drift requires a lock
+update, so the lockfile was preserved and restored around the verification.
+
+Pages updated: src/search/adapter.rs, src/search_models.rs, README.md,
+wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/log.md
+
+## [2026-05-13] update | manifest-backed init reruns
+
+Implemented rerun init as a narrow edit surface for project setup. Projects
+with `.llm_wiki/init.toml` now prefill interactive answers from the manifest;
+new manifests record project name and description alongside blueprint,
+resolved packs, and framework version. Rerun writes refresh framework-owned
+root schema files and create newly selected pack folders while preserving
+existing `wiki/index.md` and `wiki/log.md`. Follow-up review tightened
+blueprint-change behavior so rerun pack defaults follow a newly selected
+blueprint instead of pinning the old pack set, documented that saved packs from
+the previous blueprint are not preselected after a blueprint switch, and added
+registry coverage showing same-root rerun renames update the existing registry
+entry without duplicating it or changing its stable project id. The same test
+also locks unchanged registry stdout for reruns with the same name.
+
+Verification: `cargo insta test --accept -- init_profiles_match_snapshots`;
+`cargo test init --workspace`;
+`cargo clippy --all-targets --all-features -- -D warnings`;
+`git diff --check`; `cargo test --workspace`; `cargo run -- build --out .`;
+`cargo test --test build`;
+`cargo insta test --accept -p llm-wiki-schema --test real_skills`;
+`cargo test -p llm-wiki-schema --test real_skills`;
+`cargo test --test registry`. A parallel focused test attempt raced cargo
+rebuilds against install-time binary hashing; the same init suite passed when
+rerun without concurrent target mutation.
+
+Pages updated: assets/skills/wiki-init/SKILL.md,
+.claude/skills/wiki-init/SKILL.md, .codex/skills/wiki-init/SKILL.md,
+src/init/answers.rs, src/init/command.rs, src/init/manifest.rs,
+src/init/scaffold.rs, tests/init.rs, tests/snapshots/init__*.snap,
+crates/llm-wiki-schema/tests/snapshots/real_skills__wiki-init_*.snap,
+wiki/specs/wiki-init-skill.spec.md,
+wiki/decisions/composable-project-init.decision.md,
+wiki/plans/composable-project-init.plan.md,
+wiki/roadmaps/framework-v1.roadmap.md,
+wiki/specs/documentation-model.spec.md, wiki/index.md, wiki/log.md
+
+## [2026-05-14] create | idempotent search model install plan
+
+Created an active plan for making repeated enabled `llm-wiki install` runs
+reuse already verified managed model artifacts instead of downloading unchanged
+model bytes again. The plan covers model-state classification, explicit
+reuse/download outcomes, prompt skipping for complete profiles, force semantics,
+tests, and documentation follow-up. Clarified that `install --configure-search`
+is also the explicit search-type change surface: switching to lexical-only
+writes a disabled search profile immediately and reports leftover artifacts,
+while model/index artifact deletion belongs to a separate explicit uninstall or
+cleanup command rather than the install/configure flow. The targeted
+search-artifact cleanup path is required to refuse while LLM search is still
+enabled unless the user passes `--force`.
+
+Follow-up review tightened the plan before implementation: it now names the
+uninstall/CLI/path/registry touchpoints, treats full uninstall cleanup as a new
+decision superseding the older D9 cache-preservation clause, specifies
+license-only repair wording, requires pure planning tests with injectable
+catalog/downloader/prompt decisions, defines cleanup refusal across both
+`[project_default]` and `[global_search]`, narrows targeted cleanup to
+model/license/semantic sidecar artifacts, and clarifies that ordinary runtime
+readiness may trust install-time artifact records instead of rehashing model
+bytes every run.
+
+Pages updated: wiki/plans/idempotent-search-model-install.plan.md,
+wiki/plans/project-registry-search-artifacts.plan.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-14] update | init rerun schema drift plan
+
+Revised the active init rerun drift plan from pack-set-only log append behavior
+to schema-drift audit behavior. The plan now treats both pack-set changes and
+same-pack resolved-folder composition changes as drift, records resolved folders
+in future manifests, preserves orphan content on disk, appends structured
+`wiki/log.md` evidence, and minimally refreshes a generated `wiki/index.md`
+schema-drift section without pruning existing catalog entries.
+
+Pages updated: wiki/plans/init-rerun-pack-drift.plan.md, wiki/index.md,
+wiki/log.md
+
+## [2026-05-14] update | init rerun schema drift implementation
+
+Completed the init rerun schema-drift audit. New init manifests record
+`resolved_folders`; reruns compare the previous pack set and resolved folder
+composition against the current composition before manifest overwrite. Drift
+runs append an idempotent structured `init | schema drift` entry to generated
+`wiki/log.md`, refresh only the generated `## Schema Drift` section in
+generated `wiki/index.md`, preserve existing catalog entries, and leave orphan
+folders/content on disk. Added coverage for pack-set drift, same-pack
+folder-composition drift, no-drift reruns, legacy manifests without
+`resolved_folders`, and qmd-rs staleness from changed wiki markdown file
+snapshots.
+
+Verification: `cargo test --test init init_rerun`;
+`cargo test -p llm-wiki-rs search::qmd_rs::tests::staleness_tracks_wiki_markdown_file_snapshots`;
+`cargo insta test --accept`; `cargo test --workspace`;
+`cargo clippy --workspace --all-targets`; manual smoke with a generic temp
+project rerun as `ml-research`, followed by `llm-wiki index --force` and
+`llm-wiki search "schema drift"` returning both generated `wiki/log.md` and
+`wiki/index.md`.
+
+## [2026-06-22] lint | MCP-first no-legacy plan consistency
+
+Fixed consistency issues in `wiki/proposals/mcp-first-surface.proposal.md` found during review: the proposal no longer claims search/index/register are sequenced in the read-tool-only plan, and it now records the intended no-legacy cutover where generated skill projection is removed after cross-harness MCP parity instead of preserved as permanent thin shims. Created `wiki/plans/mcp-first-agent-surface.plan.md` as the dedicated MCP-first execution plan covering read, search/search-all/index/register/status tools, prompts/resources, install/uninstall cutover, cross-harness parity eval, projection deletion, and Headroom posture updates. Updated `wiki/index.md` with the no-legacy proposal summary and new plan entry.
+
+Pages affected: `wiki/proposals/mcp-first-surface.proposal.md`, `wiki/plans/mcp-first-agent-surface.plan.md`, `wiki/index.md`, `wiki/log.md`.
+
+Pages updated: src/init/compose.rs, src/init/manifest.rs, src/init/scaffold.rs,
+src/search/qmd_rs.rs, tests/init.rs, tests/snapshots/init__*.snap,
+wiki/plans/init-rerun-pack-drift.plan.md, wiki/specs/wiki-init-skill.spec.md,
+wiki/specs/documentation-model.spec.md,
+wiki/decisions/composable-project-init.decision.md, wiki/index.md, wiki/log.md
+
+## [2026-05-15] create | project upgrade command proposal
+
+Created a proposal for `llm-wiki upgrade` as the explicit project migration
+surface. The proposed command archives previous framework-owned artifacts under
+`.llm_wiki/archive/artifacts/<from-version>/<timestamp>/`, replays init answers
+from `.llm_wiki/init.toml` where possible, overwrites generated
+framework-owned artifacts from the current binary, and preserves existing
+`wiki/` content and raw references for later lint or archival workflows.
+
+The proposal also records the intended simplification path for `llm-wiki init`:
+fresh init remains the create path, while existing-project migration moves to
+upgrade or a compatibility handoff once the command exists.
+
+Pages updated: wiki/proposals/project-upgrade-command.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-15] update | project upgrade command proposal review
+
+Revised the project upgrade command proposal after review. Clarified that
+upgrade creates newly claimed pack folders, never removes orphaned folders, and
+reuses the generated `## Schema Drift` section in `wiki/index.md` for folder
+drift. Removed the unsupported assumption that `.llm_wiki/init.toml` already
+stores per-artifact hashes; first-cut dirty/generated-drift evidence now lives
+in the archive manifest's before/after hashes. Added explicit registry behavior
+for same-root id stability, search-index staleness reporting without automatic
+reindex, additive landing semantics for init rerun, and a bounded legacy
+artifact detection requirement for the implementation plan.
+
+Pages updated: wiki/proposals/project-upgrade-command.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-15] create | full Windows support proposal
+
+Created a proposed platform-support direction for moving Windows from
+compatibility design to release-grade support. The proposal defines the support
+claim, release-artifact expectations, Windows managed runtime paths under
+`%LOCALAPPDATA%\llm_wiki\`, quoted `.exe` skill invocation, command and
+qmd-rs/search parity, Windows CI and release-smoke proof gates, documentation
+requirements, out-of-scope items, and promotion into a post-V1 roadmap item if
+accepted.
+
+ Pages updated: wiki/proposals/full-windows-support.proposal.md,
+ wiki/index.md, wiki/log.md
+
+## [2026-06-21] lint | headroom runtime companion plan
+
+Reworked the draft Headroom Runtime Companion plan after deep review. Tightened Codex Mode C claims into a Mode D/B recommendation, made managed profile paths platform-aware, required explicit non-skill managed-asset manifest handling, distinguished `headroom-ai` 0.24.0 package/source-surface pinning from a release-tarball claim, specified no-Headroom regression tests, clarified `doctor` advisory and parseable-output behavior, added uninstall flag conflicts, strengthened fixture hash drift checks, made dogfood measurement thresholds explicit, and removed stale proposal re-acceptance bookkeeping.
+
+Pages updated: wiki/plans/headroom-runtime-companion.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-06-21] update | headroom runtime companion container E2E gate
+
+Added a gated containerized Headroom proxy E2E phase to the draft plan. The new phase requires a minimal Linux container with `headroom-ai==0.24.0`, isolated `llm-wiki install --with-headroom`, sourced materialized profile, real `headroom proxy` startup, synthetic proxy smoke that captures `headroom_stats`, exact-once `doctor` advisory assertion, captured package/profile/container metadata, and default-test isolation from Docker, Python packaging, and network dependencies.
+
+Pages updated: wiki/plans/headroom-runtime-companion.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-05-23] update | sandbox-safe search promotion retry hardening
+
+Addressed review findings on live qmd-rs promotion races. Immutable SQLite
+`SQLITE_CANTOPEN` now re-stats the related sqlite/metadata files before
+classification so missing or mixed files during promotion remain retryable
+`Transient` states rather than permission failures; readable present files are
+also retryable because promotion may have completed before re-stat, while true
+file-open permission failures remain `PermissionDenied`. Immutable-search open
+failures now travel through a typed backend-access error carrying
+`BackendStatus`, allowing the command retry path to branch on backend state
+instead of matching legacy qmd-rs open-error strings.
+
+Pages updated: wiki/plans/sandbox-safe-search-cache-reads.plan.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-23] update | sandbox-safe search cache reads completed
+
+Completed the P2 sandbox-safe search cache reads plan. The implementation adds
+project-aware qmd-rs status/search calls, backend `open_mode`, explicit
+`transient` and `permission_denied` states, immutable completed-store SQLite
+reads for query/status paths, writer-side immutable-read proof before live
+promotion, parseable single-project backend-status JSON on cache access
+failures, per-project backend-status JSON in `search-all`, and distinct
+doctor/projects labels for permission failures.
+
+Documentation now records the validated behavior in the roadmap, plan,
+documentation model spec, search backend decision, semantic/hybrid search-mode
+decision, and index.
+
+Pages updated: wiki/proposals/sandbox-safe-search-cache-reads.proposal.md,
+wiki/plans/sandbox-safe-search-cache-reads.plan.md,
+wiki/roadmaps/framework-v1.roadmap.md,
+wiki/specs/documentation-model.spec.md,
+wiki/decisions/search-backend-selection.decision.md,
+wiki/decisions/semantic-hybrid-search-mode.decision.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-15] update | full Windows support command and path matrices
+
+Addressed the follow-up review on the cross-platform release E2E and Windows
+support proposal. Added a source-capture requirement before promotion, an
+explicit Windows OS/PowerShell support baseline, mandatory Windows ZIP/checksum
+acquisition semantics, a helper-by-helper Windows path mapping with migration
+notes, a PowerShell/full-rendered-command skill invocation requirement, and a
+command coverage matrix for every current CLI command and important flag group,
+including `forget`, `index-all`, `eval run`, `eval calibrate`, and
+semantic/hybrid readiness behavior.
+
+Pages updated: wiki/proposals/full-windows-support.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-15] update | project update command scope precision
+
+Tightened the project update command proposal after review. The proposal now
+describes `llm-wiki update` as project-scoped rather than strictly
+project-local, allowing writes to project-root files plus target-project-scoped
+host-local registry/cache state such as the same-root registry entry and
+project search indexes. Top-level help grouping now separates project commands,
+registry commands, and machine commands. The proposal also explicitly amends
+the search-model selection proposal: `llm-wiki defaults search` administers
+machine-wide search defaults, `llm-wiki update --search` administers one
+project's search configuration, and `llm-wiki install` remains responsible for
+license acceptance, model downloads, hash verification, and managed artifact
+promotion. Updated the Windows support proposal's optional update proof gate to
+use the same project-scoped terminology.
+
+Pages updated: wiki/proposals/project-update-command.proposal.md,
+wiki/proposals/full-windows-support.proposal.md, wiki/index.md, wiki/log.md
+
+## [2026-05-15] update | project upgrade command proposal follow-up review
+
+Tightened the project upgrade command proposal after a follow-up review. The
+generated project log example now uses the existing `update` operation
+vocabulary and records upgrade as the subject, with a note that promoting
+`upgrade` to a first-class log operation would require updating framework
+templates and specs. Clarified that `.llm_wiki/archive/**` is excluded from the
+framework-owned artifact set so upgrade never recursively archives prior
+archives. Added transaction-marker and same-directory atomic-write requirements
+for the replacement phase, plus partial replacement failure coverage in
+acceptance criteria. Added a source-capture note requiring the conversational
+basis to be captured as raw evidence or replaced with a durable source before
+promotion.
+
+Pages updated: wiki/proposals/project-upgrade-command.proposal.md,
+wiki/log.md
+
+## [2026-05-15] update | project update command scope split
+
+Reframed the project upgrade proposal as a project update command proposal.
+`llm-wiki update` is now the project-local maintenance surface for framework
+artifacts, layout, project search configuration, and project reindexing.
+Machine-wide defaults move to a separate `llm-wiki defaults` surface, while
+global runtime assets, installed skills, model downloads, license acceptance,
+and managed artifact promotion remain owned by `llm-wiki install`.
+
+Added a scope-first help contract requiring each command's `--help` output to
+state whether it writes project-local state, machine-wide defaults, or global
+runtime assets. The proposal now requires top-level help to group project
+commands separately from machine/global commands and includes example
+confirmation text that names the affected scope before mutation.
+
+Pages updated: wiki/proposals/project-update-command.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-15] update | full Windows support proposal review tightening
+
+Incorporated review feedback into the full Windows support proposal. The update
+separates documented Windows design intent from the current Unix-shaped
+implementation, names the path helpers that need Windows branches, requires
+Known Folder API based path resolution, defines registry canonicalization for
+local drive paths, replaces ad hoc `where.exe` wording with PATHEXT-resolving
+lookup semantics, adds upgrade sequencing and NTFS-safe archive timestamp
+requirements, and expands proof gates for Defender/default-runner behavior,
+Codex skill invocation, long local paths, CRLF stability, duplicate registry
+prevention, and JSON path round-trips.
+
+Pages updated: wiki/proposals/full-windows-support.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-15] update | full Windows support cross-platform E2E gate
+
+Expanded the full Windows support proposal to make P2 establish a
+cross-platform release E2E story for every supported artifact target, not only
+Windows. The proposal now requires artifact-based E2E runs across existing
+macOS/Linux targets plus Windows targets, with command-by-command filesystem
+verification for install, build, init, registry, indexing, search, search-all,
+status, doctor, uninstall, and `llm-wiki update` if it lands before P2. It also
+records Windows containers as supplemental only; host or VM runner coverage
+remains required for the release claim.
+
+Pages updated: wiki/proposals/full-windows-support.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-15] update | full Windows support real-use E2E standard
+
+Tightened the full Windows support proposal around the goal of proving real
+user behavior beyond ordinary unit or integration confidence. Added a Real-Use
+Simulation Standard requiring black-box release-artifact testing through
+documented CLI commands and platform shells, empty user/runtime state unless
+testing documented migration, realistic fresh-machine and project workflows,
+filesystem/manifest/hash/JSON/stdout-stderr verification, and explicit notes
+for any runtime stubs or shortcuts. The proof gates now require the release E2E
+to follow that standard before P2 can be marked complete.
+
+Pages updated: wiki/proposals/full-windows-support.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-15] update | full Windows support re-review fixes
+
+Addressed re-review feedback on the full Windows support proposal. Renamed the
+promoted deliverable to `P2 - Cross-Platform Release E2E And Windows Support`,
+made runner sourcing provider-neutral, required documented platform acquisition
+paths in the E2E, added Windows long-path-aware manifest and runner-setting
+language, added an explicit managed `.exe` runnability gate for doctor/install
+state, made SQLite fallback a pre-release narrowing-decision requirement, and
+merged the release E2E proof gates into a single tracked obligation.
+
+Pages updated: wiki/proposals/full-windows-support.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-05-15] update | full Windows support command-surface proof gates
+
+Tightened the cross-platform release E2E and Windows support proposal after
+command-surface review. The command parity section now explicitly includes
+`eval run` and `eval calibrate`, expands eval/search/search-all flag coverage,
+and the minimum E2E story now verifies `forget`, `index-all`, and eval command
+side effects from the release artifact.
+
+Strengthened the Windows skill-invocation proof so tests must execute the full
+rendered command through the target runtime or PowerShell shell, including the
+call operator where required. The proof gates and documentation requirements now
+also tie command coverage to the matrix, Windows support baseline, documented
+artifact-acquisition path, and JSON/path round-trip behavior.
+
+Pages updated: wiki/proposals/full-windows-support.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-06-21] create | Headroom context compression reference and read-only access contract
+
+Landed Phase 1 of the Headroom Runtime Companion plan (documentation
+foundation). Authored wiki/references/headroom-context-compression.reference.md
+describing Modes A through D with citations into both research bundles, with
+Mode D recommended unconditionally for `wiki-ingest` sessions and for OpenAI
+Codex CLI sessions. Added the normative Read-only access contract for `wiki/`
+and `raw/` to AGENTS.MD and templates/base/project_guidelines.md, including the
+Claude Code native-`Read` formulation, the Codex shell/patch carve-out
+formulation, and the `headroom_read`/`HEADROOM_MCP_READ` ban. The Codex section
+does not promise that proxy Mode C protects arbitrary shell reads. Linked the
+reference page from wiki/index.md.
+
+Pages updated: wiki/references/headroom-context-compression.reference.md,
+AGENTS.MD, templates/base/project_guidelines.md, wiki/index.md, wiki/log.md
+
+## [2026-06-21] promote | Headroom Runtime Companion decision and dogfood bundle
+
+Completed the Headroom Runtime Companion plan. Implemented and tested the
+opt-in companion across all code phases: the read-only access contract, the
+embedded vetted profile, `install --with-headroom` managed materialization
+gated by a `headroom-ai` 0.24.0 package/source-surface pin, non-skill
+managed-asset manifest tracking (serde-default `assets`, backward compatible
+with schema v2), `uninstall --headroom`, the four-mode reference, and a minimal
+`doctor` Mode C advisory. Added upstream fixture pins and a gated containerized
+real-proxy E2E (`just headroom-proxy-e2e`) that passes against a real
+`headroom-ai` 0.24.0 (profile materializes byte-identically, proxy healthy with
+optimize on, doctor advisory fires exactly once).
+
+Captured the real proxy smoke under raw/research/2026-06-21-headroom-dogfood/
+with the comparative Mode C vs Mode D measurement protocol; the live-agent
+comparative quantification is recorded as a deferred follow-up and no positive
+dogfood reference page is promoted. Authored
+wiki/decisions/headroom-runtime-companion.decision.md (Accepted) recording the
+durable design; the proposal status is unchanged (already Accepted/Promoted).
+Set the plan status to Completed.
+
+Pages updated: wiki/decisions/headroom-runtime-companion.decision.md,
+wiki/plans/headroom-runtime-companion.plan.md, wiki/index.md, wiki/log.md,
+raw/research/2026-06-21-headroom-dogfood/
+
+## [2026-06-21] propose | coexisting test instance via build-time namespace
+
+Authored wiki/proposals/test-instance-namespaced-binary.proposal.md (Proposed)
+in response to the need to validate the installed experience — install, doctor,
+MCP, and especially skills/commands as invoked inside a live Claude/Codex
+session — without impacting the production install. Records the decision to bake
+an `LLM_WIKI_INSTANCE` namespace into the binary at compile time (empty =
+production, enforced by an invariant test) rather than a runtime `--instance`
+flag or a `$HOME` swap; the latter cannot exercise skills in the live session,
+which is the motivating gap left open by the Headroom plan's deferred Phase 7
+dogfood. Mechanism reuses the skill-name plumbing established by the
+project-and-skill-rename work, parameterized by one constant.
+
+Pages updated: wiki/proposals/test-instance-namespaced-binary.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-06-21] revise | coexisting test instance proposal — review hardening
+
+Revised wiki/proposals/test-instance-namespaced-binary.proposal.md (still
+Proposed) to fold in a design review. Corrected the invariant from "byte-for-
+byte production" to output-equality (empty namespace reproduces today's names,
+paths, skill payloads, manifests, and install outputs) enforced by golden
+empty/test install snapshots. Hard-restricted V1 to the `test` namespace
+(non-empty values other than `test` fail the build). Decided the MCP/tool
+suffix in-doc (trailing `_test`; names are reserved/unbuilt today). Added a
+release-build guard that fails if `LLM_WIKI_INSTANCE` is set, snapshot-bracketed
+same-`$HOME` proof (steps 0/6) so "uninstall removes only test" is proven
+mechanically, an explicit skill-discovery precondition (restart/cache refresh),
+a scoped source lint against hard-coded identity strings, and elevated the
+shared-project-tree caveat (the test instance protects install state, not the
+project's wiki/ and raw/) to the loudest tradeoff. Softened the "zero production
+cost" claim to "no production behavior change at a bounded maintenance cost."
+
+Pages updated: wiki/proposals/test-instance-namespaced-binary.proposal.md,
+wiki/index.md, wiki/log.md
+
+## [2026-06-21] promote | coexisting test instance — decision + plan
+
+Promoted wiki/proposals/test-instance-namespaced-binary.proposal.md (now
+Accepted/Promoted). Authored wiki/decisions/test-instance-namespaced-binary.decision.md
+(Accepted) recording the durable design — a compile-time `LLM_WIKI_INSTANCE`
+namespace through one derivation API, baked-in with no runtime flag, developer-
+and `test`-only, an output-equality (not byte) invariant pinned by golden
+empty/test install snapshots, a scoped source lint, a release-build guard, and
+the explicit caveat that isolation covers managed state but not project trees —
+and wiki/plans/test-instance-namespaced-binary.plan.md (Ready) with seven phases:
+Phase 1 hard gate (constant + scope guard + golden snapshots), name derivation,
+source lint, release guard, install/uninstall/doctor, snapshot-bracketed live-
+session proof under Claude Code and Codex (incl. `--with-headroom` dogfood that
+unblocks the Headroom plan's deferred Phase 7), and docs/bookkeeping. No code
+written yet; plan not started.
+
+Pages updated: wiki/proposals/test-instance-namespaced-binary.proposal.md,
+wiki/decisions/test-instance-namespaced-binary.decision.md,
+wiki/plans/test-instance-namespaced-binary.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-06-21] revise | coexisting test instance — review fixes
+
+Applied a review pass against wiki/proposals|decisions|plans/test-instance-
+namespaced-binary.*. Corrections: (1) decision Evidence reworded from claimed
+proof to planned enforcement (execution not started); plan Status Ready → Draft
+(schema-valid). (2) Topology fix — `cache_home` (XDG), `data_home`/project
+registry (XDG), and the Windows `%LocalAppData%/llm_wiki` root do NOT nest under
+the managed home (verified in src/paths.rs), so they are now explicit namespace
+touchpoints, snapshot/lint targets, and Phase 6 pre-snapshot entries; the
+"cannot write production state" claim narrowed to managed/install state.
+(3) Added `src/status.rs` touchpoint (manifest round-trip). (4) Headroom profile
+content (source-path comment + `HEADROOM_EXCLUDE_TOOLS`) added to the namespace
+and lint surface; test profile must exclude both production and `_test` tool
+names. (5) Source-lint inventory widened to include `llm_wiki` (Windows, no dot)
+and the profile strings. (6) Release guard respecified as durable and covering
+every entrypoint (CI, `just release-build`/`release-plan` → `dist`, `release-e2e`),
+not only the dist-autogenerated workflow. (7) New risk + Phase 1 step:
+`cargo:rerun-if-env-changed=LLM_WIKI_INSTANCE` in build.rs to avoid stale-binary
+identity from `option_env!`. (8) "only way" softened to "chosen lowest-risk way"
+(alternatives: separate OS user / alternate skill root / PATH shim); build
+examples labeled POSIX with a PowerShell equivalent.
+
+Pages updated: wiki/proposals/test-instance-namespaced-binary.proposal.md,
+wiki/decisions/test-instance-namespaced-binary.decision.md,
+wiki/plans/test-instance-namespaced-binary.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-06-21] update | coexisting test instance implementation
+
+Implemented the first code slice for the build-time `LLM_WIKI_INSTANCE=test`
+namespace. Added central instance derivation, build-script scope guard and
+rerun tracking, `llm-wiki-test` CLI display identity, namespaced managed/XDG
+paths, suffixed skill projection and install manifest identity, test-aware
+status/doctor/uninstall reporting, Headroom profile filename/content rendering,
+and release-entrypoint guard coverage in `justfile`. Verification completed:
+`cargo check --workspace`; `LLM_WIKI_INSTANCE=test cargo check --workspace`;
+unsupported `LLM_WIKI_INSTANCE=staging cargo check --workspace` fails in
+`build.rs`; `LLM_WIKI_INSTANCE=test cargo build --bin llm-wiki`; `llm-wiki-test`
+help/status; temp-home test install/status/uninstall proving `.llm_wiki-test`,
+`llm-wiki-test`, `wiki*-test`, and `installed_by: llm-wiki-test`; rendered
+Claude/Codex `build --out` test skills; `env LLM_WIKI_INSTANCE=test just
+release-guard` rejection; `cargo test --test properties
+repeated_install_has_stable_file_set`; `cargo test --test build --test install
+--test post_install --test status_doctor --test headroom_install`; and `cargo
+clippy --workspace --all-targets --all-features -- -D warnings`. Headroom
+`--with-headroom` live smoke remains blocked locally because the pinned package
+is not importable by `/opt/homebrew/bin/python3`; source lint and the
+snapshot-bracketed live-session matrix remain pending.
+Pages updated: wiki/plans/test-instance-namespaced-binary.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-06-21] update | test-instance Headroom smoke
+
+Fixed the previously blocked `llm-wiki-test install --with-headroom` proof by
+adding `tools/test-instance-headroom-smoke.sh` and the `just
+test-instance-headroom-smoke` recipe. The recipe creates a target-local Python
+venv with a venv/pip-capable interpreter, installs pinned `headroom-ai==0.24.0`,
+builds the `LLM_WIKI_INSTANCE=test` binary, runs `install --with-headroom` in a
+temp home, verifies `llm-wiki-test.profile.env`, `_test` Headroom tool
+exclusions, manifest `installed_by: llm-wiki-test`, status output, uninstall
+cleanup, and restores the default debug binary on exit. The smoke exposed and
+fixed a double-suffix profile-rendering bug where `llm_wiki_search_all` became
+`llm_wiki_search_test_all_test`; `src/instance.rs` now uses placeholder-safe
+replacement and has a focused unit test. Verification: `cargo test
+instance::tests::test_headroom_profile_tool_names_are_not_double_suffixed`;
+`just test-instance-headroom-smoke`.
+Pages updated: tools/test-instance-headroom-smoke.sh, justfile, src/instance.rs, wiki/plans/test-instance-namespaced-binary.plan.md, wiki/index.md, wiki/log.md
+
+## [2026-06-22] review | test-instance namespaced binary implementation
+
+Created `wiki/review/test-instance-namespaced-binary-implementation.eval.md` after reviewing the full implementation diff from `03083c3` through the current staged index for `wiki/plans/test-instance-namespaced-binary.plan.md`.
+
+Findings: rendered test-instance skills still carry unsuffixed dispatcher/direct skill references; Cargo's debug artifact remains `target/debug/llm-wiki` even when the compiled runtime identity is `llm-wiki-test`; the Headroom smoke does not execute/assert the managed `.llm_wiki-test/bin/llm-wiki-test` binary or rendered skill payload safety; the identity lint is narrower than the invariant text and misses build-script/rendered-skill drift cases.
+
+Verification completed: `cargo test --test identity_lint --test instance_snapshot`; `LLM_WIKI_INSTANCE=staging cargo build --bin llm-wiki` fails in `build.rs`; `LLM_WIKI_INSTANCE=test cargo build --profile dist --bin llm-wiki` fails in `build.rs` with `PROFILE="release"`; `LLM_WIKI_INSTANCE=test just release-guard` fails early; `LLM_WIKI_INSTANCE=test cargo build --bin llm-wiki` plus `target/debug/llm-wiki build --target both --out /private/tmp/llm-wiki-test-render-review` proved the rendered skill namespace issue; rebuilt the default debug binary with `cargo build --bin llm-wiki`.
+
+Pages updated: wiki/review/test-instance-namespaced-binary-implementation.eval.md, wiki/index.md, wiki/log.md
+## [2026-06-22] update | test-instance review follow-up
+
+Updated `wiki/review/test-instance-namespaced-binary-implementation.eval.md`
+after follow-up verification found the review findings addressed. The overall
+assessment now records namespaced rendered test skills, managed-binary smoke
+proof, documented Cargo carrier-artifact behavior, and tightened identity-lint
+coverage. Updated `wiki/index.md` to reflect the follow-up verification.
+## [2026-06-22] update | test-instance proof and release E2E refresh
+
+Completed `wiki/plans/test-instance-namespaced-binary.plan.md` Phase 6/7 by
+adding `tools/test-instance-live-session-proof.sh` and the
+`just test-instance-live-session-proof` recipe. The proof installs
+`llm-wiki-test` under the real `$HOME`, verifies managed binary status and
+rendered skill namespace, uninstalls it, and confirms production pre/post
+snapshots match. The run exposed empty `wiki*-test` skill directories left after
+uninstall; fixed `src/uninstall.rs` to prune empty manifest-owned skill
+directories and extended `tests/install.rs`.
+
+Created `wiki/evals/test-instance-live-session-proof.eval.md`, marked the
+test-instance plan completed, and updated `wiki/index.md`. Also recorded that
+Headroom Phase 7 comparative dogfood remains pending because this active Codex
+harness cannot reroute itself through the Headroom proxy, and refreshed local
+macOS arm64 release E2E evidence with `rtk just release-e2e smoke` and
+`rtk just release-e2e search`.
+
+## [2026-06-22] proposal | Harness-Independent Wiki Read Tool
+
+Created `wiki/proposals/harness-independent-wiki-read-tool.proposal.md` (Draft)
+and linked it from `wiki/index.md`. The proposal reserves `llm_wiki_read`
+(test sibling `llm_wiki_read_test`) as the full-file read counterpart to the
+already-reserved `llm_wiki_search` / `llm_wiki_search_all` MCP names: a
+framework-owned, `wiki/`+`raw/`-scoped, read-only MCP tool added to the vetted
+Headroom profile exclude set by name, so whole-file wiki reads bypass
+compression on harnesses without a native `Read` tool (Codex) without excluding
+the broad shell family. Records that it is redundant on Claude Code (native
+`Read` already excluded), keeps the `headroom_read` ban in force, and adds an
+optional `llm-wiki read <path>` CLI verb sharing the MCP path-scoping. Cross-links
+the Headroom context-compression reference, the Headroom Runtime Companion
+proposal/plan/decision, and the test-instance namespacing proposal.
+
+## [2026-06-22] update | release E2E GGUF CPU proof
+
+Implemented the `tools/release-e2e` `gguf` lane behind explicit
+`--manual-models` consent. The lane installs the balanced LLM-search profile
+through the artifact, can reuse a prewarmed managed model cache with
+`--reuse-managed-models-from`, seeds scoped thresholds for the isolated fixture
+project, forces `LLM_WIKI_GGUF_RUNTIME=cpu`, verifies semantic, hybrid, and
+`search-all --mode auto` return
+`wiki/proposals/project-update-command.proposal.md` with CPU runtime metadata,
+and checks uninstall cleanup. Local macOS arm64 proof passed against
+`target/debug/llm-wiki`: `target/release-e2e/gguf/report.json` records 10
+commands, 33 assertions, and no failed assertions.
+
+Pages affected: wiki/plans/cross-platform-release-e2e-harness.plan.md,
+wiki/evals/release-e2e-gguf-cpu-proof.eval.md, wiki/index.md, wiki/log.md.
+
+## [2026-06-22] update | Harness-Independent Wiki Read Tool review pass
+
+Revised `wiki/proposals/harness-independent-wiki-read-tool.proposal.md` to
+close a five-finding review. Status `Draft` -> `Proposed` (Draft is not in the
+Proposals status vocabulary). Corrected the overstated Codex/Mode C claim: the
+proposal now states it ships only the read half, that `llm-wiki search` on Codex
+stays shell-routed until `llm_wiki_search` / `llm_wiki_search_all` ship, and that
+Mode D/B remains the recommended Codex default until then. Added a concrete
+output schema (content separated from `project_id`/`resolved_path`/`tree`/
+`byte_len`/`sha256`/`encoding`) with defined non-UTF-8/binary and oversized
+behavior, since `raw/` may hold screenshots and data samples. Specified a
+registry-based project-resolution order for a possibly-global MCP server.
+Strengthened acceptance criteria with a synthetic router-bypass proof (asserting
+a `llm_wiki_read` envelope is routed excluded and not CCR-compressed, with a
+non-excluded negative control) as the load-bearing gate, plus encoding/size and
+project-resolution test coverage. Updated the `wiki/index.md` entry.
+
+## [2026-06-22] plan | Harness-Independent Wiki Read Tool
+
+Promoted `wiki/proposals/harness-independent-wiki-read-tool.proposal.md` to
+`wiki/plans/harness-independent-wiki-read-tool.plan.md` (Draft) and linked both
+from `wiki/index.md`. Scope decision recorded: server-first, end-to-end in one
+plan, because the codebase has no MCP surface yet (the reserved search names are
+only profile strings). The plan stands up the framework's first MCP server as a
+hand-rolled synchronous stdio JSON-RPC loop (no tokio, no SDK, single-binary
+preserved) via a new `llm-wiki mcp serve`, then hosts `llm_wiki_read` on it.
+Seven phases: MCP scaffold, registry-based project resolution, scoped read core
+with encoding/size-aware content+metadata schema, tool+CLI wiring, profile
+reservation with `_test` namespacing through `src/instance.rs`, a load-bearing
+synthetic router-bypass proof against the captured `content-router.py` lines, and
+docs/bookkeeping. Open decision flagged in Phase 1 (hand-rolled stdio vs `rmcp`).
+Ships only the read half, so the Codex Mode D/B posture stays.
+
+## [2026-06-22] proposal | MCP-First Agent Surface
+
+Created `wiki/proposals/mcp-first-surface.proposal.md` (Proposed) to reduce
+project complexity by making one Rust-native stdio MCP server the framework's
+primary agent surface, retiring the per-harness skill-projection tax. Quantified
+the duplication driving it: `templates/skills/` carries base + claude + codex
+renderings plus a Codex runtime YAML; `src/skill_render.rs` (~194 LoC) and the
+`llm-wiki-schema` projectors own dual projection; `src/install.rs` (~2383 LoC)
+and `src/embed.rs` render/embed a Claude skill path and a Codex path per skill.
+The proposal: (1) deterministic cores become harness-independent MCP tools,
+making the Headroom carve-out one excluded-name fact instead of a fragile Codex
+tool enumeration (the reference's stated durable fix); (2) procedural guidance
+relocates to MCP prompts/resources; (3) skill projection retires only after a
+cross-harness prompt-UX spike passes, as a gated candidate supersession of the
+skill-projection-template-engine decision. Encapsulated the read tool as
+increment 1: reparented `harness-independent-wiki-read-tool.proposal.md` and its
+plan under this proposal. Left the document model, `agent-owns-wiki`, provenance
+invariants, CLI, and single-binary distribution explicitly unchanged. Updated
+`wiki/index.md`.
+
+## [2026-06-22] lint | MCP-first host UX gate
+
+Revised the MCP-first proposal and no-legacy plan after review identified an
+unproven prompt-support assumption. The proposal now treats `AGENTS.md` /
+harness project instructions plus MCP tools/resources as the load-bearing
+procedural surface, with MCP prompts optional until a Phase 0 host-UX spike
+proves support and discovery on Claude Code and Codex. The plan now starts with
+a host-UX and prompt-support spike, requires ordinary-language parity rather
+than slash-command-only workflow success, and defines three gate outcomes: full
+prompt branch, promptless no-legacy branch, or blocked branch requiring a new
+decision. Updated `wiki/index.md` summaries to match.
+
+Pages affected: `wiki/proposals/mcp-first-surface.proposal.md`,
+`wiki/plans/mcp-first-agent-surface.plan.md`, `wiki/index.md`, `wiki/log.md`.
+
+## [2026-06-22] update | Codex MCP config uninstall cleanup
+
+Full uninstall now removes the install-owned `mcp_servers.llm-wiki` entry from
+`~/.codex/config.toml`, deleting the file when it contains only that managed
+entry and preserving user-authored top-level settings plus other MCP servers
+when present. The cleanup is TOML-aware and does not rely on string matching.
+Evidence: `cargo test --test mcp_install` (4 passed), `cargo test --test
+install` (36 passed), `cargo test --test status_doctor` (19 passed), `cargo
+test --test headroom_install` (11 passed), `cargo test --test post_install` (3
+passed), and `cargo clippy` (no issues). Pages affected:
+`src/mcp_config.rs`, `src/uninstall.rs`, `tests/mcp_install.rs`,
+`wiki/plans/mcp-first-agent-surface.plan.md`, `wiki/log.md`.
+
+## [2026-06-22] update | advisory MCP prompt support
+
+The MCP server now advertises prompt capability and supports `prompts/list` plus
+`prompts/get` for advisory `wiki_query`, `wiki_ingest`, `wiki_lint`,
+`wiki_research`, and `wiki_init` operation prompts. The prompts route agents
+back to project guidance, `wiki/index.md`, `llm_wiki_read`, and
+`llm_wiki_search`; they are not load-bearing until host discovery and
+ordinary-language parity are accepted. Evidence: `cargo test --test mcp` (12
+passed) and `cargo clippy` (no issues). Pages affected: `src/mcp/mod.rs`,
+`tests/mcp.rs`, `wiki/plans/mcp-first-agent-surface.plan.md`, `wiki/log.md`.
+
+## [2026-06-22] update | canonical operation spec MCP resources
+
+The MCP resource registry now exposes durable operation and documentation specs
+when present: `wiki/specs/documentation-model.spec.md`,
+`wiki/specs/wiki-query-skill.spec.md`, `wiki/specs/wiki-ingest-skill.spec.md`,
+`wiki/specs/wiki-lint-skill.spec.md`, `wiki/specs/wiki-research-skill.spec.md`,
+and `wiki/specs/wiki-init-skill.spec.md`. These resources supplement
+`wiki/index.md`, `wiki/log.md`, `AGENTS.md`, and project guidelines so hosts can
+discover canonical workflow rules without generated skills. Evidence: `cargo
+test --test mcp` (13 passed) and `cargo clippy` (no issues). Pages affected:
+`src/mcp/mod.rs`, `tests/mcp.rs`,
+`wiki/plans/mcp-first-agent-surface.plan.md`, `wiki/log.md`.
+
+## [2026-06-22] update | MCP initialize instructions
+
+The MCP server now returns server-level `instructions` in the `initialize`
+result, directing hosts to read `wiki/index.md` with `llm_wiki_read`, use
+`llm_wiki_search` for registered-project queries, inspect canonical MCP
+resources, and use optional prompts where supported. Evidence: `cargo test
+--test mcp` (13 passed) and `cargo clippy` (no issues). Pages affected:
+`src/mcp/mod.rs`, `tests/mcp.rs`,
+`wiki/plans/mcp-first-agent-surface.plan.md`, `wiki/log.md`.
+
+## [2026-06-22] update | MCP post-slice full verification
+
+After the MCP install-output, Codex config cleanup, advisory prompt,
+canonical resource, and initialize-instruction slices, the full workspace test
+suite passed. Evidence: `cargo test` (310 passed, 2 ignored). Pages affected:
+`wiki/plans/mcp-first-agent-surface.plan.md`, `wiki/log.md`.
+
+## [2026-06-22] update | no-legacy projection deletion
+
+User accepted the no-legacy branch and directed removal of remaining generated
+skill projection machinery. Deleted the `llm-wiki build` surface, `src/build.rs`,
+`src/skill_render.rs`, generated skill assets, schema Claude/Codex projectors,
+Askama skill projection templates, projector tests/snapshots, generated-skill
+path helpers, and generated-skill residue tests. Added
+`no_legacy_generated_skill_projection_surface` to fail on reintroduced generated
+skill install paths, runtime YAML paths, projector names, or build command
+surface. Superseded `wiki/decisions/skill-projection-template-engine.decision.md`.
+Evidence so far: `cargo test --test identity_lint` (3 passed), `cargo check`
+(passed), `cargo test --test install` (34 passed), `cargo test --test
+post_install` (3 passed), `cargo test --test status_doctor` (17 passed), `cargo
+test --test mcp` (13 passed), `cargo test --test compat` (2 passed), `cargo test
+-p llm-wiki-schema` (9 passed), `cargo test --test mcp_install` (4 passed),
+`cargo test --test headroom_install` (11 passed), and `cargo clippy` (no
+issues). Pages affected: `wiki/plans/mcp-first-agent-surface.plan.md`,
+`wiki/decisions/skill-projection-template-engine.decision.md`, `wiki/index.md`,
+`wiki/log.md`.
+## [2026-06-22] update | MCP-first agent surface implementation slice
+
+Implemented the first MCP-first code slice: `llm-wiki mcp serve`, `llm-wiki read`,
+`llm_wiki_read`, deterministic MCP tool entries/handlers for search,
+search-all, index, register, and status, allowlisted MCP resources for canonical
+project material, project-guidance routing notes for framework-owned MCP
+read/search tools, and Headroom `llm_wiki_read` exclusion/test-instance
+reservation. Recorded that the no-legacy cutover remains active because host UX,
+ordinary-language cross-harness parity, install/uninstall MCP configuration, and
+skill-projection deletion are still pending.
+
+Evidence: `cargo test --test mcp` (11 passed), `cargo test headroom_profile` (3
+passed, 302 filtered out), `cargo test --test identity_lint` (2 passed),
+`cargo check` (passed), and full `cargo test` (303 passed, 2 ignored).
+
+Pages affected: `AGENTS.md`, `templates/base/project_guidelines.md`,
+`wiki/plans/mcp-first-agent-surface.plan.md`,
+`wiki/plans/harness-independent-wiki-read-tool.plan.md`, `wiki/index.md`,
+`wiki/log.md`.
+
+## [2026-06-22] update | MCP install configuration slice
+
+Implemented the first MCP install/config migration slice. `llm-wiki install`
+now merges a `[mcp_servers."llm-wiki"]` entry into `~/.codex/config.toml`
+without dropping existing Codex settings or other MCP servers, and materializes
+a managed Claude project-scope `.mcp.json` artifact at
+`~/.llm_wiki/mcp/claude-project.mcp.json`. Added renderer and integration
+coverage for these config surfaces.
+
+Evidence: `cargo test --test mcp_install` (2 passed), `cargo test --test mcp`
+(11 passed), and `cargo clippy` (no issues).
+
+Pages affected: `wiki/plans/mcp-first-agent-surface.plan.md`, `wiki/log.md`.
+
+## [2026-06-22] update | no-generated-skill install output slice
+
+Runtime `llm-wiki install` no longer writes generated `.claude/skills/*` or
+`.codex/skills/*` trees. New installs keep `manifest.skills` empty and track
+host integration through managed assets, including `mcp-config` and optional
+`headroom-profile`. Full uninstall now validates and removes managed assets as
+well as legacy managed skills; user-authored legacy skill paths remain
+preserved. Evidence: `cargo test --test headroom_install` (11 passed),
+`cargo test --test install` (36 passed), `cargo test --test status_doctor` (19
+passed), `cargo test --test post_install` (3 passed), `cargo test --test
+mcp_install` (2 passed), `cargo test --test mcp` (11 passed), `cargo test
+--test properties` (1 passed), `cargo test` (306 passed, 2 ignored), and
+`cargo clippy` (no issues). Pages affected:
+`wiki/plans/mcp-first-agent-surface.plan.md`, `wiki/index.md`, `wiki/log.md`.
+
+## [2026-06-22] update | no-legacy deletion full verification
+
+After deleting generated skill projection code/assets/templates/tests and adding
+the no-legacy guard, the full workspace suite passed. Evidence: `cargo test`
+(297 passed, 2 ignored) and `cargo clippy` (no issues). Pages affected:
+`wiki/plans/mcp-first-agent-surface.plan.md`, `wiki/log.md`.
+## [2026-06-22] update | MCP no-legacy review hardening
+
+Fixed the MCP resource casing gap by resolving canonical `AGENTS.md` resources
+against either `AGENTS.md` or `AGENTS.MD`, aligned MCP tool execution failures
+with `isError: true` tool results, and added tests for uppercase guidance
+resource discovery plus CLI-backed search failure handling. Install diagnostics
+now state that Codex MCP config is merged automatically while Claude Code MCP
+config is staged for manual per-project wiring. Amended the MCP-first plan and
+index to record that no-legacy deletion proceeded by user authorization, not by
+an accepted Phase 5 parity eval; Phase 0 and Phase 5 evidence remain open.
+Evidence: `cargo fmt`; `cargo fmt --check`; `cargo check`;
+`cargo test --test mcp` (15 passed); `cargo test --test install` (34
+passed); `cargo test --test identity_lint` (3 passed).
+Pages affected: `src/mcp/mod.rs`, `tests/mcp.rs`, `src/install.rs`,
+`tests/install.rs`, `.gitignore`, `wiki/plans/mcp-first-agent-surface.plan.md`,
+`wiki/index.md`, `wiki/log.md`.
+
+## [2026-06-23] update | MCP host-managed startup diagnostics
+
+Clarified that the MCP server is started by the host as an on-demand stdio
+subprocess, not by a background daemon. Centralized the startup command in
+`src/mcp_config.rs` and reused it for Codex/Claude config rendering, verbose
+install diagnostics, and `llm-wiki status` output. `install --verbose` now
+reports that hosts spawn `llm-wiki mcp serve` on demand and that no daemon is
+installed; `status` reports `mcp server startup: host-managed stdio (...)`
+from the manifest's managed binary path.
+
+Evidence: `cargo test --test install verbose_install_emits_command_diagnostics`
+(passed); `cargo test --test status_doctor status_reports_installed_files`
+(passed); `cargo fmt`; `cargo test --test mcp_install` (4 passed);
+`cargo test --test status_doctor` (17 passed); `cargo test --test install`
+(34 passed).
+Pages affected: `src/mcp_config.rs`, `src/install.rs`, `src/status.rs`,
+`tests/install.rs`, `tests/status_doctor.rs`,
+`wiki/plans/mcp-first-agent-surface.plan.md`, `wiki/index.md`, `wiki/log.md`.
+## [2026-06-23] update | MCP host parity eval rejected
+
+Recorded the real host UX / ordinary-language parity eval for the MCP-first
+surface. Codex CLI 0.141.0 can execute `llm-wiki` MCP tools and resources after
+correcting the config key to `mcp_servers.llm-wiki.*` and enabling
+noninteractive MCP approvals; `llm_wiki_read`, `llm_wiki_search`,
+`llm_wiki_status`, and resource URI `llm-wiki://project/wiki/index.md` were
+observed. Codex MCP prompts were unavailable, and ordinary Codex routing still
+loaded the user-installed `wiki-query` skill before MCP, so pure no-legacy
+project-guidance parity is not proven. Claude Code 2.1.176 loaded the staged
+MCP config but stopped with `authentication_failed` / `Not logged in`, so
+cross-harness parity could not be accepted. Added a Rejected eval and left
+Phase 5 open.
+Evidence: `codex --version`; `codex mcp get/list`; `codex exec --json`
+transcripts under `target/mcp-eval/`; `claude --version`; `claude -p
+--output-format stream-json --mcp-config target/mcp-eval/claude-project.mcp.json`.
+Pages affected: `wiki/evals/mcp-first-host-parity.eval.md`,
+`wiki/plans/mcp-first-agent-surface.plan.md`, `wiki/index.md`, `wiki/log.md`.
+
+## [2026-06-23] update | Headroom/MCP merge-readiness repair plan hardened
+Rewrote the repair plan to absorb the second-pass review gaps before implementation. The plan now gates Phase 1 on test-instance MCP server/tool namespacing plus byte-identical production output, Phase 2 on real old-format generated-skill manifest migration and manifest-less orphan warnings, Phase 6 on host-native mutation evidence and Headroom `llm_wiki_read` router-bypass proof, and the final merge gate on an explicit defer-or-promote decision for native Linux/macOS/Windows release-E2E proofs.
+Pages affected: `wiki/plans/headroom-mcp-merge-readiness-repair.plan.md`, `wiki/index.md`, `wiki/log.md`.
+## [2026-06-23] repair | Headroom/MCP merge-readiness code blockers
+
+Implemented the Headroom/MCP merge-readiness repair slice: instance-derived MCP
+server/tool names, test-instance Codex MCP config preservation, legacy
+generated-skill upgrade cleanup and warnings, MCP-first README docs,
+no-repo-skill eval helper, live proof script repairs, and wiki evidence
+updates. Verification passed: `cargo check --tests`; focused
+MCP/install/status/identity/headroom/search suites; `LLM_WIKI_INSTANCE=test`
+MCP and MCP-install suites; `tools/with-repo-skills-disabled.sh rtk cargo test
+--test mcp`; `just test-instance-live-session-proof`; full `cargo test`;
+`cargo clippy`. Remaining closure gates: clean cross-harness host parity in
+`wiki/evals/mcp-first-host-parity.eval.md` and native release-E2E proof scope
+in `wiki/roadmaps/cross-platform-release-e2e.roadmap.md`.
+
+## [2026-06-23] repair | Global Headroom discovery for install
+
+Fixed `install --with-headroom` discovery so a globally installed `headroom` launcher on `PATH` is inspected through its shebang Python before falling back to `PYTHON`/`python3`. Added regression coverage for a PATH-only global launcher with no fallback Python and recorded the quickfix in the Headroom/MCP merge-readiness repair plan. Verification: `cargo test --test headroom_install` (12 passed). Pages affected: `src/install.rs`, `tests/headroom_install.rs`, `wiki/plans/headroom-mcp-merge-readiness-repair.plan.md`, `wiki/log.md`.
+
+## [2026-06-23] create | MCP-first Headroom profile narrowing plan
+
+Created an active plan to replace broad host-tool Headroom exclusions with framework-owned MCP read/search exclusions as the normal posture. The plan captures the Codex goal of making shell output compressible again, the shared MCP routing invariant for Claude and Codex, and the Claude-specific gate around Headroom's additive upstream `Read`/`Bash` defaults. Pages affected: `wiki/plans/mcp-first-headroom-profile-narrowing.plan.md`, `wiki/index.md`, `wiki/log.md`.
+
+## [2026-06-23] create | macOS installed binary codesign repair plan
+
+Added an active repair plan for the macOS installed-binary launch hang observed after global `llm-wiki-test` install. The plan records the diagnostic evidence, scopes explicit macOS ad-hoc signing, calls out manifest/preflight hash consequences, and defines bounded regression plus live test-instance proof gates.
+
+Pages affected: `wiki/plans/macos-installed-binary-codesign-repair.plan.md`, `wiki/index.md`, `wiki/log.md`.
+
+## [2026-06-23] update | macOS codesign repair reinstall hypothesis
+
+Amended the macOS installed-binary repair plan after identifying reinstall-over-existing as the likely trigger: install currently writes to the managed binary path with `fs::copy`, while an old `llm-wiki-test mcp serve` process may still reference the previous executable. The plan now requires staged same-directory copy, macOS signing on the staged file, and atomic rename before manifest ownership is recorded.
+
+Pages affected: `wiki/plans/macos-installed-binary-codesign-repair.plan.md`, `wiki/index.md`, `wiki/log.md`.
+
+## [2026-06-27] create | Default hybrid search and MCP surface repair plan
+
+Created an active plan after a differential triage of the keto-diet field test (`raw/field-test/ketogenic_project_test.md`). Verified the CLI is correct — `search --mode lexical` returns 10 hits with non-null class/status and `rerank_reason` set — and that the field test's read-CCR, zero-hits, null class/status, and missing rerank_reason are all Headroom proxy artifacts, not code bugs. Root cause: the framework tells users to launch `headroom proxy`, but in headroom-ai 0.24.0 that Click CLI (`cli/proxy.py`) never reads `HEADROOM_EXCLUDE_TOOLS`; only `python -m headroom.proxy.server` does, so the (correct) wiki/raw exclude set was a no-op. The plan's headline is making hybrid/semantic work out of the box via shipped default thresholds keyed to the embedding model (calibration becomes optional override), plus an env-honoring launcher with `doctor` detection of silent compression, `search-all` per-project degradation (real bug at `src/search/commands.rs:3060`), MCP `status` readiness enrichment, raw/read-error gaps, and a correction of the superseded Phase 0 diagnoses in `mcp-first-agent-guidance.plan.md`. Pages affected: `wiki/plans/hybrid-default-and-mcp-surface-repair.plan.md`, `wiki/index.md`, `wiki/log.md`.
+
+## [2026-06-27] implement | Default hybrid search and MCP surface repair
+
+Implemented the main repair slices from the default hybrid search and MCP surface
+plan: default semantic/hybrid thresholds for uncalibrated projects,
+`thresholds_source` search JSON provenance, semantic vector indexing without a
+recorded thresholds file, `search-all` per-project readiness degradation,
+managed Headroom launcher materialization and guidance, MCP status project
+readiness, MCP read directory listings for `wiki/` and `raw/`, and clearer
+missing-path read errors. Updated focused coverage for search defaults,
+search-all readiness, MCP status/read-directory behavior, Headroom
+install/uninstall, and doctor launcher guidance. Verification: `cargo check`,
+`cargo test --test search_commands`, `cargo test --test mcp`, `cargo test --test
+headroom_install`, `cargo test --test status_doctor`, `cargo test --test init`,
+and `cargo test --workspace` (333 passed, 2 ignored). Remaining work recorded in
+the plan: active Headroom proxy carve-out probing and a live keto-diet rerun
+through the shipped launcher.
+## [2026-06-29] fix | review repair follow-through
+
+- Fixed `search-all` so a missing per-project index reports `index_missing`
+  readiness instead of aborting the whole cross-project search.
+- Adjusted `doctor` Headroom Mode C handling so an idle proxy with no observed
+  excluded route warns instead of false-failing, while `/stats` probe failures
+  remain hard failures.
+- Reused the real search readiness path for MCP `status` so semantic/hybrid
+  readiness is not inferred from semantic files alone.
+- Updated the MCP field-test checklist and MCP-first guidance to align with
+  shipped default semantic/hybrid thresholds.
+
+## [2026-07-07] refactor | Headroom no-legacy reduction + one wrap decision
+
+- Consolidated the two Headroom decisions into one
+  `decisions/headroom-single-posture-mcp-first.decision.md` (amended): the
+  MCP-first posture plus one narrow, temporary exception — the `llm-wiki headroom
+  wrap` launch convenience — with a "proper configuration interface (future)"
+  exit condition and the load-bearing proxy evidence (Codex retry credited to
+  `HEADROOM_MCP_READ=off`, not the exclude list; corrected host attribution)
+  folded inline so the decision stands alone.
+- Deleted 11 exploratory/consolidated proxy wiki docs (external-launcher plan;
+  runtime-companion proposal/plan/decision; profile-narrowing plan;
+  single-posture-cleanup plan; the separate launch-convenience decision; and the
+  candidate/rejected/superseded proxy evals). Repaired every dangling reference
+  across the wiki; kept the two 2026-07-07 proxy-off field-test passes as proof.
+- Trimmed `references/headroom-context-compression.reference.md` and the two
+  mixed merge-readiness docs; rebuilt the Headroom entries in `wiki/index.md`.
+- Plan of record: `plans/headroom-wrap-command.plan.md` — Phase 0 (wiki
+  reduction) done; Phases 1–2 (strict code/test removal + the `headroom wrap`
+  command covering prod + test MCP namespaces) pending.
+
+## [2026-07-07] refactor | Headroom Phase 1 code/test removal + mixed-doc hard trim
+
+- Phase 1 (strict no-legacy code + test removal): dropped
+  `ManagedAssetKind::Unknown` + `#[serde(other)]` and its deserialization test
+  from `src/manifest/schema.rs`, removed the retired-asset cleanup loop from
+  `src/install.rs`, deleted `tests/headroom_install.rs` and
+  `infra/headroom-proxy-e2e/`. `build`/`test`/`clippy -D warnings`/`insta` green;
+  a `headroom` grep over `src/` and `tests/*.rs` is empty. The only surviving
+  refs are `tests/snapshots/*.snap` rendering the kept harness-neutral safety
+  rule from `templates/base/project_guidelines.md`. This makes the consolidated
+  decision's "removed from code … build and run cleanly" a true present-tense
+  fact (resolving review Findings 2 & 5).
+- Resolved the long-standing `init_baseline` snapshot question: the shift was
+  purely the `0.2.7 → 0.2.8` `framework_version` bump — generated guidance does
+  not enumerate CLI commands. Accepted all 9 init snapshots.
+- Hard-trimmed the mixed docs (review Finding 3): stripped all
+  proxy/`--with-headroom`/carve-out/router-bypass/Mode-C material from
+  `plans/hybrid-default-and-mcp-surface-repair.plan.md`,
+  `plans/headroom-mcp-merge-readiness-repair.plan.md`,
+  `review/headroom-mcp-branch-merge-readiness.eval.md`,
+  `plans/test-instance-namespaced-binary.plan.md`, and
+  `decisions/test-instance-namespaced-binary.decision.md`, preserving their
+  hybrid-search, MCP-cutover, test-instance, and migration value; renumbered
+  lists and fixed cross-references. Residual "Headroom" text is limited to
+  branch/topic names, valid links to the kept decision/reference, and captured
+  error output.
+- Preserved the evidence trail after eval deletion (review Finding 4): pointed
+  the decision's folded proxy claims at the surviving primary records in `raw/`
+  (`raw/field-test/ketogenic_project_test.md` and the
+  `raw/research/2026-06-21-headroom-dogfood/captures/` proxy artifacts).
+
+## [2026-07-07] refactor | Headroom no-legacy sweep extended to all mixed docs
+
+- Extended the hard-trim beyond the review's named set to every wiki doc still
+  carrying retired proxy apparatus. Reframed the two `harness-independent-wiki-
+  read-tool` docs (plan + proposal): the `llm_wiki_read` MCP tool is live and
+  kept, but its dead rationale — router-bypass proof, Headroom exclude-set
+  reservation, Mode C/D posture — was removed and the `_test` namespacing
+  re-grounded on the `src/instance.rs` `mcp_read_tool_name()` derivation (the
+  Headroom profile/exclude set no longer exists in code; `assets/` is empty).
+- Trimmed proxy/`--with-headroom`/Mode-C-D residue from
+  `proposals/test-instance-namespaced-binary.proposal.md`,
+  `plans/mcp-first-agent-surface.plan.md`,
+  `plans/mcp-first-agent-guidance.plan.md` (Issue 0.1 marked superseded, not
+  deleted), `evals/test-instance-live-session-proof.eval.md`,
+  `evals/mcp-first-host-parity.eval.md`, `proposals/mcp-first-surface.proposal.md`,
+  and replaced the stale "blessed Mode C / `run-proxy.sh`" section of
+  `decisions/mcp-onboarding-at-init-register.decision.md` with a retirement note.
+- Synced every affected `wiki/index.md` description. After the sweep, the only
+  Headroom text remaining across the wiki (outside the kept decision/reference/
+  wrap plan and `log.md` history) is retirement notes/tombstones, "Correction:
+  superseded" markers, past-tense historical contrast in the accepted field-test
+  evals, dated Implementation-Progress test-run evidence, and the one kept
+  harness-neutral safety rule. No live doc presents the proxy posture as current.
+
+## [2026-07-07] fix | Reconcile stale gate/status bookkeeping after the no-legacy sweep
+
+- Follow-up review caught that the sweep trimmed prose but left retired concepts
+  in acceptance-criteria and canonical-status bookkeeping. Fixes:
+- `plans/mcp-first-agent-guidance.plan.md` (Active): reworded Acceptance Criteria
+  Gate criterion 1 — it still required `llm_wiki_read` to return Markdown "under
+  an active Headroom profile" with a test asserting the read tool is "in the
+  exclude set", contradicting the same doc's own "Phase 0 Diagnoses Superseded"
+  correction. Now states the CLI read is authoritative and the tool returns the
+  real body via MCP routing with `HEADROOM_MCP_READ=off`; no profile/exclude-set
+  assertion.
+- `decisions/test-instance-namespaced-binary.decision.md` (canonical): the MCP
+  tool names were still described as "reserved and not yet built" and execution
+  as "in progress / Phase 6 pending", both contradicted by the decision's own
+  Evidence section and by the plan now being Status: Completed. Reconciled to the
+  shipped reality (live suffixed MCP surface; enforcement mechanisms landed).
+- `plans/headroom-wrap-command.plan.md`: converted the three "Open Items For
+  Review" (purge scope, delete list, decision consolidation) to a resolved record
+  now that they are answered; only Phase 2 (`wrap`) remains open.
+- `index.md`: fixed a malformed two-entries-on-one-line concatenation
+  (E2E-backbone / MCP-First Surface) and corrected the test-instance proposal
+  entry from "Ready implementation plan" to "implementation plan Completed".
+- `review/headroom-mcp-branch-merge-readiness.eval.md`: added a superseded-snapshot
+  banner to the Findings section pointing at the repair update above, so the
+  repaired blockers no longer read as currently open.
+
+## [2026-07-07] implement | Headroom wrap command
+
+Completed `wiki/plans/headroom-wrap-command.plan.md`. Before implementing Phase
+2, finished the no-legacy sweep by removing stale active references to deleted
+Headroom profile/install tests and proxy-mode vocabulary from mixed wiki pages
+while keeping retained decision/reference/history notes intact.
+
+Implemented `llm-wiki headroom wrap -- <command>` as the only Headroom code
+surface. The default child env sets `HEADROOM_MCP_READ=off`; `--unsafe-mcp-read`
+removes `HEADROOM_MCP_READ` from the child env so a parent `=on` value cannot
+leak; `HEADROOM_EXCLUDE_TOOLS` is always set with all six production and test MCP
+tools plus defensive fully-qualified route forms for hyphenated and underscored
+server IDs. Unix uses `exec`; non-Unix uses spawn/wait and forwards the child
+exit code. Warning text states the exclude list is best-effort and not a
+provenance boundary.
+
+Verification: `rtk cargo fmt`; `rtk cargo test --test headroom` (6 passed);
+`rtk cargo test headroom` (4 passed, 313 filtered out); `rtk cargo test --test
+identity_lint` (3 passed); `rtk cargo check`; `rtk cargo clippy -- -D warnings`;
+`rtk cargo test` (315 passed, 2 ignored). Removed legacy-code grep terms
+(`--with-headroom`, `ManagedAssetKind::Unknown`, `headroom_install`,
+`headroom_profile`, proxy launcher, router-bypass) are absent from `src/`,
+`tests/`, and `infra/`.
+
+Pages affected: `src/cli.rs`, `src/headroom.rs`, `src/instance.rs`,
+`src/main.rs`, `tests/headroom.rs`, `wiki/plans/headroom-wrap-command.plan.md`,
+`wiki/index.md`, `wiki/log.md`, plus stale-reference cleanup in
+`wiki/proposals/mcp-first-surface.proposal.md`,
+`wiki/plans/mcp-first-agent-surface.plan.md`,
+`wiki/plans/mcp-first-agent-guidance.plan.md`,
+`wiki/plans/harness-independent-wiki-read-tool.plan.md`,
+`wiki/plans/mcp-onboarding-init-register.plan.md`,
+`wiki/plans/macos-installed-binary-codesign-repair.plan.md`,
+`wiki/decisions/mcp-onboarding-at-init-register.decision.md`, and
+`wiki/review/test-instance-namespaced-binary-implementation.eval.md`.
+
+## [2026-07-07] fix | Headroom wrap review cleanup
+
+Addressed the follow-up review on `llm-wiki headroom wrap`: removed the
+unreachable empty-command guard now owned by clap, added help text for the
+Headroom command surface and `--unsafe-mcp-read`, replaced the test-instance MCP
+tool-name wildcard fallback with an explicit production/test identity table, and
+cleaned the stale `tests/headroom_install.rs` source entry from the implemented
+wrap plan.
+
+Pages affected: `src/cli.rs`, `src/headroom.rs`, `src/instance.rs`,
+`wiki/plans/headroom-wrap-command.plan.md`, `wiki/log.md`.
