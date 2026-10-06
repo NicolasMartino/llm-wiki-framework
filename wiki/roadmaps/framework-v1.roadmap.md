@@ -959,7 +959,7 @@ Proof:
 
 ### P14 - The Search Eval Test Runs Against A Frozen Wiki
 
-Status: Draft
+Status: Active
 Promise: `search::qmd_rs::tests::fixed_eval_queries_keep_expected_targets_in_top_two`
 checks search quality against a frozen copy of the wiki, so a page added to the
 live wiki cannot turn the fast check red.

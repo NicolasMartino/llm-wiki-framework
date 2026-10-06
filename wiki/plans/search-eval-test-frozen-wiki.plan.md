@@ -1,7 +1,8 @@
 # Plan: The Search Eval Test Runs Against A Frozen Wiki
 
 - Document Class: Plan
-- Status: Draft
+- Status: Active
+- Branch: `NicolasMartino/eval-fixture-17`
 - Date: 2026-10-06
 - Category: Search, tests, CI
 - Scope: Make the search quality test in `src/search/qmd_rs.rs` read a frozen
