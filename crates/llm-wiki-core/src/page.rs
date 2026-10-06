@@ -33,10 +33,13 @@ pub enum Block {
 pub enum Form {
     /// `- Key: Value`, the form llm-wiki writes and poman reads.
     Bullet,
+    /// `* Key: Value`, a list item marked with an asterisk, not a dash.
+    Asterisk,
     /// `Key: Value`, with no bullet.
     Bare,
-    /// `**Key:** Value` or `- **Key:** Value`: asterisks around the key or
-    /// at the start of the value.
+    /// `**Key:** Value`, `- **Key:** Value` or `- Key: **Value**`:
+    /// asterisks around the key or at the start of the value. Only those at
+    /// the start of the value are dropped: `**Value**` reads `Value**`.
     Bold,
 }
 
@@ -120,6 +123,7 @@ impl Field {
 pub struct Page {
     title: Option<Title>,
     fields: Vec<Field>,
+    byte_order_mark: bool,
 }
 
 impl Page {
@@ -141,6 +145,10 @@ impl Page {
     /// by two spaces or a tab continues the field above it. Any such line
     /// right under the title is a field, prose included: "a ratio of 4:1"
     /// gives a field named after the text before its colon.
+    ///
+    /// A byte-order mark at the start is read as part of the first line, as
+    /// llm-wiki's search always read it, so it hides front matter and a title
+    /// on that line; [`BulletBlock::byte_order_mark`] reports it.
     #[must_use]
     pub fn read(text: &str) -> Self {
         let lines: Vec<&str> = text.lines().collect();
@@ -196,6 +204,7 @@ impl Page {
                 line: index + 1,
             }),
             fields,
+            byte_order_mark: text.starts_with('\u{FEFF}'),
         }
     }
 
@@ -255,7 +264,11 @@ impl Page {
             .fields
             .iter()
             .partition(|field| field.block == Block::AfterTitle && field.form == Form::Bullet);
-        BulletBlock { fields, elsewhere }
+        BulletBlock {
+            fields,
+            elsewhere,
+            byte_order_mark: self.byte_order_mark,
+        }
     }
 }
 
@@ -304,6 +317,7 @@ impl WikiView {
 pub struct BulletBlock<'page> {
     fields: Vec<&'page Field>,
     elsewhere: Vec<&'page Field>,
+    byte_order_mark: bool,
 }
 
 impl<'page> BulletBlock<'page> {
@@ -314,10 +328,27 @@ impl<'page> BulletBlock<'page> {
     }
 
     /// The fields found in any other block or form: front matter, before the
-    /// title, on a page with no title, bare or bold.
+    /// title, on a page with no title, bare, bold or marked with `* `.
     #[must_use]
     pub fn elsewhere(&self) -> &[&'page Field] {
         &self.elsewhere
+    }
+
+    /// Whether the page starts with a byte-order mark. The reader keeps the
+    /// mark in the first line, so front matter or a title there is not read:
+    /// a page with one may hold fields neither list shows.
+    ///
+    /// ```
+    /// use llm_wiki_core::page::Page;
+    ///
+    /// let page = Page::read("\u{FEFF}---\ndue: 2026-11-01\n---\n# Rent\n\n- Status: Todo\n");
+    /// let block = page.bullet_block();
+    /// assert!(block.byte_order_mark());
+    /// assert!(block.elsewhere().is_empty());
+    /// ```
+    #[must_use]
+    pub const fn byte_order_mark(&self) -> bool {
+        self.byte_order_mark
     }
 }
 
@@ -394,10 +425,26 @@ fn field_line(line: &str) -> Option<(&str, &str, Form)> {
     let (value, bold_value) = value
         .strip_prefix("**")
         .map_or((value, false), |value| (value.trim(), true));
-    let form = if bold_value || key.len() != written_key.len() {
+    // The key keeps whatever a `* ` marker leaves of it, as search has always
+    // read it; only the form tells the marker apart from bold asterisks.
+    let asterisk = if bullet {
+        None
+    } else {
+        written_key.strip_prefix("* ").map(str::trim_start)
+    };
+    let unmarked = asterisk.unwrap_or(written_key);
+    let bold_key = unmarked
+        .trim_start_matches('*')
+        .trim_end_matches('*')
+        .trim()
+        .len()
+        != unmarked.len();
+    let form = if bold_value || bold_key {
         Form::Bold
     } else if bullet {
         Form::Bullet
+    } else if asterisk.is_some() {
+        Form::Asterisk
     } else {
         Form::Bare
     };

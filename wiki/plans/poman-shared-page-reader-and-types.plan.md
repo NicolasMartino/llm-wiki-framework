@@ -60,9 +60,11 @@ as approved with PR #45.
   `Page::read` reads a page's text in one pass: the title with its line, and
   each field with its key, value, line, block (`FrontMatter`, `BeforeTitle`,
   `AfterTitle`, or `Untitled` on a page with no title) and form (`Bullet`,
-  `Bare`, `Bold`), in page order. It reads the blocks, continuation lines
-  and the prose-line quirk exactly as `parse_wiki_metadata` did (the owner's
-  choice 3).
+  `Asterisk` for a `* ` list item, `Bare`, `Bold`), in page order. It reads
+  the blocks, continuation lines and the prose-line quirk exactly as
+  `parse_wiki_metadata` did (the owner's choice 3), a leading byte-order mark
+  included: kept in the first line, it hides front matter and a title there,
+  and the bullet-block view reports it.
 - **Two views:** `Page::wiki_view` gives search the title and each key's
   value, a later field overriding an earlier one, as before;
   `Page::bullet_block` gives the `- Key: Value` fields just after the title
@@ -289,8 +291,13 @@ makes ready:
 
 - the bullet-block view, giving each field with its line, so `poman check`
   can name the file and the line;
-- the fields found outside the bullet block, with their lines, so `poman
-  check` can refuse front matter and bold keys by name;
+- the fields found outside the bullet block, with their lines and forms, so
+  `poman check` can refuse front matter, bold keys and `* ` list items by
+  name;
+- a page that starts with a byte-order mark, reported by the bullet-block
+  view (`BulletBlock::byte_order_mark`): the reader reads it as search
+  always has, so front matter or a title on its first line is not found, and
+  PM3 refuses the mark, or strips it before reading, with its own proof;
 - the type shape, in which PM3 adds the deadline type with its own statuses
   (`Todo`, `Doing`, `Waiting`, `Done`) and its value formats, and the
   filename splitter, which already accepts `deadline`;

@@ -370,3 +370,75 @@ fn an_empty_page_has_nothing() {
     assert_eq!(Page::read(""), Page::default());
     assert_eq!(Page::read("").wiki_view(), super::WikiView::default());
 }
+
+#[test]
+fn a_blank_continuation_in_front_matter_adds_nothing() {
+    assert_eq!(
+        found("---\nSources: a\n  \n  b\n---\n# T\n"),
+        [field("Sources", "a b", 2, Block::FrontMatter, Form::Bare)]
+    );
+}
+
+#[test]
+fn a_blank_continuation_before_the_title_adds_nothing() {
+    assert_eq!(
+        found("Sources: a\n  \n  b\n# T\n"),
+        [field("Sources", "a b", 1, Block::BeforeTitle, Form::Bare)]
+    );
+}
+
+#[test]
+fn an_asterisk_list_item_is_not_bold() {
+    assert_eq!(
+        found("# T\n\n* Status: Todo\n*  Due: 2026-11-01\n- Owner: Ana\n"),
+        [
+            field("Status", "Todo", 3, Block::AfterTitle, Form::Asterisk),
+            field("Due", "2026-11-01", 4, Block::AfterTitle, Form::Asterisk),
+            field("Owner", "Ana", 5, Block::AfterTitle, Form::Bullet),
+        ]
+    );
+    let page = Page::read("# T\n\n* Status: Todo\n- Due: 2026-11-01\n");
+    let block = page.bullet_block();
+    let keys = |fields: &[&super::Field]| {
+        fields
+            .iter()
+            .map(|field| (field.key().to_owned(), field.form()))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(keys(block.fields()), [("Due".to_owned(), Form::Bullet)]);
+    assert_eq!(
+        keys(block.elsewhere()),
+        [("Status".to_owned(), Form::Asterisk)]
+    );
+}
+
+#[test]
+fn asterisks_around_the_key_or_value_are_bold_with_or_without_a_marker() {
+    // The keys and values are search's, unchanged; only the forms are new.
+    assert_eq!(
+        found("# T\n* **Status:** Todo\n* Due: **2026-11-01**\n- * Owner: Ana\n- Scope: **x**\n"),
+        [
+            field("**Status", "Todo", 2, Block::AfterTitle, Form::Bold),
+            field("Due", "2026-11-01**", 3, Block::AfterTitle, Form::Bold),
+            field("Owner", "Ana", 4, Block::AfterTitle, Form::Bold),
+            field("Scope", "x**", 5, Block::AfterTitle, Form::Bold),
+        ]
+    );
+}
+
+#[test]
+fn a_byte_order_mark_is_reported_and_read_as_search_reads_it() {
+    let page = Page::read("\u{FEFF}---\ndue: 2026-11-01\n---\n# Pay the rent\n\n- Status: Todo\n");
+    let block = page.bullet_block();
+    assert!(block.byte_order_mark());
+    assert_eq!(block.fields().len(), 1);
+    assert_eq!(block.elsewhere().len(), 0);
+
+    let untitled = Page::read("\u{FEFF}# Pay the rent\n\n- Status: Todo\n");
+    assert_eq!(untitled.title(), None);
+    assert_eq!(untitled.fields().len(), 0);
+    assert!(untitled.bullet_block().byte_order_mark());
+
+    let plain = Page::read("# Pay\u{FEFF} the rent\n");
+    assert!(!plain.bullet_block().byte_order_mark());
+}
