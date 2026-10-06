@@ -13,17 +13,22 @@ curl -L https://github.com/nicolasmartino/llm-wiki-rs/releases/latest/download/l
 llm-wiki install
 ```
 
-Users with a Rust toolchain can install from crates.io after the package is
-published:
+Users with a Rust toolchain can install from crates.io after the packages are
+published; `poman`, the project manager, is installed beside `llm-wiki`:
 
 ```bash
 cargo install llm-wiki-rs
+cargo install poman
 llm-wiki install
 ```
 
 `llm-wiki install` copies or verifies the runtime binary at
-`~/.llm_wiki/bin/llm-wiki`, merges the active instance into Codex MCP config,
-and writes a staged Claude project `.mcp.json` under the managed home. Hosts
+`~/.llm_wiki/bin/llm-wiki` and the `poman` beside it at `~/.llm_wiki/bin/poman`,
+merges the active instance into Codex MCP config, and writes a staged Claude
+project `.mcp.json` under the managed home. It takes `poman` from the folder
+its own binary runs from, and only one of its own version; with none there, it
+keeps a `poman` it installed before, and otherwise refuses and says how to get
+one. Hosts
 spawn `llm-wiki mcp serve` over stdio on demand; no background daemon is
 installed. The installer no longer renders generated runtime skills.
 
@@ -80,7 +85,8 @@ llm-wiki index --project my-project -v
 `llm-wiki` is MCP-first: hosts drive the wiki through the MCP server, and the
 CLI subcommands cover install and local operations.
 
-- `install` — install the managed binary and materialize the MCP configs.
+- `install` — install the managed binary and `poman` and materialize the MCP
+  configs.
 - `init <path>` — scaffold a new project wiki.
 - `headroom [--headroom-bin <PATH>] [--unsafe-mcp-read] [--] <headroom args...>` —
   run Headroom with LLM Wiki environment guards (see below).
@@ -91,7 +97,8 @@ CLI subcommands cover install and local operations.
 - `search` / `search-all` — query one or all registered projects.
 - `eval run` / `eval calibrate` — measure and tune semantic search candidates.
 - `path` / `status` / `doctor` — inspect install and PATH state.
-- `uninstall` — remove the managed surface.
+- `uninstall` — remove everything `install` put in place, both binaries
+  included; `uninstall --search-artifacts` removes only the search models.
 
 The MCP server exposes these tools: `llm_wiki_read`, `llm_wiki_search`,
 `llm_wiki_search_all`, `llm_wiki_index`, `llm_wiki_register`, and
