@@ -28,6 +28,10 @@ Done when:
 - <each check the issue's "Done when" asks for, as a command and its expected result>
 ```
 
+Name the plan and its roadmap entry in Context whenever there is one: the
+`plan-status.txt` part has the worker set its status in this PR. A spec with
+no plan says so, and names the roadmap entry whose status the PR sets, if any.
+
 `<sha>` is the commit the worktree really starts from, the one passed as
 `--base-branch`. The base text's "Done when, as well as the spec's" lines, its
 report and the shared rules follow the spec, so the spec repeats none of them.

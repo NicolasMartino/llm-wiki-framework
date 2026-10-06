@@ -10,6 +10,9 @@
   - The owner's decisions of 2026-10-06 in riseon's coordinating session: the
     repository is the truth and every board is a view of it, the board's
     columns are the plan statuses, and "remember the repo is the truth"
+  - The owner, 2026-10-06: "the status change should be part of the PR that
+    contains the work that is suppose to achieve this status change, so no
+    separate commit or PR"
 - Related:
   - `wiki/decisions/work-in-flight-is-a-pushed-branch.decision.md`
   - `wiki/decisions/the-pull-request-is-the-review-surface.decision.md`
@@ -30,7 +33,11 @@ view of it, nothing else.**
    Draft, Active, Blocked or Completed. A Blocked plan says in its body what it
    waits on and what starts it. Wiki-only work, an investigation, or a design
    settled with the owner needs no plan of its own; its roadmap entry and its
-   issue are enough.
+   issue are enough. **A status changes in the PR that does the work**: Active,
+   with the branch, in its first push; Completed, with its roadmap entry,
+   before it leaves draft, made true by the merge. No separate commit or PR
+   changes a status; a settled investigation's or design's roadmap status goes
+   in the wiki PR that records its outcome.
 3. **The board shows the plans.** Each deliverable has one issue on the
    project's board, whose body points to its roadmap entry and plan. The
    board's Status column has the plan statuses as its options, Draft, Active,
@@ -41,8 +48,8 @@ view of it, nothing else.**
    review and the owner's verdict are comments on it
    (`the-pull-request-is-the-review-surface.decision.md`).
 5. **Until a tool draws the board** (poman's `push`), the
-   coordinator mirrors each plan's Status onto its issue by hand, in the same
-   step as the plan changes, and a blocked issue carries the plan's blocker as
+   coordinator moves each issue by hand: Active when its worker starts,
+   Completed when its PR merges, and a blocked issue carries the plan's blocker as
    a short title note (` (blocked: <short name> #<n>)`) and GitHub's own
    "Blocked by" link when the blocker is an issue.
 6. **A stage is a milestone** only once the owner lays out stages; until then
@@ -57,6 +64,9 @@ view of it, nothing else.**
   In RepForge the board was the authority, and the wiki, the issues and the
   board had to be reconciled by hand; with one source, there is nothing to
   reconcile, only a view to redraw.
+- **A status belongs with the work that makes it true.** A separate status
+  commit is one more thing to forget, and a status on `develop` that no merged
+  work backs is a claim, not a record.
 - **This framework already works this way**: its deliverables live in
   `wiki/roadmaps/` and its plans carry a Status. The board adds a view for the
   owner, not a second record.
@@ -65,11 +75,11 @@ view of it, nothing else.**
 
 ## Consequences
 
-- Moving a card is never the act that changes a status: the plan changes, and
-  the card follows.
-- A plan's status change made on a worker's branch reaches `develop` only when
-  that branch merges; how status-only edits land before that is settled in
-  `wiki/checklists/operation-manager.checklist.md`, "The Board".
+- Moving a card is never the act that changes a status: the plan changes in
+  its PR, and the card follows.
+- `develop` shows a plan as Draft until its PR merges. What is in flight is
+  the pushed branch, the plan as that branch has it, and the board
+  (`wiki/checklists/operation-manager.checklist.md`, "The Board").
 - RepForge's "the GitHub project is where work is tracked" does not apply here.
 
 ## What Would Revisit This

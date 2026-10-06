@@ -7,7 +7,7 @@ Files, as well as the spec's:
 Context, as well as the spec's:
 - The plan says what this work proves; keep to it, and say in the PR where you could not.
 - A change to templates/ (only when the spec names it) changes what every project gets: list each snapshot that changes (`cargo insta`) in the PR body, with why.
-- Status is the plan's, kept by the coordinator; write no status into any other page.
+- The plan's status is part of this PR (the plan-status part); write no status into any other page.
 - Comments say why, not what; add one only when it says what the names and types do not.
 
 Done when, as well as the spec's:
@@ -20,4 +20,4 @@ Report (worker_done, 10 lines max):
 - the gate log path, the `just verify` result, the CI result, and the gate comment link;
 - any P3, leftover or llm-wiki pain point for the coordinator to file.
 
-Followed by: shared/rules.txt, then shared/full-gates.txt.
+Followed by: shared/rules.txt, then shared/plan-status.txt, then shared/full-gates.txt.

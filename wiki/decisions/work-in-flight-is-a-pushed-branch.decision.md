@@ -13,6 +13,7 @@
     riseon
   - The owner's decision of 2026-10-06 that work lands on `develop`
     (`the-pull-request-is-the-review-surface.decision.md`, rule 6)
+  - The owner, 2026-10-06: a plan's status changes in the PR that does the work
 - Related:
   - `wiki/decisions/work-is-recorded-in-the-repository.decision.md`
   - `justfile`, recipe `branch-status`
@@ -28,13 +29,16 @@
 3. **Unpushed is invisible.** A branch that never reached `origin` cannot be
    seen, reviewed, continued or rescued by anyone else. Workers push early.
 4. **A plan whose work is under way names its branch**: `- Branch: \`<branch>\``
-   under `- Status: Active` or `- Status: Blocked`. The coordinator writes it
-   when the worker starts and removes it when the plan is Completed
-   (`wiki/checklists/operation-manager.checklist.md`, "The Board").
+   under `- Status: Active` or `- Status: Blocked`, on that branch: the
+   worker's first push sets it, and the same PR removes it when it marks the
+   plan Completed (`wiki/checklists/operation-manager.checklist.md`, "The
+   Board"). So `develop` shows the plan as Draft until the PR merges.
    `just branch-status` fails on a plan naming a branch `origin` lacks
    (UNPUSHED) and on a plan status outside the vocabulary (STALE). A pushed
    branch no plan names is listed as "no plan", for information: wiki work,
-   investigations and log PRs have none.
+   investigations and log PRs have none. It reads the plans of the checkout it
+   runs in, so a Branch line that lives only on its own branch is not seen
+   from `develop` until the check reads each branch's own plans (issue #31).
 5. **A plan completed from now on says where its proof holds**:
    `Completed (develop)` once its PR merges into `develop` (decided by the
    owner on 2026-10-06, see below), `Completed (local)` or
@@ -52,9 +56,7 @@ Work now merges into `develop`,
   master; the log entry of the PR into master names what it carried. Why: the
   status changes once, at the merge that proves it, and a plan does not sit
   "Active" for weeks after its work merged. `just branch-status` accepts
-  `Completed (master)`, `(local)` and `(spike)` today, not `(develop)`: the
-  decision needs that check to accept it, and that change is the CI
-  work's (issue #9, `wiki/plans/develop-and-master-ci.plan.md`).
+  `Completed (develop)`, as well as `(master)`, `(local)` and `(spike)`.
 
 ## Why
 

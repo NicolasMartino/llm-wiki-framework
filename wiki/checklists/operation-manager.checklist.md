@@ -38,11 +38,11 @@ Three repo commands walk the steps and point back here:
 - `/operations` (`.claude/skills/operations/SKILL.md`): load at the start of a
   coordinating session.
 - `/operations-start <issue>` (`.claude/skills/operations-start/`): issue →
-  kind → plan → facts → spec → checklist → worker → status. The base texts sit
+  kind → plan → facts → spec → checklist → worker → board. The base texts sit
   beside it.
 - `/operations-land <PR>` (`.claude/skills/operations-land/SKILL.md`): blind
-  review → gate check → ready → verdict → check it yourself → merge → log and
-  status → clean-up.
+  review → gate check → ready → verdict → check it yourself → merge → log →
+  clean-up.
 
 Workers run under Orca. The machine-wide rules (every agent is an Orca worker,
 the worker lifecycle, the spec shape) are in the owner's global Claude
@@ -70,9 +70,10 @@ becomes a roadmap entry and an issue, not a workaround.
   `orca orchestration run-create --objective "<objective>" --json`.
 - **Read the state from the repository first**: the roadmaps and the plans'
   `Status` lines (`just branch-status` checks plans against the pushed
-  branches), then the board, the open PRs (`gh pr list`), the run's workers
-  (`orca orchestration worker-list --run <R> --json`) and their unanswered
-  asks (`orca orchestration check --run <R> --peek --json`). Why: a session
+  branches; a plan in flight is still Draft on `develop`, so read it on its
+  branch, "The Board"), then the board, the open PRs (`gh pr list`), the
+  run's workers (`orca orchestration worker-list --run <R> --json`) and their
+  unanswered asks (`orca orchestration check --run <R> --peek --json`). Why: a session
   starts with none of the previous one's conversation, and the repository is
   the truth.
 - **After a quiet stretch, give the owner a short status first.**
@@ -113,26 +114,33 @@ The rules are in
 `wiki/decisions/work-is-recorded-in-the-repository.decision.md`: the plans hold
 the status, and the board shows it.
 
-- **A status changes in the plan first**, then on the board, in the same step:
-  - Draft when the plan is written and its issue made;
-  - Active when its worker starts, with `- Branch: \`<branch>\`` under the
-    plan's Status line;
-  - Blocked the moment it waits on something: the plan's body says what it
-    waits on and what starts it; the issue gets the title note and, when the
-    blocker is an issue, GitHub's "Blocked by" link;
-  - Completed when its PR merges into `develop`: `Completed (develop)` (or
-    `(local)`, `(spike)`), the Branch line removed, and its roadmap entry
-    updated. Which word follows Completed is
+- **A plan's status changes in the PR that does the work** (owner,
+  2026-10-06: "the status change should be part of the PR that contains the
+  work that is suppose to achieve this status change, so no separate commit or
+  PR"):
+  - Draft when the plan is written (in the wiki PR that writes it), and its
+    issue made;
+  - Active, with `- Branch: \`<branch>\`` under the Status line, in the
+    worker's first push, and its roadmap entry's status with it;
+  - Completed in the same PR before it leaves draft (before its gate run, or
+    for a wiki PR before it reports): `Completed (develop)` (or `(local)`,
+    `(spike)`), the Branch line removed, its roadmap entry updated. The merge
+    makes it true. Which word follows Completed is
     `work-in-flight-is-a-pushed-branch.decision.md`'s, rule 5: `(develop)`,
-    decided by the owner on 2026-10-06.
-- **Status-only edits go straight to `develop`.** A commit that changes nothing
-  but plans' `Status` and `Branch` lines, and the matching roadmap entries'
-  `Status:` lines, is the coordinator's, made in the main checkout on
-  `develop` and pushed to `develop` with no PR: "Wiki: Mark <plan> Active".
-  Everything else in a plan goes through a PR. Workers never edit a plan's
-  Status or Branch lines. Why: a status written on a worker's branch reaches
-  `develop` only at the merge, so `develop` (and `just branch-status`) would
-  show the work as not started for its whole life.
+    decided by the owner on 2026-10-06;
+  - Blocked when it waits on something: in the PR that finds out, or a small
+    wiki PR; the plan's body says what it waits on and what starts it.
+
+  The worker makes these edits (the `plan-status.txt` part beside
+  `/operations-start`); the coordinator commits no status, and checks them
+  when landing. So `develop` shows a plan as Draft until its PR merges; what
+  is in flight is the pushed branch, its plan as that branch has it, and the
+  board. A settled investigation's or design's roadmap status goes in the wiki
+  PR that records its outcome ("Landing A Comment").
+- **The board follows the work**, moved by the coordinator: Active when the
+  worker starts, Blocked with the title note (` (blocked: <short name> #<n>)`)
+  and, when the blocker is an issue, GitHub's "Blocked by" link, Completed when
+  the PR merges.
 - **Review states are on the PR, not the board**: draft while worked on or
   fixed, ready while it waits for the owner.
 - **Check every move** with `gh project item-list` afterwards. Nothing moves an
@@ -210,8 +218,8 @@ kind's model, effort and reasons.
 6. **The checklist** in `/operations-start`, every start.
 7. **The worker**, with the kind's model and effort. Check what Orca actually
    launched (`launch.effective` in the receipt).
-8. **The status**: the plan to Active with its Branch line (a status-only
-   commit to `develop`), then the issue on the board.
+8. **The board**: the issue to Active. The plan's status is the worker's to
+   set, in its PR ("The Board").
 
 **Model and effort:** Opus, medium for writing and coding; Opus, high for
 design or a hard bug; Sonnet, medium for an investigation that ends in a report
@@ -237,7 +245,7 @@ and one fix round per PR.
 
 **What workers may not do**, which the shared rules tell them: open a PR into
 master, merge, tag or release, start workers of their own, touch files outside the spec, edit
-`wiki/log.md`, AGENTS.MD, a plan's Status or Branch lines, or the framework's
+`wiki/log.md`, AGENTS.MD, any plan's status but their own, or the framework's
 output templates unless the spec names them. They push and open PRs, and ask
 the coordinator (`orchestration ask`) for anything else.
 
@@ -361,7 +369,9 @@ the coordinator (`orchestration ask`) for anything else.
   verdict of their own. A failed verdict: `gh pr ready <n> --undo`, then a fix
   round.
 - **Merge only with the owner's PASS on the PR's current head**, after reading
-  the diff yourself against the issue and the plan:
+  the diff yourself against the issue and the plan, and checking that it marks
+  its plan Completed with its roadmap entry ("The Board"); a PR that does not
+  goes back to its worker:
 
   ```bash
   gh pr merge <n> --squash --match-head-commit <full sha> --delete-branch \
@@ -373,20 +383,19 @@ the coordinator (`orchestration ask`) for anything else.
   PR's `mergeable` to leave UNKNOWN. Then check the issue closed: GitHub
   closes it on a merge into `develop`, its default branch. The PR from
   `develop` into master merges another way ("Develop And Master").
-- **The log entry and the plan's status at merge.** Only the coordinator writes
+- **The log entry at merge.** Only the coordinator writes
   `wiki/log.md`: one entry per merge into `develop`, at the top of the log, in
   this wiki's format (`## [<date>] <operation> | <subject>`, a paragraph on
-  what changed and why citing the PR, then `Pages affected: …`). The same log
-  PR, into `develop`, marks the plan Completed ("The Board"), removes its
-  Branch line, and updates its roadmap entry. A log PR may gather several
-  merges; it gets no log entry of its own and no blind review, and the owner's
+  what changed and why citing the PR, then `Pages affected: …`). The log PR,
+  into `develop`, carries only the log entries: the plan's status came with
+  the work's own PR ("The Board"). A log PR may gather several merges; it gets no log entry of its own and no blind review, and the owner's
   PASS decides it. Then the issue to Completed on the board. The PR from
   `develop` into master gets its own entry ("Develop And Master"). Both as
   written here, decided by the owner on 2026-10-06.
 
   ```bash
   git fetch origin && git switch -c wiki-log-<n> origin/develop   # in the main checkout
-  # add the entries at the top of wiki/log.md; mark the plans and roadmap entries
+  # add the entries at the top of wiki/log.md
   git commit -am "Wiki: Log the merge of #<n>" && git push -u origin wiki-log-<n>
   gh pr create --base develop --title "Wiki: Log the merge of #<n>" --body "Logs #<n>." --draft
   git switch develop
@@ -453,7 +462,8 @@ An investigation or a design settled with the owner ends in a comment on its
 issue, not a PR. When its worker reports: read the comment, check its facts
 against the links it cites, and tell the owner what it answers. Once the owner
 agrees and every follow-up it names is a roadmap entry (and an issue), the
-settled points go into the wiki through a wiki PR, the issue closes with a
+settled points go into the wiki through a wiki PR, which also sets its
+roadmap entry's status ("The Board"); the issue closes with a
 pointer to the comment, and its worker and worktree are released and removed.
 
 ## What Would Change This

@@ -1,0 +1,4 @@
+Your plan's status is part of this PR (the spec names the plan and its roadmap entry; if it names none, skip this):
+- In your first push: under the plan's metadata, `- Status: Active` and, right under it, `- Branch: \`<your branch>\``; the roadmap entry's status to Active too.
+- Before your gate run (or, for a wiki PR, before you report): the plan's `- Status: Completed (develop)`, its Branch line removed, and its roadmap entry's status to Completed. The PR merging is what makes it true.
+- Change no other plan's status. If the work cannot finish, leave the plan Active and say why in your report.

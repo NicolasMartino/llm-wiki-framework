@@ -6,7 +6,7 @@ Files, as well as the spec's:
 
 Out of scope, as well as the spec's:
 - Code and infra.
-- wiki/log.md, AGENTS.MD, and plans' `Status` and `Branch` lines: the coordinator writes the log entry at merge, keeps the statuses, and makes AGENTS.MD changes itself. If AGENTS.MD needs a line, write the exact line in the PR body.
+- wiki/log.md and AGENTS.MD: the coordinator writes the log entry at merge and makes AGENTS.MD changes itself. If AGENTS.MD needs a line, write the exact line in the PR body. Other plans' statuses: only the one the spec names (the plan-status part).
 - templates/, unless the spec names it: it is the framework's output, not this wiki.
 - Changing a rule another page owns: point to that page instead of restating it.
 
@@ -26,4 +26,4 @@ Report (worker_done, 10 lines max):
 - the blind review's findings and what the fix round did with each P1 and P2;
 - any AGENTS.MD line proposed, and any wrong claim for the coordinator to file.
 
-Followed by: shared/rules.txt, then shared/wiki-only.txt.
+Followed by: shared/rules.txt, then shared/plan-status.txt, then shared/wiki-only.txt.
