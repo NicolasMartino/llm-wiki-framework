@@ -33,12 +33,18 @@
    worker's first push sets it, and the same PR removes it when it marks the
    plan Completed (`wiki/checklists/operation-manager.checklist.md`, "The
    Board"). So `develop` shows the plan as Draft until the PR merges.
-   `just branch-status` fails on a plan naming a branch `origin` lacks
-   (UNPUSHED) and on a plan status outside the vocabulary (STALE). A pushed
-   branch no plan names is listed as "no plan", for information: wiki work,
-   investigations and log PRs have none. It reads the plans of the checkout it
-   runs in, so a Branch line that lives only on its own branch is not seen
-   from `develop` until the check reads each branch's own plans (issue #31).
+   `just branch-status` fetches `origin` and reads each pushed branch's plans
+   from its own `origin/<branch>` ref. It fails (STALE) on a branch whose own
+   plan names it under a status other than Active or Blocked, on a plan on the
+   checkout it runs in that names another branch, and on a plan status outside
+   the vocabulary. The one exception is a Branch line that was already on
+   `develop` when statuses moved into PRs (2026-10-06, #32; PM1's plan): it is
+   listed as in flight while its branch is on `origin`, and STALE once the
+   branch is gone. Any other Branch line on the checkout is STALE whether or
+   not its branch is still on `origin`, since merged branches stay there. A
+   pushed branch no plan names is listed as "no plan", for information: wiki
+   work, investigations and log PRs have none. `tools/branch-status-test.sh`
+   checks these cases against a scratch origin, and `just verify` runs it.
 5. **A plan completed from now on says where its proof holds**:
    `Completed (develop)` once its PR merges into `develop` (decided by the
    owner on 2026-10-06, see below), `Completed (local)` or

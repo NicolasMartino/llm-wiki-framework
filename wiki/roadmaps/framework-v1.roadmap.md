@@ -1046,7 +1046,7 @@ Proof:
 
 ### P18 - A Plan's Status Lands In The PR That Does The Work
 
-Status: Active
+Status: Completed (develop)
 Promise: A plan's status changes in the PR that does its work: the worker sets
 it Active with its Branch line in its first push and Completed before the PR
 leaves draft, and the merge makes it true. The coordinator commits no status,
