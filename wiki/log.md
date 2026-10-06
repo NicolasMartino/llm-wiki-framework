@@ -1,5 +1,64 @@
 # Wiki Log
 
+## [2026-10-06] merge | The way of working points at develop
+
+Merged #11 (closes #10): every rule, brief and skill of the way of working now
+says work PRs go into `develop`, and master takes `develop` only through a PR
+from a branch cut at a fixed commit, merged with a merge commit once the full
+CI is green and the owner has passed it. The owner decided on 2026-10-06 that
+a plan merged into `develop` is `Completed (develop)` and that log entries go
+in log PRs into `develop`.
+
+Pages affected: `AGENTS.MD`, `wiki/decisions/the-pull-request-is-the-review-surface.decision.md`,
+`wiki/decisions/work-in-flight-is-a-pushed-branch.decision.md`,
+`wiki/decisions/work-is-recorded-in-the-repository.decision.md`,
+`wiki/checklists/operation-manager.checklist.md`,
+`wiki/checklists/worker-briefs.checklist.md`,
+`wiki/plans/development-workflow-setup.plan.md`, `wiki/index.md`.
+
+## [2026-10-06] merge | poman's decisions and roadmap
+
+Merged #8 (closes #2): poman, the project-management binary, has five decision
+pages (where it lives and its gates, syncing a tracker the way Git syncs a
+remote with GitHub as the first adapter, its own file types, the deadline type,
+`tree` and `list`) and a roadmap the owner approved with the merge. The points
+the owner has not settled are named as open in the pages that own them.
+
+Pages affected: `wiki/decisions/poman-lives-in-this-workspace.decision.md`,
+`wiki/decisions/poman-syncs-a-tracker-the-way-git-syncs-a-remote.decision.md`,
+`wiki/decisions/poman-reads-only-its-own-file-types.decision.md`,
+`wiki/decisions/deadline-files-hold-one-deadline-each.decision.md`,
+`wiki/decisions/poman-tree-and-list-show-the-files.decision.md`,
+`wiki/decisions/llm-wiki-binary-distribution.decision.md`,
+`wiki/roadmaps/poman.roadmap.md`, `wiki/index.md`.
+
+## [2026-10-06] merge | Four plans get a status from the vocabulary
+
+Merged #6 (closes #3): the Headroom/MCP merge-readiness repair and the Headroom
+passthrough launcher plans are Blocked, each naming the plan whose phase it
+waits on; the macOS codesign repair is `Completed (master)`, its release
+archive proof handed to the cross-platform roadmap's R4; the Headroom wrap
+command is `Completed`. `just branch-status` no longer reports any plan as
+STALE.
+
+Pages affected: `wiki/plans/headroom-mcp-merge-readiness-repair.plan.md`,
+`wiki/plans/macos-installed-binary-codesign-repair.plan.md`,
+`wiki/plans/headroom-passthrough-launcher.plan.md`,
+`wiki/plans/headroom-wrap-command.plan.md`, `wiki/index.md`.
+
+## [2026-10-06] merge | A fast check on develop, the full CI on the way to master
+
+Merged #12 (closes #9): PRs into `develop` run one fast Linux check (`just
+fast-check`, about a minute with a warm cache); PRs into master, master and
+manual runs run the full CI on Linux, Linux ARM and macOS. CI had been red on
+master since 2026-08-13; the causes were fixed: install hashed its binary up to
+seven times (the self-install test fell from 24 s to 0.2 s), CI lacked
+`cargo-insta` and `rg`, the legacy audit passed when `rg` was missing, a
+nightly pin no longer resolved, and `macos-13` never got a runner. The release
+plan job no longer runs on PRs while its retired runner awaits the owner.
+
+Pages affected: `wiki/plans/develop-and-master-ci.plan.md`, `wiki/index.md`.
+
 ## [2026-10-06] update | Development workflow setup closed
 
 Closed the one-time setup of the coordinated way of working (#1): the board
