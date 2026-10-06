@@ -69,4 +69,6 @@ jobs:
             target/release-e2e-native-linux-amd64-dist/dist-manifest.json
             target/release-e2e-native-linux-amd64-dist/distrib/llm-wiki-rs-x86_64-unknown-linux-gnu.tar.xz
             target/release-e2e-native-linux-amd64-dist/distrib/llm-wiki-rs-x86_64-unknown-linux-gnu.tar.xz.sha256
+            target/release-e2e-native-linux-amd64-dist/distrib/poman-x86_64-unknown-linux-gnu.tar.xz
+            target/release-e2e-native-linux-amd64-dist/distrib/poman-x86_64-unknown-linux-gnu.tar.xz.sha256
           if-no-files-found: warn

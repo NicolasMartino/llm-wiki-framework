@@ -6,12 +6,18 @@ knowledge.
 
 ## Install
 
-Install the binary from a release, then install the managed MCP surface:
+Install both binaries from a release, `llm-wiki` and `poman` (the project
+manager, in an archive of its own), then install the managed MCP surface:
 
 ```bash
 curl -L https://github.com/nicolasmartino/llm-wiki-rs/releases/latest/download/llm-wiki-rs-installer.sh | sh
+curl -L https://github.com/nicolasmartino/llm-wiki-rs/releases/latest/download/poman-installer.sh | sh
 llm-wiki install
 ```
+
+Both installers put their binary in Cargo's bin folder. If you unpack the
+release archives by hand instead, unpack `llm-wiki-rs-<target>.tar.xz` and
+`poman-<target>.tar.xz` into one folder and run `llm-wiki install` from there.
 
 Users with a Rust toolchain can install from crates.io after the packages are
 published; `poman`, the project manager, is installed beside `llm-wiki`:

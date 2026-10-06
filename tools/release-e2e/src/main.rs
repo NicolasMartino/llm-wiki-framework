@@ -1612,6 +1612,7 @@ fn resolve_archive_artifact(
     extract_release_archive(&package, &unpack_dir)?;
     let artifact = find_release_binary(&unpack_dir, requirement)?;
     ensure_artifact_requirement(&artifact, requirement)?;
+    add_poman_from_sibling_archive(&package, &unpack_dir, &artifact)?;
     let artifact_sha256 = sha256_file(&artifact)?;
 
     Ok(ResolvedArtifact {
@@ -1621,6 +1622,59 @@ fn resolve_archive_artifact(
         package_sha256: Some(package_sha256),
         checksum,
     })
+}
+
+/// The release ships poman in an archive of its own, `poman-<triple>.tar.xz`
+/// beside `llm-wiki-rs-<triple>.tar.xz` (the owner, 2026-10-06). A person
+/// unpacks both into one folder, so `llm-wiki install` finds poman beside
+/// itself; the lane does the same, checking the poman archive's own `.sha256`
+/// when it is there.
+fn add_poman_from_sibling_archive(
+    package: &Path,
+    unpack_dir: &Path,
+    artifact: &Path,
+) -> Result<()> {
+    let name = package
+        .file_name()
+        .and_then(|name| name.to_str())
+        .with_context(|| format!("archive name of {}", package.display()))?;
+    let rest = name.strip_prefix("llm-wiki-rs-").with_context(|| {
+        format!("release archive {name} is not named llm-wiki-rs-<triple>.<ext>")
+    })?;
+    let poman_package = package.with_file_name(format!("poman-{rest}"));
+    if !poman_package.is_file() {
+        bail!(
+            "no poman archive beside {}: expected {}",
+            package.display(),
+            poman_package.display()
+        );
+    }
+    let mut sidecar = poman_package.clone().into_os_string();
+    sidecar.push(".sha256");
+    let sidecar = PathBuf::from(sidecar);
+    if sidecar.is_file() {
+        let poman_sha256 = sha256_file(&poman_package)?;
+        let checksum = verify_checksum(Some(&sidecar), &poman_sha256)?;
+        require_checksum_match(&checksum, &poman_sha256)?;
+    }
+    let poman_unpack = unpack_dir.join("poman-archive");
+    fs::create_dir_all(&poman_unpack)
+        .with_context(|| format!("create {}", poman_unpack.display()))?;
+    extract_release_archive(&poman_package, &poman_unpack)?;
+    let mut candidates = Vec::new();
+    collect_release_binary_candidates(&poman_unpack, poman_exe_name(), &mut candidates)?;
+    candidates.sort();
+    let poman = candidates.first().with_context(|| {
+        format!(
+            "poman archive {} holds no {}",
+            poman_package.display(),
+            poman_exe_name()
+        )
+    })?;
+    let beside = artifact.with_file_name(poman_exe_name());
+    fs::copy(poman, &beside)
+        .with_context(|| format!("copy {} to {}", poman.display(), beside.display()))?;
+    Ok(())
 }
 
 fn extract_release_archive(archive: &Path, destination: &Path) -> Result<()> {
@@ -2448,6 +2502,47 @@ mod tests {
         assert_eq!(
             parsed,
             "abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd"
+        );
+    }
+
+    #[test]
+    fn the_poman_archive_is_unpacked_beside_llm_wiki() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let pack = |name: &str, binary: &str| {
+            let stage = dir.path().join(format!("stage-{name}"));
+            fs::create_dir_all(stage.join(name)).expect("stage");
+            fs::write(stage.join(name).join(binary), binary).expect("binary");
+            let archive = dir.path().join(format!("{name}.tar.gz"));
+            let status = Command::new("tar")
+                .arg("-czf")
+                .arg(&archive)
+                .arg("-C")
+                .arg(&stage)
+                .arg(name)
+                .status()
+                .expect("tar");
+            assert!(status.success());
+            archive
+        };
+        let package = pack("llm-wiki-rs-test", llm_wiki_exe_name());
+        let unpack = dir.path().join("unpack");
+        fs::create_dir_all(&unpack).expect("unpack");
+        extract_release_archive(&package, &unpack).expect("extract");
+        let artifact = find_release_binary(&unpack, ArtifactRequirement::Any).expect("llm-wiki");
+
+        let err = add_poman_from_sibling_archive(&package, &unpack, &artifact)
+            .err()
+            .expect("no poman archive yet");
+        assert!(
+            err.to_string().contains("no poman archive beside"),
+            "{err:#}"
+        );
+
+        pack("poman-test", poman_exe_name());
+        add_poman_from_sibling_archive(&package, &unpack, &artifact).expect("poman archive");
+        assert_eq!(
+            fs::read_to_string(artifact.with_file_name(poman_exe_name())).expect("poman beside"),
+            poman_exe_name()
         );
     }
 
