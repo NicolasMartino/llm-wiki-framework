@@ -1122,3 +1122,27 @@ Excluded:
 Proof:
 - a comment on its issue giving the cause and the fix to make, each claim with
   the command that showed it
+
+### P21 - Search Says When Its Index Is Stale, And Rebuilds A Small One
+
+Status: Draft
+Promise: After pages change, search says plainly, in the CLI and in the MCP
+reply, that its index is stale and the exact command that rebuilds it, and a
+small word-match index rebuilds itself before answering when that is safe.
+Depends On: P20
+Execution Plan: Not created yet (a short plan comes before its worker; the
+plan's PR also marks P20 Completed, its answer having landed)
+
+Included:
+- the fix the investigation of P20 named (issue #34, comment of 2026-10-06):
+  the stale warning carries the exact `llm-wiki index --project <id>` command,
+  set in the JSON reply's warnings list as well as its single warning field
+- a self-rebuild of a word-match index when the lock is free and the cache is
+  writable (about 0.65 s and 4.9 MB for a worktree's index), falling back to
+  the warning when the lock is held or the cache is read-only
+
+Excluded:
+- rebuilding the main checkout's meaning-based index
+
+Proof:
+- the plan's Done When
