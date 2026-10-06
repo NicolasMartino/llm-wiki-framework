@@ -55,8 +55,16 @@ git commit -m "Wiki: Start the development workflow: plans as the record, a boar
 git push
 ```
 
-The remote is SSH. If `git push` cannot ask for the key's passphrase here, ask
-the owner to run it themselves (`! git push` in the session).
+Done 2026-10-06 as `70bc5a6`. SSH to GitHub failed from the coordinating
+session ("Host key verification failed"), so, at the owner's suggestion (LVII:
+"couldn't we use gh?"), `origin` was switched to HTTPS
+(`git remote set-url origin https://github.com/NicolasMartino/llm-wiki-framework.git`),
+which `gh` already serves as the machine's credential helper for github.com.
+Worktrees share the repository's config, so workers push the same way.
+
+The board's ids (step 3) were committed straight to master as soon as the board
+existed, ahead of step 8, so that workers started during step 7 do not read
+"Not set yet".
 
 ## 2. The Repository's Settings
 

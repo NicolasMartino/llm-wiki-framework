@@ -135,19 +135,21 @@ the status, and the board shows it.
   item by itself beyond what the board's workflows do.
 - **How.** The ids, filled in by the setup plan:
 
-  **Not set yet.** Project number `<P>` of NicolasMartino, id `<PROJECT_ID>`;
-  Status field `<FIELD_ID>` with options Draft `<DRAFT>`, Active `<ACTIVE>`,
-  Blocked `<BLOCKED>`, Completed `<COMPLETED>`.
+  Project 5 of NicolasMartino
+  (<https://github.com/users/NicolasMartino/projects/5>), id
+  `PVT_kwHOAYhnl84Bl7R_`; Status field `PVTSSF_lAHOAYhnl84Bl7R_zhkmNdg` with
+  options Draft `e7bf0810`, Active `f7d97c22`, Blocked `767d1b02`, Completed
+  `4b72a5d5`. Set up 2026-10-06.
 
   ```bash
   # an issue's item id
-  gh project item-list <P> --owner NicolasMartino --limit 300 --format json \
+  gh project item-list 5 --owner NicolasMartino --limit 300 --format json \
     -q '.items[] | select(.content.number==<n>) | .id'
   # an issue or PR not yet on the board: add it, which prints its item id
-  gh project item-add <P> --owner NicolasMartino --url <issue url> --format json --jq .id
+  gh project item-add 5 --owner NicolasMartino --url <issue url> --format json --jq .id
   # move it
-  gh project item-edit --id <item> --project-id <PROJECT_ID> \
-    --field-id <FIELD_ID> --single-select-option-id <option>
+  gh project item-edit --id <item> --project-id PVT_kwHOAYhnl84Bl7R_ \
+    --field-id PVTSSF_lAHOAYhnl84Bl7R_zhkmNdg --single-select-option-id <option>
   # the title note, set or taken off
   gh issue edit <n> --title "<title> (blocked: <short name> #<blocker>)"
   # the native "Blocked by" link, when the blocker is an issue
@@ -155,7 +157,7 @@ the status, and the board shows it.
     -F issue_id=$(gh api repos/NicolasMartino/llm-wiki-framework/issues/<blocker> --jq .id)
   ```
 
-  If `gh project field-list <P> --owner NicolasMartino` shows other ids, trust
+  If `gh project field-list 5 --owner NicolasMartino` shows other ids, trust
   it and fix this page.
 
 ## Issues And Names
@@ -180,7 +182,7 @@ the status, and the board shows it.
 
   ```bash
   gh issue create --repo NicolasMartino/llm-wiki-framework --title "<title>" --body-file <file in your scratchpad>
-  gh project item-add <P> --owner NicolasMartino --url <issue url>
+  gh project item-add 5 --owner NicolasMartino --url <issue url>
   ```
 
 ## Starting A Worker

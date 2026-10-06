@@ -28,8 +28,8 @@ do `wiki/plans/development-workflow-setup.plan.md` first, with the owner's go.
 3. **Read the state from the repository, then GitHub**:
    - the roadmaps in `wiki/roadmaps/` and the plans' `Status` lines;
      `just branch-status` checks the plans against the pushed branches;
-   - the board: `gh project item-list <P> --owner NicolasMartino --limit 300 --format json`
-     (`<P>` is in the checklist, "The Board"); it should match the plans;
+   - the board: `gh project item-list 5 --owner NicolasMartino --limit 300 --format json`
+     (project 5; its ids are in the checklist, "The Board"); it should match the plans;
    - open PRs, their draft state and review comments: `gh pr list`;
    - the run's workers and any unanswered asks:
      `orca orchestration worker-list --run <R> --json` and
