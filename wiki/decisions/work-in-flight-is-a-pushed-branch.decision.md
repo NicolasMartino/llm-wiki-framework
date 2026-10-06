@@ -31,10 +31,14 @@
    under `- Status: Active` or `- Status: Blocked`. The coordinator writes it
    when the worker starts and removes it when the plan is Completed
    (`wiki/checklists/operation-manager.checklist.md`, "The Board").
-   `just branch-status` fails on a plan naming a branch `origin` lacks
-   (UNPUSHED) and on a plan status outside the vocabulary (STALE). A pushed
-   branch no plan names is listed as "no plan", for information: wiki work,
-   investigations and log PRs have none.
+   `just branch-status` fetches `origin` and reads each pushed branch's plans
+   from its own `origin/<branch>` ref. It fails (STALE) on a plan on the
+   checkout it runs in that names another branch `origin` lacks, or names one
+   under a status other than Active or Blocked, and on a plan status outside
+   the vocabulary. A plan set Active with its Branch line on `develop` before
+   statuses moved into PRs (2026-10-06) is listed as in flight while its
+   branch is on `origin`. A pushed branch no plan names is listed as "no
+   plan", for information: wiki work, investigations and log PRs have none.
 5. **A plan completed from now on says where its proof holds**:
    `Completed (develop)` once its PR merges into `develop` (decided by the
    owner on 2026-10-06, see below), `Completed (local)` or
@@ -52,9 +56,7 @@ Work now merges into `develop`,
   master; the log entry of the PR into master names what it carried. Why: the
   status changes once, at the merge that proves it, and a plan does not sit
   "Active" for weeks after its work merged. `just branch-status` accepts
-  `Completed (master)`, `(local)` and `(spike)` today, not `(develop)`: the
-  decision needs that check to accept it, and that change is the CI
-  work's (issue #9, `wiki/plans/develop-and-master-ci.plan.md`).
+  `Completed (develop)`, as well as `(master)`, `(local)` and `(spike)`.
 
 ## Why
 

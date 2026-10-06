@@ -69,8 +69,8 @@ becomes a roadmap entry and an issue, not a workaround.
   `orca orchestration run-use --id <R> --json`; otherwise
   `orca orchestration run-create --objective "<objective>" --json`.
 - **Read the state from the repository first**: the roadmaps and the plans'
-  `Status` lines (`just branch-status` checks plans against the pushed
-  branches), then the board, the open PRs (`gh pr list`), the run's workers
+  `Status` lines (`just branch-status` reads each pushed branch's plans
+  from its own ref), then the board, the open PRs (`gh pr list`), the run's workers
   (`orca orchestration worker-list --run <R> --json`) and their unanswered
   asks (`orca orchestration check --run <R> --peek --json`). Why: a session
   starts with none of the previous one's conversation, and the repository is

@@ -184,39 +184,39 @@ branch-status:
     set -uo pipefail
     cd "{{ justfile_directory() }}"
     ok=0
-    say() { printf '  %-9s %-30s %s\n' "$1" "$2" "$3"; case "$1" in STALE|UNPUSHED) ok=1 ;; esac; return 0; }
+    say() { printf '  %-9s %-30s %s\n' "$1" "$2" "$3"; case "$1" in STALE) ok=1 ;; esac; return 0; }
 
-    # `origin` is the authority, not `git worktree list`, which one machine alone sees; see
-    # `wiki/decisions/work-in-flight-is-a-pushed-branch.decision.md`.
-    remotes=$(mktemp); trap 'rm -f "$remotes"' EXIT
-    if out=$(GIT_SSH_COMMAND="ssh -o BatchMode=yes" git ls-remote --heads origin 2>/dev/null); then
-      [ -z "$out" ] || printf '%s\n' "$out" | sed 's#.*refs/heads/##' > "$remotes"
-      origin_note="live"
-    # The remote is SSH; without the key's passphrase, ask GitHub through gh.
-    elif out=$(gh api "repos/{owner}/{repo}/branches" --paginate --jq '.[].name' 2>/dev/null); then
-      printf '%s\n' "$out" > "$remotes"
-      origin_note="live, through gh"
+    # `origin` is the authority, not `git worktree list`, which one machine alone
+    # sees. A plan names its branch on that branch (the worker's first push), so
+    # each branch's own plans are read from its remote-tracking ref, fresh from
+    # a fetch. The fetch never prompts: origin is HTTPS, and gh answers for it.
+    if GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes" \
+         git fetch --quiet --prune origin 2>/dev/null; then
+      origin_note="fetched"
     else
-      git for-each-ref --format='%(refname:lstrip=3)' refs/remotes/origin \
-        | grep -vx HEAD > "$remotes"
-      origin_note="unreachable, using refs from the last fetch"
+      origin_note="fetch failed: refs from the last fetch"
     fi
-    on_origin() { grep -qx "$1" "$remotes"; }
+    remotes=$(git for-each-ref --format='%(refname:lstrip=3)' refs/remotes/origin | grep -vx HEAD)
+    on_origin() { printf '%s\n' "$remotes" | grep -qxF -- "$1"; }
+    here=$(git symbolic-ref --quiet --short HEAD || echo "(detached)")
 
-    plan_status() { awk -F': ' '/^- Status:/{print $2; exit}' "$1"; }
+    plan_status() { awk -F': ' '/^- Status:/{print $2; exit}'; }
     plan_branch() { awk -F'`' '/^- Branch: /{print $2; exit}' "$1"; }
     plans() { find wiki/plans -maxdepth 1 -name '*.plan.md' 2>/dev/null; }
 
-    # A plan claiming a branch must also be live. Matching `Branch:` alone would
-    # accept a Draft plan and report it as in flight.
-    live_plan_for() {
-      local want="$1" f st
-      while IFS= read -r f; do
-        [ "$(plan_branch "$f")" = "$want" ] || continue
-        st=$(plan_status "$f")
-        case "$st" in Active|Blocked) printf '%s\t%s\n' "$f" "$st"; return 0 ;; esac
-      done < <(plans)
-      return 1
+    # The plans on this checkout that name a branch, as "<plan>\t<branch>".
+    checkout_named=$(while IFS= read -r f; do
+      b=$(plan_branch "$f"); [ -n "$b" ] && printf '%s\t%s\n' "$f" "$b"
+    done < <(plans))
+
+    # The plans a branch's own ref names it in, with their status there.
+    plans_on_ref() {
+      local branch="$1" ref="origin/$1" f
+      git grep -l -F -e "- Branch: \`$branch\`" "$ref" -- 'wiki/plans/*.plan.md' 2>/dev/null \
+        | while IFS= read -r f; do
+            f=${f#"$ref:"}
+            printf '%s [%s]\n' "$(basename "$f")" "$(git show "$ref:$f" | plan_status)"
+          done | paste -sd, -
     }
 
     echo "branches on origin ($origin_note)"
@@ -224,25 +224,37 @@ branch-status:
       [ -n "$branch" ] || continue
       [ "$branch" = "develop" ] && { say ok develop "the base"; continue; }
       [ "$branch" = "master" ] && { say ok master "takes develop through a PR"; continue; }
-      if hit=$(live_plan_for "$branch"); then
-        say ok "$branch" "-> $(basename "${hit%%$'\t'*}") [${hit##*$'\t'}]"
+      if hit=$(plans_on_ref "$branch") && [ -n "$hit" ]; then
+        say ok "$branch" "-> $hit"
+      elif hit=$(printf '%s\n' "$checkout_named" | awk -F'\t' -v b="$branch" '$2 == b {print $1}') \
+           && [ -n "$hit" ]; then
+        say ok "$branch" "-> $(basename "$hit"), its Branch line on this checkout (see below)"
       else
-        say "no plan" "$branch" "answers to an issue, or needs a plan's Branch: line (see the board)"
+        say "no plan" "$branch" "answers to an issue, or its plan lacks a Branch: line (see the board)"
       fi
-    done < "$remotes"
+    done <<< "$remotes"
 
     echo ""
-    echo "plans naming a branch"
-    while IFS= read -r plan; do
-      branch=$(plan_branch "$plan"); [ -n "$branch" ] || continue
-      st=$(plan_status "$plan")
-      case "$st" in Active|Blocked) ;; *) continue ;; esac
-      if on_origin "$branch"; then
-        say ok "$(basename "$plan")" "$branch [$st]"
+    # A Branch line lives on its own branch and leaves with the merge, so a plan
+    # on this checkout naming another branch is left over, with one exception:
+    # plans set Active on develop before statuses moved into PRs (2026-10-06)
+    # keep the line until their own PR completes them.
+    echo "plans on this checkout naming a branch"
+    while IFS=$'\t' read -r plan branch; do
+      [ -n "$plan" ] || continue
+      name=$(basename "$plan"); st=$(plan_status < "$plan")
+      case "$st" in
+        Active|Blocked) ;;
+        *) say STALE "$name" "$st, but names $branch; remove the Branch line"; continue ;;
+      esac
+      if [ "$branch" = "$here" ]; then
+        say ok "$name" "$branch [$st], this branch's own plan"
+      elif on_origin "$branch"; then
+        say "in flight" "$name" "$branch [$st], set before statuses moved into PRs"
       else
-        say UNPUSHED "$(basename "$plan")" "$st, names $branch, which origin does not have"
+        say STALE "$name" "names $branch, which origin does not have; the work merged or never was pushed"
       fi
-    done < <(plans)
+    done <<< "$checkout_named"
 
     echo ""
     # Informational: a worktree is a convenience on one machine, and its branch
@@ -270,10 +282,10 @@ branch-status:
     # `templates/base/project_guidelines.md` governs: Draft, Active, Blocked,
     # Completed, Superseded. A plan completed from now on also says where its
     # proof holds, because "completed" alone is the question people ask:
-    # `(develop)` once its PR merges into develop, `(master)` once that reaches
-    # master.
+    # `(develop)` once its PR merges into develop. `(master)` stays on plans
+    # marked so before work moved to develop.
     while IFS= read -r plan; do
-      st=$(plan_status "$plan")
+      st=$(plan_status < "$plan")
       case "$st" in
         Draft|Active|Blocked|Superseded) ;;
         "Completed (local)"|"Completed (develop)"|"Completed (master)"|"Completed (spike)") ;;
@@ -283,7 +295,6 @@ branch-status:
       esac
     done < <(plans)
 
-
     echo ""
-    [ "$ok" = 0 ] && echo "wiki and origin agree." || echo "Push what is missing, or update the plan Status: lines above."
+    [ "$ok" = 0 ] && echo "plans and origin agree." || echo "Fix the plans named above."
     exit "$ok"
