@@ -872,7 +872,7 @@ Proof:
 
 ### P10 - A Fast Check On Develop, The Full CI On The Way To Master
 
-Status: Active
+Status: Completed (develop)
 Promise: Work lands on `develop`. A PR into `develop`, and its merge there,
 run one fast Linux check; only the PR from `develop` into master, and master
 itself, run the full CI. Both are green.
