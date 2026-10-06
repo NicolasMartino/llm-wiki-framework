@@ -5,8 +5,10 @@ use assert_cmd::Command;
 use serde_json::Value;
 use tempfile::TempDir;
 
+mod support;
+
 fn llm_wiki(home: &Path) -> Command {
-    let mut command = Command::cargo_bin("llm-wiki").expect("binary");
+    let mut command = Command::new(support::llm_wiki_bin());
     command
         .env("HOME", home)
         .env_remove("RUST_LOG")

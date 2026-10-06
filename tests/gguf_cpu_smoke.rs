@@ -5,13 +5,15 @@ use assert_cmd::Command;
 use serde_json::Value;
 use tempfile::TempDir;
 
+mod support;
+
 const PROJECT_ID: &str = "gguf-cpu-smoke";
 const EMBEDDING_MODEL_ID: &str = "embeddinggemma-300m-q8_0";
 const QUERY_EXPANSION_MODEL_ID: &str = "qmd-query-expansion-1.7b-q4_k_m";
 const TARGET_PAGE: &str = "wiki/proposals/project-update-command.proposal.md";
 
 fn llm_wiki(home: &Path) -> Command {
-    let mut command = Command::cargo_bin("llm-wiki").expect("binary");
+    let mut command = Command::new(support::llm_wiki_bin());
     command
         .env("HOME", home)
         .env("LLM_WIKI_GGUF_RUNTIME", "cpu")

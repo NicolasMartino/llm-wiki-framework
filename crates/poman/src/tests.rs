@@ -61,8 +61,14 @@ fn an_unknown_command_is_refused_on_standard_error() {
 #[test]
 fn output_that_cannot_be_written_fails_the_run() {
     let mut err = Vec::new();
-    assert_eq!(run(["poman", "--version"], &mut ClosedPipe, &mut err), OUTPUT_FAILED);
+    assert_eq!(
+        run(["poman", "--version"], &mut ClosedPipe, &mut err),
+        OUTPUT_FAILED
+    );
     assert_eq!(run(["poman"], &mut ClosedPipe, &mut err), OUTPUT_FAILED);
     let mut out = Vec::new();
-    assert_eq!(run(["poman", "board"], &mut out, &mut ClosedPipe), OUTPUT_FAILED);
+    assert_eq!(
+        run(["poman", "board"], &mut out, &mut ClosedPipe),
+        OUTPUT_FAILED
+    );
 }

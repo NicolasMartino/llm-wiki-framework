@@ -21,12 +21,10 @@ fn a_split_filename_writes_back_unchanged() -> Result<(), TestError<String>> {
 
 #[test]
 fn a_name_not_ending_in_md_is_refused() -> Result<(), TestError<String>> {
-    let names = "[a-z0-9.-]{0,24}".prop_filter("not Markdown", |name| name.strip_suffix(".md").is_none());
+    let names =
+        "[a-z0-9.-]{0,24}".prop_filter("not Markdown", |name| name.strip_suffix(".md").is_none());
     TestRunner::default().run(&names, |name| {
-        prop_assert_eq!(
-            WikiFilename::parse(&name),
-            Err(FilenameError::NotMarkdown)
-        );
+        prop_assert_eq!(WikiFilename::parse(&name), Err(FilenameError::NotMarkdown));
         Ok(())
     })
 }

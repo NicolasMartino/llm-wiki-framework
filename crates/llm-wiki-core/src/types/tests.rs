@@ -72,12 +72,18 @@ fn refuses_each_broken_rule() {
 #[test]
 fn each_error_says_which_rule() {
     let cases = [
-        (FilenameError::NotMarkdown, "the filename does not end in .md"),
+        (
+            FilenameError::NotMarkdown,
+            "the filename does not end in .md",
+        ),
         (
             FilenameError::HasPathSeparator,
             "the filename holds a path separator",
         ),
-        (FilenameError::MissingType, "the filename has no .type before .md"),
+        (
+            FilenameError::MissingType,
+            "the filename has no .type before .md",
+        ),
         (
             FilenameError::ExtraDot,
             "the filename has more than one . before .md",

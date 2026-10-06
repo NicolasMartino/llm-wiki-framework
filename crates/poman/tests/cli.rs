@@ -5,7 +5,9 @@ use std::io;
 use std::process::Command;
 
 fn poman(args: &[&str]) -> io::Result<std::process::Output> {
-    Command::new(env!("CARGO_BIN_EXE_poman")).args(args).output()
+    Command::new(env!("CARGO_BIN_EXE_poman"))
+        .args(args)
+        .output()
 }
 
 #[test]

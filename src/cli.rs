@@ -227,13 +227,12 @@ impl InstallSearchProfileArg {
 
 #[derive(Debug, clap::Args)]
 pub struct UninstallArgs {
+    /// Remove only the LLM search artifacts, leaving the rest installed.
     #[arg(long)]
-    pub include_binary: bool,
-    #[arg(long, conflicts_with = "include_binary")]
     pub search_artifacts: bool,
     /// Only meaningful with `--search-artifacts`; permits removing absent or
     /// drifted search artifacts.
-    #[arg(long, conflicts_with = "include_binary")]
+    #[arg(long)]
     pub force: bool,
 }
 
