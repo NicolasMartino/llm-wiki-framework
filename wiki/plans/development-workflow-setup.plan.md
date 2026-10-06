@@ -6,10 +6,10 @@
 - Category: Development process
 - Scope: The one-time steps that start this repository's way of working: the
   first commit, the board and its ids, wiki search for this repository, Orca,
-  the handover's ingest, and the first roadmap entries. Done once; afterwards
+  poman's decisions and roadmap, and the first roadmap entries. Done once; afterwards
   this page is the record of how it was done.
 - Sources:
-  - `raw/handover/2026-10-06-riseon-handover-poman-and-coordination.md`
+  - The owner's decisions of 2026-10-06 on how this repository is worked on
   - The owner's answers of 2026-10-06 in the session that wrote this kit: the
     kit lands in the main checkout uncommitted for the owner to read (L); it is
     tracked although the repository is public, with no machine paths (LI); a
@@ -26,8 +26,8 @@
   GitHub, and this repository is public. Number the question as the operation
   manager checklist, "Talking With The Owner", says. Two sessions numbered the
   owner's questions on 2026-10-06 (riseon's reached L, the one that wrote this
-  kit LV): carry on from **LVI**, and say so to the owner. Numerals quoted in
-  the handover are riseon's.
+  kit LV): carry on from **LVI**, and say so to the owner. (On 2026-10-06
+  the owner restarted the count at I.)
 - **What is already done** (2026-10-06):
   - the `llm-wiki` MCP server is registered for Claude Code at user scope, so
     `llm_wiki_search` and `llm_wiki_read` work in every Claude session once
@@ -50,7 +50,7 @@ starts does not exist until it is done.
 cd <this repository's main checkout>
 git config core.hooksPath .githooks       # the commit-msg hook strips AI trailers
 git status --short                        # read every path before committing
-git add -A ':!raw/handover'               # the handover is committed with its ingest (step 7)
+git add -A
 git commit -m "Wiki: Start the development workflow: plans as the record, a board as their view, one blind review per PR"
 git push
 ```
@@ -166,11 +166,10 @@ If the worktree lives elsewhere, `orca worktree list --json` shows its path.
 
 Each with the owner's go, each a roadmap entry and an issue on the board:
 
-- **Ingest the handover** (`raw/handover/2026-10-06-riseon-handover-poman-and-coordination.md`):
-  a wiki worker turns the owner's settled poman decisions into decision pages,
-  and its suggested roadmap (section 8) into a roadmap for the owner to
-  approve; the handover's open questions go to the owner restated with their
-  defaults, with new numerals. The PR commits `raw/handover/` with them.
+- **poman's decisions and roadmap**: a wiki worker turns the owner's settled
+  decisions for poman (2026-10-06) into decision pages, and their order into a
+  roadmap for the owner to approve. Its source material stays outside this
+  repository (the owner, 2026-10-06).
 - **The work already in flight**: `impl/install-download-progress` (pushed
   2026-10-06) and `impl/sandbox-safe-search-cache-reads` (2026-06-21) each get
   a roadmap entry, a plan if they lack one, an issue and a draft PR into the
@@ -197,7 +196,7 @@ Each with the owner's go, each a roadmap entry and an issue on the board:
 - Commit and push it, straight to master like step 1:
 
   ```bash
-  git add -A ':!raw/handover' && git status --short    # the checklist's ids, the skill's <P>, this plan, the log, the index
+  git add -A && git status --short    # the checklist's ids, the skill's <P>, this plan, the log, the index
   git commit -m "Wiki: Record the board and close the development workflow setup"
   git push
   ```

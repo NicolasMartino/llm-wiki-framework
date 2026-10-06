@@ -8,8 +8,7 @@
   names, each kind's model, effort and base text, and the reason for every rule
   a worker gets.
 - Sources:
-  - `raw/handover/2026-10-06-riseon-handover-poman-and-coordination.md`
-    (sections 5 and 6)
+  - The owner's decisions of 2026-10-06 on how this repository is worked on
   - The worker briefs runbooks of RepForge and riseon (2026-10-01 to
     2026-10-06), cut down to the kinds this repository starts with
 - Related:

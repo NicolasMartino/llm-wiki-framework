@@ -36,7 +36,7 @@ Updated: 2026-08-01
 
 ## Roadmaps
 
-- [Framework V1](roadmaps/framework-v1.roadmap.md) — Active — Framework deliverables through D11 plus D4-D7 proof gates are completed; post-V1 P1 semantic/hybrid search and P2 sandbox-safe search cache reads are completed; P3 now points to the active cross-platform release E2E roadmap; P4 (the coordinated development workflow) is Active, and P5 to P8 (the riseon handover ingest, plan statuses, install download progress, build-skills recipes) are Draft
+- [Framework V1](roadmaps/framework-v1.roadmap.md) — Active — Framework deliverables through D11 plus D4-D7 proof gates are completed; post-V1 P1 semantic/hybrid search and P2 sandbox-safe search cache reads are completed; P3 now points to the active cross-platform release E2E roadmap; P4 (the coordinated development workflow) is Active, and P5 to P8 (poman's decisions and roadmap, plan statuses, install download progress, build-skills recipes) are Draft
 - [Cross-Platform Release E2E](roadmaps/cross-platform-release-e2e.roadmap.md) — Active — Coordinates post-V1 release-platform deliverables: completed release E2E runner and Linux Docker archive simulation, active native Linux amd64 proof, draft macOS archive proof, draft Windows runtime/artifact and host E2E proof, draft GGUF CPU release proof, and a future release evidence gate
 
 ## References
@@ -108,7 +108,7 @@ Plan note: `wiki/evals/headroom-0-32-managed-0-2-13-field-test.eval.md` is now t
 - [Coexisting Test Instance via Build-Time Namespace](plans/test-instance-namespaced-binary.plan.md) — Completed — Build-time `test` scope guard, central instance derivation, suffixed paths/skills/manifest identity, release-entrypoint guard, temp-home install/status/uninstall smoke, source lint, and snapshot-bracketed live-session proof are complete; Phase 6 evidence recorded in [Test Instance Live-Session Proof](evals/test-instance-live-session-proof.eval.md).
 
 - [macOS Installed Binary Codesign Repair](plans/macos-installed-binary-codesign-repair.plan.md) — Implemented; native release archive proof pending — Local managed-install repair for the macOS launch hang: staged same-directory copy, explicit ad-hoc signing before atomic persist, installed-byte/source-byte manifest semantics, bounded launch regression tests, text-preserving Codex MCP config round-trip, and live `llm-wiki-test` proof for `--version`, `--help`, `status`, and MCP tools/list. Native macOS release archive proof remains under the cross-platform release E2E roadmap.
-- [Development Workflow Setup](plans/development-workflow-setup.plan.md) — Draft — One-time start of the coordinated way of working: first commit, the board and its ids, wiki search for this repository, Orca, the handover's ingest, the first roadmap entries
+- [Development Workflow Setup](plans/development-workflow-setup.plan.md) — Draft — One-time start of the coordinated way of working: first commit, the board and its ids, wiki search for this repository, Orca, the first roadmap entries
 
 ## Experiments
 

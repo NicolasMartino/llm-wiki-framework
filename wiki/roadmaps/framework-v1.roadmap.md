@@ -723,7 +723,7 @@ Included:
   master in another form, kept as the tag
   `archive/sandbox-safe-search-cache-reads` and removed as a branch (the
   owner, 2026-10-06)
-- the first work, each its own entry below: the riseon handover's ingest (P5),
+- the first work, each its own entry below: poman's decisions and roadmap (P5),
   the four plans' statuses (P6), the install download progress branch (P7),
   the `build-skills` recipes (P8)
 
@@ -744,22 +744,21 @@ Promotion Target:
 Unlocks:
 - P5 to P8, and poman's roadmap
 
-### P5 - riseon Handover Ingest
+### P5 - poman's Decisions And Roadmap
 
 Status: Active
 Promise: The owner's settled decisions for poman, the project-management
-binary moved here from riseon, are wiki decision pages, and the handover's
-suggested order is a poman roadmap the owner has approved, so no poman work
-starts from a chat or a raw file.
+binary, are wiki decision pages, and their order is a poman roadmap the owner
+has approved, so no poman work starts from a conversation.
 Depends On: P4
 Execution Plan: Not needed (wiki-only work)
-Source: raw/handover/2026-10-06-riseon-handover-poman-and-coordination.md
+Source: the owner's decisions of 2026-10-06
 
 Included:
-- decision pages for the settled areas of the handover's section 2: where
-  poman lives and the shared crate; boards as views of the repository; syncing
-  GitHub the way Git syncs a remote; file types and the deadline type
-- the owner's answers of 2026-10-06 to the handover's open questions: a
+- decision pages for the settled areas: where poman lives and the shared
+  crate; syncing with a tracker the way Git syncs a remote; file types and the
+  deadline type
+- the owner's answers of 2026-10-06 to the questions still open: a
   duration in whole working days (Monday to Friday), three importance levels,
   `poman tree` and `poman list` as their own deliverable after the deadline
   commands, no "Part of" field for now, poman drawing this repository's own
@@ -769,18 +768,16 @@ Included:
   UIs if needed"): poman's data and its fetch, diff and push are defined
   without GitHub in them, and GitHub is the first adapter, so another tracker
   or board can be added without changing the core
-- `wiki/roadmaps/poman.roadmap.md`, Draft, from the handover's section 8, for
-  the owner to approve
-- the handover itself, committed under `raw/handover/`
+- `wiki/roadmaps/poman.roadmap.md`, Draft, for the owner to approve
 
 Excluded:
 - code, crates, and the plans of poman's deliverables (each comes once the
   roadmap is approved)
-- riseon's own clean-up
+- the source material, which stays outside this repository (the owner,
+  2026-10-06)
 
 Proof:
-- the decision pages and the roadmap are on master, listed in `wiki/index.md`,
-  each citing the handover
+- the decision pages and the roadmap are on master, listed in `wiki/index.md`
 - the owner has approved the poman roadmap
 
 Unlocks:

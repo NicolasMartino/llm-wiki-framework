@@ -7,8 +7,8 @@
 - Scope: What counts as work in flight, what a worktree is, and how a plan
   names its branch and where its proof holds.
 - Sources:
-  - `raw/handover/2026-10-06-riseon-handover-poman-and-coordination.md`,
-    section 5 (plans before work; the `status` recipe)
+  - The owner's decisions of 2026-10-06: plans before work, and riseon's
+    `status` recipe carried over
   - RepForge's decision of the same name (2026-09-18), carried over through
     riseon
 - Related:

@@ -7,10 +7,9 @@
 - Scope: Where the state of a piece of work is kept, what the GitHub board is,
   and what its columns mean.
 - Sources:
-  - `raw/handover/2026-10-06-riseon-handover-poman-and-coordination.md`,
-    sections 2 ("The repository is the truth; boards are views") and 5: the
-    owner's answers XXXI and XXXII in riseon's coordinating session,
-    2026-10-06, and "remember the repo is the truth"
+  - The owner's decisions of 2026-10-06 in riseon's coordinating session: the
+    repository is the truth and every board is a view of it, the board's
+    columns are the plan statuses, and "remember the repo is the truth"
 - Related:
   - `wiki/decisions/work-in-flight-is-a-pushed-branch.decision.md`
   - `wiki/decisions/the-pull-request-is-the-review-surface.decision.md`
@@ -41,7 +40,7 @@ view of it, nothing else.**
    being worked on or fixed, a ready PR waits for the owner, and the feedback
    review and the owner's verdict are comments on it
    (`the-pull-request-is-the-review-surface.decision.md`).
-5. **Until a tool draws the board** (poman's `push`, per the handover), the
+5. **Until a tool draws the board** (poman's `push`), the
    coordinator mirrors each plan's Status onto its issue by hand, in the same
    step as the plan changes, and a blocked issue carries the plan's blocker as
    a short title note (` (blocked: <short name> #<n>)`) and GitHub's own
