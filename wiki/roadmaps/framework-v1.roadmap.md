@@ -848,7 +848,7 @@ Proof:
 
 ### P9 - Search Ranks A Page's Own Title Low
 
-Status: Draft
+Status: Active
 Promise: A lexical search for a page's own title finds that page first, or the
 reason it cannot is known and written down.
 Depends On: None
