@@ -1043,3 +1043,32 @@ Excluded:
 
 Proof:
 - the plan's Done When
+
+### P18 - A Plan's Status Lands In The PR That Does The Work
+
+Status: Draft
+Promise: A plan's status changes in the PR that does its work: the worker sets
+it Active with its Branch line in its first push and Completed before the PR
+leaves draft, and the merge makes it true. The coordinator commits no status,
+the log PR carries only the log, and `just branch-status` reads each branch's
+plans from its own `origin/<branch>`.
+Depends On: None
+Execution Plan: Not needed (the rules change is wiki-only; the recipe change is
+tooling, each its own issue)
+
+Included:
+- the owner's decision of 2026-10-06: "the status change should be part of the
+  PR that contains the work that is suppose to achieve this status change, so
+  no separate commit or PR"
+- AGENTS.MD, both checklists, the two workflow decisions, the operations
+  skills, the worker briefs' shared rules and a plan-status part for code,
+  tooling and wiki workers
+- `just branch-status` reading Branch lines from each branch's own ref
+
+Excluded:
+- statuses already on `develop`, which stay until their work merges
+
+Proof:
+- no page of the way of working tells the coordinator to commit a status, and
+  every brief for code, tooling and wiki work carries the plan-status part
+- `just branch-status` lists each pushed branch with the plan its own ref names
