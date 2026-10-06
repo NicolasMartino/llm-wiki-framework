@@ -129,13 +129,14 @@ Checked against the code at `9b64345`:
     active, so a filtered search is not cut short by a fixed window.
   - **When it does not run:** when the phrase query can only return pages
     the all-words query already found (a query of one name or one word).
-  - **Where it runs:** in lexical search only, or everywhere, is the owner's
-    choice below; the Done When follows that choice.
+  - **Where it runs:** in lexical search only, never in hybrid's lexical
+    branch (the owner's choice, below).
 - **Tests on a frozen wiki:**
   - a page whose title's words are each in more than half the frozen wiki's
     pages, counted on its index, comes first when searched by its title;
-  - the four plan names searched together return the plans (the bar is an
-    open choice below);
+  - the four plan names searched together return at least three of the
+    plans in the top 10, and with the plan filter (`--class plan`) all four
+    in the top four (the owner's choice, below);
   - unit tests for how a query splits into names: `qmd-rs,search-all` gives
     two phrases, and `wiki/plans/headroom-wrap-command.plan.md` gives one;
   - each new test fails on the ranking as it is at `9b64345` (shown once, not
@@ -144,8 +145,8 @@ Checked against the code at `9b64345`:
   green. If the weights move a query out of the top two, the PR says which,
   by how much and why, and the owner decides before any target changes; no
   target is replaced to make it pass.
-- **Unchanged:** the score scale and what the CLI prints (see "Open For The
-  Owner"), semantic ranking, and the index format. The weights do reach
+- **Unchanged:** the score scale and what the CLI prints (the owner's
+  choice, below), semantic ranking, and the index format. The weights do reach
   hybrid's lexical scores, which `hybrid_candidate_survives_final_gate`
   (`src/search/commands.rs`, about line 3398) compares with a calibrated
   strong-lexical floor (10.0 by default); the review saw scores rise by at
@@ -170,7 +171,7 @@ Checked against the code at `9b64345`:
      `tests/snapshots/`;
    - hybrid search, through `perform_hybrid_project_search`, the path
      most real searches take: the weights reach its lexical branch in any
-     case, and the fallback too if the owner chooses "everywhere" below.
+     case; the fallback does not (the owner chose "lexical only").
      Hybrid is out of scope, so a change in its results is recorded, not
      tuned;
    - the ignored `tests/natural_language_search_eval.rs`, which asserts
@@ -192,14 +193,12 @@ Checked against the code at `9b64345`:
   "operation manager", both words being in more than half its pages, and
   that test fails on the ranking at `9b64345`.
 - A test on the frozen wiki searches the four plan names together and gets
-  the plans, to the bar the owner sets below.
+  at least three of the plans in the top 10, recording the fourth's rank; the
+  same search with the plan filter gets all four plans in the top four.
 - The two unit tests on how a query splits into names pass.
-- Where the fallback runs, as the owner chose below:
-  - lexical only: a test shows hybrid's lexical branch gets the all-words
-    results alone, with no fallback pages;
-  - everywhere: the ignored eval test, run by hand before and after on the
-    same tree, keeps hybrid ≥ 22 and auto ≥ 22 passes and at most 8 misses
-    each, and both runs' counts are recorded here.
+- The fallback runs in lexical search only: a test shows hybrid's lexical
+  branch gets the all-words results alone, with no fallback pages.
+- When the fallback added pages, the reply's warnings say so in one line.
 - `fixed_eval_queries_keep_expected_targets_in_top_two` passes with its
   queries and targets unchanged, or the PR names each change and its reason
   and the owner accepted it.
