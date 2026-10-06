@@ -73,6 +73,12 @@ predicates.workspace = true
 proptest.workspace = true
 tempfile.workspace = true
 
+# Install hashes the running binary, and a debug build of it is large: with
+# sha2 unoptimized each hash takes seconds, enough to time out the self-install
+# test on CI runners.
+[profile.dev.package.sha2]
+opt-level = 3
+
 # The profile that 'dist' will build with
 [profile.dist]
 inherits = "release"
@@ -89,7 +95,7 @@ installers = ["shell"]
 # Target platforms to build apps for (Rust target-triple syntax)
 targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu"]
 # Which actions to run on pull requests
-pr-run-mode = "plan"
+pr-run-mode = "skip"
 # Path that installers should place binaries in
 install-path = "CARGO_HOME"
 # Whether to install an updater program
