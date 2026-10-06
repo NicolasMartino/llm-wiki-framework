@@ -24,16 +24,26 @@
 Each run compiles once and runs every test once, and a PR's first CI run is
 as fast as its later ones.
 
-## Where It Stands (2026-10-06)
+## Where It Stands (2026-10-06, rechecked on `develop` at 81ffab3)
 
-- `just verify` runs `test` (`cargo test --workspace` and the
-  `tools/release-e2e` tests) and then `snapshots`
-  (`cargo insta test --workspace --check`), which runs every test again: about
-  35 s locally. The full CI's job runs `just verify` and then `just coverage`,
-  which runs the tests a third time under coverage.
+- `just verify` runs `fmt`, `test` (`cargo test --workspace` and the
+  `tools/release-e2e` tests), `clippy-strict`, `snapshots`
+  (`cargo insta test --workspace --check`, which runs every workspace test
+  again) and `audit-legacy`: 26 s warm locally, each test binary run twice.
+- The full CI's `test` job (`ubuntu-latest`, `ubuntu-24.04-arm`, `macos-14`)
+  runs `just verify` and then `just coverage` (`cargo llvm-cov --workspace
+  --fail-under-lines 80`), which runs the workspace tests a third time, under
+  coverage. Its last warm run (on `ci-9`, before PM1) took 3 min 30 s for
+  `just verify` and 1 min 37 s for coverage on `ubuntu-latest`.
+- Since PM1 (#28): `rust-toolchain.toml` pins 1.99.0, `tools/udeps-nightly`
+  names the dated nightly, and both workflows have a `strict` job
+  (`just strict`, `tools/strict-gates.sh`) that runs its own tests and coverage
+  over the two strict crates. `just strict` is not part of this plan.
 - `just fast-check` already runs its tests once.
-- `Swatinem/rust-cache` saves a cache from every run, PR runs included. A PR's
-  first run restores `develop`'s cache only if `develop` saved one.
+- `Swatinem/rust-cache` saves a cache from every run, PR runs included, keyed
+  by job id, OS and toolchain (so the two `strict` jobs share one). A PR's
+  first run restores `develop`'s cache only if `develop` saved one. Every full
+  CI run since PM1 started cold: the toolchain pin changed every key.
 - Windows is not in the full CI: it joins once Windows support passes its gates
   (`wiki/roadmaps/cross-platform-release-e2e.roadmap.md`, rule 4).
 

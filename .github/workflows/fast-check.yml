@@ -4,6 +4,11 @@ name: Fast Check
 # `just fast-check`, which is `just verify` without the slow test files, and
 # `just strict`, the strictest gates over the strict crates. The full CI
 # (ci.yml) runs everything on the way to master.
+#
+# The cache: only pushes to develop and master save one (`save-if`), and a PR
+# only restores it. A PR's first run restores the cache develop's last push
+# saved for the same job, so it starts as warm as develop. Keep the job ids:
+# they are the cache keys.
 on:
   pull_request:
     branches: [develop]
@@ -21,6 +26,8 @@ jobs:
       - name: Install the pinned toolchain
         run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master') }}
       - uses: taiki-e/install-action@v2
         with:
           tool: just,cargo-insta,ripgrep
@@ -37,6 +44,8 @@ jobs:
           rustup toolchain install
           rustup toolchain install "$(tr -d '[:space:]' < tools/udeps-nightly)" --profile minimal
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master') }}
       - uses: taiki-e/install-action@v2
         with:
           tool: just,cargo-llvm-cov,cargo-mutants,cargo-deny,cargo-udeps
