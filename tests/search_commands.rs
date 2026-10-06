@@ -9,8 +9,10 @@ use predicates::prelude::*;
 use serde_json::Value;
 use tempfile::TempDir;
 
+mod support;
+
 fn llm_wiki(home: &Path) -> Command {
-    let mut command = Command::cargo_bin("llm-wiki").expect("binary");
+    let mut command = Command::new(support::llm_wiki_bin());
     command
         .env("HOME", home)
         .env_remove("RUST_LOG")
@@ -2049,7 +2051,7 @@ fn search_retries_once_during_concurrent_promotion() {
     )
     .expect("decision update");
 
-    let binary = assert_cmd::cargo::cargo_bin("llm-wiki");
+    let binary = support::llm_wiki_bin();
     let marker = workspace.path().join("promote.marker");
     let mut search = StdCommand::new(&binary);
     let mut index = StdCommand::new(&binary);
@@ -2094,7 +2096,7 @@ fn cross_process_index_lock_is_exclusive() {
     let project = fixture_project(workspace.path(), "Fixture Project");
     register_project(home.path(), &project);
 
-    let binary = assert_cmd::cargo::cargo_bin("llm-wiki");
+    let binary = support::llm_wiki_bin();
     let mut first = StdCommand::new(&binary);
     first
         .env("HOME", home.path())
@@ -2138,7 +2140,7 @@ fn crashed_indexer_does_not_block_next_acquire() {
     let project = fixture_project(workspace.path(), "Fixture Project");
     register_project(home.path(), &project);
 
-    let binary = assert_cmd::cargo::cargo_bin("llm-wiki");
+    let binary = support::llm_wiki_bin();
     let mut child = StdCommand::new(&binary)
         .env("HOME", home.path())
         .env_remove("RUST_LOG")

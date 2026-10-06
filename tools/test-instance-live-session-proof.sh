@@ -150,7 +150,7 @@ cleanup() {
   set +e
   if [[ "${INSTALLED_TEST_INSTANCE:-0}" == "1" ]]; then
     (cd "$ROOT" && LLM_WIKI_INSTANCE=test cargo build --bin llm-wiki >/dev/null 2>&1)
-    (cd "$ROOT" && target/debug/llm-wiki uninstall --include-binary >/dev/null 2>&1)
+    (cd "$ROOT" && target/debug/llm-wiki uninstall >/dev/null 2>&1)
   fi
   (cd "$ROOT" && env -u LLM_WIKI_INSTANCE cargo build --bin llm-wiki >/dev/null 2>&1) || true
 }
@@ -171,7 +171,7 @@ fi
 snapshot "$WORK_DIR/pre.snapshot"
 rm -rf "$WORK_DIR/build-output"
 
-(cd "$ROOT" && LLM_WIKI_INSTANCE=test cargo build --bin llm-wiki)
+(cd "$ROOT" && LLM_WIKI_INSTANCE=test cargo build --bin llm-wiki --bin poman)
 INSTALLED_TEST_INSTANCE=1
 (cd "$ROOT" && target/debug/llm-wiki install --non-interactive --disable-llm-search --skip-path-guidance)
 
@@ -236,7 +236,7 @@ if grep -q "llm-wiki" "$CODEX_CONFIG"; then
   grep -n "llm-wiki" "$CODEX_CONFIG" >"$WORK_DIR/production-mcp-entry-present.txt"
 fi
 
-(cd "$ROOT" && target/debug/llm-wiki uninstall --include-binary)
+(cd "$ROOT" && target/debug/llm-wiki uninstall)
 INSTALLED_TEST_INSTANCE=0
 
 if [[ -f "$CODEX_CONFIG_WAS_MISSING" ]]; then

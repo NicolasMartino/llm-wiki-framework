@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use assert_cmd::Command;
 use predicates::prelude::*;
@@ -8,8 +8,14 @@ use sha2::{Digest, Sha256};
 use tempfile::TempDir;
 use toml::Value as TomlValue;
 
+mod support;
+
 fn llm_wiki(home: &Path) -> Command {
-    let mut command = Command::cargo_bin("llm-wiki").expect("binary");
+    llm_wiki_at(&support::llm_wiki_bin(), home)
+}
+
+fn llm_wiki_at(bin: &Path, home: &Path) -> Command {
+    let mut command = Command::new(bin);
     command
         .env("HOME", home)
         .env_remove("RUST_LOG")
@@ -528,7 +534,7 @@ fn install_rejects_unsupported_manifest_schema() {
         .success();
     let manifest_path = home.path().join(".llm_wiki/manifest.json");
     let mut manifest = read_manifest(home.path());
-    manifest["schema_version"] = serde_json::json!(3);
+    manifest["schema_version"] = serde_json::json!(4);
     fs::write(
         manifest_path,
         serde_json::to_string_pretty(&manifest).expect("manifest json"),
@@ -543,7 +549,7 @@ fn install_rejects_unsupported_manifest_schema() {
         .assert()
         .success()
         .stdout(predicate::str::contains(
-            "unsupported manifest schema_version 3",
+            "unsupported manifest schema_version 4",
         ));
 }
 
@@ -572,7 +578,7 @@ fn install_removes_unchanged_legacy_generated_skills() {
     assert!(!skill_path.exists());
     assert!(!skill_path.parent().expect("skill parent").exists());
     let manifest = read_manifest(home.path());
-    assert_eq!(manifest["schema_version"].as_u64(), Some(2));
+    assert_eq!(manifest["schema_version"].as_u64(), Some(3));
     assert_eq!(manifest["skills"].as_array().expect("skills").len(), 0);
 }
 
@@ -728,23 +734,36 @@ fn uninstall_removes_manifest_owned_files_only() {
 
     assert!(user_file.exists());
     assert!(!home.path().join(".llm_wiki/manifest.json").exists());
-    assert!(home.path().join(".llm_wiki/bin/llm-wiki").exists());
 }
 
 #[test]
-fn uninstall_include_binary_removes_managed_binary() {
+fn uninstall_removes_both_binaries() {
     let home = TempDir::new().expect("home");
 
     llm_wiki(home.path())
         .args(["install", "--disable-llm-search"])
         .assert()
         .success();
+    assert!(home.path().join(".llm_wiki/bin/llm-wiki").exists());
+    assert!(home.path().join(".llm_wiki/bin/poman").exists());
+    llm_wiki(home.path()).arg("uninstall").assert().success();
+
+    assert!(!home.path().join(".llm_wiki/bin/llm-wiki").exists());
+    assert!(!home.path().join(".llm_wiki/bin/poman").exists());
+    assert!(!home.path().join(".llm_wiki/bin").exists());
+}
+
+#[test]
+fn uninstall_has_no_include_binary_flag() {
+    let home = TempDir::new().expect("home");
+
     llm_wiki(home.path())
         .args(["uninstall", "--include-binary"])
         .assert()
-        .success();
-
-    assert!(!home.path().join(".llm_wiki/bin/llm-wiki").exists());
+        .failure()
+        .stderr(predicate::str::contains(
+            "unexpected argument '--include-binary'",
+        ));
 }
 
 #[test]
@@ -756,12 +775,189 @@ fn uninstall_force_requires_search_artifacts() {
         .assert()
         .failure()
         .stderr(predicate::str::contains("--search-artifacts"));
+}
 
-    llm_wiki(home.path())
-        .args(["uninstall", "--include-binary", "--force"])
+/// A folder of its own holding `llm-wiki` and, when given, a poman script.
+fn bin_folder(poman: Option<&str>) -> (TempDir, PathBuf) {
+    let dir = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).expect("bin folder");
+    let bin = dir.path().join("llm-wiki");
+    if fs::hard_link(support::llm_wiki_bin(), &bin).is_err() {
+        fs::copy(support::llm_wiki_bin(), &bin).expect("copy llm-wiki");
+    }
+    if let Some(script) = poman {
+        support::write_executable(&dir.path().join("poman"), script);
+    }
+    (dir, bin)
+}
+
+const INSTALL: [&str; 3] = ["install", "--skip-path-guidance", "--disable-llm-search"];
+
+#[test]
+fn install_puts_poman_beside_the_managed_binary_and_records_it() {
+    let home = TempDir::new().expect("home");
+
+    llm_wiki(home.path()).args(INSTALL).assert().success();
+
+    let managed_poman = home.path().join(".llm_wiki/bin/poman");
+    assert_eq!(
+        fs::read_to_string(&managed_poman).expect("managed poman"),
+        support::POMAN_SCRIPT
+    );
+    let poman_hash = sha256_hex(support::POMAN_SCRIPT.as_bytes());
+    let manifest = read_manifest(home.path());
+    assert_eq!(manifest["schema_version"], 3);
+    assert_eq!(
+        manifest["poman"]["path"].as_str().expect("poman path"),
+        managed_poman.to_string_lossy()
+    );
+    assert_eq!(manifest["poman"]["version"], env!("CARGO_PKG_VERSION"));
+    assert_eq!(manifest["poman"]["source_hash"], poman_hash.as_str());
+    #[cfg(not(target_os = "macos"))]
+    assert_eq!(manifest["poman"]["hash"], poman_hash.as_str());
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = fs::metadata(&managed_poman)
+            .expect("poman metadata")
+            .permissions()
+            .mode();
+        assert_ne!(mode & 0o111, 0, "managed poman is executable");
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn a_second_install_copies_neither_binary() {
+    use std::os::unix::fs::MetadataExt;
+
+    let home = TempDir::new().expect("home");
+    let inode = |name: &str| {
+        fs::metadata(home.path().join(".llm_wiki/bin").join(name))
+            .expect("managed file")
+            .ino()
+    };
+
+    llm_wiki(home.path()).args(INSTALL).assert().success();
+    let (binary, poman) = (inode("llm-wiki"), inode("poman"));
+    llm_wiki(home.path()).args(INSTALL).assert().success();
+
+    // Install copies through a temporary file it renames into place, so an
+    // unchanged inode means nothing was copied.
+    assert_eq!(inode("llm-wiki"), binary);
+    assert_eq!(inode("poman"), poman);
+}
+
+#[test]
+fn install_refuses_without_poman_when_none_is_recorded() {
+    let home = TempDir::new().expect("home");
+    let (_dir, bin) = bin_folder(None);
+
+    llm_wiki_at(&bin, home.path())
+        .args(INSTALL)
         .assert()
         .failure()
-        .stderr(predicate::str::contains("cannot be used with '--force'"));
+        .stderr(predicate::str::contains(format!(
+            "llm-wiki install needs poman {} beside it: there is no",
+            env!("CARGO_PKG_VERSION")
+        )))
+        .stderr(predicate::str::contains("cargo install poman"));
+
+    assert_no_install_metadata(home.path());
+    assert!(!home.path().join(".llm_wiki/bin").exists());
+}
+
+#[test]
+fn install_refuses_a_poman_of_another_version() {
+    let home = TempDir::new().expect("home");
+    let (_dir, bin) = bin_folder(Some("#!/bin/sh\necho \"poman 0.0.1\"\n"));
+
+    llm_wiki_at(&bin, home.path())
+        .args(INSTALL)
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("is `poman 0.0.1`, not poman"))
+        .stderr(predicate::str::contains(env!("CARGO_PKG_VERSION")));
+
+    assert_no_install_metadata(home.path());
+}
+
+#[test]
+fn install_keeps_a_recorded_poman_when_none_is_beside_it() {
+    let home = TempDir::new().expect("home");
+    llm_wiki(home.path()).args(INSTALL).assert().success();
+    let recorded = read_manifest(home.path())["poman"].clone();
+
+    for poman in [None, Some("#!/bin/sh\necho \"poman 0.0.1\"\n")] {
+        let (_dir, bin) = bin_folder(poman);
+        llm_wiki_at(&bin, home.path())
+            .args(INSTALL)
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("Warning: poman was not updated"));
+
+        assert_eq!(read_manifest(home.path())["poman"], recorded);
+        assert_eq!(
+            fs::read_to_string(home.path().join(".llm_wiki/bin/poman")).expect("kept poman"),
+            support::POMAN_SCRIPT
+        );
+    }
+}
+
+#[test]
+fn install_refuses_an_unmanaged_poman_without_force() {
+    let home = TempDir::new().expect("home");
+    let managed_poman = home.path().join(".llm_wiki/bin/poman");
+    fs::create_dir_all(managed_poman.parent().expect("parent")).expect("mkdir");
+    fs::write(&managed_poman, "foreign poman").expect("write foreign");
+
+    llm_wiki(home.path())
+        .args(INSTALL)
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(format!(
+            "refusing to replace unmanaged binary {}",
+            managed_poman.display()
+        )));
+    assert_eq!(
+        fs::read_to_string(&managed_poman).expect("foreign remains"),
+        "foreign poman"
+    );
+    assert_no_install_metadata(home.path());
+
+    llm_wiki(home.path())
+        .args([
+            "install",
+            "--force",
+            "--skip-path-guidance",
+            "--disable-llm-search",
+        ])
+        .assert()
+        .success();
+    assert_eq!(
+        fs::read_to_string(&managed_poman).expect("managed poman"),
+        support::POMAN_SCRIPT
+    );
+    let manifest = read_manifest(home.path());
+    let backup_manifest: Value = serde_json::from_str(
+        &fs::read_to_string(
+            manifest["backups"][0]["path"]
+                .as_str()
+                .expect("backup path"),
+        )
+        .expect("backup manifest"),
+    )
+    .expect("backup json");
+    let poman_backup = backup_manifest["files"]
+        .as_array()
+        .expect("backup files")
+        .iter()
+        .find(|entry| entry["original_path"] == managed_poman.to_string_lossy().as_ref())
+        .expect("poman backup");
+    assert_eq!(
+        fs::read_to_string(poman_backup["backup_path"].as_str().expect("backup path"))
+            .expect("backup contents"),
+        "foreign poman"
+    );
 }
 
 #[test]
@@ -963,7 +1159,8 @@ fn full_uninstall_removes_global_runtime_state_but_keeps_project_local_state() {
             .join(".local/share/llm-wiki/projects.json")
             .exists()
     );
-    assert!(home.path().join(".llm_wiki/bin/llm-wiki").exists());
+    assert!(!home.path().join(".llm_wiki/bin/llm-wiki").exists());
+    assert!(!home.path().join(".llm_wiki/bin/poman").exists());
     assert!(project.path().join(".llm_wiki/keep").exists());
 }
 
@@ -981,7 +1178,6 @@ fn verbose_uninstall_emits_command_diagnostics() {
         .success()
         .stderr(predicate::str::contains("command: uninstall"))
         .stderr(predicate::str::contains("manifest:"))
-        .stderr(predicate::str::contains("include managed binary: false"))
         .stderr(predicate::str::contains("consider file:"))
         .stderr(predicate::str::contains("drift check:"));
 }

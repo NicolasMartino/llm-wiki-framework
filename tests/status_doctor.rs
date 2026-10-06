@@ -6,8 +6,10 @@ use predicates::prelude::*;
 use sha2::{Digest, Sha256};
 use tempfile::TempDir;
 
+mod support;
+
 fn llm_wiki(home: &Path) -> Command {
-    let mut command = Command::cargo_bin("llm-wiki").expect("binary");
+    let mut command = Command::new(support::llm_wiki_bin());
     command
         .env("HOME", home)
         .env_remove("RUST_LOG")
@@ -119,6 +121,47 @@ fn status_reports_installed_files() {
             "mcp server startup: host-managed stdio",
         ))
         .stdout(predicate::str::contains("llm-wiki mcp serve"));
+}
+
+#[test]
+fn status_and_doctor_report_the_managed_poman() {
+    let home = TempDir::new().expect("home");
+    let poman = home
+        .path()
+        .join(managed_home_dir_name())
+        .join("bin")
+        .join("poman");
+
+    llm_wiki(home.path())
+        .args(["install", "--disable-llm-search"])
+        .assert()
+        .success();
+    llm_wiki(home.path())
+        .arg("status")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(format!(
+            "managed poman: {}",
+            poman.display()
+        )));
+
+    fs::write(&poman, "edited").expect("drift poman");
+    llm_wiki(home.path())
+        .arg("doctor")
+        .assert()
+        .stdout(predicate::str::contains(format!(
+            "Drifted managed poman: {}",
+            poman.display()
+        )));
+
+    fs::remove_file(&poman).expect("remove poman");
+    llm_wiki(home.path())
+        .arg("doctor")
+        .assert()
+        .stdout(predicate::str::contains(format!(
+            "Missing managed poman: {}",
+            poman.display()
+        )));
 }
 
 #[test]

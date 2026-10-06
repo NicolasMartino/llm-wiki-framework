@@ -6,6 +6,8 @@ use predicates::prelude::*;
 use serde_json::Value;
 use tempfile::TempDir;
 
+mod support;
+
 fn init_project(path: &Path, blueprint: &str, packs: &[&str], extra: &[&str]) {
     let home = TempDir::new().expect("home");
     let mut command = llm_wiki(home.path());
@@ -28,7 +30,7 @@ fn init_project(path: &Path, blueprint: &str, packs: &[&str], extra: &[&str]) {
 }
 
 fn llm_wiki(home: &Path) -> Command {
-    let mut command = Command::cargo_bin("llm-wiki").expect("binary");
+    let mut command = Command::new(support::llm_wiki_bin());
     command
         .env("HOME", home)
         .env_remove("RUST_LOG")
@@ -466,8 +468,7 @@ fn init_rerun_updates_registry_entry_without_duplicate() {
 fn init_rejects_retired_type_and_scale_flags() {
     let temp = TempDir::new().expect("tempdir");
 
-    Command::cargo_bin("llm-wiki")
-        .expect("binary")
+    Command::new(support::llm_wiki_bin())
         .env_remove("RUST_LOG")
         .arg("init")
         .arg(temp.path())
@@ -491,8 +492,7 @@ fn init_rejects_retired_type_and_scale_flags() {
 fn init_rejects_removed_existing_flag() {
     let temp = TempDir::new().expect("tempdir");
 
-    Command::cargo_bin("llm-wiki")
-        .expect("binary")
+    Command::new(support::llm_wiki_bin())
         .env_remove("RUST_LOG")
         .arg("init")
         .arg(temp.path())
@@ -792,8 +792,7 @@ fn init_with_invalid_initial_sources_leaves_no_partial_scaffold() {
     let temp = TempDir::new().expect("tempdir");
     let missing = temp.path().join("missing-source.md");
 
-    Command::cargo_bin("llm-wiki")
-        .expect("binary")
+    Command::new(support::llm_wiki_bin())
         .env_remove("RUST_LOG")
         .arg("init")
         .arg(temp.path())

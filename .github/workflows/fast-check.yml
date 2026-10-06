@@ -1,8 +1,9 @@
 name: Fast Check
 
 # Work PRs into develop, and their merges there, get one fast Linux check:
-# `just fast-check`, which is `just verify` without the slow test files. The
-# full CI (ci.yml) runs everything on the way to master.
+# `just fast-check`, which is `just verify` without the slow test files, and
+# `just strict`, the strictest gates over the strict crates. The full CI
+# (ci.yml) runs everything on the way to master.
 on:
   pull_request:
     branches: [develop]
@@ -15,12 +16,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
+      # rust-toolchain.toml pins the toolchain and its components; rustup
+      # installs exactly that.
+      - name: Install the pinned toolchain
+        run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@v2
         with:
           tool: just,cargo-insta,ripgrep
       - name: Fast check
         run: just fast-check
+
+  strict:
+    name: just strict
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the pinned toolchain and the dated nightly
+        run: |
+          rustup toolchain install
+          rustup toolchain install "$(tr -d '[:space:]' < tools/udeps-nightly)" --profile minimal
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just,cargo-llvm-cov,cargo-mutants,cargo-deny,cargo-udeps
+      - name: Strict gates
+        run: just strict

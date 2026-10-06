@@ -3,7 +3,6 @@ use std::env;
 use std::fs;
 use std::io::{self, IsTerminal};
 use std::path::{Path, PathBuf};
-#[cfg(target_os = "macos")]
 use std::process::Command;
 
 use anyhow::{Context, Result, anyhow, bail};
@@ -23,7 +22,7 @@ use crate::manifest::{
 use crate::mcp_config;
 use crate::mcp_wiring;
 use crate::path_guidance;
-use crate::paths::Paths;
+use crate::paths::{Paths, poman_binary_name};
 use crate::search::runtime_probe::{self, RuntimeProbeStore};
 use crate::search_models::{
     AcceptedLicenses, DEFAULT_PROFILE_ID, MaterializationOutcome, ModelArtifactClassification,
@@ -118,7 +117,18 @@ pub fn run(args: &InstallArgs, context: &CliContext) -> Result<()> {
         path: &current_exe,
         hash: &current_exe_hash,
     };
-    let managed_binary_hash = found_managed_binary_hash(&paths, &running)?;
+    let recorded_poman = manifest
+        .as_ref()
+        .and_then(|manifest| manifest.poman.as_ref());
+    let poman_source = choose_poman_source(&current_exe, recorded_poman, context)?;
+    let poman_running = poman_source
+        .as_ref()
+        .map(|(path, hash)| RunningExe { path, hash });
+    let managed_binary_hash = found_target_hash(&paths.managed_binary(), &running)?;
+    let managed_poman_hash = match &poman_running {
+        Some(source) => found_target_hash(&paths.managed_poman(), source)?,
+        None => None,
+    };
 
     let partial_state = recover_or_reject_partial(
         &paths,
@@ -135,15 +145,31 @@ pub fn run(args: &InstallArgs, context: &CliContext) -> Result<()> {
 
     let files = render_install_files(&paths, context)?;
     context.diagnostic(format!("rendered install files: {}", files.len()));
-    preflight_managed_binary(
-        &paths,
-        &running,
-        managed_binary_hash.as_deref(),
-        manifest.as_ref(),
+    preflight_binary(
+        &BinaryInstall {
+            source: &running,
+            target: paths.managed_binary(),
+            found_hash: managed_binary_hash.as_deref(),
+            recorded: manifest.as_ref().map(|manifest| &manifest.binary),
+            signing_identifier: managed_binary_signing_identifier(),
+        },
         args.force,
         partial_state,
         context,
     )?;
+    if let Some(source) = &poman_running {
+        preflight_binary(
+            &poman_install(
+                &paths,
+                source,
+                managed_poman_hash.as_deref(),
+                recorded_poman,
+            ),
+            args.force,
+            partial_state,
+            context,
+        )?;
+    }
     preflight_install_files(&files, manifest.as_ref(), args.force, context)?;
     let retained_legacy_skill_entries =
         cleanup_legacy_generated_skills(&paths, manifest.as_ref(), context)?;
@@ -155,22 +181,33 @@ pub fn run(args: &InstallArgs, context: &CliContext) -> Result<()> {
     );
     partial.write_atomic(&paths.partial_install())?;
 
+    let binary_install = BinaryInstall {
+        source: &running,
+        target: paths.managed_binary(),
+        found_hash: managed_binary_hash.as_deref(),
+        recorded: manifest.as_ref().map(|manifest| &manifest.binary),
+        signing_identifier: managed_binary_signing_identifier(),
+    };
+    let poman_install = poman_running.as_ref().map(|source| {
+        poman_install(
+            &paths,
+            source,
+            managed_poman_hash.as_deref(),
+            recorded_poman,
+        )
+    });
     let backup = write_backup_snapshot(
         &paths,
         &files,
         manifest.as_ref(),
-        &running,
-        managed_binary_hash.as_deref(),
+        &binary_install,
+        poman_install.as_ref(),
     )?;
-    let binary = install_managed_binary(
-        &paths,
-        &running,
-        managed_binary_hash.as_deref(),
-        &manifest,
-        args.force,
-        partial_state,
-        context,
-    )?;
+    let binary = install_binary(&binary_install, args.force, partial_state, context)?;
+    let poman = match &poman_install {
+        Some(install) => Some(install_binary(install, args.force, partial_state, context)?),
+        None => recorded_poman.cloned(),
+    };
     let mcp_config = materialize_mcp_configs(&paths, &binary.path, context)?;
     let mut skill_entries = install_files(files, manifest.as_ref(), args.force, context)?;
     skill_entries.extend(retained_legacy_skill_entries);
@@ -185,7 +222,7 @@ pub fn run(args: &InstallArgs, context: &CliContext) -> Result<()> {
         .map(|manifest| manifest.backups.clone())
         .unwrap_or_default();
     backups.push(backup);
-    Manifest::new(binary, skill_entries, assets, backups).write_atomic(&paths.manifest())?;
+    Manifest::new(binary, poman, skill_entries, assets, backups).write_atomic(&paths.manifest())?;
     if paths.partial_install().exists() {
         fs::remove_file(paths.partial_install()).with_context(|| {
             format!(
@@ -954,71 +991,200 @@ struct RunningExe<'a> {
     hash: &'a str,
 }
 
+/// A binary install copies into the managed bin folder: the managed binary
+/// itself, or poman from beside it.
+struct BinaryInstall<'a> {
+    source: &'a RunningExe<'a>,
+    target: PathBuf,
+    /// The target's hash as install found it, `None` when it is missing.
+    found_hash: Option<&'a str>,
+    /// What the manifest recorded for this binary.
+    recorded: Option<&'a BinaryEntry>,
+    signing_identifier: String,
+}
+
+impl BinaryInstall<'_> {
+    fn same_file(&self) -> bool {
+        same_file_when_possible(self.source.path, &self.target)
+    }
+
+    fn manifest_owned(&self) -> bool {
+        self.recorded.is_some_and(|entry| entry.path == self.target)
+    }
+
+    /// The target is the copy install made of this same source; on macOS the
+    /// copy's hash differs from the source's because install signs it.
+    fn source_matches(&self, target_hash: &str) -> bool {
+        self.recorded.is_some_and(|entry| {
+            entry.path == self.target
+                && entry.hash == target_hash
+                && entry.source_hash.as_deref().unwrap_or(target_hash) == self.source.hash
+        })
+    }
+
+    fn refuse_unmanaged(
+        &self,
+        target_hash: &str,
+        force: bool,
+        partial_state: PartialState,
+    ) -> Result<()> {
+        if !self.source_matches(target_hash)
+            && target_hash != self.source.hash
+            && !self.manifest_owned()
+            && !force
+        {
+            if partial_state == PartialState::Resuming {
+                bail!(
+                    "previous install left a partial managed binary {}; rerun with --force to replace it",
+                    self.target.display()
+                );
+            }
+            bail!(
+                "refusing to replace unmanaged binary {}; rerun with --force to replace it",
+                self.target.display()
+            );
+        }
+        Ok(())
+    }
+}
+
+fn managed_binary_signing_identifier() -> String {
+    format!("dev.llm-wiki.{}", instance::binary_stem())
+}
+
+fn poman_install<'a>(
+    paths: &Paths,
+    source: &'a RunningExe<'a>,
+    found_hash: Option<&'a str>,
+    recorded: Option<&'a BinaryEntry>,
+) -> BinaryInstall<'a> {
+    BinaryInstall {
+        source,
+        target: paths.managed_poman(),
+        found_hash,
+        recorded,
+        signing_identifier: "dev.llm-wiki.poman".to_string(),
+    }
+}
+
+/// Where install takes poman from: the poman beside the running binary when
+/// it is the same version, else none. With none, a poman the manifest already
+/// records is kept as it is; with nothing recorded either, install refuses,
+/// because llm-wiki is never installed without its poman.
+fn choose_poman_source(
+    current_exe: &Path,
+    recorded: Option<&BinaryEntry>,
+    context: &CliContext,
+) -> Result<Option<(PathBuf, String)>> {
+    match find_poman_beside(current_exe, context)? {
+        Ok(found) => Ok(Some(found)),
+        Err(why) => match recorded {
+            Some(entry) => {
+                let message = format!(
+                    "poman was not updated: {why}; keeping the installed {}",
+                    entry.path.display()
+                );
+                context.diagnostic(&message);
+                println!("Warning: {message}");
+                Ok(None)
+            }
+            None => bail!(
+                "{} install needs poman {VERSION} beside it: {why}. The release ships poman with {}; put both in one folder and run install from there. If you installed with `cargo install llm-wiki-rs`, also run `cargo install poman --version {VERSION}`.",
+                instance::binary_stem(),
+                instance::binary_stem()
+            ),
+        },
+    }
+}
+
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// The poman beside `current_exe` and its hash, or why there is no usable one.
+fn find_poman_beside(
+    current_exe: &Path,
+    context: &CliContext,
+) -> Result<std::result::Result<(PathBuf, String), String>> {
+    let path = current_exe.with_file_name(poman_binary_name());
+    context.diagnostic(format!(
+        "poman beside the running binary: {}",
+        path.display()
+    ));
+    if !path.is_file() {
+        return Ok(Err(format!("there is no {}", path.display())));
+    }
+    let output = match Command::new(&path).arg("--version").output() {
+        Ok(output) if output.status.success() => output,
+        Ok(output) => {
+            return Ok(Err(format!(
+                "`{} --version` failed with {}",
+                path.display(),
+                output.status
+            )));
+        }
+        Err(error) => {
+            return Ok(Err(format!(
+                "`{} --version` could not run: {error}",
+                path.display()
+            )));
+        }
+    };
+    let reported = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    context.diagnostic(format!("poman version: {reported}"));
+    if reported != format!("poman {VERSION}") {
+        return Ok(Err(format!(
+            "{} is `{reported}`, not poman {VERSION}, the version of {}",
+            path.display(),
+            instance::binary_stem()
+        )));
+    }
+    let bytes = fs::read(&path).with_context(|| format!("failed to read {}", path.display()))?;
+    Ok(Ok((path, sha256_hex(&bytes))))
+}
+
 fn hash_managed_binary(managed_binary: &Path) -> Result<String> {
     let bytes = fs::read(managed_binary)
         .with_context(|| format!("failed to read managed binary {}", managed_binary.display()))?;
     Ok(sha256_hex(&bytes))
 }
 
-/// The managed binary's hash as install finds it (`None` when it is missing),
+/// A managed binary's hash as install finds it (`None` when it is missing),
 /// taken once and reused: a debug build is large enough that each extra hash
 /// costs seconds.
-fn found_managed_binary_hash(paths: &Paths, running: &RunningExe) -> Result<Option<String>> {
-    let managed_binary = paths.managed_binary();
-    if same_file_when_possible(running.path, &managed_binary) {
-        // The running executable's bytes, already hashed, are this file's.
-        return Ok(Some(running.hash.to_string()));
+fn found_target_hash(target: &Path, source: &RunningExe) -> Result<Option<String>> {
+    if same_file_when_possible(source.path, target) {
+        // The source's bytes, already hashed, are this file's.
+        return Ok(Some(source.hash.to_string()));
     }
-    if !managed_binary.exists() {
+    if !target.exists() {
         return Ok(None);
     }
-    hash_managed_binary(&managed_binary).map(Some)
+    hash_managed_binary(target).map(Some)
 }
 
-fn preflight_managed_binary(
-    paths: &Paths,
-    running: &RunningExe,
-    found_hash: Option<&str>,
-    manifest: Option<&Manifest>,
+fn preflight_binary(
+    install: &BinaryInstall,
     force: bool,
     partial_state: PartialState,
     context: &CliContext,
 ) -> Result<()> {
-    let (current_exe, current_hash) = (running.path, running.hash);
-    let managed_binary = paths.managed_binary();
-    context.diagnostic(format!("managed binary path: {}", managed_binary.display()));
-    if same_file_when_possible(current_exe, &managed_binary) {
+    context.diagnostic(format!("managed binary path: {}", install.target.display()));
+    if install.same_file() {
         context.diagnostic("managed binary comparison: same-file");
         return Ok(());
     }
 
-    let Some(managed_hash) = found_hash else {
+    let Some(target_hash) = install.found_hash else {
         context.diagnostic("managed binary comparison: target missing");
         return Ok(());
     };
-    let manifest_owned = manifest.is_some_and(|manifest| manifest.binary.path == managed_binary);
-    let source_matches =
-        manifest_binary_source_matches(manifest, &managed_binary, managed_hash, current_hash);
     context.diagnostic(format!(
         "managed binary comparison: hash_match={}, manifest_owned={}, source_match={}, force={}",
-        managed_hash == current_hash,
-        manifest_owned,
-        source_matches,
+        target_hash == install.source.hash,
+        install.manifest_owned(),
+        install.source_matches(target_hash),
         force
     ));
-    if !source_matches && managed_hash != current_hash && !manifest_owned && !force {
-        if partial_state == PartialState::Resuming {
-            bail!(
-                "previous install left a partial managed binary {}; rerun with --force to replace it",
-                managed_binary.display()
-            );
-        }
-        bail!(
-            "refusing to replace unmanaged binary {}; rerun with --force to replace it",
-            managed_binary.display()
-        );
-    }
-    Ok(())
+    install.refuse_unmanaged(target_hash, force, partial_state)
 }
 
 fn preflight_install_files(
@@ -1129,97 +1295,55 @@ impl PartialState {
     }
 }
 
-fn install_managed_binary(
-    paths: &Paths,
-    running: &RunningExe,
-    found_hash: Option<&str>,
-    manifest: &Option<Manifest>,
+fn install_binary(
+    install: &BinaryInstall,
     force: bool,
     partial_state: PartialState,
     context: &CliContext,
 ) -> Result<BinaryEntry> {
-    let (current_exe, current_hash) = (running.path, running.hash);
-    let managed_binary = paths.managed_binary();
-    if let Some(parent) = managed_binary.parent() {
+    let (source, target) = (install.source, &install.target);
+    if let Some(parent) = target.parent() {
         fs::create_dir_all(parent)
             .with_context(|| format!("failed to create {}", parent.display()))?;
     }
 
-    let managed_hash = if same_file_when_possible(current_exe, &managed_binary) {
+    let target_hash = if install.same_file() {
         context.diagnostic("managed binary action: already running managed binary");
-        current_hash.to_string()
-    } else if managed_binary.exists() {
-        let managed_hash = match found_hash {
+        source.hash.to_string()
+    } else if target.exists() {
+        let target_hash = match install.found_hash {
             Some(hash) => hash.to_string(),
-            None => hash_managed_binary(&managed_binary)?,
+            None => hash_managed_binary(target)?,
         };
-        let manifest_owned = manifest
-            .as_ref()
-            .is_some_and(|manifest| manifest.binary.path == managed_binary);
-        let source_matches = manifest_binary_source_matches(
-            manifest.as_ref(),
-            &managed_binary,
-            &managed_hash,
-            current_hash,
-        );
-        if !source_matches && managed_hash != current_hash && !manifest_owned && !force {
-            if partial_state == PartialState::Resuming {
-                bail!(
-                    "previous install left a partial managed binary {}; rerun with --force to replace it",
-                    managed_binary.display()
-                );
-            }
-            bail!(
-                "refusing to replace unmanaged binary {}; rerun with --force to replace it",
-                managed_binary.display()
-            );
-        }
-        if !source_matches && managed_hash != current_hash {
+        install.refuse_unmanaged(&target_hash, force, partial_state)?;
+        if !install.source_matches(&target_hash) && target_hash != source.hash {
             context.diagnostic("managed binary action: replace existing target");
-            copy_current_exe(current_exe, &managed_binary, context)?;
-            hash_managed_binary(&managed_binary)?
+            copy_binary(source.path, target, &install.signing_identifier, context)?;
+            hash_managed_binary(target)?
         } else {
             context.diagnostic("managed binary action: existing target hash matches");
-            managed_hash
+            target_hash
         }
     } else {
         context.diagnostic("managed binary action: copy new target");
-        copy_current_exe(current_exe, &managed_binary, context)?;
-        hash_managed_binary(&managed_binary)?
+        copy_binary(source.path, target, &install.signing_identifier, context)?;
+        hash_managed_binary(target)?
     };
     #[cfg(not(target_os = "macos"))]
-    if managed_hash != current_hash {
+    if target_hash != source.hash {
         bail!(
             "managed binary hash mismatch after copy: {}",
-            managed_binary.display()
+            target.display()
         );
     }
 
     Ok(BinaryEntry {
-        path: managed_binary,
-        version: env!("CARGO_PKG_VERSION").to_string(),
+        path: target.clone(),
+        version: VERSION.to_string(),
         hash_algorithm: HashAlgorithm::Sha256,
-        hash: managed_hash,
-        source_hash: Some(current_hash.to_string()),
+        hash: target_hash,
+        source_hash: Some(source.hash.to_string()),
         ownership: Ownership::ManifestOwned,
-    })
-}
-
-fn manifest_binary_source_matches(
-    manifest: Option<&Manifest>,
-    managed_binary: &Path,
-    managed_hash: &str,
-    current_hash: &str,
-) -> bool {
-    manifest.is_some_and(|manifest| {
-        manifest.binary.path == managed_binary
-            && manifest.binary.hash == managed_hash
-            && manifest
-                .binary
-                .source_hash
-                .as_deref()
-                .unwrap_or(managed_hash)
-                == current_hash
     })
 }
 
@@ -1233,11 +1357,16 @@ fn same_file_when_possible(left: &Path, right: &Path) -> bool {
     }
 }
 
-fn copy_current_exe(current_exe: &Path, managed_binary: &Path, context: &CliContext) -> Result<()> {
-    let parent = managed_binary.parent().ok_or_else(|| {
+fn copy_binary(
+    source: &Path,
+    target: &Path,
+    signing_identifier: &str,
+    context: &CliContext,
+) -> Result<()> {
+    let parent = target.parent().ok_or_else(|| {
         anyhow!(
             "managed binary path has no parent directory: {}",
-            managed_binary.display()
+            target.display()
         )
     })?;
     let temp = tempfile::Builder::new()
@@ -1250,23 +1379,23 @@ fn copy_current_exe(current_exe: &Path, managed_binary: &Path, context: &CliCont
             )
         })?;
 
-    fs::copy(current_exe, temp.path()).with_context(|| {
+    fs::copy(source, temp.path()).with_context(|| {
         format!(
             "failed to copy {} to temporary managed binary {}",
-            current_exe.display(),
+            source.display(),
             temp.path().display()
         )
     })?;
-    let permissions = fs::metadata(current_exe)
-        .with_context(|| format!("failed to inspect {}", current_exe.display()))?
+    let permissions = fs::metadata(source)
+        .with_context(|| format!("failed to inspect {}", source.display()))?
         .permissions();
     fs::set_permissions(temp.path(), permissions)
         .with_context(|| format!("failed to set permissions on {}", temp.path().display()))?;
-    sign_macos_binary(temp.path(), context)?;
-    temp.persist(managed_binary).map(|_| ()).map_err(|error| {
+    sign_macos_binary(temp.path(), signing_identifier, context)?;
+    temp.persist(target).map(|_| ()).map_err(|error| {
         anyhow!(
             "failed to atomically replace {} with staged binary {}: {}",
-            managed_binary.display(),
+            target.display(),
             error.file.path().display(),
             error.error
         )
@@ -1275,14 +1404,13 @@ fn copy_current_exe(current_exe: &Path, managed_binary: &Path, context: &CliCont
 }
 
 #[cfg(target_os = "macos")]
-fn sign_macos_binary(path: &Path, context: &CliContext) -> Result<()> {
-    let identifier = format!("dev.llm-wiki.{}", instance::binary_stem());
+fn sign_macos_binary(path: &Path, identifier: &str, context: &CliContext) -> Result<()> {
     context.diagnostic(format!(
         "macOS managed binary signing: codesign --force --sign - --identifier {identifier} {}",
         path.display()
     ));
     let output = Command::new("/usr/bin/codesign")
-        .args(["--force", "--sign", "-", "--identifier", &identifier])
+        .args(["--force", "--sign", "-", "--identifier", identifier])
         .arg(path)
         .output()
         .with_context(|| "failed to run codesign for managed binary")?;
@@ -1301,7 +1429,7 @@ fn sign_macos_binary(path: &Path, context: &CliContext) -> Result<()> {
 }
 
 #[cfg(not(target_os = "macos"))]
-fn sign_macos_binary(_path: &Path, context: &CliContext) -> Result<()> {
+fn sign_macos_binary(_path: &Path, _identifier: &str, context: &CliContext) -> Result<()> {
     context.diagnostic("macOS managed binary signing: skipped on non-macOS");
     Ok(())
 }
@@ -1515,12 +1643,40 @@ fn classify_install_file(
     ))
 }
 
+/// Copies a managed binary install is about to replace into the backup
+/// snapshot, unless it is the copy the manifest recorded or the source itself.
+fn back_up_replaced_binary(
+    install: &BinaryInstall,
+    backup_path: &Path,
+) -> Result<Option<BackupSnapshotFile>> {
+    let Some(current_hash) = install.found_hash else {
+        return Ok(None);
+    };
+    let manifest_owned = install
+        .recorded
+        .is_some_and(|entry| entry.path == install.target && entry.hash == current_hash);
+    if current_hash == install.source.hash || manifest_owned {
+        return Ok(None);
+    }
+    let current = fs::read(&install.target)
+        .with_context(|| format!("failed to read managed binary {}", install.target.display()))?;
+    fs::write(backup_path, current)
+        .with_context(|| format!("failed to write {}", backup_path.display()))?;
+    Ok(Some(BackupSnapshotFile {
+        kind: BackupSnapshotKind::ManagedBinary,
+        original_path: install.target.clone(),
+        backup_path: backup_path.to_path_buf(),
+        hash_algorithm: HashAlgorithm::Sha256,
+        hash: current_hash.to_string(),
+    }))
+}
+
 fn write_backup_snapshot(
     paths: &Paths,
     files: &[InstallFile],
     manifest: Option<&Manifest>,
-    running: &RunningExe,
-    managed_binary_hash: Option<&str>,
+    binary: &BinaryInstall,
+    poman: Option<&BinaryInstall>,
 ) -> Result<BackupEntry> {
     let id = backup_id();
     let dir = paths.managed_home().join("backups").join(&id);
@@ -1529,25 +1685,11 @@ fn write_backup_snapshot(
     let manifest_by_path = manifest_entries_by_path(manifest);
 
     let mut backed_up = Vec::new();
-    let managed_binary = paths.managed_binary();
-    if let Some(current_hash) = managed_binary_hash {
-        let manifest_owned = manifest.is_some_and(|manifest| {
-            manifest.binary.path == managed_binary && manifest.binary.hash == current_hash
-        });
-        if current_hash != running.hash && !manifest_owned {
-            let backup_path = dir.join("0000-llm-wiki");
-            let current = fs::read(&managed_binary).with_context(|| {
-                format!("failed to read managed binary {}", managed_binary.display())
-            })?;
-            fs::write(&backup_path, current)
-                .with_context(|| format!("failed to write {}", backup_path.display()))?;
-            backed_up.push(BackupSnapshotFile {
-                kind: BackupSnapshotKind::ManagedBinary,
-                original_path: managed_binary,
-                backup_path,
-                hash_algorithm: HashAlgorithm::Sha256,
-                hash: current_hash.to_string(),
-            });
+    for (install, name) in std::iter::once((binary, "0000-llm-wiki"))
+        .chain(poman.map(|install| (install, "0000-poman")))
+    {
+        if let Some(backup) = back_up_replaced_binary(install, &dir.join(name))? {
+            backed_up.push(backup);
         }
     }
     for (index, file) in files.iter().enumerate() {
