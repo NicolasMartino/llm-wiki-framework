@@ -214,7 +214,9 @@ When done, the pages to update: this plan (what was found), P16's status,
 and any wiki page that still says lexical search is all-words only or
 unweighted, found by searching the wiki for it at that time.
 
-## Open For The Owner
+## The Owner's Choices
+
+All four decided by the owner on 2026-10-06, each as recommended.
 
 1. **Where the fallback runs.** Hybrid's lexical branch asks for
    `max(limit, 20)` rows, so with the default limit of 10, a fallback inside
@@ -228,7 +230,7 @@ unweighted, found by searching the wiki for it at that time.
      selected by auto), never in hybrid's lexical branch.
    - Everywhere: it also runs in hybrid's lexical branch, and the Done When
      adds the hybrid before-and-after above.
-   Recommendation: lexical only. It keeps the default search as it is
+   Decided by the owner on 2026-10-06: lexical only. It keeps the default search as it is
    beyond the weights, keeps the change inside the issue, and the place that
    runs the fallback can then also say so in the reply (choice 4).
 2. **The zero word-weight clamp.** BM25 gives a word in more than half the
@@ -237,15 +239,20 @@ unweighted, found by searching the wiki for it at that time.
    Making scores meaningful (normalising them, or a small added boost for a
    title or file-name match) changes what every lexical score means to its
    readers, hybrid fusion and its strong-lexical floor included.
-   Recommendation: leave it out of this plan, whose promise is the order,
+   Decided by the owner on 2026-10-06: leave it out of this plan, whose promise is the order,
    and open its own roadmap entry only if a reader is found misled by the
    0.000 scores.
 3. **The bar for the four plan names.** The investigation measured three of
    the four plans in the top 8 on the live wiki; the review measured all
    four in the top 10 on the frozen wiki, the fourth at 10th, right at the
-   cutoff. Recommendation: the test asserts at least three of the four in
+   cutoff. Decided by the owner on 2026-10-06: the test asserts at least three of the four in
    the top 10, and this plan records where the fourth lands; asking for all
-   four would pass today only at the edge.
+   four would pass today only at the edge. The owner also asked whether a
+   filter on the file type does it: it does, and search has it already
+   (`--class plan`, or `class` in the MCP tool). So a second check runs the
+   same four names with the plan filter on and asserts all four plans in the
+   top four; the unfiltered bar stays, because it is what an agent runs when
+   it does not know which kind of page it wants.
 4. **Saying when the fallback ran.** Pages added by the fallback matched
    only some of the query, and their scores come from a different query, so
    the score column may rise after them. The reply's warnings are built in
@@ -254,7 +261,7 @@ unweighted, found by searching the wiki for it at that time.
    fallback is run by the search command's lexical path, which then knows
    itself, or the backend tells its caller, by a marker on each added result
    or a changed return type (four callers outside tests).
-   Recommendation: one line in the reply's existing warnings when the
+   Decided by the owner on 2026-10-06: one line in the reply's existing warnings when the
    fallback added pages, with the signal following choice 1: with "lexical
    only", from the lexical path that runs the fallback; the PR names which
    way it took.
