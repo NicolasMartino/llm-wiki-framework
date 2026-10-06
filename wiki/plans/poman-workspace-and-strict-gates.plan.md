@@ -51,9 +51,19 @@ Whoever does the work rechecks each point against the commit they start from.
   dead_code`), `coverage` at 80 % of lines (`cargo llvm-cov --workspace`),
   `udeps` (`cargo +nightly udeps`), `verify` and `fast-check`. CI runs `just
   fast-check` on PRs into `develop` and the full matrix on PRs into master
-  (`develop-and-master-ci.plan.md`); every workflow installs
-  `dtolnay/rust-toolchain@stable`, and the unused-dependencies job pins
-  `nightly-2026-05-01`. No mutation testing and no dependency audit run.
+  (`develop-and-master-ci.plan.md`). The test, fast-check, post-install and
+  release E2E workflows install `dtolnay/rust-toolchain@stable`; the
+  unused-dependencies job installs `nightly-2026-05-01` through
+  `dtolnay/rust-toolchain@master`; the generated `release.yml` installs rustup
+  itself. No mutation testing and no dependency audit run.
+- **What a bare cargo command builds:** the root `Cargo.toml` is itself a
+  package and the workspace has no `default-members`, so `cargo build`, `cargo
+  run` and `cargo test` at the root build only `llm-wiki-rs`. `just install`,
+  `just install-force` (`cargo run -- install`) and `just build-bin` are such
+  builds; the release E2E recipes and
+  `tools/test-instance-live-session-proof.sh` build `--bin llm-wiki`. The
+  install tests start `target/debug/llm-wiki` (`Command::cargo_bin`), and the
+  post-install workflow runs `cargo test --test post_install` alone.
 - **The release:** cargo-dist 0.28.0 is configured in `Cargo.toml`
   (`[workspace.metadata.dist]`: four targets, `installers = ["shell"]`,
   `install-path = "CARGO_HOME"`, `pr-run-mode = "skip"`), and
@@ -63,8 +73,12 @@ Whoever does the work rechecks each point against the commit they start from.
 - **Install:** `llm-wiki install` reads the running binary
   (`env::current_exe()`), copies it to the managed binary path
   (`~/.llm_wiki/bin/llm-wiki`; `~/.llm_wiki-test/bin/llm-wiki-test` for the
-  test instance), signs it on macOS, and writes a manifest whose single
-  `binary` entry has no room for a second binary. `llm-wiki uninstall`
+  test instance), signs it on macOS, and writes a manifest (`schema_version`
+  2) whose single `binary` entry has no room for a second binary. That entry
+  keeps two hashes, the installed copy's and the source's, because the macOS
+  signature changes the copy. A manifest of any other schema version is
+  refused, and install carries the recorded assets and backups forward into
+  the manifest it writes. `llm-wiki uninstall`
   removes the skills, the assets and the manifest, and removes the binary only
   with `--include-binary`.
 - **crates.io:** `poman`, `llm-wiki-pages`, `llm-wiki-types` and
@@ -79,20 +93,22 @@ Whoever does the work rechecks each point against the commit they start from.
 - **Two new members of the root workspace**, each in its own folder under
   `crates/`: the shared library crate and the `poman` crate. The root package
   `llm-wiki-rs` stays where it is; `tools/release-e2e` stays outside.
-- **The shared crate's name** is the owner's choice (the PR's first open
-  question). Recommended: `llm-wiki-pages`, because what it holds is how the
-  project's pages are read and typed, deadline files included; the prefix ties
-  it to llm-wiki on crates.io. Alternatives: `llm-wiki-types` (narrower: says
-  nothing of the reader) and `llm-wiki-core` (says nothing of what it holds).
+- **The shared crate's name** is the owner's choice: "Open For The Owner",
+  choice 1.
+- **A bare cargo command builds both binaries:** the workspace's
+  `default-members` names the root package and poman, so `cargo build` and
+  `cargo test` at the root leave `target/debug/poman` beside
+  `target/debug/llm-wiki`, and every justfile recipe or script that means one
+  binary names it (`--bin llm-wiki`). Whoever does the work rechecks each
+  cargo command in the justfile, the scripts under `tools/` and the
+  workflows.
 - **`poman`** is a library target holding all its code and a binary whose
   `main` only calls it, so the coverage and mutation gates see everything but
   the entry point. The binary runs: `poman --version` and `poman --help`
   answer, and an unknown command is refused with an error and a non-zero exit.
 - **A first piece of real behaviour in each crate**, enough that every kind of
-  test has something to test. Recommended for the shared crate: splitting a
-  wiki filename (`[slug].type.md` or `[index]-[slug].type.md`, AGENTS.MD,
-  "Conventions") into its parts, which PM2's type definitions build on. Moving
-  the parser stays PM2's.
+  test has something to test: for the shared crate, "Open For The Owner",
+  choice 5. Moving the parser stays PM2's.
 - **Publishable:** both crates carry the metadata crates.io asks for (the
   clippy `cargo` group checks it). Publishing them is a release act, the
   owner's.
@@ -105,10 +121,19 @@ is run is a first sketch; whoever does the work rechecks each tool's flags.
 
 - **Toolchain:**
   - an exact toolchain pinned in `rust-toolchain.toml` (the current stable
-    when the work starts, with rustfmt and clippy), edition 2024, and each new
-    crate's `rust-version` equal to the pin;
+    when the work starts, with rustfmt, clippy and `llvm-tools-preview`: rustup
+    treats an exact pin as a toolchain of its own, so components installed for
+    `stable` do not serve it), edition 2024, and each new crate's
+    `rust-version` equal to the pin;
+  - a dated nightly for the unused-dependencies check, no older than the
+    stable pin: cargo refuses to build a crate whose `rust-version` is above
+    the active rustc, so today's `nightly-2026-05-01` (rustc 1.97) would stop
+    `cargo udeps` on the new crates. The nightly is named in one place, which
+    the gate script and CI's unused-dependencies job both read, and that job
+    moves to it;
   - checked by comparing `rustc --version` and each crate's `rust-version` and
-    edition (from `cargo metadata`) to the pin.
+    edition (from `cargo metadata`) to the pin, and the nightly's rustc
+    version to the pin (not older).
   - The pin applies to the whole repository, llm-wiki included: CI's
     toolchain steps must agree with it, and `just verify` must still pass on
     it.
@@ -122,7 +147,12 @@ is run is a first sketch; whoever does the work rechecks each tool's flags.
     `print_stderr`, `dbg_macro` and `exit` set to `forbid`;
   - checked twice: clippy passes, and the script reads each crate's lint table
     and fails if any of these lints is missing or below `forbid`, so loosening
-    the table is caught even when the code still passes.
+    the table is caught even when the code still passes;
+  - test code: whether it is held to the same `forbid` lints is "Open For The
+    Owner", choice 6. clippy.toml's `allow-*-in-tests` keys lift those lints
+    in tests while the lint table still says `forbid`, so the script also
+    reads clippy.toml and fails on any such key the owner's answer does not
+    allow.
 - **Unsafe code, docs and rustdoc:**
   - `unsafe_code` and `missing_docs` forbidden, and the rustdoc lints
     forbidden, in each crate's lint table (checked as above);
@@ -130,8 +160,12 @@ is run is a first sketch; whoever does the work rechecks each tool's flags.
     `RUSTDOCFLAGS="-D warnings"`.
 - **Tests:**
   - unit, integration, doc and property tests (`proptest`, already a
-    workspace dependency), each kind run as its own check with `cargo test`
-    (`--lib`, `--tests`, `--doc`; the property tests where they live);
+    workspace dependency), each kind run as its own check with `cargo test`:
+    `--lib` for unit tests, `--doc`, the property tests in one named file per
+    crate (`tests/properties.rs`, as llm-wiki has) run with `--test
+    properties`, and every other file under the crate's `tests/` run by name
+    as the integration tests (`--tests` alone would also run the unit tests,
+    and an empty kind would never show);
   - a kind that runs no test in a crate counts as skipped, never passed;
   - unit tests sit in their own file, never inline in the module they test:
     the script fails on a source file that holds its tests inline.
@@ -143,7 +177,7 @@ is run is a first sketch; whoever does the work rechecks each tool's flags.
   - `cargo deny check` (advisories, licences, bans with one version of each
     crate, sources) over the two new crates' dependency graph only: llm-wiki's
     own graph comes in with the ratchet (PM8);
-  - unused dependencies with `cargo udeps` on the nightly CI already pins, over
+  - unused dependencies with `cargo udeps` on the dated nightly above, over
     the two crates.
 - **The gate script:**
   - a script under `tools/`, run by one justfile recipe (recommended: `just
@@ -153,9 +187,7 @@ is run is a first sketch; whoever does the work rechecks each tool's flags.
   - a missing tool (cargo-llvm-cov, cargo-mutants, cargo-deny, cargo-udeps,
     the pinned nightly) fails loudly, naming the tool and how to install it.
     A skip is never a pass.
-- **In CI** (an owner's choice, below): recommended, the fast check on PRs
-  into `develop` and the full CI both run the gate script, so a slip cannot
-  land between local runs.
+- **In CI:** "Open For The Owner", choice 4.
 
 ### Install and uninstall
 
@@ -165,22 +197,41 @@ Per the owner's decision of 2026-10-06 on install channels:
 - **`llm-wiki install` copies poman from beside itself:** from the folder of
   the running `llm-wiki`, into the managed bin folder (`~/.llm_wiki/bin/poman`;
   the test instance's own managed home for `llm-wiki-test`), and records it in
-  the manifest with its path and hash. This covers the three channels the
-  decision named:
+  the manifest. This covers the three channels the decision named:
   - a release archive, where poman is in the same folder;
   - `cargo install llm-wiki-rs` followed by `cargo install poman`, both in
     `~/.cargo/bin`;
   - a binary run from anywhere, such as `target/debug/llm-wiki` after a
-    workspace build, which leaves `poman` beside it.
-- **poman is handled like the managed `llm-wiki`:** copied again only when its
-  hash changed, signed on macOS, an unmanaged `poman` already in the bin folder
-  refused without `--force`, and a manifest written before PM1 still read.
-- **No poman beside llm-wiki** (an owner's choice, below): recommended,
-  install goes on without it, says so and how to get it (`cargo install
-  poman`), records no poman, and `llm-wiki status` reports it missing.
-- **Uninstall** (an owner's choice, below): recommended, poman is removed with
-  `--include-binary`, the same rule as the managed `llm-wiki`, so both
-  binaries stay or go together.
+    workspace build, which leaves `poman` beside it (see "A bare cargo
+    command builds both binaries" above).
+- **poman is handled like the managed `llm-wiki`:**
+  - its manifest entry keeps its path, its version, the installed copy's hash
+    and the source's hash, as the `llm-wiki` entry does, so a second install
+    copies nothing on macOS too, where signing changes the copy;
+  - copied again only when the source's hash changed, signed on macOS, and an
+    unmanaged `poman` already in the bin folder refused without `--force`;
+  - a manifest written before PM1 is still read.
+- **The same version as llm-wiki:** poman takes the workspace's version, and
+  install takes a poman beside itself only when `poman --version` names
+  llm-wiki's own version. A poman of another version (an older `cargo install
+  poman` left in `~/.cargo/bin`) is treated as no poman, naming both versions.
+- **No recorded poman is ever orphaned:**
+  - an install that finds no usable poman beside itself keeps the poman entry
+    the manifest already records, and its file, as they are, and says poman
+    was not updated, the way install already carries the recorded assets and
+    backups forward; so `status`, `uninstall` and the next install still know
+    it. What install does when none is recorded is "Open For The Owner",
+    choice 2;
+  - an llm-wiki from before PM1 must not rewrite a manifest that records
+    poman, because it would drop the entry it does not know: the manifest's
+    `schema_version` goes from 2 to 3, which today's llm-wiki already refuses
+    with "unsupported manifest schema_version", and the new llm-wiki reads 1,
+    2 and 3.
+- **Uninstall:** "Open For The Owner", choice 3.
+- **The install tests do not depend on a build's leftovers:** a test that
+  needs poman beside `llm-wiki` copies `llm-wiki` into a temporary folder and
+  puts its own `poman` beside it, so `cargo test --test post_install` alone
+  (the post-install workflow) and a full workspace build give the same result.
 
 ### The release
 
@@ -203,26 +254,33 @@ Per the owner's decision of 2026-10-06 on install channels:
    of behaviour in each; `just verify` still passes for llm-wiki on the pin.
 2. **The gate script:** every gate above as one check; then, for each gate, a
    deliberate slip (an inline test module, a `forbid` lowered to `deny`, an
-   uncovered line, a surviving mutant, a duplicate dependency version, a
-   missing tool) shown to fail that gate and reverted.
-3. **Install and uninstall:** poman copied, recorded, refused, signed and
-   removed as above, proved under a temporary HOME by the install tests.
+   `allow-*-in-tests` key the owner did not allow, a kind of test with no
+   test, an uncovered line, a surviving mutant, a duplicate dependency
+   version, a missing tool, a nightly older than the pin) shown to fail that
+   gate and reverted.
+3. **Install and uninstall:** `default-members` and the one-binary commands;
+   then poman copied, recorded, refused, signed, kept and removed as above,
+   and the manifest's schema version raised, proved under a temporary HOME by
+   the install tests.
 4. **The release build:** the local dist build, and the archive's contents
    listed.
-5. **CI**, if the owner chooses it: the gate script in the fast check and the
-   full CI, with the tools it needs installed there.
+5. **CI**, as the owner answers choice 4: the gate script where it runs, with
+   the tools it needs installed there, and CI's unused-dependencies job on the
+   dated nightly.
 
 ## Done When
 
 - **The gates:** `just strict` (or the name chosen) reports every gate run and
-  passed for the two crates, with 0 skipped and 0 failed, locally and, if
-  chosen, in the PR's fast check.
+  passed for the two crates, with 0 skipped and 0 failed, locally and in CI
+  as the owner answers choice 4.
 - **The slips:** each deliberate slip of phase 2 made its gate fail, with the
   failing output recorded in the PR.
 - **Install:** an install into a temporary HOME puts `poman` in the managed bin
-  folder and the manifest; a second install copies nothing; `uninstall` (with
-  `--include-binary`, if chosen) removes it; an install with no poman beside
-  `llm-wiki` behaves as the owner chose.
+  folder and the manifest; a second install copies nothing; `uninstall`
+  removes it as the owner answers choice 3; an install with no poman beside
+  `llm-wiki`, or one of another version, keeps a recorded poman and otherwise
+  behaves as the owner answers choice 2; a manifest that records poman is
+  refused by an llm-wiki from before PM1.
 - **Release:** the local release build's archive lists `llm-wiki` and `poman`.
 - **llm-wiki unchanged:** `just verify` passes with nothing skipped, on the
   pinned toolchain.
@@ -250,7 +308,9 @@ Whoever does the work rechecks this list:
 
 A first list, to be rechecked by whoever does the work: the root `Cargo.toml`
 (members, the dist config), `Cargo.lock`, a new `rust-toolchain.toml` and
-`deny.toml`, the two new crates, the justfile, a gate script under `tools/`,
+`deny.toml`, a `clippy.toml` if choice 6 allows any key, the two new crates,
+the justfile, a gate script under `tools/`,
+`tools/test-instance-live-session-proof.sh`,
 `src/install.rs`, `src/uninstall.rs`, `src/manifest/`, `src/paths.rs`,
 `src/status.rs` and `src/doctor.rs` (both read the manifest), `tests/install.rs`,
 `tests/post_install.rs`, `tests/status_doctor.rs`, `tools/release-e2e` (its
@@ -260,6 +320,46 @@ it.
 ### What Closes This Plan
 
 The owner's PASS on the PR that meets "Done When", merged into `develop`.
+
+## Open For The Owner
+
+Asked on 2026-10-06 and not answered yet; the work starts once they are. When
+the owner answers, each answer is written here with its date, and the text
+that points here follows it.
+
+1. **The shared crate's name.** Recommended: `llm-wiki-pages`: it holds how
+   the project's pages are read and typed, deadline files included, and the
+   prefix ties it to llm-wiki on crates.io. Alternatives: `llm-wiki-types`
+   (says nothing of the reader) and `llm-wiki-core` (says nothing of what it
+   holds). All three were free on crates.io on 2026-10-06.
+2. **Install with no usable poman beside llm-wiki, and none recorded** (a
+   `cargo install llm-wiki-rs` without `cargo install poman`). Recommended:
+   install goes on without poman, says so and how to get the matching one
+   (`cargo install poman`), records none, and `llm-wiki status` reports it
+   missing. A poman already recorded is kept in every case (Target, "No
+   recorded poman is ever orphaned"). The alternative, failing the install,
+   breaks llm-wiki's install for anyone who has not installed poman.
+3. **Uninstall.** Recommended: poman is removed with `--include-binary`, the
+   rule the managed `llm-wiki` follows today, so both binaries stay or go
+   together. The alternative is removing poman on every uninstall.
+4. **The gate script in CI.** Recommended: the fast check on PRs into
+   `develop` and the full CI both run it, so a slip in a strict crate cannot
+   land between local runs. The alternative, a local gate only until PM8,
+   leaves the new crates' tests out of every check on PRs into `develop`:
+   `just fast-check` runs only the root's test files, without `--workspace`,
+   and only its clippy step covers the two crates; their tests would run only
+   in `just verify` and the full CI on the way to master.
+5. **The shared crate's first piece of behaviour.** Recommended: splitting a
+   wiki filename (`[slug].type.md` or `[index]-[slug].type.md`, AGENTS.MD,
+   "Conventions") into its parts, which PM2's type definitions build on.
+6. **Test code and the `forbid` lints.** The decision sets `forbid` so that
+   nothing local can lift a lint, while clippy.toml's `allow-unwrap-in-tests`,
+   `allow-expect-in-tests`, `allow-indexing-slicing-in-tests`,
+   `allow-panic-in-tests` and `allow-print-in-tests` lift them in test code.
+   Recommended: no exception: tests return `Result` and use `?`, and
+   clippy.toml sets none of those keys, which the gate script checks. The
+   alternative: the owner names the keys allowed, and the script fails on any
+   other.
 
 ## Out Of Scope
 
