@@ -1,8 +1,10 @@
 # Ship The Operations Setup With llm-wiki
 
 - Document Class: Proposal
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-06
+- Promoted To: wiki/plans/operations-setup-in-llm-wiki.plan.md (accepted by
+  the owner on 2026-10-06, #38)
 - Category: Project init, MCP prompts, way of working
 - Scope: Ship the coordinated way of working (one coordinating session, Orca
   workers on GitHub issues, plans and roadmaps in the wiki as the record of
@@ -307,13 +309,21 @@ of a kit that the pack is meant to replace.
 ## Open Choices For The Owner
 
 - **When to build it** ("When To Build It"). Recommendation: start the plan
-  once the proposal is accepted.
+  once the proposal is accepted. Answered by the owner on 2026-10-06, "asap":
+  the plan comes now, with no wait for another fit of the global skill.
 - **Where the kit's AGENTS sections go** ("The pack holds the files").
   Recommendation: a short fragment that points at the operation manager page.
+  Answered by the owner on 2026-10-06, "I think we should have a needle, a
+  part of the agents.md file that is dedicated to llm wiki": `AGENTS.md` gets
+  one marked block that llm-wiki owns, init writes and refreshes only what is
+  between its markers and leaves the rest, the project's own, untouched, and
+  the kit's sections go inside the block. The plan carries it out as its own
+  phase, before the pack.
 - **The pack's name.** Recommendation: `operation-manager`, because next to
   the existing `ops` pack, `operations` reads as the same thing. P19 names the
   pack by this proposed name until the owner settles it; the worker who
-  writes P19's plan renames it there if the owner picks another.
+  writes P19's plan renames it there if the owner picks another. Not answered
+  yet on 2026-10-06; the plan lists it in "Open For The Owner".
 
 ## Increments
 

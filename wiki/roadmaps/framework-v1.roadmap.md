@@ -1083,9 +1083,9 @@ itself: an init pack (proposed as `operation-manager`, beside the existing
 it as a slash command (`/mcp__llm-wiki__operations_setup`) next to the wiki
 prompts.
 Depends On: P18
-Execution Plan: Not created yet (the proposal
-`wiki/proposals/operations-setup-in-llm-wiki.proposal.md` first, for the owner
-to accept)
+Execution Plan: `wiki/plans/operations-setup-in-llm-wiki.plan.md` (Draft, for
+the owner to approve), from the accepted proposal
+`wiki/proposals/operations-setup-in-llm-wiki.proposal.md`
 
 Included:
 - the owner's decision of 2026-10-06 to propose it ("I think we should propose
