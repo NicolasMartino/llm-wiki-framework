@@ -894,7 +894,7 @@ Proof:
 
 ### P11 - The Way Of Working Points At Develop
 
-Status: Active
+Status: Completed (develop)
 Promise: Every rule, brief and skill of the way of working says where work
 lands now: work PRs into `develop`, and master only through a PR from
 `develop` with the full CI and the owner's PASS.
