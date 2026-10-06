@@ -956,3 +956,21 @@ Excluded:
 
 Proof:
 - the plan's Done When
+
+### P14 - The Search Eval Test Runs Against A Frozen Wiki
+
+Status: Draft
+Promise: `search::qmd_rs::tests::fixed_eval_queries_keep_expected_targets_in_top_two`
+checks search quality against a frozen copy of the wiki, so a page added to the
+live wiki cannot turn the fast check red.
+Depends On: None
+Execution Plan: wiki/plans/search-eval-test-frozen-wiki.plan.md
+
+Included:
+- the test and the fixture it reads
+
+Excluded:
+- changing how search ranks pages (P9 investigates that)
+
+Proof:
+- the plan's Done When
