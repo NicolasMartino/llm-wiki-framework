@@ -977,7 +977,7 @@ Proof:
 
 ### P15 - Compact Search Honours Its Limit
 
-Status: Draft
+Status: Active
 Promise: `llm_wiki_search` with `compact` set returns as many results as its
 `limit` asks for, or says plainly how to get the rest, instead of a first page
 of three that reads as the limit being ignored.
