@@ -1,12 +1,45 @@
 # Plan: Headroom/MCP Merge-Readiness Repairs
 
-Document Class: Plan
-Status: Implemented - host parity gate pending
-Note: The Headroom proxy carve-out portions of this plan are superseded by wiki/decisions/headroom-single-posture-mcp-first.decision.md (2026-06-30) and removed from the codebase in the no-legacy reduction; the proxy/router-bypass tasks and items have been stripped from this plan accordingly. The MCP-cutover, test-instance, and migration repairs here are unaffected and still stand.
-Date: 2026-06-23
-Updated: 2026-08-01
-Category: MCP cutover, test-instance safety, upgrade migration, release readiness
-Scope: Execute the repairs from `wiki/review/headroom-mcp-branch-merge-readiness.eval.md` before merging `impl/headroom-runtime-companion` as the no-legacy MCP cutover branch. Sources: `wiki/review/headroom-mcp-branch-merge-readiness.eval.md`; `wiki/plans/mcp-first-agent-surface.plan.md`; `wiki/evals/mcp-first-host-parity.eval.md`; `wiki/plans/harness-independent-wiki-read-tool.plan.md`; `wiki/decisions/test-instance-namespaced-binary.decision.md`; `wiki/evals/test-instance-live-session-proof.eval.md`; `wiki/roadmaps/cross-platform-release-e2e.roadmap.md`; `README.md`; `src/mcp/mod.rs`; `src/mcp_config.rs`; `src/install.rs`; `src/uninstall.rs`; `src/paths.rs`; `src/instance.rs`; `src/manifest/schema.rs`; `tests/mcp.rs`; `tests/mcp_install.rs`; `tests/install.rs`; `tests/post_install.rs`; `tests/status_doctor.rs`; `tests/identity_lint.rs`.
+- Document Class: Plan
+- Status: Blocked
+- Note: The Headroom proxy carve-out portions of this plan are superseded by wiki/decisions/headroom-single-posture-mcp-first.decision.md (2026-06-30) and removed from the codebase in the no-legacy reduction; the proxy/router-bypass tasks and items have been stripped from this plan accordingly. The MCP-cutover, test-instance, and migration repairs here are unaffected and still stand.
+- Date: 2026-06-23
+- Updated: 2026-10-06
+- Category: MCP cutover, test-instance safety, upgrade migration, release readiness
+- Scope: Execute the repairs from `wiki/review/headroom-mcp-branch-merge-readiness.eval.md` before merging `impl/headroom-runtime-companion` as the no-legacy MCP cutover branch.
+- Sources: `wiki/review/headroom-mcp-branch-merge-readiness.eval.md`; `wiki/plans/mcp-first-agent-surface.plan.md`; `wiki/evals/mcp-first-host-parity.eval.md`; `wiki/plans/harness-independent-wiki-read-tool.plan.md`; `wiki/decisions/test-instance-namespaced-binary.decision.md`; `wiki/evals/test-instance-live-session-proof.eval.md`; `wiki/roadmaps/cross-platform-release-e2e.roadmap.md`; `README.md`; `src/mcp/mod.rs`; `src/mcp_config.rs`; `src/install.rs`; `src/uninstall.rs`; `src/paths.rs`; `src/instance.rs`; `src/manifest/schema.rs`; `tests/mcp.rs`; `tests/mcp_install.rs`; `tests/install.rs`; `tests/post_install.rs`; `tests/status_doctor.rs`; `tests/identity_lint.rs`.
+
+## Where This Stands (2026-10-06)
+
+Done, with the evidence in "2026-06-23 Implementation Evidence" below, and on
+master:
+
+- Phase 0: the live test-instance run waited for Phase 1, and
+  `just test-instance-live-session-proof` passed once Phase 1 landed.
+- The code repairs of Phases 1 to 5 and 7.
+- Phase 8's 2026-06-23 bookkeeping: the review, eval, plan, index and log pages
+  record that evidence.
+
+Still pending, and the reason this plan is Blocked rather than Completed:
+
+- Phase 6, the clean no-skill host parity eval, and with it items 7 and 8 of the
+  "Final Merge Gate". `wiki/evals/mcp-first-host-parity.eval.md` is still
+  `Rejected`: query parity is proven on both harnesses, while the ingest or lint
+  mutation, search fallback/readiness and failure workflows are unrecorded (its
+  "Required Next Action", item 3).
+- The rest of Phase 8, which needs Phase 6's evidence: moving that eval to
+  `Accepted`, and closing `wiki/plans/harness-independent-wiki-read-tool.plan.md`
+  once its read-tool evidence is recorded.
+
+It waits on Phase 8, "Cross-Harness Parity Extension", of
+`wiki/plans/mcp-first-agent-guidance.plan.md` (Active), which reruns that eval on
+both harnesses from clean no-skill profiles with exactly these workflows. No
+roadmap entry names that rerun yet. This plan completes when the eval moves to
+`Accepted`, or when its remaining blocker is external and non-code.
+
+Not pending here: the native Linux, macOS and Windows release proofs, deferred
+to `wiki/roadmaps/cross-platform-release-e2e.roadmap.md` as item 9 of the
+"Final Merge Gate" allows.
 
 ## Objective
 
