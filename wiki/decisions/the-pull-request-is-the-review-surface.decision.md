@@ -5,16 +5,23 @@
 - Date: 2026-10-06
 - Category: Development process
 - Scope: Where a review lives, the blind feedback review every PR gets first,
-  what counts as the owner's verdict, and what a merge needs.
+  what counts as the owner's verdict, what a merge needs, and which branch a
+  PR goes into.
 - Sources:
   - The owner's decisions of 2026-10-06, and what riseon's blind reviews of
     that day found; a PASS given in conversation
   - RepForge's decision of the same name (2026-09-19, amended 2026-10-03 and
     2026-10-06), carried over through riseon
+  - The owner's decisions of 2026-10-06 on `develop`: "They take forever" (of
+    the full CI matrix); "I prefer the develop
+    branch with the merge the pr to master triggering the longer CI"; "a merge
+    into develop PR only triggers fast CI"; "all issues/PR should be pointing
+    at develop now"
 - Related:
   - `wiki/decisions/work-is-recorded-in-the-repository.decision.md`
   - `wiki/checklists/operation-manager.checklist.md`, "Landing A PR"
   - `.claude/skills/operations-start/base/blind-review.txt`
+  - `wiki/plans/develop-and-master-ci.plan.md` (which CI runs on which PR)
 
 ## Decision
 
@@ -41,13 +48,41 @@ a worker's report.
    merge, as `## PASS — <full sha>` saying so.
 4. **A merge needs the owner's PASS naming the PR's current head**, checked by
    the coordinator against the diff, and, for a PR whose kind has gates, the
-   full gates passed on that head. It is a squash merge pinned to that head.
+   full gates passed on that head. Every PR into `develop` or into an
+   integration branch is a squash merge pinned to that head.
 5. **A log PR gets no blind review.** It holds only the coordinator's record of
    merges already reviewed, which the coordinator checks line by line against
    GitHub and Git; the owner's PASS still decides it.
+6. **Work PRs go into `develop`; master takes `develop` only through a PR.**
+   `develop` is GitHub's default branch, and every work PR, log PR and
+   integration branch targets it. Master changes only by a PR from `develop`,
+   which runs the full CI and needs the owner's PASS on its head like any
+   other; it merges only once every job of the full CI passed on that head
+   (`gh pr checks <n>`). Decided by the owner on 2026-10-06: its head is
+   a branch cut from `develop` at a fixed commit, it gets no blind review,
+   since every change it carries had its own, and it merges with a merge
+   commit, not a squash, pinned to its head, with `develop` never deleted
+   ("How Develop Reaches Master" below).
+
+## How Develop Reaches Master
+
+Decided by the owner on 2026-10-06: the coordinator opens the
+  PR into master when the owner asks for it, from a branch cut from `develop`
+  at a fixed commit; it gets no blind review, and it merges with a merge
+  commit, never deleting `develop`. Why a fixed commit: `develop` keeps
+  moving while the PR waits, and a head that moves restarts the slow full CI
+  and leaves the owner's verdict on an older commit. Why a merge commit: a
+  squash would put on master one commit `develop` does not have, so the next
+  PR from `develop` would carry every earlier change again and conflict with
+  it; a merge commit keeps master's history a superset of `develop`'s. The steps are in
+  `wiki/checklists/operation-manager.checklist.md`, "Develop And Master".
 
 ## Why
 
+- **Work lands on `develop` so master only takes what passed the full CI**:
+  the full matrix takes too long for every work PR ("They take forever", the
+  owner, 2026-10-06), so work PRs get a fast check and the PR into master the
+  whole CI (`wiki/plans/develop-and-master-ci.plan.md`).
 - **A review nobody else can reach has the same value as no review.** In
   RepForge a 33-file review lived only in one worktree's terminal, so nothing
   showed the branch had been reviewed at all.

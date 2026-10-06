@@ -19,7 +19,7 @@ Out of scope:
 - <neighbouring issues that own nearby work, by number and what they do>
 - <work on hold, by name>
 
-Context (established by the coordinator on master <sha>; verify, don't rediscover):
+Context (established by the coordinator on develop <sha>; verify, don't rediscover):
 - Read first: `gh issue view <n> --comments`, its roadmap entry `<wiki/roadmaps/….roadmap.md, D<n>>` and, for code or tooling, its plan `<wiki/plans/….plan.md>`, then <any comment the issue rests on, with its link>.
 - <facts already found and checked: where things live, what an earlier attempt did, owner decisions with their date>
 
