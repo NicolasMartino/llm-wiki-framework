@@ -260,6 +260,12 @@ fn uninstall_without_manifest_still_clears_codex_and_staged_claude_config() {
         !staged_claude.exists(),
         "staged Claude MCP config must be cleaned up even without a manifest"
     );
+    // Uninstall removes everything install put in place, both binaries
+    // included, with or without a manifest.
+    let bin_dir = home.path().join(format!("{}/bin", managed_home_dir_name()));
+    assert!(!bin_dir.join(binary_name()).exists());
+    assert!(!bin_dir.join("poman").exists());
+    assert!(!bin_dir.exists());
 }
 
 #[test]
