@@ -1,7 +1,8 @@
 # Plan: The Workspace And The Strict Gates
 
 - Document Class: Plan
-- Status: Draft
+- Status: Active
+- Branch: `NicolasMartino/pm1-build-26`
 - Date: 2026-10-06
 - Category: poman development
 - Scope: Carry out PM1 of the poman roadmap: the shared library crate and the
