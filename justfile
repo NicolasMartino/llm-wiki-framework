@@ -250,12 +250,14 @@ branch-status:
     echo "status vocabulary"
     # `templates/base/project_guidelines.md` governs: Draft, Active, Blocked,
     # Completed, Superseded. A plan completed from now on also says where its
-    # proof holds, because "completed" alone is the question people ask.
+    # proof holds, because "completed" alone is the question people ask:
+    # `(develop)` once its PR merges into develop, `(master)` once that reaches
+    # master.
     while IFS= read -r plan; do
       st=$(plan_status "$plan")
       case "$st" in
         Draft|Active|Blocked|Superseded) ;;
-        "Completed (local)"|"Completed (master)"|"Completed (spike)") ;;
+        "Completed (local)"|"Completed (develop)"|"Completed (master)"|"Completed (spike)") ;;
         # Plans completed before 2026-10-06 say only "Completed".
         Completed) ;;
         *) say STALE "$(basename "$plan")" "not a plan status: '$st'" ;;

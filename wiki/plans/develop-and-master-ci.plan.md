@@ -30,20 +30,26 @@ A work PR into `develop` gets CI's answer in minutes, and master only takes
 
 - `develop` exists, cut from master at `dbe6dce`, and is GitHub's default
   branch.
-- `ci.yml` runs on every `pull_request` and on pushes to master: a test job
+
+### Before Issue #9
+
+The state the coordinator read, before this plan's PR changed it:
+
+- `ci.yml` ran on every `pull_request` and on pushes to master: a test job
   over `ubuntu-latest`, `ubuntu-24.04-arm`, `macos-13` and `macos-14`, and an
-  "unused dependencies" job. `release.yml` (cargo-dist) runs its plan job on
+  "unused dependencies" job. `release.yml` (cargo-dist) ran its plan job on
   every `pull_request`; `release-e2e-linux-amd64.yml` on PRs that touch code.
-- CI on master has been red since at least 2026-08-13 (`866a44f`), for three
+- CI on master had been red since at least 2026-08-13 (`866a44f`), for three
   reasons:
-  - `tests/post_install.rs:198`, `managed_binary_can_self_install`, times out
+  - `tests/post_install.rs:198`, `managed_binary_can_self_install`, timed out
     on the Linux jobs ("timed out waiting for …/.llm_wiki/bin/llm-wiki install
-    --skip-path-guidance --disable-llm-search"); `macos-14` fails too, cause
-    not read yet;
+    --skip-path-guidance --disable-llm-search"); `macos-14` failed too (its
+    cause is below);
   - the unused-dependencies job's `dtolnay/rust-toolchain@nightly-2026-05-01`
-    does not resolve;
-  - `macos-13` never gets a runner: it stays queued and is cancelled after a
-    day, so every run shows "queued" for a day. While a run is queued, its
+    did not resolve: a dated nightly is not an action ref, and the job now
+    names it through `dtolnay/rust-toolchain@master` with `toolchain:`;
+  - `macos-13` never got a runner: it stayed queued and was cancelled after a
+    day, so every run showed "queued" for a day. It is dropped. While a run is queued, its
     jobs' logs are readable only through
     `gh api --allow-escape-sequences repos/NicolasMartino/llm-wiki-framework/actions/jobs/<id>/logs`.
 
@@ -53,8 +59,8 @@ A work PR into `develop` gets CI's answer in minutes, and master only takes
   binary up to seven times in one self-install (three or four in a first
   install), and `sha2` was unoptimized in debug builds, where the binary is
   about 170 MB: about 3.4 s a hash on a laptop, more on a runner, against the
-  test's 30 s bound. Install now hashes the running binary once and reuses the
-  managed binary's hash from its preflight, and `sha2` builds at
+  test's 30 s bound. Install now hashes the running binary once and the
+  managed binary once (again only after copying over it), and `sha2` builds at
   `opt-level = 3` in the dev profile; a self-install under a temporary HOME
   went from 24 s to under 1 s. The 30 s bound is unchanged.
 - **`macos-14`:** CI never installed `cargo-insta`, so `cargo insta test`
@@ -70,8 +76,14 @@ A work PR into `develop` gets CI's answer in minutes, and master only takes
   has no setting for which PRs it runs on, so `pr-run-mode` is now `"skip"`
   and `release.yml` was regenerated (its `pull_request:` trigger is the only
   change). The release plan job no longer runs on PRs into master either, a
-  departure from the Target below, since it never got a runner there. The same
-  retired runner would stall a tag release: that is the owner's, left as is.
+  departure from the Target below that awaits the owner's go. The alternative
+  is to keep `pr-run-mode = "plan"` and give the plan job a current runner
+  through cargo-dist's `[workspace.metadata.dist.github-custom-runners]`
+  `global` setting, which would also unstall a tag release; releases are the
+  owner's, so that is left to them.
+- **`just branch-status`** names `develop` as the base, and accepts
+  `Completed (develop)`, the status a plan takes when its PR merges into
+  `develop`.
 - **Two tests stay ignored, as they were:** `tests/gguf_cpu_smoke.rs` and
   `tests/natural_language_search_eval.rs` need managed model artifacts under
   `~/.llm_wiki`, and are run by hand.
@@ -86,8 +98,7 @@ A work PR into `develop` gets CI's answer in minutes, and master only takes
   (`ubuntu-latest`, `ubuntu-24.04-arm`, `macos-14`, each `just verify` and
   `just coverage`; the unused-dependencies job on `nightly-2026-05-01`) and the
   release E2E on PRs into master that touch code. On any other branch:
-  `gh workflow run CI --ref <branch>`, once `ci.yml` with `workflow_dispatch`
-  is on `develop`.
+  `gh workflow run CI --ref <branch>`.
 
 ## Target
 
