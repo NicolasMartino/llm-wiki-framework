@@ -1077,15 +1077,15 @@ Proof:
 
 Status: Active
 Promise: Any project can set up the coordinated way of working from llm-wiki
-itself: an init pack (proposed as `operation-manager`, beside the existing
-`ops` pack; the owner settles the name) holds the kit's files, and an
+itself: an `operation-manager` init pack (beside the existing `ops` pack;
+named by the owner on 2026-10-06) holds the kit's files, and an
 `operations_setup` MCP prompt holds the steps, so a host like Claude Code runs
 it as a slash command (`/mcp__llm-wiki__operations_setup`) next to the wiki
 prompts.
 Depends On: P18
-Execution Plan: Not created yet (the proposal
-`wiki/proposals/operations-setup-in-llm-wiki.proposal.md` first, for the owner
-to accept)
+Execution Plan: `wiki/plans/operations-setup-in-llm-wiki.plan.md` (Draft, for
+the owner to approve), from the accepted proposal
+`wiki/proposals/operations-setup-in-llm-wiki.proposal.md`
 
 Included:
 - the owner's decision of 2026-10-06 to propose it ("I think we should propose
@@ -1100,6 +1100,9 @@ Included:
 - the owner accepting the proposal and answering its open choices (when to
   build, where the kit's AGENTS sections go, the pack's name): the first
   step, not the end of P19
+- a marked block in `AGENTS.md` that init owns and refreshes, leaving the
+  rest of the file to the project (the owner's answer of 2026-10-06), built
+  first by P19's plan
 - the pack, the prompt and its built-in resource, built by P19's plan
 
 Excluded:
@@ -1109,7 +1112,8 @@ Proof:
 - on a fresh project, `llm-wiki init` and then the `operations_setup` prompt
   in an interactive Claude Code session write the fitted kit, which passes the
   setup's tests and comes back from its blind review with no P1 or P2
-- a rerun of `llm-wiki init` leaves every kit file as it was
+- a rerun of `llm-wiki init` leaves every kit file, and every byte outside
+  init's block, as it was
 
 ### P20 - Search After Edits In A Worktree
 
