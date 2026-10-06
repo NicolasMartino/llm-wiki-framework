@@ -1,5 +1,17 @@
 # Wiki Log
 
+## [2026-10-06] update | Development workflow setup closed
+
+Closed the one-time setup of the coordinated way of working (#1): the board
+(GitHub project 5) shows the plan statuses, wiki search works in this
+repository and in each worker's worktree, work lands on `develop` with a fast
+check while the full CI runs on the way to master, and the first four PRs (#6,
+#8, #11, #12) landed through one blind review, a fix round and the owner's
+PASS. `just branch-status` runs clean. The setup plan records how it went.
+
+Pages affected: `wiki/plans/development-workflow-setup.plan.md`,
+`wiki/roadmaps/framework-v1.roadmap.md`, `wiki/index.md`, `wiki/log.md`.
+
 ## [2026-10-06] create | Development workflow: plans as the record, a board as their view, one blind review per PR
 
 Started the coordinated way of working carried over from RepForge and riseon,

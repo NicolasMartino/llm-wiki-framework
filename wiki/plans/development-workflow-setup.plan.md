@@ -1,7 +1,7 @@
 # Development Workflow Setup
 
 - Document Class: Plan
-- Status: Draft
+- Status: Completed (develop)
 - Date: 2026-10-06
 - Category: Development process
 - Scope: The one-time steps that start this repository's way of working: the
@@ -19,6 +19,27 @@
 - Related:
   - `wiki/checklists/operation-manager.checklist.md`
   - `wiki/decisions/work-is-recorded-in-the-repository.decision.md`
+
+## How It Went (2026-10-06)
+
+Done in one day, with these changes to the steps below, each the owner's:
+
+- **Pushes go through `gh`** (step 1): SSH to GitHub failed from the
+  coordinating session, so `origin` became HTTPS, which `gh` serves.
+- **The board's ids landed early** (step 3), so workers started during step 7
+  did not read "Not set yet".
+- **The source material for poman's design stays outside this repository**
+  (step 7); poman's decisions cite the owner's decisions of 2026-10-06.
+- **Work moved onto `develop`** the same day: `develop` became GitHub's default
+  branch, with a fast check on PRs into it and the full CI on the way to master
+  (`wiki/plans/develop-and-master-ci.plan.md`), and the way of working was
+  pointed at it (framework-v1 roadmap, P11).
+- **The first PRs landed** through one blind review, a fix round and the
+  owner's PASS: the plan statuses (#6), poman's decisions and roadmap (#8),
+  the way of working on `develop` (#11) and the develop and master CI (#12).
+- **Left for later:** the board's automations are the owner's to switch on in
+  the browser (step 3); the other first work is in the framework-v1 roadmap's
+  backlog.
 
 ## Before You Start
 
