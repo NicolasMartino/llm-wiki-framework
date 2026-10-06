@@ -845,3 +845,27 @@ Included:
 Proof:
 - each recipe runs and produces its output, or it no longer exists and no page
   names it
+
+### P9 - Search Ranks A Page's Own Title Low
+
+Status: Draft
+Promise: A lexical search for a page's own title finds that page first, or the
+reason it cannot is known and written down.
+Depends On: None
+Execution Plan: Not needed (an investigation first; any fix gets its own plan)
+
+Included:
+- the case found on 2026-10-06 in this repository: `llm-wiki search "operation
+  manager" --mode lexical` ranks the page titled "Operation Manager"
+  (`wiki/checklists/operation-manager.checklist.md`) fourth, with every result
+  scoring 0.000, and "operation manager checklist" leaves it out of the top
+  three
+- why the scores collapse to zero, and whether a page's title weighs in the
+  ranking at all
+
+Excluded:
+- semantic and hybrid search, unless the cause is shared
+
+Proof:
+- a comment on its issue giving the cause, or every cause ruled out, each
+  number with the command that produced it

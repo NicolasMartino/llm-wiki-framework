@@ -36,7 +36,7 @@ Updated: 2026-08-01
 
 ## Roadmaps
 
-- [Framework V1](roadmaps/framework-v1.roadmap.md) — Active — Framework deliverables through D11 plus D4-D7 proof gates are completed; post-V1 P1 semantic/hybrid search and P2 sandbox-safe search cache reads are completed; P3 now points to the active cross-platform release E2E roadmap; P4 (the coordinated development workflow) is Active, and P5 to P8 (poman's decisions and roadmap, plan statuses, install download progress, build-skills recipes) are Draft
+- [Framework V1](roadmaps/framework-v1.roadmap.md) — Active — Framework deliverables through D11 plus D4-D7 proof gates are completed; post-V1 P1 semantic/hybrid search and P2 sandbox-safe search cache reads are completed; P3 now points to the active cross-platform release E2E roadmap; P4 (the coordinated development workflow) is Active, and P5 to P8 (poman's decisions and roadmap, plan statuses, install download progress, build-skills recipes) are Draft; P9 (search ranking a page's own title low) is Draft
 - [Cross-Platform Release E2E](roadmaps/cross-platform-release-e2e.roadmap.md) — Active — Coordinates post-V1 release-platform deliverables: completed release E2E runner and Linux Docker archive simulation, active native Linux amd64 proof, draft macOS archive proof, draft Windows runtime/artifact and host E2E proof, draft GGUF CPU release proof, and a future release evidence gate
 
 ## References
