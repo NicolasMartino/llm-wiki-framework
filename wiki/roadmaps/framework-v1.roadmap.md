@@ -1021,3 +1021,25 @@ Excluded:
 
 Proof:
 - the plan's Done When
+
+### P17 - Compact Search Pages Follow The Limit
+
+Status: Draft
+Promise: `llm_wiki_search` in compact mode returns as many results as its
+`limit` asks for by default, and says plainly when more exist.
+Depends On: P15
+Execution Plan: Not created yet (a short plan comes before its worker; the
+plan's PR also marks P15 Completed, its answer having landed)
+
+Included:
+- the fix the investigation of P15 named (issue #24, comment of 2026-10-06):
+  the compact page size defaults to `limit` instead of the constant 3
+  (`src/search/commands.rs`, `DEFAULT_COMPACT_SEARCH_PAGE_SIZE`), the reply
+  says when more results exist, both documented in the MCP tool's schema and
+  the spec, with a test
+
+Excluded:
+- ranking (P16)
+
+Proof:
+- the plan's Done When
