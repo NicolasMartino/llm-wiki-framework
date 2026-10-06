@@ -85,7 +85,7 @@ Promise: The field-block parser lives in the shared crate, and llm-wiki's
 document types are defined there with their fields and statuses, so llm-wiki
 and poman read pages one way.
 Depends On: PM1
-Execution Plan: Not created yet
+Execution Plan: `wiki/plans/poman-shared-page-reader-and-types.plan.md`
 
 Included:
 - `parse_wiki_metadata` (today `src/search/metadata.rs`) moved into the shared

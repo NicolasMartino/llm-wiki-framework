@@ -121,6 +121,7 @@ Plan note: `wiki/evals/headroom-0-32-managed-0-2-13-field-test.eval.md` is now t
 - [Development Workflow Setup](plans/development-workflow-setup.plan.md) — Completed (develop) — The record of how the coordinated way of working was started on 2026-10-06: the first commit, the board and its ids, wiki search for this repository and its worktrees, Orca, the first roadmap entries, and the move onto `develop`
 - [A Fast Check On Develop, The Full CI On The Way To Master](plans/develop-and-master-ci.plan.md) — Completed (develop) — Work PRs into `develop` run one fast Linux check; the PR from `develop` into master and master run the full matrix; fixes the three reasons master's CI is red; `just branch-status` reports against `develop`
 - [The Workspace And The Strict Gates](plans/poman-workspace-and-strict-gates.plan.md) — Completed (develop) — poman PM1: the shared crate and the `poman` crate in this workspace, every gate of the strictest-gates decision run by one gate script, `llm-wiki install` copying poman from beside itself, and one local release build holding both binaries
+- [The Shared Page Reader And File Types](plans/poman-shared-page-reader-and-types.plan.md) — Draft — poman PM2: the page reader moved into `llm-wiki-core` under the strictest gates with a wiki view for search and a bullet-block view for poman, llm-wiki's nine document types defined there, init scaffolding from them, search and init proved unchanged and the definitions checked against the guidelines; three choices left to the owner
 
 ## Experiments
 
