@@ -99,7 +99,10 @@ becomes a roadmap entry and an issue, not a workaround.
 - **No mention of AI, models, agents or the tools that do the work in commit
   messages or on GitHub** (titles, bodies, comments, and folder names quoted in
   them): no footer, no trailer, no "Generated with", no Co-Authored-By, no
-  local paths. Why: the owner wants the project record free of them; riseon
+  local paths. This repository's skills folder is named after a tool, so on
+  GitHub it is "the operations skills", and its files are named by what they
+  are ("the start skill", "the workers' shared rules"), never by path. Why:
+  the owner wants the project record free of them; riseon
   first committed a folder named after a tool and it showed up in two issue
   bodies, whose edit history GitHub keeps. Backstops: `.githooks/commit-msg`
   strips the usual trailers, and `.claude/settings.json` turns Claude Code's
