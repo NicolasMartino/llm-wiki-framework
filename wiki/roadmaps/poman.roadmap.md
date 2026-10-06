@@ -60,10 +60,10 @@ Included:
   `uninstall` removing it
 - one release shipping both binaries
 - the shared crate's name
-- where `llm-wiki install` gets poman for each of its channels (a release
-  archive, `cargo install llm-wiki-rs`, a binary run from anywhere): open
-  today, and `wiki/decisions/llm-wiki-binary-distribution.decision.md` is
-  amended to match
+- `llm-wiki install` getting poman as
+  `poman-lives-in-this-workspace.decision.md`, "Where `llm-wiki install` gets
+  poman", sets it (the owner's decisions, 2026-10-06), and what it says when
+  no poman sits beside it
 
 Excluded:
 - moving the parser (PM2)
@@ -128,14 +128,13 @@ Included:
   itself, and no loop forms
 - whether a deadline file also carries the wiki's metadata fields, and whether
   it is listed in `wiki/index.md` or exempt from the orphan check (open)
-- deadline files landing straight on master against `AGENTS.MD`,
-  `agent-owns-wiki.decision.md` and
-  `the-pull-request-is-the-review-surface.decision.md` (open; the deadline
-  decision, "Consequences"): settled with the owner before any deadline file
-  lands
+- the landing branch, master by default and settable, as
+  `deadline-files-hold-one-deadline-each.decision.md`, "How the files land",
+  sets it (the owner's decisions, 2026-10-06); where and how a repository
+  sets it is open, and PM3's plan decides it
 
 Excluded:
-- the start date's importance buffer (PM7)
+- the importance buffer in `should-start` (PM7)
 - showing the files (PM5)
 
 Proof:
@@ -148,32 +147,30 @@ Proof:
 ### PM4 - Where poman check Runs
 
 Status: Draft
-Promise: A deadline file that `poman check` refuses is caught as close to its
-landing as the chosen means allow, although such files land with no pull
-request: the tracker never shows it, and, by the options chosen, a local hook
-stops it for those who enable it, or a check on GitHub's side flags it once it
-is on master.
-Depends On: PM3
+Promise: A deadline file that `poman check` refuses is caught in the three
+places the deadline decision, "How the files land", names (the owner's
+decisions, 2026-10-06), although such files land with no pull request: a
+pre-push hook stops it for those who turn it on, `poman push` keeps it off the
+tracker, and CI flags it once it is on the landing branch.
+Depends On: PM3; PM6 for the `poman push` refusal
 Execution Plan: Not created yet
 
 Included:
-- the choice, open today, among:
-  - a pre-push hook, which runs only where it is enabled
-    (`core.hooksPath`) and is skipped by `git push --no-verify`;
-  - `poman push` refusing while the check fails, which keeps the file off the
-    tracker but not off master;
-  - a check on GitHub's side: `poman check` in the CI that already runs on
-    every push to master, which flags the file after it lands
-- the change that puts it in place
+- the opt-in pre-push hook, which runs only where it is turned on
+  (`core.hooksPath`) and is skipped by `git push --no-verify`
+- `poman push` refusing while the check fails, which keeps the file off the
+  tracker but not off the branch
+- `poman check` in CI on every push to the landing branch, which flags the
+  file after it lands
 
 Excluded:
 - checks on any change that goes through a pull request, which CI already
   runs
 
 Proof:
-- for each means chosen, a malformed deadline file is caught as that means
-  promises: refused by the hook, refused by `poman push`, or a failed CI run
-  on master
+- a malformed deadline file is caught in each place as it promises: refused
+  by the hook, refused by `poman push`, and a failed CI run on the landing
+  branch
 
 ---
 
@@ -195,7 +192,7 @@ Included:
   selects
 
 Excluded:
-- the sort by start date in full, which needs the buffer (PM7)
+- the sort by `should-start` in full, which needs the buffer (PM7)
 
 Proof:
 - both commands on a fixture of deadline files with shared blockers, a loop
@@ -216,6 +213,9 @@ Included:
 - poman's tracker-free model: items, links, the board, the mirror and the
   changeset, and their formats
 - the adapter boundary, and the GitHub adapter behind it
+- `poman push` refusing while `poman check` fails
+  (`deadline-files-hold-one-deadline-each.decision.md`, "How the files land"),
+  which PM4 then proves
 - the GitHub adapter's API choice, open today: the proposal is octocrab
   for the REST API and graphql_client for the board's GraphQL API, a token
   from `GITHUB_TOKEN` else `gh`'s, and tests that never touch the real GitHub
@@ -245,15 +245,17 @@ Depends On: PM3; PM6 for showing the forecast on the tracker
 Execution Plan: Not created yet (one plan per part, in the order below)
 
 Included:
-- the forecast: the 15-day window, the importance buffer's exact rule (open
-  today), the start-date rule's handling of blockers (open today: the deadline
-  decision, "The start date", recommends a latest finish date per blocker),
-  and the "still not done" nudge for important items with no deadline
+- the forecast: the 15-day window, `should-start` computed backwards through
+  the blockers as the deadline decision, "should-start", sets it (the owner's
+  decisions, 2026-10-06), whether a latest finish means done before that day
+  starts or by its end (open today), the importance buffer's exact rule (open
+  today), and
+  the "still not done" nudge for important items with no deadline
 - recurring deadlines: a later type whose occurrences are deadline files named
   by period, one file per occurrence; conditions on a recurrence (only above
   a threshold, only if some event happens)
 - absences, declared in the repository, and public holidays with them
-  (`deadline-files-hold-one-deadline-each.decision.md`, "The start date")
+  (`deadline-files-hold-one-deadline-each.decision.md`, "should-start")
 - the morning run: a local scheduled job
 
 Excluded:

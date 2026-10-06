@@ -26,7 +26,7 @@ take the same filters.**
     `cargo tree` does.
   - `--invert` turns the tree upside down.
   - It draws every reference field a type defines, not only "Blocked by".
-- **`poman list`** gives a flat list, sorted by start date once the forecast
+- **`poman list`** gives a flat list, sorted by `should-start` once the forecast
   exists.
 - **Shared filters:**
   - `--type`, one type or several comma-separated (the owner's addition); an
@@ -42,13 +42,13 @@ take the same filters.**
 - **The reference fields are a graph, and a tree is how people read one**;
   marking repeats like `cargo tree` keeps a shared blocker from being drawn
   twice in full.
-- **A flat list sorted by start date** answers "what do I start next".
+- **A flat list sorted by `should-start`** answers "what do I start next".
 - **One set of filters** for both commands keeps them easy to learn.
 - **`check` checks everything**, so a filter cannot hide a broken file.
 
 ## Consequences
 
-- The sort by start date waits on the forecast (PM7); until then `poman list`
+- The sort by `should-start` waits on the forecast (PM7); until then `poman list`
   sorts by another key, which PM5 picks.
 - What `--ready` selects exactly is not written down yet; PM5 writes it
   down.
