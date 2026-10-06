@@ -1075,13 +1075,17 @@ Proof:
 
 ### P19 - The Operations Setup Ships With llm-wiki
 
-Status: Draft
+Status: Active
 Promise: Any project can set up the coordinated way of working from llm-wiki
-itself: an `operations` pack holds the kit's files, and an `operations_setup`
-MCP prompt holds the steps, so a host like Claude Code runs it as a slash
-command (`/mcp__llm-wiki__operations_setup`) next to the wiki prompts.
+itself: an init pack (proposed as `operation-manager`, beside the existing
+`ops` pack; the owner settles the name) holds the kit's files, and an
+`operations_setup` MCP prompt holds the steps, so a host like Claude Code runs
+it as a slash command (`/mcp__llm-wiki__operations_setup`) next to the wiki
+prompts.
 Depends On: P18
-Execution Plan: Not created yet (a proposal first, for the owner to accept)
+Execution Plan: Not created yet (the proposal
+`wiki/proposals/operations-setup-in-llm-wiki.proposal.md` first, for the owner
+to accept)
 
 Included:
 - the owner's decision of 2026-10-06 to propose it ("I think we should propose
@@ -1092,13 +1096,20 @@ Included:
 - how it fits llm-wiki's no-shipped-skills posture
   (`wiki/decisions/skill-projection-template-engine.decision.md` is
   superseded) and the existing MCP prompts (`wiki_query`, `wiki_ingest`,
-  `wiki_lint`, `wiki_research`)
+  `wiki_lint`, `wiki_research`, `wiki_init`)
+- the owner accepting the proposal and answering its open choices (when to
+  build, where the kit's AGENTS sections go, the pack's name): the first
+  step, not the end of P19
+- the pack, the prompt and its built-in resource, built by P19's plan
 
 Excluded:
-- building it, until the proposal is accepted
+- building it before the proposal is accepted and the plan is written
 
 Proof:
-- the proposal is accepted by the owner
+- on a fresh project, `llm-wiki init` and then the `operations_setup` prompt
+  in an interactive Claude Code session write the fitted kit, which passes the
+  setup's tests and comes back from its blind review with no P1 or P2
+- a rerun of `llm-wiki init` leaves every kit file as it was
 
 ### P20 - Search After Edits In A Worktree
 
