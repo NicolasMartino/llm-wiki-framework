@@ -1632,8 +1632,8 @@ Visible calibration evidence.",
 
     #[test]
     fn fixed_eval_queries_keep_expected_targets_in_top_two() {
-        let repo = Path::new(env!("CARGO_MANIFEST_DIR"));
-        let wiki = repo.join("wiki");
+        // A frozen copy, so the test fails when search gets worse, not when the live wiki grows.
+        let wiki = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/search-eval/wiki");
         let temp = tempfile::TempDir::new().expect("tempdir");
         let store = temp.path().join("qmd-rs.sqlite");
         let backend = QmdRsBackend::new();
