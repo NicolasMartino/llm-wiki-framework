@@ -1,8 +1,7 @@
 # Plan: The Workspace And The Strict Gates
 
 - Document Class: Plan
-- Status: Active
-- Branch: `NicolasMartino/pm1-build-26`
+- Status: Completed (develop)
 - Date: 2026-10-06
 - Category: poman development
 - Scope: Carry out PM1 of the poman roadmap: the shared library crate and the
@@ -56,7 +55,7 @@ with one binary, and `uninstall` keeping the binary unless
   (`[workspace.lints]`), which llm-wiki-rs does not take yet (PM8).
 - **The gates:** `tools/strict-gates.sh` (`just strict`) runs every gate of the
   decision over the two crates, in the fast check and the full CI; each
-  deliberate slip of phase 2 failed its gate (PR #28). The dated nightly is
+  deliberate slip of phase 2 failed its gate, shown in PR #28's "Gates". The dated nightly is
   named in `tools/udeps-nightly` (`nightly-2026-10-01`). cargo-deny 0.20.2
   leaves dev-dependencies out of the graph it checks, so the deny gate covers
   the crates' normal and build dependencies.

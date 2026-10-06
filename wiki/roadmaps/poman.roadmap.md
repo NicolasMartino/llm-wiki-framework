@@ -45,7 +45,7 @@ boards on PM6, their recurring deadlines on PM7.
 
 ### PM1 - The Workspace And The Strict Gates
 
-Status: Active
+Status: Completed (develop)
 Promise: The shared crate and the poman crate exist in this workspace, both
 held to the strictest gates from their first commit; `llm-wiki install`
 installs poman; one release ships both binaries.
