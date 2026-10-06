@@ -1099,3 +1099,26 @@ Excluded:
 
 Proof:
 - the proposal is accepted by the owner
+
+### P20 - Search After Edits In A Worktree
+
+Status: Draft
+Promise: A worker that edits wiki pages in its worktree and then searches gets
+answers from the pages as they are, or a plain instruction it can follow,
+instead of results from the index built when the worktree was made.
+Depends On: None
+Execution Plan: Not needed (an investigation first; any fix gets its own plan)
+
+Included:
+- the case met twice on 2026-10-06: after editing pages in a fresh worker
+  worktree, `llm_wiki_search` answered from the stale index with only a
+  warning
+- whether search should rebuild a small word-match index itself when it is
+  stale, or say exactly which command to run, and what that costs
+
+Excluded:
+- the meaning-based index of the main checkout
+
+Proof:
+- a comment on its issue giving the cause and the fix to make, each claim with
+  the command that showed it
