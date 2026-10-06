@@ -21,13 +21,15 @@ hears why. Workers are released when their report is read, not here
    pushed. If it did not run (a PR from outside a worker, say), start it now
    with the command in the checklist, "Landing A PR", then give its P1s and P2s
    to one fix round (checklist, "Starting A Worker", "A fix round"). A log PR
-   gets no blind review.
+   gets no blind review, nor does the PR from `develop` into master.
 2. **The gate check** (kinds with the full gates; a wiki or log PR skips the
    local part). Read the `just verify` log raw: every step ran and passed,
    nothing skipped. The `## Full gate run — <sha>` comment names the PR's
    current head (`gh pr view <n> --json headRefOid`), and CI passed on that head
    (`gh pr checks <n>`). Anything else: the PR stays draft, and a fix round
-   fixes it; a skip is not a pass.
+   fixes it; a skip is not a pass. The PR from `develop` into master has only
+   the CI part: every job of the full CI passed on its head, with no
+   `## Full gate run` comment expected (checklist, "Develop And Master").
 3. **Ready.** If the PR is draft (`gh pr view <n> --json isDraft`),
    `gh pr ready <n>`, then tell the owner it waits for them, by name.
 4. **The verdict.** The owner brings it: a PR comment whose heading contains
@@ -46,20 +48,26 @@ hears why. Workers are released when their report is read, not here
 6. **Merge.**
 
    ```bash
-   gh pr merge <n> --squash --match-head-commit <full sha> --delete-branch
+   gh pr merge <n> --squash --match-head-commit <full sha> --delete-branch \
+     --subject "<the PR title> (#<n>)"
    ```
 
-   The full SHA, not a short one. One at a time; before the next, wait for its
+   The full SHA, not a short one. `--subject` because a one-commit PR would
+   otherwise squash under its commit's title, not the PR's. One at a time; before the next, wait for its
    `mergeable` to leave UNKNOWN. Then check the issue closed
-   (`gh issue view <issue> --json state`), and close it with a pointer to the
-   PR if it did not.
+   (`gh issue view <issue> --json state`; GitHub closes it on a merge into
+   `develop`, its default branch), and close it with a pointer to the PR if it
+   did not. The PR from `develop` into master merges with a merge commit
+   instead (checklist, "Develop And Master").
 7. **The log and the status.** Add the merge's entry at the top of
-   `wiki/log.md` in this wiki's format, mark its plan `Completed (master)`
-   with the Branch line removed, and update its roadmap entry, all in a log PR
+   `wiki/log.md` in this wiki's format, mark its plan Completed (the word after
+   it is in the checklist, "The Board") with the Branch line removed, and update its roadmap entry, all in a log PR
    (checklist, "Landing A PR", has the commands); land that PR by these same
    steps when it is ready. Then the issue to Completed on the board, and any
    plan it blocked: unblock it in the repository first, then on the board. Not
-   for a log PR itself, nor for a piece merged into an integration branch.
+   for a log PR itself, nor for a piece merged into an integration branch. The
+   PR from `develop` into master gets one entry and changes no status
+   (checklist, "Develop And Master").
 8. **Clean up.** The PR's worker and its reviewer were released when their
    reports were read; check
    `orca orchestration worker-list --run <R> --terminal-state reclaimable --json`

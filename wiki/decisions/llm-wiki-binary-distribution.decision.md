@@ -8,7 +8,7 @@
 - Sources: wiki/proposals/llm-wiki-binary.proposal.md, wiki/archive/single-source-skills.decision.md, wiki/archive/framework-path-resolution.decision.md, wiki/archive/project-local-codex-skills.decision.md, review.md §9-10, wiki/log.md (line-loss audit, 2026-05-06)
 - Related: wiki/roadmaps/framework-v1.roadmap.md (D8, D8.1, D11), wiki/specs/wiki-init-skill.spec.md, wiki/specs/documentation-model.spec.md, wiki/decisions/binary-path-bootstrap.decision.md
 - Supersedes: wiki/archive/single-source-skills.decision.md, wiki/archive/framework-path-resolution.decision.md, wiki/archive/project-local-codex-skills.decision.md, wiki/archive/single-source-skills.plan.md
-- Amended By: wiki/decisions/binary-path-bootstrap.decision.md
+- Amended By: wiki/decisions/binary-path-bootstrap.decision.md, wiki/decisions/poman-lives-in-this-workspace.decision.md (a second binary, poman, shipped in the same release archive and copied in by `llm-wiki install`; that page's "Where `llm-wiki install` gets poman" holds the rule)
 
 ## Choice
 

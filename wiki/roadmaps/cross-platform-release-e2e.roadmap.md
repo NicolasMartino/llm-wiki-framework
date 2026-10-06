@@ -30,6 +30,8 @@ The roadmap separates proof types:
 3. Emulated Docker runs are packaging smoke only.
 4. Windows support remains unproven until Windows-specific path, shell,
    artifact, and E2E gates pass on a Windows host, VM, or CI runner.
+   Once they pass, a Windows job joins the full CI that runs on PRs into
+   master (the owner, 2026-10-06), not before.
 5. GGUF semantic/hybrid support remains unproven for a platform until a real
    managed-model CPU release proof passes for that platform.
 

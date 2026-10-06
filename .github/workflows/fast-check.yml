@@ -1,0 +1,26 @@
+name: Fast Check
+
+# Work PRs into develop, and their merges there, get one fast Linux check:
+# `just fast-check`, which is `just verify` without the slow test files. The
+# full CI (ci.yml) runs everything on the way to master.
+on:
+  pull_request:
+    branches: [develop]
+  push:
+    branches: [develop]
+
+jobs:
+  fast-check:
+    name: just fast-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just,cargo-insta,ripgrep
+      - name: Fast check
+        run: just fast-check

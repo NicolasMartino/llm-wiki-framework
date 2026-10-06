@@ -60,10 +60,10 @@ worker briefs checklist.
    `facts-helper-prompt.md`, `<n>` filled. Check each fact it returns yourself
    (open the link, run the command) before it goes into Context; drop what you
    cannot confirm.
-5. **The spec.** Bring the main checkout's master up to date first
-   (`git fetch origin && git merge --ff-only origin/master`). Write the spec
-   from `spec-template.md` into a file in your scratchpad, Goal to Done when,
-   with that master SHA in Context. Then paste under it, unchanged, the kind's
+5. **The spec.** Bring the main checkout's `develop` up to date first (on
+   `develop`: `git fetch origin && git merge --ff-only origin/develop`). Write
+   the spec from `spec-template.md` into a file in your scratchpad, Goal to
+   Done when, with that `develop` SHA in Context. Then paste under it, unchanged, the kind's
    base text and the shared parts its last line names, in that order:
 
    ```bash
@@ -74,9 +74,10 @@ worker briefs checklist.
    (run from the repository root; both spec files in your scratchpad, never in
    the repository). Read the result through once.
 6. **The checklist.** Every item, every start:
-   - **Base branch:** `--base-branch master` (or the integration branch the
-     spec names) on a new-child worktree, local master fast-forwarded first,
-     and that SHA in the spec's Context.
+   - **Base branch:** `--base-branch develop` (or the integration branch the
+     spec names), never master, on a new-child worktree, local `develop`
+     fast-forwarded first, and that SHA in the spec's Context. The PR goes
+     into `develop` (or that integration branch).
    - **The gates line:** a code or tooling kind has `full-gates.txt`; a wiki
      PR has `wiki-only.txt`; a design with the owner or an investigation has
      `no-file-changes.txt`. Each kind's last line names its parts.
@@ -96,7 +97,7 @@ worker briefs checklist.
    ```bash
    orca orchestration worker-start --run <R> --spec "$(cat <full spec file>)" \
      --task-title "<title>" --agent claude --model <opus|sonnet> --effort <medium|high> \
-     --worktree new-child --base-branch master --name <slug> \
+     --worktree new-child --base-branch develop --name <slug> \
      --display-name "<Track> · #<issue> <kind>" --json
    ```
 
@@ -106,8 +107,8 @@ worker briefs checklist.
    `git -C <worktree> log --oneline -1` shows the SHA in the spec.
 8. **The status.** For code or tooling, in the main checkout: the plan's
    `- Status: Active` with `- Branch: \`<the worker's branch>\`` under it, and
-   the roadmap entry's status, as a status-only commit pushed straight to
-   master ("Wiki: Mark <plan> Active"; checklist, "The Board"). Then the issue
+   the roadmap entry's status, as a status-only commit on `develop` pushed
+   straight to `develop` ("Wiki: Mark <plan> Active"; checklist, "The Board"). Then the issue
    to Active on the board, any "(blocked: …)" note off its title. A fix round
    changes no status. Tell the owner in one line: the work by name, the kind,
    the tier.

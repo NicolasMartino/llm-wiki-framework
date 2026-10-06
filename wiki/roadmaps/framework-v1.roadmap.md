@@ -704,7 +704,7 @@ Unlocks:
 
 ### P4 - Coordinated Development Workflow
 
-Status: Active
+Status: Completed (develop)
 Promise: This repository is worked on the way the owner decided on
 2026-10-06: the owner decides, a coordinating session keeps the roadmaps, the
 plans and the board true and starts the workers, every PR gets one blind
@@ -746,7 +746,7 @@ Unlocks:
 
 ### P5 - poman's Decisions And Roadmap
 
-Status: Active
+Status: Completed (develop)
 Promise: The owner's settled decisions for poman, the project-management
 binary, are wiki decision pages, and their order is a poman roadmap the owner
 has approved, so no poman work starts from a conversation.
@@ -785,7 +785,7 @@ Unlocks:
 
 ### P6 - Plan Statuses In The Vocabulary
 
-Status: Active
+Status: Completed (develop)
 Promise: Every plan's `- Status:` line uses the plan vocabulary (Draft,
 Active, Blocked, Completed, Superseded), with what is still pending written in
 its body, so `just branch-status` can pass.
@@ -848,7 +848,7 @@ Proof:
 
 ### P9 - Search Ranks A Page's Own Title Low
 
-Status: Draft
+Status: Completed (develop)
 Promise: A lexical search for a page's own title finds that page first, or the
 reason it cannot is known and written down.
 Depends On: None
@@ -869,3 +869,155 @@ Excluded:
 Proof:
 - a comment on its issue giving the cause, or every cause ruled out, each
   number with the command that produced it
+
+### P10 - A Fast Check On Develop, The Full CI On The Way To Master
+
+Status: Completed (develop)
+Promise: Work lands on `develop`. A PR into `develop`, and its merge there,
+run one fast Linux check; only the PR from `develop` into master, and master
+itself, run the full CI. Both are green.
+Depends On: None
+Execution Plan: wiki/plans/develop-and-master-ci.plan.md
+
+Included:
+- the `develop` branch, cut from master on 2026-10-06 and made GitHub's
+  default branch (the owner, 2026-10-06)
+- the CI split by target branch, and the three reasons master's CI is red
+- `just branch-status` taking `develop` as the base
+
+Excluded:
+- releases, tags and the post-install workflow
+- the rules and pages that still say "master" (P11)
+
+Proof:
+- the plan's Done When
+
+### P11 - The Way Of Working Points At Develop
+
+Status: Completed (develop)
+Promise: Every rule, brief and skill of the way of working says where work
+lands now: work PRs into `develop`, and master only through a PR from
+`develop` with the full CI and the owner's PASS.
+Depends On: None
+Execution Plan: Not needed (wiki-only work)
+
+Included:
+- the three workflow decisions, the two checklists, the worker base texts, the
+  spec template and the operations skills
+- what "Completed (master)" becomes, where the log entry is written (per merge
+  into `develop`, and for the PR into master), and when `develop` goes to master
+- the setup plan's and AGENTS.MD's lines, proposed for the coordinator to apply
+
+Excluded:
+- CI and `just branch-status` (P10)
+
+Proof:
+- no page of the way of working tells a worker or the coordinator to branch
+  from, target or merge into master, except for the PR from `develop`
+
+### P12 - The Release Workflow Off The Retired Runner
+
+Status: Draft
+Promise: A tag release runs again: the release workflow's jobs ask for a
+runner image GitHub still provides, instead of the retired `ubuntu-20.04`
+that cargo-dist 0.28 asks for by default.
+Depends On: None
+Execution Plan: Not created yet (a short plan comes before its worker)
+
+Included:
+- the release workflow's runners, through cargo-dist's own configuration
+  (`github-custom-runners`), with `release.yml` regenerated, not hand-edited
+- whether the release plan job comes back on PRs into master
+
+Excluded:
+- cutting a release, which stays the owner's
+
+Proof:
+- a dry run of the release workflow gets a runner and passes its plan job
+
+Starts only when the owner says so (the owner, 2026-10-06): releases are the
+owner's.
+
+### P13 - Run The Tests Once And Share One CI Cache
+
+Status: Draft
+Promise: `just verify`, and the full CI that runs it, run the test suite once
+instead of twice, and the CI cache is saved only from `develop` and master, so
+every PR starts from `develop`'s cache.
+Depends On: P10
+Execution Plan: wiki/plans/tests-once-shared-ci-cache.plan.md
+
+Included:
+- the `verify` recipe and the full CI's jobs
+- the cache's save rule, and stable job names
+
+Excluded:
+- dropping any test or check, coverage included
+
+Proof:
+- the plan's Done When
+
+### P14 - The Search Eval Test Runs Against A Frozen Wiki
+
+Status: Completed (develop)
+Promise: `search::qmd_rs::tests::fixed_eval_queries_keep_expected_targets_in_top_two`
+checks search quality against a frozen copy of the wiki, so a page added to the
+live wiki cannot turn the fast check red.
+Depends On: None
+Execution Plan: wiki/plans/search-eval-test-frozen-wiki.plan.md
+
+Included:
+- the test and the fixture it reads
+
+Excluded:
+- changing how search ranks pages (P9 investigates that)
+
+Proof:
+- the plan's Done When
+
+### P15 - Compact Search Honours Its Limit
+
+Status: Draft
+Promise: `llm_wiki_search` with `compact` set returns as many results as its
+`limit` asks for, or says plainly how to get the rest, instead of a first page
+of three that reads as the limit being ignored.
+Depends On: None
+Execution Plan: Not created yet (an investigation first; any fix gets its plan)
+
+Included:
+- the case met on 2026-10-06: `compact=true` with `limit=12` returned a page
+  of 3 results (`page_size` 3), and `limit=5` gave pages of 3 in the
+  coordinator's own searches the same day
+- how `limit`, `page_size` and `offset` relate in compact mode, and what the
+  reply says about further pages
+
+Excluded:
+- ranking (P9)
+
+Proof:
+- a comment on its issue giving the cause and the fix to make, each claim with
+  the command that showed it
+
+### P16 - Lexical Search Weights Titles And File Names, And Falls Back To Phrases
+
+Status: Draft
+Promise: A lexical search for a page's own title or file name finds that page
+at the top, and a query whose words no single page holds all of still returns
+the pages that hold its phrases.
+Depends On: P9
+Execution Plan: Not created yet (a short plan comes before its worker)
+
+Included:
+- the fix the investigation of P9 measured (issue #7, comment of 2026-10-06):
+  weight the file path and title columns in the lexical ranking (10, 10, 1
+  put "Operation Manager" first), and fall back from the all-words query to
+  each hyphenated name kept as a phrase, joined by OR, when it returns too few
+- a regression test on a frozen wiki where the title's words are in more than
+  half the pages
+
+Excluded:
+- semantic and hybrid search
+- compact search's limit (P15)
+
+Proof:
+- the plan's Done When

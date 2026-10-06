@@ -5,6 +5,7 @@ Rules for this worker:
 - Stay in the files named in the spec; if you need another, ask the coordinator (orchestration ask) and wait.
 - Do not start workers, subagents or background agents. If parallel work seems needed, ask the coordinator and wait.
 - Commits and the PR title: "<Track> · <Area>: <imperative summary>" when the issue is in a track (its title shows it), else "<Area>: <imperative summary>"; the body explains why. No trailer and no footer.
+- Your PR goes into develop (or the integration branch the spec names), never into master: master takes develop only through the coordinator's PR from develop.
 - Push to origin early and often. Never force-push. Do not merge PRs, tag, publish or run any release command. Commits, PRs, issues and comments never mention AI, Claude, models, agents or the tools that run the work, folder names included; add no footer and no trailer; never cite a path on this machine. This repository is public.
 - No heading of anything you post on GitHub contains PASS, FAIL or CHANGES REQUESTED: those words in a heading are the owner's verdict.
 - Files you write for yourself (gate logs, comment bodies, notes) go in your session's scratchpad directory, never inside the worktree.

@@ -56,9 +56,11 @@ not this summary.
   only shows the plans' statuses ("The Board").
 - At most three workers at once, one kept for a blind review; releases are the
   owner's ("Limits Across Workers").
-- Every PR but a log PR gets one blind review and one fix round before the
-  owner's verdict; merge only with the owner's PASS on the current head,
-  checked yourself ("Landing A PR").
+- Work PRs go into `develop`; master takes `develop` only through a PR from
+  `develop`, with the full CI and the owner's PASS ("Develop And Master").
+- Every PR but a log PR and the PR into master gets one blind review and one
+  fix round before the owner's verdict; merge only with the owner's PASS on
+  the current head, checked yourself ("Landing A PR").
 - Workers never merge, release or start workers ("Starting A Worker").
 - Worktrees are removed with `--run-hooks` ("Worktrees").
 
@@ -73,7 +75,8 @@ not this summary.
   for review" ask starts its PR's blind review; reply to it once the review
   has posted ("While Workers Run").
 - To land a PR: `/operations-land`. An answer posted as a comment: the
-  checklist's "Landing A Comment".
+  checklist's "Landing A Comment". To take `develop` to master: the
+  checklist's "Develop And Master".
 - Before the session ends:
   `orca orchestration worker-list --run <R> --terminal-state reclaimable --json`
   comes back empty, and the owner hears what is still running and why.

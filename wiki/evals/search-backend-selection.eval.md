@@ -5,7 +5,7 @@
 - Date: 2026-05-07
 - Category: Search infrastructure, framework tooling
 - Scope: Evaluate candidate search backends for future `llm-wiki search` and `llm-wiki search-all` commands.
-- Sources: wiki/proposals/search-backend-selection.proposal.md, wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/references/qmd-rs-search-crate.reference.md, raw/legacy/legacy-project-guidelines.md
+- Sources: wiki/proposals/search-backend-selection.proposal.md, issue #17, wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/references/qmd-rs-search-crate.reference.md, raw/legacy/legacy-project-guidelines.md
 - Related: wiki/proposals/search-backend-selection.proposal.md, wiki/proposals/project-registry-search-artifacts.proposal.md
 
 ## Objective
@@ -205,7 +205,12 @@ Implementation target:
 
 - `src/search/qmd_rs.rs`, compiled with `--features qmd-rs`.
 - Store path: temporary test store.
-- Corpus: the repository `wiki/` directory at test time.
+- Corpus: the repository `wiki/` directory at test time. Since 2026-10-06
+  the test reads a frozen copy of that directory instead,
+  `tests/fixtures/search-eval/wiki/`, taken at commit `7940130`, where every
+  expected target still held: against the live `wiki/`, adding pages pushed
+  Q5's targets out of the top two, so the test failed when the wiki grew
+  rather than when search got worse (issue #17).
 - Query path: production adapter `search_project`, including framework query
   sanitization, qmd-rs FTS search, metadata parsing, post-filter/result shaping,
   snippet generation, and adapter-owned canonical paths.
@@ -221,7 +226,8 @@ Result:
 - Passed.
 - The fixed eval query set kept the expected target set in the top two for all
   eight queries.
-- The adapter replay used the real wiki corpus rather than a synthetic fixture.
+- The adapter replay used the real wiki corpus rather than a synthetic fixture;
+  the frozen copy keeps it real, as of `7940130`.
 - The replay permits the accepted decision/eval/implementation artifacts for Q3
   because the backend-selection topic now has a promoted decision and replay
   result in addition to the original proposal.
