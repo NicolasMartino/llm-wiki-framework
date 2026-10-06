@@ -124,6 +124,47 @@ fn status_reports_installed_files() {
 }
 
 #[test]
+fn status_and_doctor_report_the_managed_poman() {
+    let home = TempDir::new().expect("home");
+    let poman = home
+        .path()
+        .join(managed_home_dir_name())
+        .join("bin")
+        .join("poman");
+
+    llm_wiki(home.path())
+        .args(["install", "--disable-llm-search"])
+        .assert()
+        .success();
+    llm_wiki(home.path())
+        .arg("status")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(format!(
+            "managed poman: {}",
+            poman.display()
+        )));
+
+    fs::write(&poman, "edited").expect("drift poman");
+    llm_wiki(home.path())
+        .arg("doctor")
+        .assert()
+        .stdout(predicate::str::contains(format!(
+            "Drifted managed poman: {}",
+            poman.display()
+        )));
+
+    fs::remove_file(&poman).expect("remove poman");
+    llm_wiki(home.path())
+        .arg("doctor")
+        .assert()
+        .stdout(predicate::str::contains(format!(
+            "Missing managed poman: {}",
+            poman.display()
+        )));
+}
+
+#[test]
 fn verbose_path_status_and_doctor_emit_diagnostics() {
     let home = TempDir::new().expect("home");
     let cwd = TempDir::new().expect("cwd");
