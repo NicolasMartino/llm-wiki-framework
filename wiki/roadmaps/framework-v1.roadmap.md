@@ -701,3 +701,150 @@ Promotion Target:
 Unlocks:
 - honest platform support claims
 - release-gate evidence for future artifacts
+
+### P4 - Coordinated Development Workflow
+
+Status: Active
+Promise: This repository is worked on the way the owner decided on
+2026-10-06: the owner decides, a coordinating session keeps the roadmaps, the
+plans and the board true and starts the workers, every PR gets one blind
+feedback review and then the owner's verdict, and the repository is the record.
+Depends On: None
+Execution Plan: wiki/plans/development-workflow-setup.plan.md
+
+Included:
+- the coordinator's checklists, the operations skills and the worker briefs
+  (committed 2026-10-06 as `70bc5a6`)
+- the board (GitHub project 5) with the plan statuses as its columns, its ids
+  in `wiki/checklists/operation-manager.checklist.md`
+- wiki search for this repository and for each worker's worktree (`orca.yaml`,
+  `tools/wiki-worktree.sh`)
+- the stale branch `impl/sandbox-safe-search-cache-reads`, whose work reached
+  master in another form, kept as the tag
+  `archive/sandbox-safe-search-cache-reads` and removed as a branch (the
+  owner, 2026-10-06)
+- the first work, each its own entry below: the riseon handover's ingest (P5),
+  the four plans' statuses (P6), the install download progress branch (P7),
+  the `build-skills` recipes (P8)
+
+Excluded:
+- GitHub branch rules and merge settings (none yet, the owner, 2026-10-06)
+- releases, which stay the owner's
+- a tool drawing the board (poman's roadmap, from P5)
+
+Proof:
+- `just branch-status` runs clean
+- the setup plan is `Completed (master)` and `wiki/log.md` records the setup
+- the first worker PRs land through the blind review and the owner's PASS
+
+Promotion Target:
+- wiki/decisions/work-is-recorded-in-the-repository.decision.md
+- wiki/checklists/operation-manager.checklist.md
+
+Unlocks:
+- P5 to P8, and poman's roadmap
+
+### P5 - riseon Handover Ingest
+
+Status: Draft
+Promise: The owner's settled decisions for poman, the project-management
+binary moved here from riseon, are wiki decision pages, and the handover's
+suggested order is a poman roadmap the owner has approved, so no poman work
+starts from a chat or a raw file.
+Depends On: P4
+Execution Plan: Not needed (wiki-only work)
+Source: raw/handover/2026-10-06-riseon-handover-poman-and-coordination.md
+
+Included:
+- decision pages for the settled areas of the handover's section 2: where
+  poman lives and the shared crate; boards as views of the repository; syncing
+  GitHub the way Git syncs a remote; file types and the deadline type
+- the owner's answers of 2026-10-06 to the handover's open questions: a
+  duration in whole working days (Monday to Friday), three importance levels,
+  `poman tree` and `poman list` as their own deliverable after the deadline
+  commands, no "Part of" field for now, poman drawing this repository's own
+  board later, and the strict gates reached by a ratchet
+- GitHub as one interface among others (the owner, 2026-10-06: "gh is just a
+  ui for poman so we should think this so as to be able to adapt it to other
+  UIs if needed"): poman's data and its fetch, diff and push are defined
+  without GitHub in them, and GitHub is the first adapter, so another tracker
+  or board can be added without changing the core
+- `wiki/roadmaps/poman.roadmap.md`, Draft, from the handover's section 8, for
+  the owner to approve
+- the handover itself, committed under `raw/handover/`
+
+Excluded:
+- code, crates, and the plans of poman's deliverables (each comes once the
+  roadmap is approved)
+- riseon's own clean-up
+
+Proof:
+- the decision pages and the roadmap are on master, listed in `wiki/index.md`,
+  each citing the handover
+- the owner has approved the poman roadmap
+
+Unlocks:
+- poman's first plan: the workspace and the strict gates
+
+### P6 - Plan Statuses In The Vocabulary
+
+Status: Draft
+Promise: Every plan's `- Status:` line uses the plan vocabulary (Draft,
+Active, Blocked, Completed, Superseded), with what is still pending written in
+its body, so `just branch-status` can pass.
+Depends On: P4
+Execution Plan: Not needed (wiki-only work)
+
+Included:
+- `wiki/plans/headroom-mcp-merge-readiness-repair.plan.md` and
+  `wiki/plans/macos-installed-binary-codesign-repair.plan.md`, whose metadata
+  block has no bullets, so no `- Status:` line is found
+- `wiki/plans/headroom-passthrough-launcher.plan.md` and
+  `wiki/plans/headroom-wrap-command.plan.md`, whose status says
+  "Implemented…"
+- their entries in `wiki/index.md`
+
+Excluded:
+- the pending proofs themselves (a host parity gate, a native release archive
+  proof)
+
+Proof:
+- `just branch-status` reports no STALE line
+
+### P7 - Install Model Download Progress
+
+Status: Draft
+Promise: `llm-wiki install` with LLM search enabled reports progress on stderr
+while it hashes, downloads and verifies the model (a bar on a terminal, a line
+every 25 % otherwise), and leaves stdout and JSON output unchanged.
+Depends On: None
+Execution Plan: wiki/plans/install-download-progress.plan.md (on the branch
+`impl/install-download-progress`, pushed 2026-10-06, until its PR merges)
+
+Included:
+- the plan's scope, already written on the branch
+- landing the branch through a draft PR, its blind review and the owner's PASS
+
+Excluded:
+- what the plan excludes
+
+Proof:
+- the plan's proof, which includes a real install with the model enabled
+
+### P8 - Working build-skills Recipes
+
+Status: Draft
+Promise: `just build-skills` and `just build-skills-to <out>` do what their
+names say, or are gone, instead of failing with "unrecognized subcommand
+'build'".
+Depends On: None
+Execution Plan: Not created yet (a short plan comes before its worker)
+
+Included:
+- the two justfile recipes, which call `cargo run -- build`, a subcommand the
+  CLI no longer has
+- the pages that tell people to run them
+
+Proof:
+- each recipe runs and produces its output, or it no longer exists and no page
+  names it
