@@ -869,3 +869,48 @@ Excluded:
 Proof:
 - a comment on its issue giving the cause, or every cause ruled out, each
   number with the command that produced it
+
+### P10 - A Fast Check On Develop, The Full CI On The Way To Master
+
+Status: Completed (develop)
+Promise: Work lands on `develop`. A PR into `develop`, and its merge there,
+run one fast Linux check; only the PR from `develop` into master, and master
+itself, run the full CI. Both are green.
+Depends On: None
+Execution Plan: wiki/plans/develop-and-master-ci.plan.md
+
+Included:
+- the `develop` branch, cut from master on 2026-10-06 and made GitHub's
+  default branch (the owner, 2026-10-06)
+- the CI split by target branch, and the three reasons master's CI is red
+- `just branch-status` taking `develop` as the base
+
+Excluded:
+- releases, tags and the post-install workflow
+- the rules and pages that still say "master" (P11)
+
+Proof:
+- the plan's Done When
+
+### P11 - The Way Of Working Points At Develop
+
+Status: Active
+Promise: Every rule, brief and skill of the way of working says where work
+lands now: work PRs into `develop`, and master only through a PR from
+`develop` with the full CI and the owner's PASS.
+Depends On: None
+Execution Plan: Not needed (wiki-only work)
+
+Included:
+- the three workflow decisions, the two checklists, the worker base texts, the
+  spec template and the operations skills
+- what "Completed (master)" becomes, where the log entry is written (per merge
+  into `develop`, and for the PR into master), and when `develop` goes to master
+- the setup plan's and AGENTS.MD's lines, proposed for the coordinator to apply
+
+Excluded:
+- CI and `just branch-status` (P10)
+
+Proof:
+- no page of the way of working tells a worker or the coordinator to branch
+  from, target or merge into master, except for the PR from `develop`

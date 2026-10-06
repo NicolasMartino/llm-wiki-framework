@@ -114,10 +114,17 @@ pub fn run(args: &InstallArgs, context: &CliContext) -> Result<()> {
         }
     ));
 
+    let running = RunningExe {
+        path: &current_exe,
+        hash: &current_exe_hash,
+    };
+    let managed_binary_hash = found_managed_binary_hash(&paths, &running)?;
+
     let partial_state = recover_or_reject_partial(
         &paths,
         manifest.as_ref(),
-        &current_exe_hash,
+        &running,
+        managed_binary_hash.as_deref(),
         args.force,
         context,
     )?;
@@ -130,8 +137,8 @@ pub fn run(args: &InstallArgs, context: &CliContext) -> Result<()> {
     context.diagnostic(format!("rendered install files: {}", files.len()));
     preflight_managed_binary(
         &paths,
-        &current_exe,
-        &current_exe_bytes,
+        &running,
+        managed_binary_hash.as_deref(),
         manifest.as_ref(),
         args.force,
         partial_state,
@@ -148,11 +155,17 @@ pub fn run(args: &InstallArgs, context: &CliContext) -> Result<()> {
     );
     partial.write_atomic(&paths.partial_install())?;
 
-    let backup = write_backup_snapshot(&paths, &files, manifest.as_ref(), &current_exe_hash)?;
+    let backup = write_backup_snapshot(
+        &paths,
+        &files,
+        manifest.as_ref(),
+        &running,
+        managed_binary_hash.as_deref(),
+    )?;
     let binary = install_managed_binary(
         &paths,
-        &current_exe,
-        &current_exe_bytes,
+        &running,
+        managed_binary_hash.as_deref(),
         &manifest,
         args.force,
         partial_state,
@@ -935,47 +948,57 @@ fn is_semantic_sidecar(path: &Path) -> bool {
     )
 }
 
+/// The running executable and its hash, taken once per install.
+struct RunningExe<'a> {
+    path: &'a Path,
+    hash: &'a str,
+}
+
+fn hash_managed_binary(managed_binary: &Path) -> Result<String> {
+    let bytes = fs::read(managed_binary)
+        .with_context(|| format!("failed to read managed binary {}", managed_binary.display()))?;
+    Ok(sha256_hex(&bytes))
+}
+
+/// The managed binary's hash as install finds it (`None` when it is missing),
+/// taken once and reused: a debug build is large enough that each extra hash
+/// costs seconds.
+fn found_managed_binary_hash(paths: &Paths, running: &RunningExe) -> Result<Option<String>> {
+    let managed_binary = paths.managed_binary();
+    if same_file_when_possible(running.path, &managed_binary) {
+        // The running executable's bytes, already hashed, are this file's.
+        return Ok(Some(running.hash.to_string()));
+    }
+    if !managed_binary.exists() {
+        return Ok(None);
+    }
+    hash_managed_binary(&managed_binary).map(Some)
+}
+
 fn preflight_managed_binary(
     paths: &Paths,
-    current_exe: &Path,
-    current_exe_bytes: &[u8],
+    running: &RunningExe,
+    found_hash: Option<&str>,
     manifest: Option<&Manifest>,
     force: bool,
     partial_state: PartialState,
     context: &CliContext,
 ) -> Result<()> {
+    let (current_exe, current_hash) = (running.path, running.hash);
     let managed_binary = paths.managed_binary();
-    let current_hash = sha256_hex(current_exe_bytes);
     context.diagnostic(format!("managed binary path: {}", managed_binary.display()));
     if same_file_when_possible(current_exe, &managed_binary) {
-        let managed_hash = sha256_hex(&fs::read(&managed_binary).with_context(|| {
-            format!("failed to read managed binary {}", managed_binary.display())
-        })?);
-        context.diagnostic(format!(
-            "managed binary comparison: same-file hash_match={}",
-            managed_hash == current_hash
-        ));
-        if managed_hash != current_hash {
-            bail!(
-                "managed binary {} differs from current executable",
-                managed_binary.display()
-            );
-        }
+        context.diagnostic("managed binary comparison: same-file");
         return Ok(());
     }
 
-    if !managed_binary.exists() {
+    let Some(managed_hash) = found_hash else {
         context.diagnostic("managed binary comparison: target missing");
         return Ok(());
-    }
-
-    let managed_hash =
-        sha256_hex(&fs::read(&managed_binary).with_context(|| {
-            format!("failed to read managed binary {}", managed_binary.display())
-        })?);
+    };
     let manifest_owned = manifest.is_some_and(|manifest| manifest.binary.path == managed_binary);
     let source_matches =
-        manifest_binary_source_matches(manifest, &managed_binary, &managed_hash, &current_hash);
+        manifest_binary_source_matches(manifest, &managed_binary, managed_hash, current_hash);
     context.diagnostic(format!(
         "managed binary comparison: hash_match={}, manifest_owned={}, source_match={}, force={}",
         managed_hash == current_hash,
@@ -1047,7 +1070,8 @@ fn preflight_install_files(
 fn recover_or_reject_partial(
     paths: &Paths,
     manifest: Option<&Manifest>,
-    current_exe_hash: &str,
+    running: &RunningExe,
+    managed_binary_hash: Option<&str>,
     force: bool,
     context: &CliContext,
 ) -> Result<PartialState> {
@@ -1060,10 +1084,7 @@ fn recover_or_reject_partial(
     let managed_binary = paths.managed_binary();
     if let Some(manifest) = manifest
         && manifest.binary.path == managed_binary
-        && managed_binary.exists()
-        && sha256_hex(&fs::read(&managed_binary).with_context(|| {
-            format!("failed to read managed binary {}", managed_binary.display())
-        })?) == manifest.binary.hash
+        && managed_binary_hash == Some(manifest.binary.hash.as_str())
     {
         fs::remove_file(&partial_path).with_context(|| {
             format!(
@@ -1081,7 +1102,7 @@ fn recover_or_reject_partial(
             partial.target_binary.display()
         );
     }
-    if partial.current_exe_hash != current_exe_hash && !force {
+    if partial.current_exe_hash != running.hash && !force {
         context.diagnostic("partial marker decision: stale hash refused");
         bail!(
             "stale partial install was started by a different binary; rerun with --force to replace it"
@@ -1110,33 +1131,28 @@ impl PartialState {
 
 fn install_managed_binary(
     paths: &Paths,
-    current_exe: &Path,
-    current_exe_bytes: &[u8],
+    running: &RunningExe,
+    found_hash: Option<&str>,
     manifest: &Option<Manifest>,
     force: bool,
     partial_state: PartialState,
     context: &CliContext,
 ) -> Result<BinaryEntry> {
+    let (current_exe, current_hash) = (running.path, running.hash);
     let managed_binary = paths.managed_binary();
     if let Some(parent) = managed_binary.parent() {
         fs::create_dir_all(parent)
             .with_context(|| format!("failed to create {}", parent.display()))?;
     }
 
-    let current_hash = sha256_hex(current_exe_bytes);
-    if same_file_when_possible(current_exe, &managed_binary) {
-        let managed_hash = sha256_hex(&fs::read(&managed_binary).with_context(|| {
-            format!("failed to read managed binary {}", managed_binary.display())
-        })?);
+    let managed_hash = if same_file_when_possible(current_exe, &managed_binary) {
         context.diagnostic("managed binary action: already running managed binary");
-        if managed_hash != current_hash {
-            bail!(
-                "managed binary {} differs from current executable",
-                managed_binary.display()
-            );
-        }
+        current_hash.to_string()
     } else if managed_binary.exists() {
-        let managed_hash = sha256_hex(&fs::read(&managed_binary)?);
+        let managed_hash = match found_hash {
+            Some(hash) => hash.to_string(),
+            None => hash_managed_binary(&managed_binary)?,
+        };
         let manifest_owned = manifest
             .as_ref()
             .is_some_and(|manifest| manifest.binary.path == managed_binary);
@@ -1144,7 +1160,7 @@ fn install_managed_binary(
             manifest.as_ref(),
             &managed_binary,
             &managed_hash,
-            &current_hash,
+            current_hash,
         );
         if !source_matches && managed_hash != current_hash && !manifest_owned && !force {
             if partial_state == PartialState::Resuming {
@@ -1161,15 +1177,16 @@ fn install_managed_binary(
         if !source_matches && managed_hash != current_hash {
             context.diagnostic("managed binary action: replace existing target");
             copy_current_exe(current_exe, &managed_binary, context)?;
+            hash_managed_binary(&managed_binary)?
         } else {
             context.diagnostic("managed binary action: existing target hash matches");
+            managed_hash
         }
     } else {
         context.diagnostic("managed binary action: copy new target");
         copy_current_exe(current_exe, &managed_binary, context)?;
-    }
-
-    let managed_hash = sha256_hex(&fs::read(&managed_binary)?);
+        hash_managed_binary(&managed_binary)?
+    };
     #[cfg(not(target_os = "macos"))]
     if managed_hash != current_hash {
         bail!(
@@ -1183,7 +1200,7 @@ fn install_managed_binary(
         version: env!("CARGO_PKG_VERSION").to_string(),
         hash_algorithm: HashAlgorithm::Sha256,
         hash: managed_hash,
-        source_hash: Some(current_hash),
+        source_hash: Some(current_hash.to_string()),
         ownership: Ownership::ManifestOwned,
     })
 }
@@ -1502,7 +1519,8 @@ fn write_backup_snapshot(
     paths: &Paths,
     files: &[InstallFile],
     manifest: Option<&Manifest>,
-    current_exe_hash: &str,
+    running: &RunningExe,
+    managed_binary_hash: Option<&str>,
 ) -> Result<BackupEntry> {
     let id = backup_id();
     let dir = paths.managed_home().join("backups").join(&id);
@@ -1512,16 +1530,15 @@ fn write_backup_snapshot(
 
     let mut backed_up = Vec::new();
     let managed_binary = paths.managed_binary();
-    if managed_binary.exists() {
-        let current = fs::read(&managed_binary).with_context(|| {
-            format!("failed to read managed binary {}", managed_binary.display())
-        })?;
-        let current_hash = sha256_hex(&current);
+    if let Some(current_hash) = managed_binary_hash {
         let manifest_owned = manifest.is_some_and(|manifest| {
             manifest.binary.path == managed_binary && manifest.binary.hash == current_hash
         });
-        if current_hash != current_exe_hash && !manifest_owned {
+        if current_hash != running.hash && !manifest_owned {
             let backup_path = dir.join("0000-llm-wiki");
+            let current = fs::read(&managed_binary).with_context(|| {
+                format!("failed to read managed binary {}", managed_binary.display())
+            })?;
             fs::write(&backup_path, current)
                 .with_context(|| format!("failed to write {}", backup_path.display()))?;
             backed_up.push(BackupSnapshotFile {
@@ -1529,7 +1546,7 @@ fn write_backup_snapshot(
                 original_path: managed_binary,
                 backup_path,
                 hash_algorithm: HashAlgorithm::Sha256,
-                hash: current_hash,
+                hash: current_hash.to_string(),
             });
         }
     }
