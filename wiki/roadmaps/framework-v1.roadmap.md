@@ -746,7 +746,7 @@ Unlocks:
 
 ### P5 - poman's Decisions And Roadmap
 
-Status: Active
+Status: Completed (develop)
 Promise: The owner's settled decisions for poman, the project-management
 binary, are wiki decision pages, and their order is a poman roadmap the owner
 has approved, so no poman work starts from a conversation.
@@ -785,7 +785,7 @@ Unlocks:
 
 ### P6 - Plan Statuses In The Vocabulary
 
-Status: Active
+Status: Completed (develop)
 Promise: Every plan's `- Status:` line uses the plan vocabulary (Draft,
 Active, Blocked, Completed, Superseded), with what is still pending written in
 its body, so `just branch-status` can pass.
