@@ -12,6 +12,10 @@
   - The owner's decisions, 2026-10-06: poman's place in this workspace, the
     shared crate, the install, the strictest gates for every crate, and the
     ratchet for llm-wiki's existing code
+  - The owner's decisions, 2026-10-06, answering this page's open point: the
+    release archive ships both binaries, `llm-wiki install` copies poman from
+    beside itself, and people installing with `cargo install` also run
+    `cargo install poman`
   - `Cargo.toml` and `justfile` at `41ae502`: the workspace and today's gates
 - Related:
   - `wiki/decisions/poman-reads-only-its-own-file-types.decision.md`: what the
@@ -47,6 +51,14 @@ this project is held to the strictest gates.**
 - **`llm-wiki install` installs poman** into `~/.llm_wiki/bin/` and records it
   in its manifest, and one release ships both binaries (the owner: "then we
   could have llm wiki install poman").
+- **Where `llm-wiki install` gets poman** (the owner's decisions,
+  2026-10-06):
+  - the release archive ships both binaries side by side;
+  - `llm-wiki install` copies poman from beside itself, the folder its own
+    binary runs from;
+  - people installing with `cargo install llm-wiki-rs` also run
+    `cargo install poman`, which puts poman beside llm-wiki in Cargo's bin
+    folder.
 
 ### The strictest gates
 
@@ -113,9 +125,10 @@ this project is held to the strictest gates.**
   settle. Whoever does the work rechecks every caller.
 - The shared crate's name is not decided; PM1 picks it.
 - `llm-wiki-binary-distribution.decision.md` describes one binary; this page
-  amends it with a second. Where `llm-wiki install` gets poman, for each of
-  its channels (a release archive, `cargo install llm-wiki-rs`, a binary run
-  from anywhere), is not decided; PM1 settles it.
+  amends it with a second, shipped and installed as "Where `llm-wiki install`
+  gets poman" sets out.
+- An `llm-wiki` binary run with no poman beside it has nothing to copy; what
+  `llm-wiki install` says then is PM1's to settle.
 - `templates/base/project_guidelines.md` keeps describing the wiki's types for
   people and agents; once the types are also defined in code, the two must say
   the same, which PM2 makes sure of.
