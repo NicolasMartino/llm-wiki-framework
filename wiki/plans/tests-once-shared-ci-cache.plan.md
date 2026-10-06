@@ -57,6 +57,31 @@ as fast as its later ones.
 - The cache is saved only on pushes to `develop` and master (`save-if`); PR runs
   only restore it. Job names stay as they are.
 
+## How It Runs
+
+- `just verify` (fmt, `snapshots`, `test-tools`, clippy-strict, audit-legacy,
+  branch-status-test): every workspace test runs once, in
+  `cargo insta test --workspace --check`, which fails on a test or on a
+  snapshot that does not match; `test-tools` runs the `tools/release-e2e`
+  tests, a workspace of their own. `just test` stays a plain `cargo test` run.
+- `just verify-coverage` is `just verify` with `coverage` in place of
+  `snapshots`: the same one run, under coverage instrumentation
+  (`cargo llvm-cov show-env`, built into `target/llvm-cov-target`), then
+  `cargo llvm-cov report --fail-under-lines 80` over it. The full CI's `test`
+  job runs it as one step, and `just verify-full` is it plus `udeps`. The
+  coverage figure is the same as `cargo llvm-cov --workspace` gave.
+- `just fast-check` runs the quick tests once, as before, and now also
+  `branch-status-test`, the check `just verify` runs on the `branch-status`
+  recipe.
+- The cache: every `Swatinem/rust-cache` step saves only on a push to
+  `develop` or master (`save-if`). A PR into `develop` restores the cache
+  `develop`'s last push saved for the same job id (GitHub lets a branch read
+  its base's and the default branch's caches), so its first run starts as warm
+  as `develop`. The full CI's `test` and `udeps` jobs save on master, and the
+  PR from `develop` into master reads them; a manual full CI run on a work
+  branch finds no cache for those two jobs and starts cold. The two `strict`
+  jobs share one key, so `develop`'s fast check warms both.
+
 ## Done When
 
 - The `just verify` log shows one test run, and it exits 0 with nothing skipped.
