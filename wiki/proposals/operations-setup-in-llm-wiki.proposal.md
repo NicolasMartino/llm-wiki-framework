@@ -16,9 +16,11 @@
     inside llm wiki; I think the pack and mcp make sense; so then we can just
     run in claude with the slash command for example?"
   - The owner's global operations setup skill (outside this repository): its
-    steps, its standard questions, its placeholder list and its kit
-  - src/mcp/mod.rs (`prompts_list_result`, `prompt_text`), src/init/packs.rs
-    (`Pack`), src/init/scaffold.rs, on develop 9b64345
+    steps, its standard questions, its fitting guide with the 31 placeholders,
+    and its kit
+  - src/mcp/mod.rs (`prompts_list_result`, `prompt_text`, `resource_specs`,
+    `resource_list`), src/init/packs.rs (`Pack`), src/init/compose.rs,
+    src/init/scaffold.rs (`preserves_project_knowledge`), on develop 9b64345
   - wiki/evals/mcp-first-host-parity.eval.md
 - Related:
   - wiki/roadmaps/framework-v1.roadmap.md (P18, P19)
@@ -31,8 +33,8 @@
   - wiki/checklists/worker-briefs.checklist.md
   - wiki/plans/development-workflow-setup.plan.md
 - Promotion Target:
-  - a plan for P19, written once this proposal is accepted and the owner's
-    condition below is met
+  - a plan for P19, written once this proposal is accepted (when to start it
+    is the owner's choice, in "When To Build It")
   - a decision recording the pack, the prompt and the skills exception
 
 ## Question
@@ -68,16 +70,28 @@ the shipped skills llm-wiki retired on 2026-06-22?
   types, status words and fragments of `AGENTS.md` and the project
   guidelines. No pack writes a whole file of its own today; the whole files
   init writes are the root schema files, `wiki/index.md` and `wiki/log.md`.
+  A rerun of init writes every one of those files again except
+  `wiki/index.md` and `wiki/log.md`, which it keeps when they exist
+  (`preserves_project_knowledge` in `src/init/scaffold.rs`;
+  `wiki/decisions/composable-project-init.decision.md`). So an edit made by
+  hand to `AGENTS.md`, `CLAUDE.md` or the project guidelines, pack fragments
+  included, is lost at the next rerun.
   There is already an `ops` pack (runbooks, SLOs, on-call, postmortems) and an
   `ops-lite` pack (runbooks only).
 - **llm-wiki's MCP prompts** (`src/mcp/mod.rs`): five, `wiki_query`,
   `wiki_ingest`, `wiki_lint`, `wiki_research` and `wiki_init`. Each returns one
   user message of steps, with one optional argument.
+- **llm-wiki's MCP resources** (`src/mcp/mod.rs`, `resource_specs`) are all
+  files read from the active project (`wiki/index.md`, `wiki/log.md`, the
+  wiki operation specs, `AGENTS.md`, the project guidelines), each listed
+  only when its file exists. None holds text that comes from the binary
+  itself.
 
 ## Recommendation
 
-Ship it as two parts, split by what can be decided without looking at the
-repository and what cannot.
+Ship it as two parts: the pack writes the files from values it is given, and
+the prompt does what needs a session, looking at the repository, asking the
+owner, and the judgements after the write.
 
 ### The pack holds the files
 
@@ -86,26 +100,73 @@ repository and what cannot.
 - It holds the kit's files as compile-time templates, like every other
   template llm-wiki ships. The placeholders become typed fields, so a missing
   one is a build error rather than a `{{...}}` left in a project's file.
-- The fields fall in two groups:
-  - filled from what init already knows: the project name, the AGENTS file
-    name, the date, and the page type for the operation manager and briefs
-    pages (a runbook when the `ops` or `ops-lite` pack is selected, a
-    checklist otherwise, which is the kit's own rule);
-  - filled from the owner's answers to the standard questions: the repository,
-    the owner, the branch PRs target, the gate command, CI or none, public or
-    not, the tools folder, the log format, the merge settings and branch
-    rules.
-- The answers are recorded in `.llm_wiki/init.toml` with the pack, so a rerun
-  knows them (the record composable init already keeps for this reason).
-- Choices that are yes-or-no in the kit today (no CI, a public repository)
-  become conditions in the templates, so the text that does not apply is never
-  written instead of being deleted by hand.
+- Each of the kit's 31 placeholders has one source. The pack takes the
+  first three groups as input and works out the fourth; the last two stay
+  outside it.
+  - **What init already knows** (10): `PROJECT`, `DATE`, `AGENTS_FILE`, and
+    the pages' paths and types, which follow from the packs selected (a
+    runbook when the `ops` or `ops-lite` pack is there, a checklist and a plan
+    otherwise, the kit's own rule): `OPS_PAGE`, `BRIEFS_PAGE`, `PAGE_CLASS`,
+    `SETUP_PAGE`, `SETUP_CLASS`, `SETUP_STATUS`, `SETUP_DONE_STATUS`.
+  - **The owner's answers to the standard questions** (12): `REPO` and
+    `OWNER` (read from the `origin` remote, confirmed by the owner),
+    `MAIN_BRANCH`, `GATES`, `GATES_SETUP`, `CI_CLAUSE`, `CI_DONE_LINE`,
+    `PUBLIC_NOTE`, `LOG_FORMAT`, `REPO_SETTINGS`, `BRANCH_RULES`, and
+    `SETUP_ANSWERS`, the answers themselves in one clause each.
+  - **The prompt's look at the repository, step 1** (6): `TOOLS_DIR` (the
+    folder the repository already has, offered as the default answer);
+    `BRANCH_STATUS` and `BRANCH_STATUS_RECIPE` (whether a justfile exists and
+    whether its `status` name is taken); `BARE_COMPLETED` and
+    `COMPLETED_LEGACY_NOTE` (whether existing plans say a bare `Completed`);
+    and `FIRST_WORK`, a list of free-text bullets (plans whose status is
+    outside the vocabulary, pushed branches with no plan, a missing gate
+    script, anything the owner named). The look runs before the write, so the
+    prompt passes these to init like the answers.
+  - **Worked out by the pack itself** (1): `KIT_PATHS`, every path the pack
+    wrote or reported for a merge, which it knows exactly.
+  - **Written by the prompt after the write** (1): `ALREADY_DONE`, what the
+    session did on the machine (registering the project, the MCP server).
+    The pack leaves a marked line in the setup page, and the prompt's step 4
+    check fails while the marker is there.
+  - **Dropped** (1): `NEXT_NUMERAL`. The owner's question count lives in the
+    owner's own memory, outside llm-wiki (see "What Stays Outside llm-wiki").
+    The setup page says to continue the owner's count without a number, and
+    the prompt's hand-over names the last numeral the setup used.
+- Some placeholders become conditions rather than text: `CI_CLAUSE` and
+  `CI_DONE_LINE` on CI or none, `PUBLIC_NOTE` on public or not,
+  `COMPLETED_LEGACY_NOTE` on `BARE_COMPLETED`, `BRANCH_STATUS_RECIPE` on a
+  justfile or a script in the tools folder. The text that does not apply is
+  never written instead of being deleted by hand.
+- The values given to init, `FIRST_WORK` included, are recorded in
+  `.llm_wiki/init.toml` with the pack, so a rerun knows them (the record
+  composable init already keeps for this reason). The plan names its fields.
 - Writing the files is deterministic and refuses to overwrite: a file that
   already exists (`orca.yaml`, `.claude/settings.json`, a commit hook, a
-  justfile) is reported, not replaced, and the prompt merges it. A rerun never
-  rewrites a kit file the project has since changed; it reports the
-  difference, the way rerun init already preserves `wiki/index.md` and
-  `wiki/log.md`.
+  justfile) is reported, not replaced, and the prompt merges it.
+- **Kit files sit outside the rerun refresh.** A kit file is written only when
+  it is absent, on the first run and on every rerun; one that exists is left
+  as it is and reported. This joins the rule that already keeps
+  `wiki/index.md` and `wiki/log.md`, and changes how a rerun treats the
+  root schema files in no other way.
+- **The kit's AGENTS sections.** The kit appends sections ("How Work Runs",
+  "Commits And GitHub") to the AGENTS file, and each project tunes them
+  (this repository did for P18). A rerun rewrites the AGENTS file, so where
+  they go is an open choice for the owner:
+  - a pack fragment of `AGENTS.md`, like every pack's: simplest, but a rerun
+    (to add the `code` pack, say) puts back the pack's text and drops the
+    project's edits without a word;
+  - a section init keeps: init leaves the text between two markers in the
+    existing AGENTS file as it is on a rerun. New init code, and the only
+    place the root schema files would hold text init does not own;
+  - a short fragment that points at a kit page: `AGENTS.md` gets a few fixed
+    lines ("How work runs here: read the operation manager page first"), and
+    the sections' text goes in the operation manager page, which is a kit
+    file and so written once.
+  - Recommendation: the short fragment that points at the page. A rerun
+    rewrites only lines the project has no reason to edit, the tuned text
+    lives in a file the rerun does not touch, and init needs no new kind of
+    section. The fragment says its text is init's, so an edit goes to the
+    page.
 
 ### The prompt holds the steps
 
@@ -117,14 +178,20 @@ repository and what cannot.
      (uncommitted changes, a run under way).
   2. Ask the standard questions, fitted to what step 1 found, each with its
      default.
-  3. Write the kit through the pack with the answers, uncommitted, then do the
-     judgements the pack cannot: merge into files that already existed, add
-     worker kinds the owner asked for, add the line about the project's output
-     folders when it has any.
-  4. Test what can be tested in a scratch repository: no placeholder left, the
-     scripts parse and are executable, the worktree search script registers
-     and cleans up, the commit hook strips the trailers, the `branch-status`
-     recipe reads a scratch `origin`.
+  3. Write the kit through the pack with the answers and what step 1 found
+     (`llm-wiki init` again, so a rerun), uncommitted, then do what the pack
+     cannot: merge into files that already existed, add worker kinds the
+     owner asked for, add the line about the project's output folders when it
+     has any, write `ALREADY_DONE` into the setup page, and add the kit's wiki
+     pages to `wiki/index.md` in its own entry format with one entry in
+     `wiki/log.md` in the wiki's log format. A rerun keeps both files as they
+     are, so the pack adds no entries and the prompt must, or lint reports the
+     pages as orphans.
+  4. Test what can be tested in a scratch repository: no placeholder or
+     marker left, the kit's pages listed in the index, the scripts parse and
+     are executable, the worktree search script registers and cleans up, the
+     commit hook strips the trailers, the `branch-status` recipe reads a
+     scratch `origin`.
   5. Have the written files blind-reviewed by a fresh session given only the
      repository and the list of files, and fold in every P1 and P2.
   6. Hand over: what was written where, what was fitted and why, what the
@@ -132,7 +199,12 @@ repository and what cannot.
      session does next (the setup page's "Not set yet").
 - The same steps are also served as an MCP resource, so a host that does not
   show prompts can still read them when the owner asks for the setup in plain
-  words.
+  words. That resource is a new kind: every resource today is a file read
+  from the project and listed only when it exists, and a project about to be
+  set up has no such file. This one is built in: its text comes from the
+  binary (the same text as the prompt's), it is always listed, and it has its
+  own URI rather than one under `llm-wiki://project/`. The plan adds this kind
+  to the resource list and to `resources/read`.
 
 ### The board model and other options
 
@@ -153,11 +225,14 @@ repository and what cannot.
   operations to.
 - The three operations skills are different: they are the project's own
   files, tuned to it after the first write (this repository has already
-  changed its copies). The pack writes them once, like `AGENTS.md`; llm-wiki
-  never updates, tracks or removes them, and there is one form, Claude Code's,
-  so no projector comes back.
-- The decision this proposal promotes to records that exception in those
-  words, so it does not grow into shipping skills again.
+  changed its copies). The pack writes them only when they are absent, and
+  they sit outside the rerun refresh with the other kit files (above), unlike
+  `AGENTS.md`, which a rerun rewrites. llm-wiki never updates, tracks or
+  removes them, and there is one form, Claude Code's, so no projector comes
+  back.
+- The decision this proposal promotes to records that exception: written
+  once when absent, never refreshed, tracked or removed, one form. That keeps
+  it from growing into shipping skills again.
 
 ## What Stays Outside llm-wiki
 
@@ -211,34 +286,59 @@ repository and what cannot.
   most of the hand edits, not merging into existing files. Recommendation: the
   prompt's test and blind-review steps stay, as in the global skill.
 
-## The Owner's Condition
+## When To Build It
 
-Build it from the global skill once that skill has been used on one more
-project. The kit has been fitted twice so far (the owner's other project and
-this repository), and each fit changed it. Recommendation: accept the
-proposal now, keep P19 Active, and start its plan after the third fit, with
-that fit's fixes folded into the kit first.
+The owner's decision of 2026-10-06 is to propose it; it sets no condition on
+when to build. The kit has been fitted twice so far (the owner's other project
+and this repository), and each fit changed it, so when to start the plan is
+an open choice for the owner:
+
+- **Start the plan once the proposal is accepted.** The pack is built from
+  the kit as it stands, and a later fit's fixes go into the pack's templates.
+- **Start it after one more fit with the global skill** on another project,
+  with that fit's fixes folded into the kit first.
+
+Recommendation: start the plan once the proposal is accepted. Each fit's
+fixes so far were to the kit's text, which the templates carry as they are,
+and once the pack ships a fix lands in one place instead of in the global
+skill first and the templates after. Waiting would mean a third fit by hand
+of a kit that the pack is meant to replace.
+
+## Open Choices For The Owner
+
+- **When to build it** ("When To Build It"). Recommendation: start the plan
+  once the proposal is accepted.
+- **Where the kit's AGENTS sections go** ("The pack holds the files").
+  Recommendation: a short fragment that points at the operation manager page.
+- **The pack's name.** Recommendation: `operation-manager`, because next to
+  the existing `ops` pack, `operations` reads as the same thing. P19 names the
+  pack by this proposed name until the owner settles it; the worker who
+  writes P19's plan renames it there if the owner picks another.
 
 ## Increments
 
-1. **A third fit** with the global skill on another project; fold its fixes
-   into the kit.
-2. **The plan**: the pack, the answers record, the prompt and its resource
-   copy, the golden test, and the decision recording the skills exception.
-   Any list of what it touches is a first list, rechecked by whoever writes
-   the plan.
+1. **The proposal is accepted** by the owner, with the open choices above
+   answered. This is the first step of P19, not its end.
+2. **The plan**: the pack, the answers record, the rule that keeps kit files
+   out of the rerun refresh, the AGENTS fragment, the prompt and its built-in
+   resource, the golden test, and the decision recording the skills
+   exception. Any list of what it touches is a first list, rechecked by
+   whoever writes the plan.
 3. **The proof**: on a fresh project, `llm-wiki init` and then
    `/mcp__llm-wiki__operations_setup` in an interactive Claude Code session
    write a kit that passes the global skill's tests and comes back from its
-   blind review with no P1 or P2.
+   blind review with no P1 or P2. A second rerun of `llm-wiki init` (adding a
+   pack) leaves every kit file and the project's index entries as they were.
 4. **Retire the global skill's own kit**: the skill points at the prompt.
 
 ## Success Criteria
 
-- The owner accepts this proposal, and P19's plan names the third fit it
-  waited for.
+- The owner accepts this proposal and answers its open choices.
 - A fresh project gets the kit from llm-wiki alone, through the prompt, with
-  no `{{...}}` left and nothing committed or changed on GitHub.
+  no `{{...}}` left, the kit's pages in the index and the log, and nothing
+  committed or changed on GitHub.
+- A rerun of `llm-wiki init` changes no kit file and loses no edit a project
+  made to the kit.
 - llm-wiki ships no skill it manages; the three operations skills are written
   once and owned by the project.
 - One canonical kit remains, in llm-wiki's templates.
