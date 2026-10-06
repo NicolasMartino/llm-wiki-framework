@@ -9,8 +9,13 @@ fmt:
 fmt-fix:
     cargo fmt --all
 
-test:
+# A plain test run, for people. `just verify` runs the suite through
+# `snapshots` instead, which runs every workspace test once.
+test: test-tools
     cargo test --workspace
+
+# tools/release-e2e is a workspace of its own, so `--workspace` misses it.
+test-tools:
     cargo test --manifest-path tools/release-e2e/Cargo.toml
 
 clippy:
@@ -19,12 +24,28 @@ clippy:
 clippy-strict:
     cargo clippy --workspace --all-targets --all-features -- -D warnings -D dead_code
 
+# The test suite, run once: `cargo insta test --check` runs every workspace
+# test and fails on a snapshot that does not match, so the tests and the
+# snapshot check are one run.
 snapshots:
     @cargo insta --version >/dev/null 2>&1 || { echo "snapshots needs cargo-insta: install it with \`cargo install cargo-insta\`" >&2; exit 1; }
     cargo insta test --workspace --check
 
+# `snapshots` under coverage instrumentation, then the coverage gate over that
+# same run, so the full CI runs the suite once. The instrumented build goes to
+# target/llvm-cov-target, as `cargo llvm-cov` puts it, and leaves target/debug
+# alone.
 coverage:
-    cargo llvm-cov --workspace --fail-under-lines 80
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cargo insta --version >/dev/null 2>&1 || { echo "coverage needs cargo-insta: install it with \`cargo install cargo-insta\`" >&2; exit 1; }
+    cargo llvm-cov --version >/dev/null 2>&1 || { echo "coverage needs cargo-llvm-cov: install it with \`cargo install cargo-llvm-cov --locked\`" >&2; exit 1; }
+    export CARGO_TARGET_DIR="{{ justfile_directory() }}/target/llvm-cov-target"
+    llvm_cov_env=$(cargo llvm-cov show-env --sh)
+    eval "$llvm_cov_env"
+    cargo llvm-cov clean --workspace
+    cargo insta test --workspace --check
+    cargo llvm-cov report --workspace --fail-under-lines 80
 
 # The dated nightly is named once, in tools/udeps-nightly, which the strict
 # gates and CI's unused-dependencies job also read.
@@ -53,7 +74,16 @@ audit-legacy:
     audit -g '!tests/fixtures/search-eval/**' 'Successor:|Will Supersede On D8 Completion|<!-- CLAUDE -->|<!-- CODEX -->|<!-- END -->|skills/build\.sh|bash renderer|(?:^|[^a-z])build\.sh' wiki README.md .github src tests Cargo.toml
     audit 'legacy shell renderer|legacy skill render script|legacy render script|<!-- TAG -->' wiki/specs wiki/decisions wiki/plans wiki/roadmaps wiki/index.md README.md AGENTS.MD CLAUDE.md
 
-verify: fmt test clippy-strict snapshots audit-legacy branch-status-test
+# Every workspace test runs once, in `snapshots`.
+verify: fmt snapshots checks
+
+# The full CI's test job: `just verify` with its one test run under coverage
+# (`coverage` in place of `snapshots`), so the suite still runs once.
+verify-coverage: fmt coverage checks
+
+# The gates `verify` and `verify-coverage` share; one list, so they cannot
+# drift apart.
+checks: test-tools clippy-strict audit-legacy branch-status-test
 
 # The integration test files that take longest; they run in `just verify` and
 # the full CI, not in `just fast-check`.
@@ -62,7 +92,7 @@ slow_tests := "install mcp_install post_install properties search_commands"
 # The fast check on PRs into develop: `just verify` without the slow test
 # files. One `cargo insta test --check` runs the quick tests and checks the
 # snapshots together. A new test file is quick until it is named above.
-fast-check: fmt clippy-strict audit-legacy
+fast-check: fmt clippy-strict audit-legacy branch-status-test
     #!/usr/bin/env bash
     set -euo pipefail
     cargo insta --version >/dev/null 2>&1 || { echo "fast-check needs cargo-insta: install it with \`cargo install cargo-insta\`" >&2; exit 1; }
@@ -72,9 +102,9 @@ fast-check: fmt clippy-strict audit-legacy
       [[ " {{ slow_tests }} " == *" $name "* ]] || args+=(--test "$name")
     done
     cargo insta test --check --bins "${args[@]}"
-    cargo test --manifest-path tools/release-e2e/Cargo.toml
+    just test-tools
 
-verify-full: verify coverage udeps
+verify-full: verify-coverage udeps
 
 post-install:
     cargo test --test post_install
