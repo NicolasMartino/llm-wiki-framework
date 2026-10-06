@@ -10,8 +10,7 @@
   integration branches, the blind review, landing a PR or a comment, the log
   entry and clean-up. Each rule with its reason.
 - Sources:
-  - `raw/handover/2026-10-06-riseon-handover-poman-and-coordination.md`
-    (sections 5 and 6)
+  - The owner's decisions of 2026-10-06 on how this repository is worked on
   - The operation manager runbooks of RepForge and riseon (2026-10-02 to
     2026-10-06), cut down for this repository; the reasons cite what happened
     there
