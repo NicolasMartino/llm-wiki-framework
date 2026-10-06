@@ -974,3 +974,26 @@ Excluded:
 
 Proof:
 - the plan's Done When
+
+### P15 - Compact Search Honours Its Limit
+
+Status: Draft
+Promise: `llm_wiki_search` with `compact` set returns as many results as its
+`limit` asks for, or says plainly how to get the rest, instead of a first page
+of three that reads as the limit being ignored.
+Depends On: None
+Execution Plan: Not created yet (an investigation first; any fix gets its plan)
+
+Included:
+- the case met on 2026-10-06: `compact=true` with `limit=12` returned a page
+  of 3 results (`page_size` 3), and `limit=5` gave pages of 3 in the
+  coordinator's own searches the same day
+- how `limit`, `page_size` and `offset` relate in compact mode, and what the
+  reply says about further pages
+
+Excluded:
+- ranking (P9)
+
+Proof:
+- a comment on its issue giving the cause and the fix to make, each claim with
+  the command that showed it
