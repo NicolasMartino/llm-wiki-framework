@@ -848,7 +848,7 @@ Proof:
 
 ### P9 - Search Ranks A Page's Own Title Low
 
-Status: Active
+Status: Completed (develop)
 Promise: A lexical search for a page's own title finds that page first, or the
 reason it cannot is known and written down.
 Depends On: None
@@ -959,7 +959,7 @@ Proof:
 
 ### P14 - The Search Eval Test Runs Against A Frozen Wiki
 
-Status: Active
+Status: Completed (develop)
 Promise: `search::qmd_rs::tests::fixed_eval_queries_keep_expected_targets_in_top_two`
 checks search quality against a frozen copy of the wiki, so a page added to the
 live wiki cannot turn the fast check red.
@@ -997,3 +997,27 @@ Excluded:
 Proof:
 - a comment on its issue giving the cause and the fix to make, each claim with
   the command that showed it
+
+### P16 - Lexical Search Weights Titles And File Names, And Falls Back To Phrases
+
+Status: Draft
+Promise: A lexical search for a page's own title or file name finds that page
+at the top, and a query whose words no single page holds all of still returns
+the pages that hold its phrases.
+Depends On: P9
+Execution Plan: Not created yet (a short plan comes before its worker)
+
+Included:
+- the fix the investigation of P9 measured (issue #7, comment of 2026-10-06):
+  weight the file path and title columns in the lexical ranking (10, 10, 1
+  put "Operation Manager" first), and fall back from the all-words query to
+  each hyphenated name kept as a phrase, joined by OR, when it returns too few
+- a regression test on a frozen wiki where the title's words are in more than
+  half the pages
+
+Excluded:
+- semantic and hybrid search
+- compact search's limit (P15)
+
+Proof:
+- the plan's Done When
