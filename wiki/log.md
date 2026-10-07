@@ -33,6 +33,7 @@ here.
 Pages affected: `wiki/plans/search-ranking-weights-and-phrase-fallback.plan.md`,
 `wiki/specs/documentation-model.spec.md`,
 `wiki/decisions/search-backend-selection.decision.md`,
+`wiki/roadmaps/framework-v1.roadmap.md`, `wiki/index.md`.
 
 ## [2026-10-07] merge | The dead build-skills recipes are gone
 
@@ -61,7 +62,6 @@ by the coordinator while the owner was away. P22 is Completed.
 
 Pages affected: `wiki/plans/dependency-gate-covers-dev-dependencies.plan.md`,
 `wiki/plans/poman-workspace-and-strict-gates.plan.md`,
-
 `wiki/roadmaps/framework-v1.roadmap.md`, `wiki/index.md`.
 
 ## [2026-10-07] merge | Five short plans, and poman is MCP-friendly
