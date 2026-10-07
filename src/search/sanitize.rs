@@ -1,16 +1,10 @@
 pub fn sanitize_fts_query(raw: &str) -> String {
-    let mut terms = Vec::new();
-    let mut current = String::new();
-
-    for ch in raw.chars() {
-        if ch.is_alphanumeric() {
-            current.extend(ch.to_lowercase());
-        } else {
-            push_term(&mut terms, &mut current);
+    let mut terms: Vec<String> = Vec::new();
+    for word in fts_words(raw) {
+        if !terms.contains(&word) {
+            terms.push(word);
         }
     }
-    push_term(&mut terms, &mut current);
-
     terms.join(" ")
 }
 
@@ -46,7 +40,7 @@ fn query_names(raw: &str) -> Vec<String> {
     for name in
         raw.split(|ch: char| ch.is_whitespace() || matches!(ch, ',' | ';' | '"' | '\'' | '`'))
     {
-        let phrase = sanitize_words(name).join(" ");
+        let phrase = fts_words(name).collect::<Vec<_>>().join(" ");
         if !phrase.is_empty() && !names.contains(&phrase) {
             names.push(phrase);
         }
@@ -54,22 +48,13 @@ fn query_names(raw: &str) -> Vec<String> {
     names
 }
 
-fn sanitize_words(raw: &str) -> Vec<String> {
+/// The query's words as FTS5 reads them: runs of letters and digits,
+/// lowercased. The all-words and the phrase query both split this way, so
+/// their words stay the same.
+fn fts_words(raw: &str) -> impl Iterator<Item = String> + '_ {
     raw.split(|ch: char| !ch.is_alphanumeric())
         .filter(|word| !word.is_empty())
         .map(|word| word.chars().flat_map(char::to_lowercase).collect())
-        .collect()
-}
-
-fn push_term(terms: &mut Vec<String>, current: &mut String) {
-    if current.is_empty() {
-        return;
-    }
-    if !terms.iter().any(|term| term == current) {
-        terms.push(std::mem::take(current));
-    } else {
-        current.clear();
-    }
 }
 
 #[cfg(test)]
