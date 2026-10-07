@@ -208,7 +208,7 @@ pub fn run(args: &InstallArgs, context: &CliContext) -> Result<()> {
         Some(install) => Some(install_binary(install, args.force, partial_state, context)?),
         None => recorded_poman.cloned(),
     };
-    let mcp_config = materialize_mcp_configs(&paths, &binary.path, context)?;
+    let mcp_config = materialize_mcp_configs(&paths, &binary.path, manifest.as_ref(), context)?;
     let mut skill_entries = install_files(files, manifest.as_ref(), args.force, context)?;
     skill_entries.extend(retained_legacy_skill_entries);
     let mut assets = manifest
@@ -1754,29 +1754,45 @@ fn write_backup_snapshot(
 fn materialize_mcp_configs(
     paths: &Paths,
     managed_binary: &Path,
+    manifest: Option<&Manifest>,
     context: &CliContext,
 ) -> Result<ManagedAssetEntry> {
     // Codex is globally wired via the same shared core that `init`/`register`
     // use for project onboarding, so the two paths cannot drift: the merge is
     // non-destructive, the pre-llm-wiki config is snapshotted once, and the
     // merged config is written atomically.
+    // poman's server is wired beside llm-wiki's in every config written here
+    // (wiki/decisions/poman-is-mcp-friendly.decision.md).
+    let servers = mcp_wiring::managed_servers(paths, managed_binary);
     let codex_path = paths.codex_config_toml();
-    mcp_wiring::ensure_codex_mcp_config(&codex_path, managed_binary, context)?;
+    mcp_wiring::ensure_codex_mcp_config(&codex_path, &servers, context)?;
     context.diagnostic(format!(
-        "MCP server startup is {}: hosts spawn `{}` on demand; no background daemon is installed",
+        "MCP server startup is {}: hosts spawn `{}` and `{} mcp` on demand; no background daemon is installed",
         mcp_config::SERVER_STARTUP,
-        mcp_config::server_start_command(managed_binary)
+        mcp_config::server_start_command(managed_binary),
+        paths.managed_poman().display()
     ));
 
-    let claude_contents = mcp_config::render_claude_project_mcp_config(managed_binary)?;
+    let claude_contents = mcp_config::render_claude_servers(&servers)?;
     let claude_path = paths.claude_project_mcp_config();
     // The staged Claude MCP config is manifest-owned and drift-tracked, and
     // uninstall hard-fails if it was edited. Mirror that safety here: install
     // used to overwrite it silently. Least-invasive correct fix — warn on drift
     // before overwriting so a user edit is never lost without notice (a full
     // backup would leak an untracked sibling that uninstall does not clean).
+    // An edit is a file that differs from what the manifest recorded installing,
+    // not from the new render: a new version renders it differently without
+    // anyone having edited it.
+    let recorded = manifest.and_then(|manifest| {
+        manifest
+            .assets
+            .iter()
+            .find(|asset| asset.path == claude_path)
+            .map(|asset| asset.hash.as_str())
+    });
     if let Ok(previous) = fs::read_to_string(&claude_path)
         && previous != claude_contents
+        && recorded != Some(sha256_hex(previous.as_bytes()).as_str())
     {
         let message = format!(
             "overwriting edited staged Claude MCP config {}; re-copy it to your project .mcp.json if you customized it",

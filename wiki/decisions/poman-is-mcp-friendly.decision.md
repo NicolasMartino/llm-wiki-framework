@@ -15,6 +15,8 @@
   - `src/mcp/mod.rs`, `src/mcp_config.rs`, `src/mcp_wiring.rs`,
     `src/instance.rs` and `crates/llm-wiki-core/Cargo.toml` at `cad8988`, read
     for this decision
+  - `wiki/plans/poman-mcp-server.plan.md` and the PR that built it (#62): the
+    recheck of what moved and the open points answered
 - Related:
   - `wiki/decisions/poman-syncs-a-tracker-the-way-git-syncs-a-remote.decision.md`:
     poman's own model knows no tracker; GitHub is one adapter
@@ -95,6 +97,16 @@ What stays with llm-wiki: its tools and their schemas, `llm_wiki_read`, its
 resources and prompts, its server instructions, and its test-instance names.
 poman's tools, schemas and instructions live in the poman crate.
 
+Rechecked in PM3.1 (`wiki/plans/poman-mcp-server.plan.md`): the stdio
+transport, the envelope and the shared dispatch moved, as
+`llm_wiki_core::mcp`, a server bringing its own name, instructions, tools and
+further methods through one trait. Running a command as a tool and the host
+configurations stayed with llm-wiki: poman's tools call poman's own `run`
+in-process with the command's arguments and `--json`, and only llm-wiki's
+`install`, `init` and `register` write host configurations, which
+`src/mcp_config.rs` now renders for any server, by name, binary and
+arguments.
+
 ## Why
 
 - **poman's users are mostly agents**, and agents reach tools through MCP
@@ -122,15 +134,18 @@ poman's tools, schemas and instructions live in the poman crate.
 
 - PM3.1 in `wiki/roadmaps/poman.roadmap.md` builds the server for the
   commands of PM3, and each later entry's commands ship as tools too.
-- `llm-wiki-core` has no dependencies today; the shared plumbing brings JSON
-  ones into it, under the strictest gates and the deny gate. PM3.1's plan
-  names them.
+- The shared plumbing brought one dependency into `llm-wiki-core`,
+  `serde_json`, under the strictest gates and the deny gate.
 - The shared code is held to the strictest gates when it moves, as the page
   reader was in PM2, ahead of PM8's ratchet for the rest of llm-wiki.
-- Open, for PM3.1's plan: whether poman needs a test instance with its own
-  server and tool names, as llm-wiki has; and where hosts are wired for poman
-  (install's configurations only, or `init` and `register` as well); whether
-  uninstall removes poman's server registration with llm-wiki's.
+- Answered in PM3.1's plan: poman has no test instance of its own, and its
+  registration follows llm-wiki's instance, `poman` beside `llm-wiki` and
+  `poman-test` beside `llm-wiki-test`, so a test install never replaces the
+  real registration; hosts are wired for poman wherever llm-wiki's server is
+  (install's Codex and staged Claude configurations, and the project
+  `.mcp.json` that `init` and `register` merge); and `uninstall` removes
+  poman's registration with llm-wiki's. In Claude Code the tools show as
+  `mcp__poman__poman_check` and `mcp__poman__poman_new_deadline`.
 
 ## What Would Revisit This
 
