@@ -165,7 +165,7 @@ fn each_field_has_its_line_block_and_form() {
             field("Scope", "The gates", 10, Block::AfterTitle, Form::Bold),
             field("Related", "PM1", 11, Block::AfterTitle, Form::Bold),
             field("Sources", "a b", 12, Block::AfterTitle, Form::Bullet),
-            field("Date", "2026-10-07", 14, Block::AfterTitle, Form::Bold),
+            field("Date", "2026-10-07", 14, Block::AfterTitle, Form::Bare),
         ]
     );
 }
@@ -424,6 +424,21 @@ fn asterisks_around_the_key_or_value_are_bold_with_or_without_a_marker() {
             field("Scope", "x**", 5, Block::AfterTitle, Form::Bold),
         ]
     );
+}
+
+#[test]
+fn a_value_opening_asterisks_it_never_closes_is_not_bold() {
+    // The value is search's, unchanged: the opening asterisks are dropped.
+    let page = Page::read("# T\n\n- Paths: **/*.md\n- Status: Todo\n");
+    assert_eq!(
+        found("# T\n\n- Paths: **/*.md\n- Status: Todo\n"),
+        [
+            field("Paths", "/*.md", 3, Block::AfterTitle, Form::Bullet),
+            field("Status", "Todo", 4, Block::AfterTitle, Form::Bullet),
+        ]
+    );
+    assert_eq!(page.bullet_block().fields().len(), 2);
+    assert_eq!(page.bullet_block().elsewhere().len(), 0);
 }
 
 #[test]

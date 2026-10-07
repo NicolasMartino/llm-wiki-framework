@@ -38,8 +38,10 @@ pub enum Form {
     /// `Key: Value`, with no bullet.
     Bare,
     /// `**Key:** Value`, `- **Key:** Value` or `- Key: **Value**`:
-    /// asterisks around the key or at the start of the value. Only those at
-    /// the start of the value are dropped: `**Value**` reads `Value**`.
+    /// asterisks around the key, or a value that opens with `**` and closes
+    /// them later on the line. Only those at the start of the value are
+    /// dropped: `**Value**` reads `Value**`, and `- Paths: **/*.md`, which
+    /// never closes them, is a bullet that reads `/*.md`.
     Bold,
 }
 
@@ -75,7 +77,10 @@ pub struct Field {
 }
 
 impl Field {
-    /// The key, without a bullet, asterisks or spaces around it.
+    /// The key, without a bullet, asterisks or spaces around it. A `* `
+    /// marker in front of bold asterisks leaves them in: `* **Status:** Todo`
+    /// reads `**Status`, as search has always read it, so a key on such a line
+    /// is not a clean name.
     #[must_use]
     pub fn key(&self) -> &str {
         &self.key
@@ -424,7 +429,7 @@ fn field_line(line: &str) -> Option<(&str, &str, Form)> {
     let value = value.trim();
     let (value, bold_value) = value
         .strip_prefix("**")
-        .map_or((value, false), |value| (value.trim(), true));
+        .map_or((value, false), |value| (value.trim(), value.contains("**")));
     // The key keeps whatever a `* ` marker leaves of it, as search has always
     // read it; only the form tells the marker apart from bold asterisks.
     let asterisk = if bullet {
