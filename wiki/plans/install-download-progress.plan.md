@@ -215,17 +215,77 @@ check, with `indicatif` used only on the confirmed-TTY branch and pointed at
 
 ## Implementation Status
 
-Implemented locally on 2026-08-15. The TTY renderer uses `indicatif`; only the
-bounded non-TTY milestone policy remains project-owned. Progress selection is
-created before enabled-search preflight, so reuse hashing is visible. Download
-and replacement actions consume the preflight decision directly rather than
-classifying and hashing the same existing artifact again. Real enabled-model
-install evidence remains the closure gate.
+Implemented on the branch `impl/install-download-progress` (2026-10-06) and
+landed on `develop` through PR #66, with the real-install evidence below. The
+TTY renderer uses `indicatif`, with the ETA floor below applied through a custom
+template key; only the bounded non-TTY milestone policy is otherwise
+project-owned. Progress selection is created before enabled-search preflight,
+so reuse hashing is visible. Download and replacement actions consume the
+preflight decision directly rather than classifying and hashing the same
+existing artifact again, and the injected-downloader test seam shares the
+production post-download check.
 
-Verification completed locally: `just verify` passes, covering formatting,
-workspace and release-E2E tests, strict all-target/all-feature clippy with
-dead-code denial, snapshots, and the legacy audit. `git diff --check` also
-passes.
+## Outcome
+
+A real enabled-search install, balanced profile, on this Linux host
+(2026-10-07), under a temporary `HOME` deleted afterwards. Exit 0 every run;
+stdout carried no progress line, and stderr no ANSI escape or carriage return
+in the piped form.
+
+Phase durations (piped run, fresh `HOME`, so no pre-download hashing):
+
+| Model | Download | Verify |
+| --- | --- | --- |
+| `embeddinggemma-300m-q8_0` (318.1 MiB) | 01:31 (3.5 MiB/s) | under 1 s (1.1 GiB/s) |
+| `qmd-query-expansion-1.7b-q4_k_m` (1.2 GiB) | 05:37 (3.6 MiB/s) | under 1 s (1.9 GiB/s) |
+
+Pre-download hashing, from a re-install with both models present: under 1 s
+per model (1.6 and 1.9 GiB/s), reported as `verify`, with nothing downloaded.
+Peak rate seen at a milestone: 3.7 MiB/s.
+
+ETA against actual over the final 50 % of each download:
+
+| Model | At | ETA | Actual remaining | Error |
+| --- | --- | --- | --- | --- |
+| embedding | 50 % | 43 s | 48.5 s | -11 % |
+| embedding | 75 % | 22 s | 26.7 s | -18 % |
+| query expansion | 50 % | 166 s | 172.2 s | -4 % |
+| query expansion | 75 % | 85 s | 84.7 s | 0 % |
+
+All within ±20 %, so no eval page.
+
+Piped stderr, first model (the second has the same shape):
+
+```text
+[1/2] embeddinggemma-300m-q8_0 download start 318.1 MiB
+[1/2] embeddinggemma-300m-q8_0 download 25% 79.5 MiB / 318.1 MiB 3.7 MiB/s eta 01:05
+[1/2] embeddinggemma-300m-q8_0 download 50% 159.1 MiB / 318.1 MiB 3.7 MiB/s eta 00:43
+[1/2] embeddinggemma-300m-q8_0 download 75% 238.6 MiB / 318.1 MiB 3.7 MiB/s eta 00:22
+[1/2] embeddinggemma-300m-q8_0 download 100% 318.1 MiB / 318.1 MiB 3.5 MiB/s eta 00:00
+[1/2] embeddinggemma-300m-q8_0 download done 318.1 MiB in 01:31 (3.5 MiB/s)
+[1/2] embeddinggemma-300m-q8_0 verify start 318.1 MiB
+[1/2] embeddinggemma-300m-q8_0 verify 25% 79.6 MiB / 318.1 MiB 1.0 GiB/s eta --:--
+[1/2] embeddinggemma-300m-q8_0 verify 50% 159.1 MiB / 318.1 MiB 1.0 GiB/s eta --:--
+[1/2] embeddinggemma-300m-q8_0 verify 75% 238.6 MiB / 318.1 MiB 1.1 GiB/s eta --:--
+[1/2] embeddinggemma-300m-q8_0 verify 100% 318.1 MiB / 318.1 MiB 1.1 GiB/s eta --:--
+[1/2] embeddinggemma-300m-q8_0 verify done 318.1 MiB in 00:00 (1.1 GiB/s)
+```
+
+Terminal form, captured on a pseudo-terminal 140 columns wide: one line per
+step, redrawn in place; frames of a reuse hash, then a download and its verify:
+
+```text
+[2/2] qmd-query-expansion-1.7b-q4_k_m verify     0%  64.00 KiB / 1.19 GiB  811.91 MiB/s  eta --:--
+[2/2] qmd-query-expansion-1.7b-q4_k_m verify    48%  586.94 MiB / 1.19 GiB  1.97 GiB/s  eta --:--
+[2/2] qmd-query-expansion-1.7b-q4_k_m verify   100%  1.19 GiB / 1.19 GiB  1.83 GiB/s  eta --:--
+[1/2] embeddinggemma-300m-q8_0 download 100%  318.14 MiB / 318.14 MiB  1.88 MiB/s  eta 00:00
+[1/2] embeddinggemma-300m-q8_0 verify   100%  318.14 MiB / 318.14 MiB  1.92 GiB/s  eta --:--
+```
+
+The first terminal run showed a first frame without its step name and an ETA
+of `04:37:25` in the first second; both were fixed in this PR (the step is set
+before the bar draws, and the ETA shows `--:--` below 2 s or 1 %), and the
+rerun above is after the fix.
 
 ## Verification Gates
 

@@ -1,7 +1,8 @@
+use std::fmt;
 use std::io::{self, IsTerminal};
 use std::time::{Duration, Instant};
 
-use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
+use indicatif::{ProgressBar, ProgressDrawTarget, ProgressState, ProgressStyle};
 
 const TTY_REFRESH_HZ: u8 = 10;
 
@@ -45,18 +46,21 @@ impl ProgressReporter {
         let prefix = format!("[{index}/{total_models}] {label}");
         match self.output {
             ProgressOutput::Terminal => {
-                let bar = ProgressBar::with_draw_target(
-                    Some(total_bytes),
-                    ProgressDrawTarget::stderr_with_hz(TTY_REFRESH_HZ),
-                );
-                bar.set_style(
-                    ProgressStyle::with_template(
-                        "{prefix} {msg:<8} {percent:>3}%  {bytes} / {total_bytes}  {bytes_per_sec:>10}  eta {eta_precise}",
-                    )
-                    .expect("static progress template is valid"),
-                );
-                bar.set_prefix(prefix);
-                bar.set_message(phase);
+                let style = ProgressStyle::with_template(
+                    "{prefix} {msg:<8} {percent:>3}%  {bytes} / {total_bytes}  {bytes_per_sec:>10}  eta {floored_eta}",
+                )
+                .expect("static progress template is valid")
+                .with_key("floored_eta", |state: &ProgressState, out: &mut dyn fmt::Write| {
+                    let _ = out.write_str(&floored_eta(state.elapsed(), state.fraction(), state.eta()));
+                });
+                // Style, prefix and message go on before the draw target, so the
+                // first frame drawn already names the step.
+                let bar = ProgressBar::hidden()
+                    .with_style(style)
+                    .with_prefix(prefix)
+                    .with_message(phase);
+                bar.set_length(total_bytes);
+                bar.set_draw_target(ProgressDrawTarget::stderr_with_hz(TTY_REFRESH_HZ));
                 ProgressOperation::Terminal(bar)
             }
             ProgressOutput::Lines => {
@@ -181,8 +185,25 @@ fn format_rate(bytes: u64, elapsed: Duration) -> String {
     format!("{}/s", format_bytes(per_second))
 }
 
+fn eta_is_premature(elapsed: Duration, fraction: f32) -> bool {
+    elapsed < Duration::from_secs(2) || fraction < 0.01
+}
+
+fn floored_eta(elapsed: Duration, fraction: f32, eta: Duration) -> String {
+    if eta_is_premature(elapsed, fraction) {
+        "--:--".to_string()
+    } else {
+        format_seconds(eta.as_secs())
+    }
+}
+
 fn format_eta(bytes: u64, total: u64, elapsed: Duration) -> String {
-    if elapsed < Duration::from_secs(2) || percent(bytes, total) < 1 || bytes == 0 {
+    let fraction = if total == 0 {
+        1.0
+    } else {
+        bytes as f32 / total as f32
+    };
+    if eta_is_premature(elapsed, fraction) || bytes == 0 {
         return "--:--".to_string();
     }
     let seconds =
@@ -237,6 +258,23 @@ mod tests {
     fn eta_is_suppressed_until_two_seconds() {
         assert_eq!(format_eta(50, 100, Duration::from_secs(1)), "--:--");
         assert_eq!(format_eta(50, 100, Duration::from_secs(5)), "00:05");
+    }
+
+    #[test]
+    fn eta_is_suppressed_below_one_percent() {
+        assert_eq!(format_eta(5, 1000, Duration::from_secs(10)), "--:--");
+        assert_eq!(
+            floored_eta(Duration::from_secs(10), 0.005, Duration::from_secs(9000)),
+            "--:--"
+        );
+        assert_eq!(
+            floored_eta(Duration::from_secs(10), 0.5, Duration::from_secs(10)),
+            "00:10"
+        );
+        assert_eq!(
+            floored_eta(Duration::from_secs(1), 0.5, Duration::from_secs(1)),
+            "--:--"
+        );
     }
 
     #[test]

@@ -66,6 +66,23 @@ bytes, rate, percentage, and ETA. Redirected stderr receives bounded milestone
 lines instead, so automation logs show that large model transfers are moving
 without contaminating stdout.
 
+On a terminal, one line per step, redrawn in place:
+
+```text
+[1/2] embeddinggemma-300m-q8_0 download  61%  195.20 MiB / 318.14 MiB  3.61 MiB/s  eta 00:34
+```
+
+With stderr redirected, a start line, one line per 25 %, and a done line:
+
+```text
+[1/2] embeddinggemma-300m-q8_0 download start 318.1 MiB
+[1/2] embeddinggemma-300m-q8_0 download 25% 79.5 MiB / 318.1 MiB 3.7 MiB/s eta 01:05
+...
+[1/2] embeddinggemma-300m-q8_0 download done 318.1 MiB in 01:31 (3.5 MiB/s)
+```
+
+A model already on disk is hashed first, reported as `verify`.
+
 ## Create a Project
 
 ```bash
