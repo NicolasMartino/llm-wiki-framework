@@ -9,7 +9,6 @@ pub fn refuse_framework_collision(path: &Path, names: &BTreeSet<String>) -> Resu
         "wiki",
         "raw",
         ".llm_wiki",
-        "AGENTS.md",
         "CLAUDE.md",
         "project_guidelines.md",
     ]
@@ -17,13 +16,14 @@ pub fn refuse_framework_collision(path: &Path, names: &BTreeSet<String>) -> Resu
     .map(|artifact| path.join(artifact))
     .filter(|artifact| artifact.exists())
     .collect();
-    // On a case-sensitive file system `exists()` misses the other spelling.
-    if !artifacts
-        .iter()
-        .any(|artifact| artifact.ends_with("AGENTS.md"))
-        && names.contains("AGENTS.MD")
-    {
-        artifacts.push(path.join("AGENTS.MD"));
+    // `exists()` finds any spelling on a case-insensitive file system and
+    // only the exact one elsewhere; the listing names the file as spelled.
+    if path.join("AGENTS.md").exists() || names.contains("AGENTS.MD") {
+        let spelled = names
+            .iter()
+            .find(|name| name.eq_ignore_ascii_case("AGENTS.md"))
+            .map_or("AGENTS.md", String::as_str);
+        artifacts.push(path.join(spelled));
     }
     if !artifacts.is_empty() {
         let listed = artifacts
