@@ -22,6 +22,24 @@ Pages affected: `wiki/plans/poman-deadline-type.plan.md`,
 `wiki/decisions/deadline-files-hold-one-deadline-each.decision.md`,
 `wiki/index.md`.
 
+## [2026-10-07] merge | Lexical search weights titles and file names, and falls back to phrases
+
+Merged #58 (closes #25): lexical ranking weights a page's file path and title
+ten to one over its body, so "operation manager" puts the "Operation Manager"
+checklist first instead of sixth; when the all-words query finds fewer pages
+than asked, lexical search alone runs a phrase-OR fallback, adds those pages
+after the all-words ones and says so in one warning line, which the JSON reply
+and `search-all` now carry correctly. The four plan names return three of the
+four plans in the top ten, and all four in the top five with the plan filter
+(the owner's bar of 2026-10-07); the lexical eval replay rose from 18 to 22 of
+26. P16 is Completed. The ignored natural-language eval's "hybrid and auto beat
+lexical" assertion may break on its next manual run; it could not be measured
+here.
+
+Pages affected: `wiki/plans/search-ranking-weights-and-phrase-fallback.plan.md`,
+`wiki/specs/documentation-model.spec.md`,
+`wiki/decisions/search-backend-selection.decision.md`,
+
 ## [2026-10-07] merge | The dead build-skills recipes are gone
 
 Merged #65 (closes #5): `just build-skills` and `just build-skills-to` failed
@@ -49,6 +67,7 @@ by the coordinator while the owner was away. P22 is Completed.
 
 Pages affected: `wiki/plans/dependency-gate-covers-dev-dependencies.plan.md`,
 `wiki/plans/poman-workspace-and-strict-gates.plan.md`,
+
 `wiki/roadmaps/framework-v1.roadmap.md`, `wiki/index.md`.
 
 
