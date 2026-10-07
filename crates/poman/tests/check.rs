@@ -4,6 +4,7 @@
 
 use std::fs;
 use std::io;
+#[cfg(target_os = "linux")]
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::{PermissionsExt, symlink};
 use std::path::{Path, PathBuf};
@@ -244,8 +245,6 @@ fn a_file_that_cannot_be_read_is_an_error_at_line_one() -> Result {
     write(root, "wiki/deadlines/latin.deadline.md", b"# Caf\xe9\n")?;
     write(root, "wiki/deadlines/locked.deadline.md", OK)?;
     write(root, "wiki/closed/inside.md", "# Inside\n")?;
-    let name = std::ffi::OsStr::from_bytes(b"\xff.deadline.md");
-    fs::write(root.join("wiki/deadlines").join(name), OK)?;
     let locked = root.join("wiki/deadlines/locked.deadline.md");
     fs::set_permissions(&locked, fs::Permissions::from_mode(0o000))?;
     let closed = root.join("wiki/closed");
@@ -259,8 +258,25 @@ fn a_file_that_cannot_be_read_is_an_error_at_line_one() -> Result {
         "wiki/closed:1: error: this folder cannot be read: Permission denied (os error 13)\n\
          wiki/deadlines/latin.deadline.md:1: error: is not UTF-8\n\
          wiki/deadlines/locked.deadline.md:1: error: cannot be read: Permission denied (os error 13)\n\
-         wiki/deadlines/\u{FFFD}.deadline.md:1: error: the slug `\u{FFFD}` is not lowercase ASCII letters and digits in groups joined by single hyphens\n\
-         deadline files checked: 3, errors: 4, warnings: 0\n"
+         deadline files checked: 2, errors: 3, warnings: 0\n"
+    );
+    Ok(())
+}
+
+/// Linux takes a filename that is not UTF-8; macOS's file system refuses one.
+#[cfg(target_os = "linux")]
+#[test]
+fn a_filename_that_is_not_utf8_is_named_with_replacement_characters() -> Result {
+    let repo = empty_repo()?;
+    let name = std::ffi::OsStr::from_bytes(b"\xff.deadline.md");
+    fs::create_dir_all(repo.path().join("wiki/deadlines"))?;
+    fs::write(repo.path().join("wiki/deadlines").join(name), OK)?;
+    let (code, out, _) = check(repo.path(), &[]);
+    assert_eq!(code, poman::CHECK_FAILED);
+    assert_eq!(
+        out,
+        "wiki/deadlines/\u{FFFD}.deadline.md:1: error: the slug `\u{FFFD}` is not lowercase ASCII letters and digits in groups joined by single hyphens\n\
+         deadline files checked: 1, errors: 1, warnings: 0\n"
     );
     Ok(())
 }
