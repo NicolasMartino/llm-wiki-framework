@@ -469,6 +469,12 @@ fn mcp_prompts_list_and_get_operation_guidance() {
                     "arguments": {"query": "what changed?"}
                 }
             }),
+            json!({
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "prompts/get",
+                "params": {"name": "wiki_lint"}
+            }),
         ],
     );
 
@@ -496,6 +502,20 @@ fn mcp_prompts_list_and_get_operation_guidance() {
     assert!(text.contains("wiki/index.md"));
     assert!(text.contains(mcp_tool_name("llm_wiki_search")));
     assert!(text.contains(mcp_tool_name("llm_wiki_read")));
+
+    // Choice 7 of the poman deadline type: lint leaves deadline files to poman.
+    let lint = responses
+        .iter()
+        .find(|response| response["id"] == 3)
+        .expect("wiki_lint prompts/get response");
+    let text = lint["result"]["messages"][0]["content"]["text"]
+        .as_str()
+        .expect("text");
+    assert!(text.contains(
+        "Leave deadline files (`wiki/deadlines/<slug>.deadline.md`) to `poman check`: \
+         they carry poman's fields only, with no metadata block, and the index points \
+         to their folder, not to each file, so they are not orphans."
+    ));
 }
 
 #[test]

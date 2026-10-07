@@ -18,6 +18,79 @@ Pages affected: `wiki/plans/install-download-progress.plan.md`,
 `wiki/specs/documentation-model.spec.md`,
 `wiki/roadmaps/framework-v1.roadmap.md`, `wiki/index.md`.
 
+## [2026-10-07] merge | poman writes and checks deadline files, and serves them over MCP
+
+Merged #62 (closes #60): PM3 and PM3.1 built in one PR, as the owner decided
+on 2026-10-07. `poman new deadline` writes a deadline file and refuses any
+value `poman check` would refuse; `poman check` holds every deadline file to
+its type, each message naming the file and the line; both answer in JSON with
+`--json`. `poman mcp` serves them as the `poman_new_deadline` and
+`poman_check` tools over the stdio plumbing now shared in `llm-wiki-core`,
+and `llm-wiki install` registers poman's server beside llm-wiki's, which
+uninstall removes. `just local-release` builds the release archives locally,
+saves the current install and installs from them; `just
+local-release-revert` restores the saved state, refusing and naming each file
+changed since the release unless `--overwrite` is given, which copies those
+files aside first. PM3's proof on riseon is the owner's own test after a local
+release. doctor's check of poman's wiring is PM3.2.
+
+Pages affected: `wiki/plans/poman-deadline-type.plan.md`,
+`wiki/plans/poman-mcp-server.plan.md`, `wiki/roadmaps/poman.roadmap.md`,
+`wiki/decisions/poman-is-mcp-friendly.decision.md`,
+`wiki/decisions/poman-reads-only-its-own-file-types.decision.md`,
+`wiki/decisions/deadline-files-hold-one-deadline-each.decision.md`,
+`wiki/index.md`.
+
+## [2026-10-07] merge | Lexical search weights titles and file names, and falls back to phrases
+
+Merged #58 (closes #25): lexical ranking weights a page's file path and title
+ten to one over its body, so "operation manager" puts the "Operation Manager"
+checklist first instead of sixth; when the all-words query finds fewer pages
+than asked, lexical search alone runs a phrase-OR fallback, adds those pages
+after the all-words ones and says so in one warning line, which the JSON reply
+and `search-all` now carry correctly. The four plan names return three of the
+four plans in the top ten, and all four in the top five with the plan filter
+(the owner's bar of 2026-10-07); the lexical eval replay rose from 18 to 22 of
+26. P16 is Completed. The ignored natural-language eval's "hybrid and auto beat
+lexical" assertion may break on its next manual run; it could not be measured
+here.
+
+Pages affected: `wiki/plans/search-ranking-weights-and-phrase-fallback.plan.md`,
+`wiki/specs/documentation-model.spec.md`,
+`wiki/decisions/search-backend-selection.decision.md`,
+`wiki/roadmaps/framework-v1.roadmap.md`, `wiki/index.md`.
+
+## [2026-10-07] merge | The dead build-skills recipes are gone
+
+Merged #65 (closes #5): `just build-skills` and `just build-skills-to` failed
+with "unrecognized subcommand 'build'" since the skill renderer was retired in
+the MCP-first move, and nothing in the repository or its CI called them; both
+recipes are removed rather than repaired, and the pages that record the
+failure stay as history. Both of the plan's choices were taken by the
+coordinator while the owner was away. P8 is Completed.
+
+Pages affected: `wiki/plans/build-skills-recipes.plan.md`,
+`wiki/roadmaps/framework-v1.roadmap.md`, `wiki/index.md`.
+
+## [2026-10-07] merge | The dependency gate covers dev-dependencies
+
+Merged #64 (closes #37): `cargo deny check` already rejected a banned crate
+and an unknown source brought in only by a dev-dependency, but a duplicate
+version and a disallowed licence got through, since cargo-deny leaves
+dev-dependencies out of those two checks by default (two versions of
+getrandom, both from inside proptest, were already in the tree). `deny.toml`
+now turns both on, with one skip pinned to getrandom 0.3.4 and its reason, so
+all four checks reject a slip in a dev-dependency; seven probes are recorded
+in the plan. P22's roadmap text and PM1's plan, which said cargo-deny skipped
+dev-dependencies altogether, are corrected. The plan's one choice was taken
+by the coordinator while the owner was away. P22 is Completed.
+
+Pages affected: `wiki/plans/dependency-gate-covers-dev-dependencies.plan.md`,
+`wiki/plans/poman-workspace-and-strict-gates.plan.md`,
+
+`wiki/roadmaps/framework-v1.roadmap.md`, `wiki/index.md`.
+
+
 ## [2026-10-07] merge | Five short plans, and poman is MCP-friendly
 
 Merged #59 (closes #57; part of #29, #36, #37, #49 and #5): plans for compact

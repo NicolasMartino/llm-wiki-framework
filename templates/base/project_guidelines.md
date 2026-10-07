@@ -175,7 +175,8 @@ The agent scans for:
 
 1. contradictions between pages
 2. stale claims (status or facts that no longer match reality)
-3. orphan pages with no inbound links from index or other pages
+3. orphan pages with no inbound links from index or other pages, deadline
+   files excepted (see "Deadline files" below)
 4. missing cross-references between related pages
 5. specs that reference unvalidated claims
 6. proposals or plans with outdated status
@@ -311,6 +312,12 @@ Optional fields:
 2. `Supersedes` / `Superseded By`
 3. `Related` (links to other wiki pages)
 4. `Promotion Target` (what spec or decision to update after validation)
+
+Deadline files: a deadline file (`wiki/deadlines/<slug>.deadline.md`) is
+poman's, not the wiki's. It carries poman's fields only, with no metadata
+block; `poman check` checks it, and lint leaves it to `poman check` rather
+than fixing it; and it is not listed one by one in `wiki/index.md`, where one
+line points to the folder, so the orphan check passes over it.
 
 ## Status Vocabulary
 

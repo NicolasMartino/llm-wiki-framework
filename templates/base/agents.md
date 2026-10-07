@@ -61,7 +61,7 @@ Periodically or on request:
 
 1. Scan for contradictions between pages.
 2. Find stale statuses or outdated claims.
-3. Identify orphan pages not linked from index.
+3. Identify orphan pages not linked from index, deadline files excepted.
 4. Check for missing cross-references.
 5. Fix issues directly.
 6. Log all changes in `wiki/log.md`.
@@ -74,6 +74,9 @@ Periodically or on request:
 - Use the type by role, not convenience. See `project_guidelines.md`.
 - Every wiki page has a metadata block: Document Class, Status, Date,
   Category, Scope, Sources, and Related when useful.
+- Deadline files (`wiki/deadlines/<slug>.deadline.md`) are poman's: they carry
+  poman's fields only, `poman check` checks them rather than lint, and the
+  index points to their folder, not to each file.
 - Filenames: `[slug].type.md` or `[index]-[slug].type.md`.
 - Archived documents go to `wiki/archive/`.
 - `wiki/log.md` uses format: `## [YYYY-MM-DD] operation | subject`.
