@@ -70,6 +70,32 @@ in only by tests fails it like any other; and the gate's description says so.
   The strict-gates decision's wording is checked, and changed only if it
   says otherwise.
 
+## The Proof (2026-10-07, PR for #37)
+
+Rerun with cargo-deny 0.20.2 on this plan's PR branch, from `c6e4995`, where
+`deny.toml` and the strict crates' manifests are as at `cad8988`. The copy of
+`deny.toml`, kept outside the repository, adds one line under `[bans]`:
+
+```toml
+deny = [{ crate = "proptest" }]
+```
+
+For each strict crate, `cargo deny --manifest-path crates/<crate>/Cargo.toml
+--config <copy> check bans` exits 2:
+
+```text
+error[banned]: crate 'proptest = 1.11.0' is explicitly banned
+   ├ proptest v1.11.0
+     └── (dev) llm-wiki-core v0.2.15
+bans FAILED
+```
+
+and on `crates/poman` the same, with `(dev) poman v0.2.15`. With the
+repository's own `deny.toml`, the deny gate of `just strict` passes for both.
+In the same tree, `cargo deny --manifest-path crates/llm-wiki-core/Cargo.toml
+list` still prints only `MIT (1): llm-wiki-core@0.2.15`: `list` is what hides
+the dev-dependencies, not `check`.
+
 ## Done When
 
 - The deliberate ban above is rejected by `cargo deny check bans` for both
@@ -80,6 +106,9 @@ in only by tests fails it like any other; and the gate's description says so.
   fast check passes on the PR into `develop`.
 
 ## Open For The Owner
+
+Taken by the coordinator on 2026-10-07 while the owner was away: choice 1, as
+recommended, to be confirmed by the owner's verdict on the PR for #37.
 
 1. **Close P22 with a one-line comment in the gate script**, the proof being
    the run recorded here, rerun on that PR's head. Not chosen: closing P22 on

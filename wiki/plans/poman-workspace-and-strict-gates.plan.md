@@ -56,9 +56,12 @@ with one binary, and `uninstall` keeping the binary unless
 - **The gates:** `tools/strict-gates.sh` (`just strict`) runs every gate of the
   decision over the two crates, in the fast check and the full CI; each
   deliberate slip of phase 2 failed its gate, shown in PR #28's "Gates". The dated nightly is
-  named in `tools/udeps-nightly` (`nightly-2026-10-01`). cargo-deny 0.20.2
-  leaves dev-dependencies out of the graph it checks, so the deny gate covers
-  the crates' normal and build dependencies.
+  named in `tools/udeps-nightly` (`nightly-2026-10-01`). The deny gate's
+  `cargo deny check` covers the crates' normal, build and dev-dependencies.
+  Corrected 2026-10-07 (P22, issue #37): this line said cargo-deny 0.20.2
+  leaves dev-dependencies out of the graph it checks, read from `cargo deny
+  list`, which does not show them; a banned dev-dependency is rejected by
+  `check` for both crates (`wiki/plans/dependency-gate-covers-dev-dependencies.plan.md`).
 - **Install:** `llm-wiki install` copies the poman of its own version from
   beside its binary into the managed bin folder and records it in a schema 3
   manifest; with none usable it keeps a recorded poman, else refuses. The
