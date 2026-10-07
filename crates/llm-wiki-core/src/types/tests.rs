@@ -1,4 +1,4 @@
-use super::{FilenameError, WikiFilename};
+use super::{FieldDefinition, FilenameError, WikiFilename};
 
 #[test]
 fn splits_a_plain_filename() -> Result<(), FilenameError> {
@@ -97,4 +97,22 @@ fn each_error_says_which_rule() {
     for (error, message) in cases {
         assert_eq!(error.to_string(), message);
     }
+}
+
+#[test]
+fn a_field_is_required_or_optional() {
+    assert_eq!(
+        FieldDefinition::required("Status"),
+        FieldDefinition {
+            key: "Status",
+            required: true
+        }
+    );
+    assert_eq!(
+        FieldDefinition::optional("Owner"),
+        FieldDefinition {
+            key: "Owner",
+            required: false
+        }
+    );
 }

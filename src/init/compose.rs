@@ -2,6 +2,10 @@ use std::collections::{BTreeSet, HashSet};
 
 use anyhow::Result;
 use chrono::Utc;
+use llm_wiki_core::types::DocumentType;
+use llm_wiki_core::types::llm_wiki::{
+    CHECKLIST, CORE, DECISION, EVAL, EXPERIMENT, PLAN, PROPOSAL, REFERENCE, ROADMAP, SPEC,
+};
 
 use super::blueprints::Blueprint;
 use super::packs::{DocType, Pack, StatusEntry};
@@ -10,16 +14,13 @@ use super::template::{
     render_agent_template_with_fragments, render_project_guidelines_with_fragments,
 };
 
-const SPINE_FOLDERS: &[&str] = &[
-    "raw",
-    "wiki/specs",
-    "wiki/decisions",
-    "wiki/proposals",
-    "wiki/roadmaps",
-    "wiki/plans",
-    "wiki/checklists",
-    "wiki/references",
-    "wiki/archive",
+/// The folders every project gets that are not a document type's; the core
+/// types' folders come from their definitions.
+const INIT_FOLDERS: &[&str] = &["raw", "wiki/archive"];
+
+/// The index's sections for the core types, in the order it lists them.
+const CORE_INDEX: &[DocumentType] = &[
+    SPEC, DECISION, ROADMAP, REFERENCE, PROPOSAL, PLAN, CHECKLIST,
 ];
 
 const CLAUDE_REDIRECT: &str = "See @AGENTS.md.\n";
@@ -111,7 +112,8 @@ pub fn compose(plan: &RenderPlan) -> Result<InitOutput> {
 
 pub(super) fn resolve_folders(packs: &[Pack]) -> Vec<String> {
     let mut folders = BTreeSet::new();
-    folders.extend(SPINE_FOLDERS.iter().map(|folder| (*folder).to_string()));
+    folders.extend(INIT_FOLDERS.iter().map(|folder| (*folder).to_string()));
+    folders.extend(CORE.iter().map(|doc_type| doc_type.folder.to_string()));
     for pack in packs {
         folders.extend(pack.folders().iter().map(|folder| (*folder).to_string()));
     }
@@ -219,18 +221,10 @@ fn dedupe_status_vocab(packs: &[Pack]) -> Vec<StatusEntry> {
 }
 
 fn index_md(project_name: &str, packs: &[Pack]) -> String {
-    let mut sections = vec![
-        "Specs",
-        "Decisions",
-        "Roadmaps",
-        "References",
-        "Proposals",
-        "Plans",
-        "Checklists",
-    ];
+    let mut sections: Vec<&str> = CORE_INDEX.iter().map(|doc_type| doc_type.plural).collect();
     if packs.contains(&Pack::Ml) {
-        sections.push("Experiments");
-        sections.push("Evals");
+        sections.push(EXPERIMENT.plural);
+        sections.push(EVAL.plural);
     }
     if packs.contains(&Pack::Ops) || packs.contains(&Pack::OpsLite) {
         sections.push("Runbooks");
@@ -273,6 +267,18 @@ mod tests {
             blueprint,
             packs: Some(packs),
         }
+    }
+
+    #[test]
+    fn the_index_has_a_section_for_each_core_type() {
+        let names = |types: &[DocumentType]| {
+            types
+                .iter()
+                .map(|doc_type| doc_type.name)
+                .collect::<BTreeSet<_>>()
+        };
+        assert_eq!(CORE_INDEX.len(), CORE.len());
+        assert_eq!(names(CORE_INDEX), names(CORE));
     }
 
     #[test]

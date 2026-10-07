@@ -1,11 +1,76 @@
-//! The file types of a project's wiki, starting with how a page's filename
-//! names its type.
+//! The file types of a project's wiki: how a page's filename names its type,
+//! and each type's definition.
 
 use std::error::Error;
 use std::fmt;
 
+pub mod llm_wiki;
 #[cfg(test)]
 mod tests;
+
+/// A file type: how its pages are named, where they live, and what they
+/// carry. llm-wiki's types are in [`llm_wiki`]; poman's are kept apart, so
+/// each tool checks only its own.
+///
+/// ```
+/// use llm_wiki_core::types::WikiFilename;
+/// use llm_wiki_core::types::llm_wiki::PLAN;
+///
+/// let name = WikiFilename::parse("strict-gates.plan.md")?;
+/// assert_eq!(format!("{}.md", name.doc_type()), PLAN.suffix);
+/// assert_eq!((PLAN.name, PLAN.plural, PLAN.folder), ("Plan", "Plans", "wiki/plans"));
+/// assert_eq!(PLAN.statuses.first(), Some(&"Draft"));
+/// # Ok::<(), llm_wiki_core::types::FilenameError>(())
+/// ```
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct DocumentType {
+    /// The type's name, as a page's `Document Class` gives it: `Plan`.
+    pub name: &'static str,
+    /// The name of a list of its pages, as a wiki index or a status table
+    /// heads it: `Plans`.
+    pub plural: &'static str,
+    /// The end of its pages' filenames, after the slug and its dot: `plan.md`.
+    pub suffix: &'static str,
+    /// The folder its pages live in, from the project's root: `wiki/plans`.
+    pub folder: &'static str,
+    /// Whether its filenames start with an index, as
+    /// `[index]-[slug].proposal.md` does.
+    pub indexed: bool,
+    /// The fields its pages carry, in the order they are written.
+    pub fields: &'static [FieldDefinition],
+    /// The statuses its pages may have, in the order the guidelines give
+    /// them.
+    pub statuses: &'static [&'static str],
+}
+
+/// A field a type's pages carry.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct FieldDefinition {
+    /// The field's key: `Document Class`.
+    pub key: &'static str,
+    /// Whether every page of the type must carry it.
+    pub required: bool,
+}
+
+impl FieldDefinition {
+    /// A field every page of the type must carry.
+    #[must_use]
+    pub const fn required(key: &'static str) -> Self {
+        Self {
+            key,
+            required: true,
+        }
+    }
+
+    /// A field a page of the type may carry.
+    #[must_use]
+    pub const fn optional(key: &'static str) -> Self {
+        Self {
+            key,
+            required: false,
+        }
+    }
+}
 
 /// A wiki page's filename split into its parts: `[slug].type.md`, or
 /// `[index]-[slug].type.md` for a page kept in order.

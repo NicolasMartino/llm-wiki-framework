@@ -80,7 +80,7 @@ Proof:
 
 ### PM2 - The Shared Page Reader And File Types
 
-Status: Draft
+Status: Completed (develop)
 Promise: The field-block parser lives in the shared crate, and llm-wiki's
 document types are defined there with their fields and statuses, so llm-wiki
 and poman read pages one way.
@@ -88,7 +88,7 @@ Depends On: PM1
 Execution Plan: `wiki/plans/poman-shared-page-reader-and-types.plan.md`
 
 Included:
-- `parse_wiki_metadata` (today `src/search/metadata.rs`) moved into the shared
+- `parse_wiki_metadata` (`src/search/metadata.rs` until PM2) moved into the shared
   crate and rewritten to its strictest gates (no indexing or slicing, doc
   comments, unit tests in their own file, full coverage, no surviving
   mutants), ahead of PM8's ratchet for the rest of llm-wiki

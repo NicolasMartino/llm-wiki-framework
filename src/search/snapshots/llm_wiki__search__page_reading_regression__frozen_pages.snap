@@ -1,0 +1,1284 @@
+---
+source: src/search/page_reading_regression.rs
+expression: pages
+---
+README.md
+  title: Some("Page Reader Corpus")
+forms/bold-bullet-keys.md
+  title: Some("Bold Bullets")
+  "Document Class": "Plan"
+  "Scope": "bold value continued by a tab and by two spaces"
+  "Status": "Active"
+forms/bullet-block-before-title.md
+  title: Some("Bullets Before The Title")
+  "Document Class": "Plan"
+  "Scope": "after wins"
+  "Status": "Active"
+forms/crlf-lines.md
+  title: Some("Windows Lines")
+  "Document Class": "Spec"
+  "Status": "Active continued"
+forms/edge-bold-empty-key.md
+  title: Some("Bold Empty Key")
+  "Status": "Active"
+forms/edge-empty-key.md
+  title: Some("Empty Keys")
+  "Status": "Active"
+forms/edge-keys.md
+  title: Some("Edge Keys")
+  "Bold Key": "spaced bold value"
+  "Key": "joined to an empty value"
+  "Status": "Active"
+  "Value With Colons": "a: b: c"
+forms/empty-titles.md
+  title: Some("Real Title")
+  "Status": "Active"
+forms/front-matter-blank-lines-and-yaml-list.md
+  title: Some("Front Matter With Gaps")
+  "Document Class": "Spec"
+  "Sources": "a b"
+  "Status": "Active"
+  "tags": "- x - y"
+forms/front-matter-no-title.md
+  title: None
+  "Document Class": "Reference"
+  "Status": "Draft"
+forms/front-matter-unclosed.md
+  title: Some("Never Closed")
+  "Category": "after the title"
+  "Document Class": "Spec"
+  "Status": "Active"
+forms/indented-title.md
+  title: Some("Indented Title")
+  "Status": "Active"
+forms/no-title-bare-block.md
+  title: None
+  "Document Class": "Spec"
+  "Status": "Active wrapped"
+forms/no-title-prose.md
+  title: None
+forms/precedence-of-blocks.md
+  title: Some("Precedence")
+  "Category": "front"
+  "Scope": "before"
+  "Status": "Completed"
+forms/search-ignore-line-start.md
+  title: Some("Masked Line Start")
+  "Key": "a no-break space starts this line"
+  "Status": "Active"
+  "€                                     \u{2003}                                   Other": "shown"
+forms/search-ignore-markers.md
+  title: Some("Ignored Spans")
+  "Document Class": "Spec"
+  "Status": "Active"
+forms/search-ignore-title.md
+  title: Some("Shown Title")
+  "Status": "Active"
+forms/search-ignore-wide-character.md
+  title: Some("Wide Characters")
+  "Scope": "after"
+  "Status": "Active Wide: masked to four spaces, so a continuation"
+forms/unit-bare-block-before-title.md
+  title: Some("Review Source Screening Checklist")
+  "Category": "Literature intake"
+  "Date": "2026-06-25"
+  "Document Class": "Checklist"
+  "Scope": "Defines how sources are screened."
+  "Status": "Active"
+forms/unit-bold-keys.md
+  title: Some("Bold Header")
+  "Document Class": "Spec"
+  "Status": "Draft"
+forms/unit-front-matter.md
+  title: Some("Frontmatter Doc")
+  "Document Class": "Decision"
+  "Status": "Accepted"
+forms/unit-h1-and-leading-block.md
+  title: Some("Search Backend Selection")
+  "Document Class": "Decision"
+  "Sources": "wiki/evals/search-backend-selection.eval.md wiki/proposals/search-backend-selection.proposal.md"
+  "Status": "Accepted"
+forms/unit-later-bullets-ignored.md
+  title: Some("Title")
+  "Document Class": "Plan"
+forms/unit-missing-optional-fields.md
+  title: Some("Untyped")
+forms/unit-prose-quirk.md
+  title: Some("Prose Doc")
+  "This is prose that mentions a ratio of 4": "1 in passing."
+wiki/archive/framework-path-resolution.decision.md
+  title: Some("Framework Path Resolution")
+  "Category": "Tooling"
+  "Date": "2026-05-06"
+  "Document Class": "Decision"
+  "Related": "wiki/specs/init-project-skill.spec.md, wiki/archive/project-local-codex-skills.decision.md"
+  "Scope": "Resolve framework source paths relative to project-local skill files instead of hardcoding absolute repository paths."
+  "Sources": "review.md, .codex/skills/init-project/SKILL.md, .claude/skills/init-project/SKILL.md, wiki/decisions/project-local-codex-skills.decision.md"
+  "Status": "Superseded"
+  "Superseded By": "wiki/decisions/llm-wiki-binary-distribution.decision.md"
+wiki/archive/knowledge-command-namespace.decision.md
+  title: Some("Knowledge Command Namespace")
+  "Category": "Tooling"
+  "Date": "2026-04-23"
+  "Document Class": "Decision"
+  "Related": "wiki/proposals/project-and-skill-rename.proposal.md, wiki/plans/project-and-skill-rename.plan.md, wiki/specs/wiki-init-skill.spec.md, wiki/specs/wiki-query-skill.spec.md, wiki/specs/wiki-ingest-skill.spec.md, wiki/specs/wiki-research-skill.spec.md, wiki/specs/wiki-lint-skill.spec.md"
+  "Scope": "Use `$knowledge` as the primary explicit command-like namespace for LLM Wiki operations in Codex. Superseded by D11; the current namespace is `$wiki`."
+  "Sources": "archived skill assets prior to D11 rename"
+  "Status": "Superseded"
+  "Superseded": "2026-05-08"
+wiki/archive/knowledge-intake-command.proposal.md
+  title: Some("Knowledge Research Intake")
+  "Category": "Tooling"
+  "Date": "2026-05-06"
+  "Document Class": "Proposal"
+  "Related": "wiki/decisions/knowledge-research-intake.decision.md, wiki/specs/knowledge-research-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/decisions/knowledge-command-namespace.decision.md"
+  "Scope": "Refine `knowledge-research` into a guided intake flow that asks what to research, gathers material from local and web sources, and saves the collected source set under `raw/research/`."
+  "Sources": "wiki/specs/knowledge-research-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/decisions/knowledge-command-namespace.decision.md, wiki/specs/documentation-model.spec.md"
+  "Status": "Archived"
+  "Superseded By": "wiki/decisions/knowledge-research-intake.decision.md"
+wiki/archive/project-local-codex-skills.decision.md
+  title: Some("Project-Local Codex Skills")
+  "Category": "Tooling"
+  "Date": "2026-05-06"
+  "Document Class": "Decision"
+  "Related": "wiki/specs/init-project-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-lint-skill.spec.md, wiki/specs/knowledge-research-skill.spec.md, wiki/decisions/knowledge-command-namespace.decision.md, wiki/archive/framework-path-resolution.decision.md, wiki/archive/single-source-skills.decision.md"
+  "Scope": "Keep Codex skill definitions inside this framework repo and expose them globally through symlinks."
+  "Sources": ".codex/skills/init-project/SKILL.md, .codex/skills/knowledge/SKILL.md, .codex/skills/knowledge-query/SKILL.md, .codex/skills/knowledge-ingest/SKILL.md, .codex/skills/knowledge-lint/SKILL.md, .codex/skills/knowledge-research/SKILL.md"
+  "Status": "Superseded"
+  "Superseded By": "wiki/decisions/llm-wiki-binary-distribution.decision.md"
+wiki/archive/single-source-skills.decision.md
+  title: Some("Single Source Skills")
+  "Category": "Tooling"
+  "Date": "2026-05-06"
+  "Document Class": "Decision"
+  "Related": "wiki/specs/init-project-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-research-skill.spec.md, wiki/specs/knowledge-lint-skill.spec.md, wiki/archive/framework-path-resolution.decision.md"
+  "Scope": "Maintain one canonical skill source tree and generate Claude/Codex runtime skill outputs from it."
+  "Sources": "wiki/archive/single-source-skills.plan.md, skills/README.md, wiki/archive/project-local-codex-skills.decision.md"
+  "Status": "Superseded"
+  "Superseded By": "wiki/decisions/llm-wiki-binary-distribution.decision.md"
+wiki/archive/single-source-skills.plan.md
+  title: Some("Plan: Consolidate Skills Into a Single Source of Truth")
+  "Category": "Tooling, framework infrastructure"
+  "Date": "2026-05-06"
+  "Document Class": "Plan"
+  "Related": "wiki/archive/single-source-skills.decision.md, wiki/specs/init-project-skill.spec.md, wiki/specs/knowledge-ingest-skill.spec.md, wiki/specs/knowledge-query-skill.spec.md, wiki/specs/knowledge-research-skill.spec.md, wiki/specs/knowledge-lint-skill.spec.md"
+  "Scope": "Eliminate `.claude/skills/` ↔ `.codex/skills/` duplication by introducing one canonical `skills/` source and generating per-runtime variants from it."
+  "Sources": "review.md §9 (Codex follow-up findings), wiki/decisions/project-local-codex-skills.decision.md, wiki/specs/documentation-model.spec.md"
+  "Status": "Superseded"
+  "Superseded By": "wiki/decisions/llm-wiki-binary-distribution.decision.md"
+wiki/checklists/headroom-launch-smoke.checklist.md
+  title: Some("Headroom Launch Smoke")
+  "Category": "Agent runtime, Headroom, provenance smoke"
+  "Date": "2026-07-18"
+  "Document Class": "Checklist"
+  "Related": "- wiki/checklists/mcp-field-test.checklist.md - wiki/plans/headroom-mcp-field-test-repair.plan.md"
+  "Scope": "Optional smoke for users who deliberately run Headroom in front of an agent while keeping LLM Wiki wiki/raw access routed through framework MCP tools, detecting host/proxy compression, failing loudly on mutated read/search payloads, and using compact paged search when full search outputs cannot survive the active Headroom path."
+  "Sources": "- wiki/decisions/headroom-single-posture-mcp-first.decision.md - wiki/references/headroom-context-compression.reference.md - wiki/plans/headroom-passthrough-launcher.plan.md - wiki/plans/headroom-mcp-field-test-repair.plan.md"
+  "Status": "Active; Option A supported path validated for Headroom 0.32 + managed `llm-wiki 0.2.13`; full read/search payload preservation remains unsupported"
+wiki/checklists/mcp-field-test.checklist.md
+  title: Some("MCP Field Test")
+  "Category": "MCP surface, field test, release gate"
+  "Date": "2026-06-29"
+  "Document Class": "Checklist"
+  "Related": "wiki/evals/mcp-first-host-parity.eval.md"
+  "Scope": "Paste-ready agent protocol for exercising the installed LLM Wiki MCP server end-to-end inside a target project, capturing raw output, and reporting pass/fail against the known correctness issues. This is the single field-test checklist and the correctness source of truth for the MCP surface."
+  "Sources": "wiki/plans/mcp-first-agent-guidance.plan.md, src/search/metadata.rs, src/search/commands.rs, src/instance.rs"
+  "Status": "Active"
+  "Updated": "2026-08-01"
+wiki/checklists/observability-contract.checklist.md
+  title: Some("Observability Contract")
+  "Category": "CLI UX, operational diagnostics, review gate"
+  "Date": "2026-05-11"
+  "Document Class": "Checklist"
+  "Related": "src/cli.rs, src/main.rs, tests/search_commands.rs"
+  "Scope": "Review checklist for future `llm-wiki` binary changes that add or alter user-visible command behavior."
+  "Sources": "wiki/specs/documentation-model.spec.md, wiki/plans/cli-observability.plan.md, wiki/proposals/cli-observability.proposal.md"
+  "Status": "Active"
+wiki/checklists/operation-manager.checklist.md
+  title: Some("Operation Manager")
+  "Category": "Development process"
+  "Date": "2026-10-06"
+  "Document Class": "Checklist"
+  "Related": "- `wiki/plans/development-workflow-setup.plan.md` (done once, first) - `wiki/checklists/worker-briefs.checklist.md` - `wiki/decisions/work-is-recorded-in-the-repository.decision.md` - `wiki/decisions/work-in-flight-is-a-pushed-branch.decision.md` - `wiki/decisions/the-pull-request-is-the-review-surface.decision.md` - `wiki/plans/develop-and-master-ci.plan.md`"
+  "Scope": "What the coordinating session does between the owner and the workers: talking with the owner, the plans and the board, issues and names, starting a worker, fix rounds, the limits across workers, worktrees, integration branches, the blind review, landing a PR or a comment, the log entry, taking `develop` to master, and clean-up. Each rule with its reason."
+  "Sources": "- The owner's decisions of 2026-10-06 on how this repository is worked on, and that work lands on `develop` (\"all issues/PR should be pointing at develop now\") - The operation manager runbooks of RepForge and riseon (2026-10-02 to 2026-10-06), cut down for this repository; the reasons cite what happened there"
+  "Status": "Active"
+wiki/checklists/v1-fixture-smoke.checklist.md
+  title: Some("V1 Fixture Smoke")
+  "Category": "Compatibility, release gate"
+  "Date": "2026-05-06"
+  "Document Class": "Checklist"
+  "Related": "wiki/decisions/llm-wiki-binary-distribution.decision.md"
+  "Scope": "Agent-driven smoke procedure for the committed v1 wiki fixture."
+  "Sources": "wiki/plans/llm-wiki-binary.plan.md, tests/fixtures/wikis/v1/"
+  "Status": "Active"
+wiki/checklists/worker-briefs.checklist.md
+  title: Some("Worker Briefs")
+  "Category": "Development process"
+  "Date": "2026-10-06"
+  "Document Class": "Checklist"
+  "Related": "- `wiki/checklists/operation-manager.checklist.md` - `.claude/skills/operations-start/`"
+  "Scope": "The briefs a worker is started with, one per kind of task: the names, each kind's model, effort and base text, and the reason for every rule a worker gets."
+  "Sources": "- The owner's decisions of 2026-10-06 on how this repository is worked on - The worker briefs runbooks of RepForge and riseon (2026-10-01 to 2026-10-06), cut down to the kinds this repository starts with"
+  "Status": "Active"
+wiki/decisions/agent-owns-wiki.decision.md
+  title: Some("Agent Owns Wiki")
+  "Category": "Ownership model"
+  "Date": "2026-04-23"
+  "Document Class": "Decision"
+  "Scope": "The agent has full control of all wiki/ content. Humans curate raw/ and make judgment calls."
+  "Sources": "raw/research/llm-wiki-pattern-research.md"
+  "Status": "Accepted"
+wiki/decisions/binary-path-bootstrap.decision.md
+  title: Some("Managed Binary Runtime Install")
+  "Amends": "wiki/decisions/llm-wiki-binary-distribution.decision.md"
+  "Category": "Distribution tooling, install UX"
+  "Date": "2026-05-06"
+  "Document Class": "Decision"
+  "Related": "wiki/roadmaps/framework-v1.roadmap.md (D8.1, D11), wiki/plans/binary-path-bootstrap.plan.md, wiki/specs/documentation-model.spec.md, wiki/specs/wiki-init-skill.spec.md"
+  "Scope": "Amend `llm-wiki install` so installed skills invoke a managed binary by absolute path and `PATH` is only terminal convenience."
+  "Sources": "wiki/proposals/binary-path-bootstrap.proposal.md, proposal review 2026-05-06, wiki/decisions/llm-wiki-binary-distribution.decision.md"
+  "Status": "Accepted"
+wiki/decisions/code-pack-cli-blueprint.decision.md
+  title: Some("Code Pack And CLI Tool Blueprint")
+  "Category": "Init UX, project scaffolding, blueprint/pack catalog"
+  "Date": "2026-05-11"
+  "Document Class": "Decision"
+  "Related": "wiki/plans/code-pack-cli-blueprint.plan.md, wiki/decisions/composable-project-init.decision.md, wiki/specs/documentation-model.spec.md, wiki/specs/wiki-init-skill.spec.md"
+  "Scope": "`llm-wiki init` moves code/deploy folders behind an explicit `code` pack and adds `cli-tool` as a first-class blueprint for command-line products."
+  "Sources": "wiki/proposals/code-folders-opt-in.proposal.md, wiki/decisions/composable-project-init.decision.md, src/init/compose.rs, src/init/blueprints.rs, src/init/packs.rs, templates/base/project_guidelines.md, user discussion 2026-05-11"
+  "Status": "Accepted"
+wiki/decisions/composable-project-init.decision.md
+  title: Some("Composable Project Init: Blueprints and Packs")
+  "Category": "Tooling, project scaffolding, init UX"
+  "Date": "2026-05-07"
+  "Document Class": "Decision"
+  "Related": "wiki/proposals/blueprint-pack-init.proposal.md, wiki/proposals/skills-template-engine.proposal.md, wiki/specs/documentation-model.spec.md, wiki/specs/wiki-init-skill.spec.md, wiki/decisions/llm-wiki-binary-distribution.decision.md"
+  "Scope": "`llm-wiki init` becomes a composable generator. A chosen blueprint plus a selected set of opt-in packs renders a tailored canonical `AGENTS.md` and `project_guidelines.md` through a compile-time template engine; a per-project `.llm_wiki/` folder records the choices."
+  "Sources": "wiki/proposals/blueprint-pack-init.proposal.md, templates/base/project_guidelines.md, templates/base/agents.md, templates/packs/, src/init/{blueprints,packs,compose,manifest,answers,template,scaffold,command}.rs"
+  "Status": "Accepted"
+wiki/decisions/deadline-files-hold-one-deadline-each.decision.md
+  title: Some("Deadline Files Hold One Deadline Each")
+  "Category": "poman design"
+  "Date": "2026-10-06"
+  "Document Class": "Decision"
+  "Related": "- `wiki/decisions/poman-reads-only-its-own-file-types.decision.md`: the rules every poman type follows (fields in the bullet block, reference fields as paths, `poman new` and `poman check`) - `wiki/decisions/poman-syncs-a-tracker-the-way-git-syncs-a-remote.decision.md`: how deadline files become tracked items - `wiki/decisions/the-pull-request-is-the-review-surface.decision.md`: the review every other change gets - `wiki/roadmaps/poman.roadmap.md`: PM3 (the type), PM4 (putting the check in its three places), PM7 (the forecast)"
+  "Scope": "poman's first file type, the deadline: where the files live, their fields and value formats, how its `should-start` date is found, how the files land, and where `poman check` runs on them."
+  "Sources": "- The owner's decisions, 2026-10-06: one file per deadline, its fields, the computed start date (since named `should-start`), and deadline files landing straight on master - The owner's decisions, 2026-10-06, answering this page's open points: the landing branch is the repository's main branch, master by default and settable, each repository being independent; the computed date is named `should-start` and works backwards through the blocked items; `poman check` runs in three places - The owner's answers, 2026-10-06: a duration is whole days, written `10 days`; importance is `low`, `medium` or `high`; durations count working days, Monday to Friday, with public holidays later, with absences; no \"Part of\" field for now"
+  "Status": "Accepted"
+wiki/decisions/headroom-single-posture-mcp-first.decision.md
+  title: Some("Headroom: MCP-First Posture + One Bounded Launch Convenience")
+  "Category": "Agent runtime, context compression, provenance safety"
+  "Date": "2026-06-30 (amended 2026-07-07; amended 2026-07-18; amended 2026-07-21)"
+  "Document Class": "Decision"
+  "Related": "- wiki/plans/headroom-wrap-command.plan.md (implements the original convenience + the no-legacy reduction; process model superseded by the passthrough launcher). - wiki/plans/headroom-passthrough-launcher.plan.md (corrects the convenience to exec the real Headroom binary). - wiki/references/headroom-context-compression.reference.md."
+  "Scope": "The single framework posture for context compression. llm-wiki owns its own MCP tool outputs (lean, in Rust) and the agent routes wiki/raw reads and search through those tools. Headroom is an unmanaged, optional external tool the framework neither ships nor configures — with exactly one narrow, temporary exception (amended 2026-07-07, corrected 2026-07-18): a `llm-wiki headroom` passthrough convenience that injects `HEADROOM_MCP_READ=off` plus a best-effort exclude list, then execs the real `headroom` binary with forwarded Headroom args. This decision retired the earlier four-mode Headroom companion design (vetted profile, launcher, exclude-list asset, version pin, `install --with-headroom`, doctor probes, proxy e2e), which is removed from the repo."
+  "Sources": "- Five-run 2026-06-29 field test: Codex proxy carve-out impossible, Anthropic Mode C verified-but-fragile (conclusion folded in below; the synthesized eval was removed in the 2026-07-07 no-legacy reduction, but the primary record survives in `raw/`: `raw/field-test/ketogenic_project_test.md` and the proxy captures under `raw/research/2026-06-21-headroom-dogfood/captures/` — `proxy.stdout`, `headroom_stats.json`, `health.json`, `retrieve_stats.json`, `profile.sha256`). - 2026-07-06 Codex proxy retry: an `llm_wiki_read_test` returned uncompressed, credited to `HEADROOM_MCP_READ=off` + MCP routing, not the exclude list (Candidate evidence; the synthesized eval was removed in the reduction — its primary record is the session transcript plus the same dogfood captures above). - wiki/evals/codex-mcp-field-test-pass.eval.md, wiki/evals/claude-mcp-field-test-pass.eval.md (2026-07-07 proxy-off passes: the MCP surface works with no Headroom present). - src/instance.rs (authoritative MCP tool-name derivation)."
+  "Status": "Accepted"
+wiki/decisions/knowledge-research-intake.decision.md
+  title: Some("Knowledge Research Intake")
+  "Category": "Tooling"
+  "Date": "2026-05-06"
+  "Document Class": "Decision"
+  "Related": "wiki/specs/wiki-research-skill.spec.md, wiki/specs/wiki-ingest-skill.spec.md, wiki/archive/knowledge-command-namespace.decision.md"
+  "Scope": "Use `wiki-research` as the guided intake surface for source gathering instead of adding a separate `wiki-intake` command."
+  "Sources": "wiki/archive/knowledge-intake-command.proposal.md, wiki/specs/wiki-research-skill.spec.md, wiki/specs/wiki-ingest-skill.spec.md, wiki/archive/knowledge-command-namespace.decision.md"
+  "Status": "Accepted"
+wiki/decisions/llm-wiki-binary-distribution.decision.md
+  title: Some("LLM Wiki Binary Distribution")
+  "Amended By": "wiki/decisions/binary-path-bootstrap.decision.md, wiki/decisions/poman-lives-in-this-workspace.decision.md (a second binary, poman, shipped by the same release in an archive of its own and copied in by `llm-wiki install`; that page's \"Where `llm-wiki install` gets poman\" holds the rule)"
+  "Category": "Tooling, framework distribution"
+  "Date": "2026-05-06"
+  "Document Class": "Decision"
+  "Related": "wiki/roadmaps/framework-v1.roadmap.md (D8, D8.1, D11), wiki/specs/wiki-init-skill.spec.md, wiki/specs/documentation-model.spec.md, wiki/decisions/binary-path-bootstrap.decision.md"
+  "Scope": "Distribute the framework as a single Rust binary (`llm-wiki`) that owns global skill installation, project scaffolding, and skill projection from canonical markdown."
+  "Sources": "wiki/proposals/llm-wiki-binary.proposal.md, wiki/archive/single-source-skills.decision.md, wiki/archive/framework-path-resolution.decision.md, wiki/archive/project-local-codex-skills.decision.md, review.md §9-10, wiki/log.md (line-loss audit, 2026-05-06)"
+  "Status": "Accepted"
+  "Supersedes": "wiki/archive/single-source-skills.decision.md, wiki/archive/framework-path-resolution.decision.md, wiki/archive/project-local-codex-skills.decision.md, wiki/archive/single-source-skills.plan.md"
+wiki/decisions/mcp-onboarding-at-init-register.decision.md
+  title: Some("MCP Onboarding Belongs At init/register, Not Only install")
+  "Category": "Tooling, MCP onboarding, init/register UX"
+  "Date": "2026-06-29 (accepted 2026-07-31; amended 2026-07-18)"
+  "Document Class": "Decision"
+  "Related": "- wiki/decisions/composable-project-init.decision.md - wiki/references/headroom-context-compression.reference.md - wiki/plans/headroom-passthrough-launcher.plan.md - wiki/plans/mcp-onboarding-init-register.plan.md"
+  "Scope": "Where the framework wires its own `llm-wiki` MCP server into the host agent's configuration. Before this decision, only `install` (a global, project-agnostic command) touched MCP config: it auto-wired the global Codex config but could only *stage* the per-project Claude config. This decision moves per-project MCP wiring into `init` and `register`, which are the project-scoped commands, so a Claude Code user gets the same automatic onboarding a Codex user already gets. It does not change what the MCP server exposes."
+  "Sources": "- src/install.rs (`materialize_mcp_configs`) - src/mcp_config.rs (`render_claude_project_mcp_config`, `merge_claude_project_mcp_config`, `merge_codex_config`) - src/mcp_wiring.rs (`wire_project_mcp`, `ensure_claude_project_mcp_config`, `ensure_codex_mcp_config`) - src/paths.rs (`claude_project_mcp_config`) - src/init/command.rs, src/registry/mod.rs"
+  "Status": "Accepted"
+wiki/decisions/poman-lives-in-this-workspace.decision.md
+  title: Some("poman Lives In This Workspace")
+  "Category": "poman design"
+  "Date": "2026-10-06"
+  "Document Class": "Decision"
+  "Related": "- `wiki/decisions/poman-reads-only-its-own-file-types.decision.md`: what the shared file types are for - `wiki/decisions/llm-wiki-binary-distribution.decision.md`: the install and release poman joins - `wiki/roadmaps/poman.roadmap.md`: PM1 (the workspace and the gates), PM2 (the shared reader and types), PM8 (the ratchet)"
+  "Scope": "Where poman, the project-management binary, lives; the library crate it shares with llm-wiki; how it is installed and released; the gates every crate of this project is held to, and how llm-wiki's existing code reaches them."
+  "Sources": "- The owner's decisions, 2026-10-06: poman's place in this workspace, the shared crate, the install, the strictest gates for every crate, and the ratchet for llm-wiki's existing code - The owner's decisions, 2026-10-06, answering this page's open point: the release archive ships both binaries, `llm-wiki install` copies poman from beside itself, and people installing with `cargo install` also run `cargo install poman` - `Cargo.toml` and `justfile` at `41ae502`: the workspace and today's gates - The owner's answers of 2026-10-06 to the open choices of `wiki/plans/poman-workspace-and-strict-gates.plan.md`"
+  "Status": "Accepted"
+wiki/decisions/poman-reads-only-its-own-file-types.decision.md
+  title: Some("poman Reads Only Its Own File Types")
+  "Category": "poman design"
+  "Date": "2026-10-06"
+  "Document Class": "Decision"
+  "Related": "- `wiki/decisions/poman-lives-in-this-workspace.decision.md`: the types are defined once, in the shared crate - `wiki/decisions/deadline-files-hold-one-deadline-each.decision.md`: the first type - `wiki/decisions/typed-documents.decision.md`: each document type has its own status vocabulary, poman's types included - `wiki/roadmaps/poman.roadmap.md`, PM3"
+  "Scope": "Which files poman reads and checks, how its file types are defined and written, where their fields sit, and how reference fields work."
+  "Sources": "- The owner's decisions, 2026-10-06: types defined in code and written by poman, checking by suffix only, near-miss warnings, fields in the bullet block, free content, and reference fields as repository paths"
+  "Status": "Accepted"
+wiki/decisions/poman-syncs-a-tracker-the-way-git-syncs-a-remote.decision.md
+  title: Some("poman Syncs A Tracker The Way Git Syncs A Remote")
+  "Category": "poman design"
+  "Date": "2026-10-06"
+  "Document Class": "Decision"
+  "Related": "- `wiki/decisions/work-is-recorded-in-the-repository.decision.md`: every board is a view of the repository (not restated here) - `wiki/decisions/deadline-files-hold-one-deadline-each.decision.md`: the files poman shows first - `wiki/roadmaps/poman.roadmap.md`, PM6"
+  "Scope": "How poman shows a repository's work on a tracker (fetch, diff, push and the local mirror), what it manages there, which boards it draws, and what is GitHub's part (the first adapter) versus poman's own."
+  "Sources": "- The owner's decisions, 2026-10-06: the repository as the only source of truth, fetch, diff and push with a local mirror, the scope of what poman manages, and poman drawing this repository's own board after fetch, diff and push - The owner, 2026-10-06: \"gh is just a ui for poman so we should think this so as to be able to adapt it to other UIs if needed\""
+  "Status": "Accepted"
+wiki/decisions/poman-tree-and-list-show-the-files.decision.md
+  title: Some("poman tree And poman list Show The Files")
+  "Category": "poman design"
+  "Date": "2026-10-06"
+  "Document Class": "Decision"
+  "Related": "- `wiki/decisions/poman-reads-only-its-own-file-types.decision.md`: the reference fields the tree draws - `wiki/decisions/deadline-files-hold-one-deadline-each.decision.md` - `wiki/roadmaps/poman.roadmap.md`, PM5: when they are built"
+  "Scope": "How poman shows its files on a terminal: `poman tree`, `poman list` and the filters they share."
+  "Sources": "- The owner's decisions, 2026-10-06: `poman tree` and `poman list` as proposed to the owner, with the owner's addition of `--type`"
+  "Status": "Accepted"
+wiki/decisions/search-backend-selection.decision.md
+  title: Some("Search Backend Selection")
+  "Category": "Search infrastructure, framework tooling"
+  "Date": "2026-05-07"
+  "Document Class": "Decision"
+  "Related": "wiki/proposals/search-backend-selection.proposal.md, wiki/proposals/project-registry-search-artifacts.proposal.md"
+  "Scope": "Use qmd-rs as the D9 backend for `llm-wiki search` and `llm-wiki search-all`."
+  "Sources": "wiki/evals/search-backend-selection.eval.md, wiki/proposals/search-backend-selection.proposal.md, wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/references/qmd-rs-search-crate.reference.md"
+  "Status": "Accepted"
+wiki/decisions/semantic-hybrid-search-mode.decision.md
+  title: Some("Semantic Hybrid Search Mode")
+  "Category": "Search UX, semantic retrieval, hybrid retrieval"
+  "Date": "2026-05-12"
+  "Document Class": "Decision"
+  "Related": "wiki/decisions/search-backend-selection.decision.md, wiki/specs/documentation-model.spec.md, wiki/specs/wiki-query-skill.spec.md, wiki/references/llm-search-model-licensing.reference.md"
+  "Scope": "Durable mode contract for `llm-wiki search`, `llm-wiki search-all`, threshold promotion, and v1 reranker treatment."
+  "Sources": "wiki/proposals/search-query-interpretation.proposal.md, wiki/plans/semantic-hybrid-search.plan.md, wiki/evals/natural-language-search.eval.md, wiki/evals/natural-language-search-impact.md, wiki/plans/idempotent-search-model-install.plan.md"
+  "Status": "Accepted"
+wiki/decisions/skill-projection-template-engine.decision.md
+  title: Some("Skill Projection Template Engine")
+  "Category": "Tooling, skill projection, internal architecture"
+  "Date": "2026-05-09"
+  "Document Class": "Decision"
+  "Related": "wiki/decisions/composable-project-init.decision.md, wiki/references/askama-template-engine.reference.md, wiki/plans/skill-projection-template-engine.plan.md"
+  "Scope": "Runtime skill projection for Claude and Codex uses the shared Askama template engine instead of hand-rolled Rust string concatenation."
+  "Sources": "wiki/proposals/skills-template-engine.proposal.md, crates/llm-wiki-schema/src/projector/{claude,codex,format,idiom,types}.rs, templates/skills/"
+  "Status": "Superseded"
+  "Superseded By": "wiki/plans/mcp-first-agent-surface.plan.md"
+wiki/decisions/test-instance-namespaced-binary.decision.md
+  title: Some("Coexisting Test Instance via Build-Time Namespace")
+  "Category": "Developer ergonomics, install/runtime isolation, dogfooding safety"
+  "Date": "2026-06-21"
+  "Document Class": "Decision"
+  "Related": "- wiki/plans/test-instance-namespaced-binary.plan.md - wiki/decisions/llm-wiki-binary-distribution.decision.md - wiki/proposals/project-and-skill-rename.proposal.md"
+  "Scope": "Record the durable, accepted design for an optional **build-time namespace** baked into the binary that produces a parallel, developer-only `llm-wiki-test` instance coexisting with the production install in the same `$HOME`. This decision records the accepted design; it does not re-accept the proposal."
+  "Sources": "- wiki/proposals/test-instance-namespaced-binary.proposal.md (Accepted, Promoted 2026-06-21) - src/paths.rs (managed home derives from `$HOME`; no instance seam today) - src/embed.rs (fixed skill names; reserved `llm_wiki_search*`) - src/build.rs (`apply_binary_context` injects the binary name into skill prose)"
+  "Status": "Accepted"
+wiki/decisions/the-pull-request-is-the-review-surface.decision.md
+  title: Some("The Pull Request Is The Review Surface")
+  "Category": "Development process"
+  "Date": "2026-10-06"
+  "Document Class": "Decision"
+  "Related": "- `wiki/decisions/work-is-recorded-in-the-repository.decision.md` - `wiki/checklists/operation-manager.checklist.md`, \"Landing A PR\" - `.claude/skills/operations-start/base/blind-review.txt` - `wiki/plans/develop-and-master-ci.plan.md` (which CI runs on which PR)"
+  "Scope": "Where a review lives, the blind feedback review every PR gets first, what counts as the owner's verdict, what a merge needs, and which branch a PR goes into."
+  "Sources": "- The owner's decisions of 2026-10-06, and what riseon's blind reviews of that day found; a PASS given in conversation - RepForge's decision of the same name (2026-09-19, amended 2026-10-03 and 2026-10-06), carried over through riseon - The owner's decisions of 2026-10-06 on `develop`: \"They take forever\" (of the full CI matrix); \"I prefer the develop branch with the merge the pr to master triggering the longer CI\"; \"a merge into develop PR only triggers fast CI\"; \"all issues/PR should be pointing at develop now\""
+  "Status": "Accepted"
+wiki/decisions/three-layer-architecture.decision.md
+  title: Some("Three-Layer Architecture")
+  "Amended By": "wiki/decisions/composable-project-init.decision.md"
+  "Category": "Architecture"
+  "Date": "2026-04-23"
+  "Document Class": "Decision"
+  "Scope": "Adopt raw/ + wiki/ + an agent schema file as the project structure, replacing the legacy three-lane docs/ model."
+  "Sources": "raw/research/llm-wiki-pattern-research.md, raw/legacy/legacy-project-guidelines.md"
+  "Status": "Accepted"
+wiki/decisions/typed-documents.decision.md
+  title: Some("Typed Documents")
+  "Category": "Documentation model"
+  "Date": "2026-04-23"
+  "Document Class": "Decision"
+  "Scope": "Preserve the typed document system (spec, decision, proposal, roadmap, plan, experiment, eval, checklist, reference) from the legacy framework within the LLM Wiki structure."
+  "Sources": "raw/legacy/legacy-project-guidelines.md, raw/research/llm-wiki-pattern-research.md"
+  "Status": "Accepted"
+wiki/decisions/wiki-query-search-first.decision.md
+  title: Some("Wiki Query Search-First Retrieval")
+  "Category": "Query workflow, search dogfooding"
+  "Date": "2026-05-23"
+  "Document Class": "Decision"
+  "Related": "wiki/specs/wiki-query-skill.spec.md, wiki/specs/documentation-model.spec.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/evals/natural-language-search.eval.md"
+  "Scope": "`wiki-query` retrieval order for project questions."
+  "Sources": "conversational input 2026-05-23, assets/skills/wiki-query/SKILL.md, wiki/specs/wiki-query-skill.spec.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/specs/documentation-model.spec.md"
+  "Status": "Accepted"
+wiki/decisions/work-in-flight-is-a-pushed-branch.decision.md
+  title: Some("Work In Flight Is A Pushed Branch")
+  "Category": "Development process"
+  "Date": "2026-10-06"
+  "Document Class": "Decision"
+  "Related": "- `wiki/decisions/work-is-recorded-in-the-repository.decision.md` - `justfile`, recipe `branch-status`"
+  "Scope": "What counts as work in flight, what a worktree is, and how a plan names its branch and where its proof holds."
+  "Sources": "- The owner's decisions of 2026-10-06: plans before work, and riseon's `status` recipe carried over - RepForge's decision of the same name (2026-09-18), carried over through riseon - The owner's decision of 2026-10-06 that work lands on `develop` (`the-pull-request-is-the-review-surface.decision.md`, rule 6) - The owner, 2026-10-06: a plan's status changes in the PR that does the work"
+  "Status": "Accepted"
+wiki/decisions/work-is-recorded-in-the-repository.decision.md
+  title: Some("Work Is Recorded In The Repository")
+  "Category": "Development process"
+  "Date": "2026-10-06"
+  "Document Class": "Decision"
+  "Related": "- `wiki/decisions/work-in-flight-is-a-pushed-branch.decision.md` - `wiki/decisions/the-pull-request-is-the-review-surface.decision.md` - `wiki/checklists/operation-manager.checklist.md`, \"The Board\" - `wiki/plans/development-workflow-setup.plan.md`"
+  "Scope": "Where the state of a piece of work is kept, what the GitHub board is, and what its columns mean."
+  "Sources": "- The owner's decisions of 2026-10-06 in riseon's coordinating session: the repository is the truth and every board is a view of it, the board's columns are the plan statuses, and \"remember the repo is the truth\" - The owner, 2026-10-06: \"the status change should be part of the PR that contains the work that is suppose to achieve this status change, so no separate commit or PR\""
+  "Status": "Accepted"
+wiki/evals/claude-mcp-field-test-pass.eval.md
+  title: Some("Eval: Claude MCP Field Test Pass")
+  "Category": "MCP surface, Claude host, field test"
+  "Date": "2026-07-07"
+  "Document Class": "Eval"
+  "Related": "- wiki/checklists/mcp-field-test.checklist.md - wiki/evals/codex-mcp-field-test-pass.eval.md - wiki/references/headroom-context-compression.reference.md"
+  "Scope": "Records clean Claude runs of the rewritten pure-MCP `wiki/checklists/mcp-field-test.checklist.md` against the `keto_diet` project: the original 2026-07-07 `llm-wiki-test` MCP run and the 2026-08-01 production `llm-wiki 0.2.15` MCP run. These are the Claude-host counterparts to the Codex passes: no Headroom, no proxy, no CCR framing - only the `llm_wiki_*` surface exercised end-to-end."
+  "Sources": "- User-provided Claude results file pasted 2026-07-07 (workspace `/Users/nicolasmartino/Documents/keto_diet`). - User-provided production Claude MCP field-test results pasted 2026-08-01 (production `llm-wiki 0.2.15`, workspace `/Users/nicolasmartino/Documents/keto_diet`). - wiki/checklists/mcp-field-test.checklist.md"
+  "Status": "Accepted"
+  "Updated": "2026-08-01"
+wiki/evals/codex-mcp-field-test-pass.eval.md
+  title: Some("Eval: Codex MCP Field Test Pass")
+  "Category": "MCP surface, Codex host, field test"
+  "Date": "2026-07-07"
+  "Document Class": "Eval"
+  "Related": "- wiki/checklists/mcp-field-test.checklist.md - wiki/evals/claude-mcp-field-test-pass.eval.md - wiki/evals/mcp-first-host-parity.eval.md"
+  "Scope": "Records clean Codex runs of the rewritten pure-MCP `wiki/checklists/mcp-field-test.checklist.md` against the `keto_diet` project: the original 2026-07-07 `_test` MCP run, the 2026-07-31 production `llm-wiki 0.2.14` MCP run, and the 2026-08-01 production `llm-wiki 0.2.15` MCP review run. These runs use only the `llm_wiki_*` surface, with no Headroom, no proxy, and no CCR framing."
+  "Sources": "- User-provided Codex results file pasted 2026-07-07 (`mcp-field-test-results.md`, workspace `/Users/nicolasmartino/Documents/keto_diet`). - User-provided production Codex MCP field-test results pasted 2026-07-31 (production `llm-wiki 0.2.14`, workspace `/Users/nicolasmartino/Documents/keto_diet`). - User-provided production Codex MCP field-test results pasted 2026-08-01 (production `llm-wiki 0.2.15`, workspace `/Users/nicolasmartino/Documents/keto_diet`). - wiki/checklists/mcp-field-test.checklist.md"
+  "Status": "Accepted"
+  "Updated": "2026-08-01"
+wiki/evals/headroom-0-32-codex-route-key-field-test.eval.md
+  title: Some("Eval: Headroom 0.32 Codex Route-Key Field Test")
+  "Category": "Headroom, Codex host, MCP surface, provenance"
+  "Date": "2026-07-20"
+  "Document Class": "Eval"
+  "Scope": "Records the live Codex field test launched through `llm-wiki headroom -- wrap codex --port 8791` before adding pagination or compact-output mitigation."
+  "Sources": "- Nested command: `rtk llm-wiki headroom -- wrap codex --port 8791 -a never exec -C /Users/nicolasmartino/Documents/local_llm_wiki/llm_wiki_framework_headroom_impl --sandbox read-only --output-last-message /tmp/headroom-field-test-last.md ...` - Launcher diagnostic: `rtk llm-wiki -v headroom -- wrap codex --port 8791 --version` - Proxy preflight inside the nested Codex run: `rtk curl -s http://127.0.0.1:8791/livez`, `rtk headroom --version`, `rtk llm-wiki --version` - Related checklist: `wiki/checklists/headroom-launch-smoke.checklist.md` - Related plan: `wiki/plans/headroom-mcp-field-test-repair.plan.md`"
+  "Status": "Rejected"
+wiki/evals/headroom-0-32-compact-search-field-test.eval.md
+  title: Some("Eval: Headroom 0.32 Compact Search Field Test")
+  "Category": "Headroom, Codex host, compact search, MCP surface, provenance"
+  "Date": "2026-07-21"
+  "Document Class": "Eval"
+  "Scope": "Records the post-fix Headroom-launched Codex field test after compact search and loud payload-integrity detection landed."
+  "Sources": "- Commit: `a04a270` (`Implement Headroom-safe compact search`) - Nested command: `rtk /Users/nicolasmartino/.llm_wiki/bin/llm-wiki headroom -- wrap codex --port 8792 -a never exec -C /Users/nicolasmartino/Documents/local_llm_wiki/llm_wiki_framework_headroom_impl --sandbox read-only --output-last-message /tmp/headroom-compact-search-field-test-last.md ...` - Field-test result artifact: `/tmp/headroom-compact-search-field-test-last.md` - Related checklist: `wiki/checklists/headroom-launch-smoke.checklist.md` - Related plan: `wiki/plans/headroom-mcp-field-test-repair.plan.md`"
+  "Status": "Candidate"
+wiki/evals/headroom-0-32-managed-0-2-13-field-test.eval.md
+  title: Some("Eval: Headroom 0.32 Managed 0.2.13 Field Test")
+  "Category": "Headroom, Codex host, MCP surface, compact search, provenance"
+  "Date": "2026-07-21"
+  "Document Class": "Eval"
+  "Scope": "Clean live Codex smoke after the managed llm-wiki binary and manifest were refreshed to `0.2.13`."
+  "Sources": "- Managed binary: `/Users/nicolasmartino/.llm_wiki/bin/llm-wiki`. - Headroom version: `0.32.0`. - Command: `/Users/nicolasmartino/.llm_wiki/bin/llm-wiki headroom -v -- wrap codex --port 8795 -a never exec --output-last-message /tmp/headroom-0-32-managed-0213-smoke.md ...`. - Related evals: `wiki/evals/headroom-0-32-compact-search-field-test.eval.md`, `wiki/evals/headroom-0-32-wildcard-exclude-field-test.eval.md`."
+  "Status": "Rejected"
+wiki/evals/headroom-0-32-wildcard-exclude-field-test.eval.md
+  title: Some("Eval: Headroom 0.32 Wildcard Exclude Field Test")
+  "Category": "Headroom, Codex host, MCP surface, provenance"
+  "Date": "2026-07-21"
+  "Document Class": "Eval"
+  "Scope": "Live Codex smoke using `HEADROOM_EXCLUDE_TOOLS=*llm_wiki*` plus the source wrapper's generated explicit route-key exclusions."
+  "Sources": "- Source package version: `llm-wiki 0.2.13`. - Managed MCP binary version reported by nested Codex: `llm-wiki 0.2.12`. - Headroom version: `0.32.0`. - Command: `HEADROOM_EXCLUDE_TOOLS='*llm_wiki*' cargo run --quiet -- headroom -v -- wrap codex --port 8794 -a never exec ...`."
+  "Status": "Rejected"
+wiki/evals/mcp-first-host-parity.eval.md
+  title: Some("Eval: MCP-First Host UX And Ordinary-Language Parity")
+  "Category": "MCP host UX, no-legacy parity"
+  "Date": "2026-06-23"
+  "Document Class": "Eval"
+  "Scope": "Phase 0 host capability spike and Phase 5 ordinary-language parity evidence for the MCP-first agent surface."
+  "Sources": "`wiki/plans/mcp-first-agent-surface.plan.md`; local command transcripts from `codex --version`, `codex mcp get/list`, `codex exec --json`, `claude --version`, and `claude -p --output-format stream-json --verbose --strict-mcp-config --mcp-config <staged config>` runs captured under `target/mcp-eval/claude-*.jsonl`; a direct `prompts/list` JSON-RPC probe of `llm-wiki mcp serve`."
+  "Status": "Rejected"
+wiki/evals/natural-language-search-impact.md
+  title: Some("Natural-Language Search Impact")
+  "Category": "Search eval comparison and optimization"
+  "Date": "2026-05-12"
+  "Document Class": "Eval"
+  "Related": "wiki/evals/natural-language-search.eval.md, wiki/plans/semantic-hybrid-search.plan.md"
+  "Scope": "Durable comparison tables derived from raw natural-language search eval data."
+  "Sources": "raw/data/eval/natural-language-search/20260511T205231Z-79135/balanced/manifest.toml, raw/data/eval/natural-language-search/20260511T205231Z-79135/balanced/eval-run.json, raw/data/eval/natural-language-search/20260511T205231Z-79135/balanced/eval-calibration.json, raw/data/eval/natural-language-search/20260512T091123Z-10597/balanced/manifest.toml, raw/data/eval/natural-language-search/20260512T091123Z-10597/balanced/eval-run.json, raw/data/eval/natural-language-search/20260512T091123Z-10597/balanced/eval-calibration.json, raw/data/eval/natural-language-search/20260512T145231Z-68005/balanced/manifest.toml, raw/data/eval/natural-language-search/20260512T145231Z-68005/balanced/eval-run.json, raw/data/eval/natural-language-search/20260512T145231Z-68005/balanced/eval-calibration.json, raw/data/eval/natural-language-search/20260512T154322Z-77945/balanced/manifest.toml, raw/data/eval/natural-language-search/20260512T154322Z-77945/balanced/eval-run.json, raw/data/eval/natural-language-search/20260512T154322Z-77945/balanced/eval-calibration.json, raw/data/eval/electric-cars/20260512T162918Z-86751/balanced/manifest.toml, raw/data/eval/electric-cars/20260512T162918Z-86751/balanced/eval-run.json, raw/data/eval/electric-cars/20260512T162918Z-86751/balanced/eval-calibration.json"
+  "Status": "Active"
+wiki/evals/natural-language-search.eval.md
+  title: Some("Natural-Language Search Eval")
+  "Category": "Search UX, semantic retrieval, hybrid retrieval"
+  "Date": "2026-05-12"
+  "Document Class": "Eval"
+  "Related": "wiki/plans/semantic-hybrid-search.plan.md, wiki/proposals/search-query-interpretation.proposal.md, wiki/references/llm-search-model-licensing.reference.md, wiki/references/qmd-rs-search-crate.reference.md, wiki/evals/search-backend-selection.eval.md"
+  "Scope": "Stage 0 natural-language eval suite, expected target draft, calibration split, threshold methodology, and observability evidence for semantic/hybrid `llm-wiki search`."
+  "Sources": "wiki/plans/semantic-hybrid-search.plan.md, wiki/proposals/search-query-interpretation.proposal.md, wiki/evals/search-backend-selection.eval.md, wiki/references/llm-search-model-licensing.reference.md, wiki/checklists/observability-contract.checklist.md, raw/research/2026-05-11-llm-search-model-licensing/research-summary.md, raw/data/eval/natural-language-search/20260512T091123Z-10597/balanced/eval-calibration.json, raw/data/eval/natural-language-search/20260512T145231Z-68005/balanced/eval-calibration.json, raw/data/eval/natural-language-search/20260512T154322Z-77945/balanced/eval-calibration.json, raw/data/eval/electric-cars/20260512T162918Z-86751/balanced/eval-calibration.json"
+  "Status": "Active"
+wiki/evals/release-e2e-gguf-cpu-proof.eval.md
+  title: Some("Eval: Release E2E GGUF CPU Proof")
+  "Category": "Release E2E, GGUF runtime, semantic search"
+  "Date": "2026-06-22"
+  "Document Class": "Eval"
+  "Scope": "Host GGUF release-E2E proof for the `gguf` lane in `tools/release-e2e`."
+  "Sources": "`target/release-e2e/gguf/report.json`; `target/release-e2e/gguf/stdout/search-semantic-cpu.out`; `target/release-e2e/gguf/stdout/search-hybrid-cpu.out`; `target/release-e2e/gguf/stdout/search-all-auto-cpu.out`; `wiki/plans/cross-platform-release-e2e-harness.plan.md`."
+  "Status": "Accepted"
+wiki/evals/search-backend-selection.eval.md
+  title: Some("Search Backend Selection Eval")
+  "Category": "Search infrastructure, framework tooling"
+  "Date": "2026-05-07"
+  "Document Class": "Eval"
+  "Related": "wiki/proposals/search-backend-selection.proposal.md, wiki/proposals/project-registry-search-artifacts.proposal.md"
+  "Scope": "Evaluate candidate search backends for future `llm-wiki search` and `llm-wiki search-all` commands."
+  "Sources": "wiki/proposals/search-backend-selection.proposal.md, issue #17, wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/references/qmd-rs-search-crate.reference.md, raw/legacy/legacy-project-guidelines.md"
+  "Status": "Accepted"
+wiki/evals/test-instance-live-session-proof.eval.md
+  title: Some("Eval: Test Instance Live-Session Proof")
+  "Category": "Developer runtime isolation, install proof"
+  "Date": "2026-06-22"
+  "Document Class": "Eval"
+  "Scope": "Phase 6 proof for `wiki/plans/test-instance-namespaced-binary.plan.md`"
+  "Status": "Accepted"
+wiki/evals/v1-proof-run.eval.md
+  title: Some("V1 Proof Run")
+  "Category": "Framework proof"
+  "Date": "2026-05-09"
+  "Document Class": "Eval"
+  "Related": "wiki/roadmaps/framework-v1.roadmap.md, wiki/specs/documentation-model.spec.md"
+  "Scope": "Evidence for the D4-D7 framework proof milestones after D11 and the skill-projection template-engine follow-on."
+  "Sources": "wiki/roadmaps/framework-v1.roadmap.md, wiki/decisions/skill-projection-template-engine.decision.md, wiki/plans/skill-projection-template-engine.plan.md, wiki/checklists/v1-fixture-smoke.checklist.md, /private/tmp/llm-wiki-proof-web-product, /private/tmp/llm-wiki-proof-ml-research, /private/tmp/llm-wiki-v1-smoke-20260509"
+  "Status": "Accepted"
+wiki/index.md
+  title: Some("Wiki Index")
+  "Project": "Software Project Management Framework"
+  "Stage": "D1-D11 Completed; code-pack/CLI blueprint, CLI observability, post-V1 P1 semantic/hybrid search, idempotent search model install/cleanup semantics, init rerun schema-drift audit, search-first `wiki-query` dogfooding decision, non-interactive LLM-search install, and post-V1 P2 sandbox-safe search cache reads completed; calibrated hybrid/auto search now has project-scoped thresholds, human-accepted framework and electric-car labels, redacted raw eval evidence, durable search-mode decision coverage, post-completion readiness hardening, interactive install search posture prompting, completed verification gates, immutable qmd-rs completed-store reads, backend `open_mode` status, permission/transient cache states, promotion-race `SQLITE_CANTOPEN` retry hardening, unreadable cache-directory registry hardening with unavailable-size reporting, parseable backend-status JSON, direct qmd-rs read guards, active-row completed-store proof, and production Codex/Claude MCP 0.2.15 field-test reviews confirming the pure MCP surface while clarifying `search-all` flat attributed results and tracking silent unknown filter keys as minor API hardening; GGUF runtime portability is active with typed runtime failures, parseable runtime JSON, auto-to-CPU fallback, explicit `LLM_WIKI_GGUF_RUNTIME=cpu` execution, real current-code and refreshed managed-binary dogfood showing hybrid/semantic search return the project-update page on CPU, completed install/doctor runtime smoke probes with real managed-model dogfood, and macOS arm64 tiny-fixture CPU smoke proof with test-hook env isolation; cross-platform release E2E is now coordinated by a dedicated roadmap and is active with CQRS-derived raw source capture, an independent `llm-wiki-release-e2e` runner, Stage 1 smoke, Stage 2 no-model host `search`, and a Stage 3 Docker/Pulumi Linux lane that builds Linux artifacts inside Docker, removes the OpenMP/libgomp runtime dependency, passes the no-model product story in a minimal Debian container from arm64 unpacked and checksum-verified archive artifacts, passes Linux amd64 checksum-verified archive packaging smoke under emulation, and has a native Linux amd64 GitHub workflow/just recipe wired but unrun while native Linux amd64 proof, native macOS release-archive proof, and Windows host/VM proof remain pending; Stage 5 local macOS arm64 real GGUF release proof now passes; macOS managed-binary codesign repair is implemented for local install/test-instance dogfood with native release-archive proof still under the release E2E roadmap; crash-report, project-update, deterministic workspace E2E, search-model selection, and cross-platform-release-E2E/Windows-support proposals open"
+  "Updated": "2026-08-01"
+wiki/log.md
+  title: Some("Wiki Log")
+wiki/plans/binary-path-bootstrap.plan.md
+  title: Some("Plan: Managed Binary Runtime Install")
+  "Category": "Distribution tooling, install UX"
+  "Date": "2026-05-06"
+  "Document Class": "Plan"
+  "Related": "wiki/roadmaps/framework-v1.roadmap.md (D8.1), wiki/specs/documentation-model.spec.md, wiki/specs/wiki-init-skill.spec.md"
+  "Scope": "Implement D8.1 managed binary install behavior so runtime skills call `~/.llm_wiki/bin/llm-wiki` by absolute path and PATH setup is only convenience guidance."
+  "Sources": "wiki/proposals/binary-path-bootstrap.proposal.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/decisions/llm-wiki-binary-distribution.decision.md"
+  "Status": "Completed"
+wiki/plans/cli-observability.plan.md
+  title: Some("Plan: CLI Verbose Diagnostics")
+  "Category": "CLI UX, operational diagnostics"
+  "Date": "2026-05-11"
+  "Document Class": "Plan"
+  "Related": "wiki/proposals/cli-observability.proposal.md, wiki/plans/project-registry-search-artifacts.plan.md, README.md"
+  "Scope": "Implement staged `llm-wiki -v/--verbose` diagnostics, proving the shared surface first with `search` and `search-all`, then extending concise command-specific diagnostics across the binary."
+  "Sources": "wiki/proposals/cli-observability.proposal.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/specs/documentation-model.spec.md, src/cli.rs, src/main.rs, src/search/commands.rs, src/search/qmd_rs.rs, src/search/sanitize.rs, src/search/adapter.rs, src/registry/mod.rs, tests/search_commands.rs, tests/install.rs, tests/status_doctor.rs, tests/registry.rs, tests/build.rs, tests/init.rs"
+  "Status": "Completed"
+wiki/plans/code-pack-cli-blueprint.plan.md
+  title: Some("Plan: Code Pack And CLI Tool Blueprint")
+  "Category": "Init UX, project scaffolding, blueprint/pack catalog"
+  "Date": "2026-05-11"
+  "Document Class": "Plan"
+  "Related": "wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/proposals/code-folders-opt-in.proposal.md, wiki/decisions/composable-project-init.decision.md, wiki/specs/wiki-init-skill.spec.md"
+  "Scope": "Implement the accepted code-pack and `cli-tool` blueprint decision without changing the framework's universal wiki spine."
+  "Sources": "wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/proposals/code-folders-opt-in.proposal.md, wiki/decisions/composable-project-init.decision.md, src/init/compose.rs, src/init/blueprints.rs, src/init/packs.rs, templates/base/project_guidelines.md, templates/packs/"
+  "Status": "Completed"
+wiki/plans/composable-project-init.plan.md
+  title: Some("Plan: Composable Project Init")
+  "Category": "Tooling, project scaffolding, template engine adoption"
+  "Date": "2026-05-08"
+  "Document Class": "Plan"
+  "Related": "wiki/roadmaps/framework-v1.roadmap.md (D10), wiki/proposals/skills-template-engine.proposal.md, wiki/specs/wiki-init-skill.spec.md, wiki/references/askama-template-engine.reference.md"
+  "Scope": "Implement D10 composable init: introduce a compile-time template engine, migrate the existing init template onto it, replace generated `CLAUDE.md` output with `AGENTS.md`, retire the static template assets under `assets/templates/`, and ship the blueprint + pack composition system from `wiki/decisions/composable-project-init.decision.md`."
+  "Sources": "wiki/proposals/blueprint-pack-init.proposal.md, wiki/decisions/composable-project-init.decision.md, wiki/references/askama-template-engine.reference.md, templates/base/project_guidelines.md, templates/base/agents.md, templates/packs/, src/init/{blueprints,packs,compose,manifest,answers,template,scaffold,command}.rs"
+  "Status": "Completed"
+wiki/plans/cross-platform-release-e2e-harness.plan.md
+  title: Some("Plan: Cross-Platform Release E2E Harness")
+  "Category": "Release engineering, E2E, platform support"
+  "Date": "2026-05-25"
+  "Document Class": "Plan"
+  "Parent Proposal": "wiki/proposals/full-windows-support.proposal.md"
+  "Parent Roadmap": "wiki/roadmaps/cross-platform-release-e2e.roadmap.md"
+  "Related": "wiki/proposals/full-windows-support.proposal.md, wiki/roadmaps/cross-platform-release-e2e.roadmap.md, wiki/plans/gguf-runtime-portability.plan.md, wiki/plans/gguf-runtime-smoke-probes.plan.md, wiki/checklists/observability-contract.checklist.md"
+  "Scope": "Build a release-artifact E2E harness that proves supported `llm-wiki` binaries behave like the documented product on their target platforms, while using Docker/Pulumi only where it gives honest coverage."
+  "Sources": "user request 2026-05-25; wiki/proposals/full-windows-support.proposal.md; wiki/roadmaps/cross-platform-release-e2e.roadmap.md; wiki/plans/gguf-runtime-portability.plan.md; wiki/plans/gguf-runtime-smoke-probes.plan.md; raw/research/2026-05-26-cqrs-release-e2e-source-capture/manifest.md; raw/research/2026-05-26-cqrs-release-e2e-source-capture/research-summary.md; justfile; .github/workflows/release-e2e-linux-amd64.yml; tools/release-e2e/Cargo.toml; tools/release-e2e/src/main.rs; infra/release-e2e/Pulumi.yaml; infra/release-e2e/index.ts; infra/release-e2e/linux-builder.Dockerfile; vendor/qmd-0.3.2/Cargo.toml"
+  "Status": "Active"
+  "Status note": "2026-06-22 local macOS arm64 refresh passed `rtk just release-e2e smoke`, `rtk just release-e2e search`, and `rtk cargo run --manifest-path tools/release-e2e/Cargo.toml -- gguf --artifact target/debug/llm-wiki --manual-models --reuse-managed-models-from /Users/nicolasmartino/.llm_wiki` against `target/debug/llm-wiki`. The GGUF lane now proves real managed-model CPU semantic, hybrid, and `search-all` retrieval using reused local model artifacts and an isolated project. Native Linux amd64, native macOS release-archive, and Windows host/VM proof remain pending."
+wiki/plans/develop-and-master-ci.plan.md
+  title: Some("Plan: A Fast Check On Develop, The Full CI On The Way To Master")
+  "Category": "CI, development process"
+  "Date": "2026-10-06"
+  "Document Class": "Plan"
+  "Related": "- `wiki/roadmaps/framework-v1.roadmap.md`, P10 and P11 - `.github/workflows/ci.yml`, `.github/workflows/release.yml`, `.github/workflows/release-e2e-linux-amd64.yml` - `justfile`, recipes `verify` and `branch-status`"
+  "Scope": "Split CI by target branch, so that work PRs into `develop` and their merges run one fast Linux check, and only the PR from `develop` into master and master itself run the full matrix; make both green; point `just branch-status` at `develop`."
+  "Sources": "- The owner's decisions of 2026-10-06: \"maybe the CI on macos, ubuntu etc should only run on master so we could have a lighter CI for develop branch? They take forever\"; \"I prefer the develop branch with the merge the pr to master triggering the longer CI\"; \"a merge into develop PR only triggers fast CI\"; \"do the develop/master CI now\" - The CI runs of 2026-10-06 on master, read by the coordinator"
+  "Status": "Completed (develop)"
+wiki/plans/development-workflow-setup.plan.md
+  title: Some("Development Workflow Setup")
+  "Category": "Development process"
+  "Date": "2026-10-06"
+  "Document Class": "Plan"
+  "Related": "- `wiki/checklists/operation-manager.checklist.md` - `wiki/decisions/work-is-recorded-in-the-repository.decision.md`"
+  "Scope": "The one-time steps that start this repository's way of working: the first commit, the board and its ids, wiki search for this repository, Orca, poman's decisions and roadmap, and the first roadmap entries. Done once; afterwards this page is the record of how it was done."
+  "Sources": "- The owner's decisions of 2026-10-06 on how this repository is worked on - The owner's answers of 2026-10-06 in the session that wrote this kit: the kit lands in the main checkout uncommitted for the owner to read (L); it is tracked although the repository is public, with no machine paths (LI); a worker's gates are `just verify` and CI on the PR's head (LII); this wiki keeps its own log format (LIII); no GitHub branch rules or merge settings yet (LIV); releases stay the owner's (LV)"
+  "Status": "Completed (develop)"
+wiki/plans/gguf-runtime-portability.plan.md
+  title: Some("Plan: GGUF Runtime Portability")
+  "Category": "Search runtime, semantic retrieval, cross-platform support"
+  "Date": "2026-05-24"
+  "Document Class": "Plan"
+  "Related": "wiki/plans/gguf-runtime-smoke-probes.plan.md, wiki/roadmaps/cross-platform-release-e2e.roadmap.md, wiki/plans/cross-platform-release-e2e-harness.plan.md, wiki/plans/semantic-hybrid-search.plan.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/evals/natural-language-search.eval.md, wiki/evals/natural-language-search-impact.md, wiki/references/llm-search-model-licensing.reference.md, wiki/proposals/full-windows-support.proposal.md, wiki/proposals/search-model-selection.proposal.md, wiki/checklists/observability-contract.checklist.md"
+  "Scope": "Make GGUF-backed semantic and hybrid search reliable across supported platforms by adding typed runtime failures, runtime smoke probes, and a CPU-safe execution baseline before any hybrid-quality redesign."
+  "Sources": "user request 2026-05-24 for a detailed plan; review feedback 2026-05-24 on the first GGUF runtime portability / hybrid quality draft; dogfood search pass 2026-05-24 against this repository; Stage 0/1 runtime-boundary implementation pass 2026-05-24; Stage 4 local CPU fixture proof 2026-05-25; managed-binary review follow-up and proof 2026-05-26; wiki/plans/gguf-runtime-smoke-probes.plan.md; wiki/roadmaps/cross-platform-release-e2e.roadmap.md; wiki/plans/cross-platform-release-e2e-harness.plan.md; wiki/decisions/semantic-hybrid-search-mode.decision.md; wiki/evals/natural-language-search.eval.md; wiki/evals/natural-language-search-impact.md; wiki/references/llm-search-model-licensing.reference.md; wiki/proposals/full-windows-support.proposal.md; wiki/proposals/search-model-selection.proposal.md; src/search/gguf_runtime.rs; src/search/semantic.rs; src/search/commands.rs; tests/search_commands.rs; tests/gguf_cpu_smoke.rs; qmd 0.3.2 local crate source inspection"
+  "Status": "Active"
+wiki/plans/gguf-runtime-smoke-probes.plan.md
+  title: Some("Plan: GGUF Runtime Smoke Probes")
+  "Category": "Search runtime, install diagnostics, doctor diagnostics"
+  "Date": "2026-05-25"
+  "Document Class": "Plan"
+  "Related": "wiki/plans/gguf-runtime-portability.plan.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/checklists/observability-contract.checklist.md, wiki/plans/idempotent-search-model-install.plan.md, wiki/plans/noninteractive-llm-search-install.plan.md"
+  "Scope": "Add install-time and doctor-time GGUF runtime smoke probes for the managed semantic/hybrid search profile without changing model materialization, hidden-download, search readiness, or hybrid retrieval semantics."
+  "Sources": "user request 2026-05-25; implementation pass 2026-05-25; real managed-model dogfood run 2026-05-25; wiki/plans/gguf-runtime-portability.plan.md; wiki/decisions/semantic-hybrid-search-mode.decision.md; wiki/checklists/observability-contract.checklist.md; wiki/plans/idempotent-search-model-install.plan.md; wiki/plans/noninteractive-llm-search-install.plan.md; src/install.rs; src/doctor.rs; src/paths.rs; src/search/runtime_probe.rs; src/search/gguf_runtime.rs; src/search_models.rs; src/search_profile.rs; src/uninstall.rs; tests/install.rs; tests/status_doctor.rs"
+  "Status": "Completed"
+wiki/plans/harness-independent-wiki-read-tool.plan.md
+  title: Some("Plan: Harness-Independent Wiki Read Tool")
+  "Category": "Agent runtime, provenance safety, MCP surface"
+  "Date": "2026-06-22"
+  "Document Class": "Plan"
+  "Note": "The original profile-reservation and router-bypass-proof portions were retired in the 2026-07-07 no-legacy reduction; the shipped `llm_wiki_read` MCP tool and its `_test` namespacing stand."
+  "Parent": "wiki/proposals/mcp-first-surface.proposal.md (delivers its increment 1)"
+  "Related": "- wiki/decisions/test-instance-namespaced-binary.decision.md - wiki/decisions/agent-owns-wiki.decision.md - wiki/decisions/llm-wiki-binary-distribution.decision.md"
+  "Scope": "Implement `llm_wiki_read` end-to-end per the accepted proposal, server-first: stand up the framework's first MCP tool surface (a Rust-native stdio JSON-RPC server, no SDK, single-binary preserved), then host a `wiki/`+`raw/`-scoped, read-only, full-file read tool on it, plus the `llm-wiki read <path>` CLI verb and a `_test`-namespaced sibling MCP tool name. The tool must be callable by an agent at the end of this plan. This plan must not change production names, paths, or the single-binary distribution invariant."
+  "Sources": "- wiki/proposals/harness-independent-wiki-read-tool.proposal.md - wiki/references/headroom-context-compression.reference.md"
+  "Status": "Active"
+wiki/plans/headroom-mcp-field-test-repair.plan.md
+  title: Some("Plan: Headroom MCP Field-Test Repair")
+  "Category": "Headroom, MCP surface, host wiring, provenance, search robustness"
+  "Date": "2026-07-18"
+  "Document Class": "Plan"
+  "Related": "- `wiki/plans/mcp-onboarding-init-register.plan.md` - `wiki/references/headroom-context-compression.reference.md` - `wiki/evals/codex-mcp-field-test-pass.eval.md` - `wiki/evals/claude-mcp-field-test-pass.eval.md`"
+  "Scope": "Repair and correctly frame the 2026-07-18 Codex + Headroom field-test failures after the `llm-wiki headroom` passthrough launch: hosts must connect the requested production MCP server/tool namespace before Phase A; the Headroom 0.24.0 Codex/OpenAI-Responses exclude failure must be recorded as historical/version-scoped evidence; current Headroom 0.32.0 + managed `llm-wiki 0.2.13` field evidence selects Option A; llm-wiki must retain loud compression detection, make search usable through compact paged output, keep exact large reads outside Headroom, isolate stale `search-all` projects, and keep normal search/index output diagnosable."
+  "Sources": "- User-supplied 2026-07-18 field-test report for `/Users/nicolasmartino/Documents/keto_diet` (`project_id: keto-diet`) launched via `llm-wiki headroom wrap`. - User-supplied 2026-07-18 Claude pre-Phase-A blocker: project `.mcp.json` exposed only `llm-wiki-test` / `_test` tools backed by `llm-wiki-test 0.2.8`, while the task required production unsuffixed `llm_wiki_*` and the production binary on disk was `0.2.11` but not connected to Claude. - User-supplied 2026-07-18 review of this plan, backed by installed `headroom-ai 0.24.0` source inspection. - Installed Headroom source read 2026-07-18: `headroom/transforms/content_router.py` honors `exclude_tools` only after building a tool-call id to name map for Chat-Completions/Anthropic-style messages; `headroom/proxy/handlers/openai.py` extracts OpenAI Responses tool-output `item[\"output\"]` values for compression and has no `exclude_tool` hook, except a hardcoded `headroom_retrieve` call-id protection. - User-supplied 2026-07-20 review and local verification of installed `headroom-ai 0.32.0`. - Installed Headroom source read 2026-07-20: `headroom/proxy/handlers/openai.py` now defines a 512-byte Responses router floor, extracts whole string `output` slots or per text-part slots, builds a `function_name_by_call_id` map from Responses `function_call` items, computes excluded call ids with `is_tool_excluded`, protects matching outputs, and keeps special `headroom_retrieve` output protection; `headroom/transforms/compression_units.py` defines `CompressionUnit.min_bytes = 512` and skips non-`live` units. - `wiki/checklists/headroom-launch-smoke.checklist.md` - `wiki/checklists/mcp-field-test.checklist.md` - `wiki/plans/headroom-passthrough-launcher.plan.md` - `wiki/decisions/headroom-single-posture-mcp-first.decision.md` - `wiki/plans/hybrid-default-and-mcp-surface-repair.plan.md`"
+  "Status": "Active"
+  "Updated": "2026-08-01"
+wiki/plans/headroom-mcp-merge-readiness-repair.plan.md
+  title: Some("Plan: Headroom/MCP Merge-Readiness Repairs")
+  "Category": "MCP cutover, test-instance safety, upgrade migration, release readiness"
+  "Date": "2026-06-23"
+  "Document Class": "Plan"
+  "Note": "The Headroom proxy carve-out portions of this plan are superseded by wiki/decisions/headroom-single-posture-mcp-first.decision.md (2026-06-30) and removed from the codebase in the no-legacy reduction; the proxy/router-bypass tasks and items have been stripped from this plan accordingly. The MCP-cutover, test-instance, and migration repairs here are unaffected and still stand."
+  "Scope": "Execute the repairs from `wiki/review/headroom-mcp-branch-merge-readiness.eval.md` before merging `impl/headroom-runtime-companion` as the no-legacy MCP cutover branch."
+  "Sources": "`wiki/review/headroom-mcp-branch-merge-readiness.eval.md`; `wiki/plans/mcp-first-agent-surface.plan.md`; `wiki/evals/mcp-first-host-parity.eval.md`; `wiki/plans/harness-independent-wiki-read-tool.plan.md`; `wiki/decisions/test-instance-namespaced-binary.decision.md`; `wiki/evals/test-instance-live-session-proof.eval.md`; `wiki/roadmaps/cross-platform-release-e2e.roadmap.md`; `README.md`; `src/mcp/mod.rs`; `src/mcp_config.rs`; `src/install.rs`; `src/uninstall.rs`; `src/paths.rs`; `src/instance.rs`; `src/manifest/schema.rs`; `tests/mcp.rs`; `tests/mcp_install.rs`; `tests/install.rs`; `tests/post_install.rs`; `tests/status_doctor.rs`; `tests/identity_lint.rs`."
+  "Status": "Blocked"
+  "Updated": "2026-10-06"
+wiki/plans/headroom-passthrough-launcher.plan.md
+  title: Some("Plan: `llm-wiki headroom` — env-injecting passthrough to the Headroom binary")
+  "Category": "Agent runtime, Headroom, developer ergonomics, CLI"
+  "Date": "2026-07-18"
+  "Document Class": "Plan"
+  "Implements": "`wiki/decisions/headroom-single-posture-mcp-first.decision.md` (Accepted; amended 2026-07-07) — the \"narrow launch convenience\" surface."
+  "Related": "- `wiki/checklists/mcp-field-test.checklist.md` - `wiki/references/headroom-context-compression.reference.md` - `wiki/plans/headroom-mcp-field-test-repair.plan.md`"
+  "Revises": "the Phase 2 command design in `wiki/plans/headroom-wrap-command.plan.md` (Implemented 2026-07-07). That command's process model was wrong; this plan corrects it."
+  "Sources": "- `src/cli.rs` (`HeadroomArgs`, `HeadroomCommand::Wrap`, `HeadroomWrapArgs`) - `src/headroom.rs` (current `wrap` / `ChildEnv` / `run_child`) - `src/instance.rs` (`mcp_tool_names`, `all_mcp_instances`, `server_name_variants`) - `tests/headroom.rs` (integration tests to rewrite) - Headroom source read 2026-07-18: `headroom/cli/wrap.py` (`_start_proxy`: `proxy_env = os.environ.copy()` → `Popen(env=proxy_env)`), `headroom/proxy/server.py:3177` (reads `HEADROOM_EXCLUDE_TOOLS` from `os.environ`), `headroom/ccr/mcp_server.py:77` (reads `HEADROOM_MCP_READ`, default `off`). - Headroom source read 2026-07-20 for installed `headroom-ai 0.32.0`: `headroom/proxy/handlers/openai.py` now builds a Responses `call_id -> function name` map, computes excluded call ids via `is_tool_excluded`, protects matching output slots plus `headroom_retrieve` outputs, and uses a 512-byte live Responses unit floor; line numbers drifted from older reviews, but the source-level behavior is verified."
+  "Status": "Blocked"
+wiki/plans/headroom-wrap-command.plan.md
+  title: Some("Plan: Headroom No-Legacy Reduction + `llm-wiki headroom wrap`")
+  "Category": "Agent runtime, Headroom, wiki reduction, developer ergonomics"
+  "Date": "2026-07-07"
+  "Document Class": "Plan"
+  "Implements": "wiki/decisions/headroom-single-posture-mcp-first.decision.md (Accepted; amended 2026-07-07)"
+  "Related": "- wiki/references/headroom-context-compression.reference.md"
+  "Scope": "Three ordered phases, now implemented. **Phase 0** — purge the exploratory proxy wiki down to a minimal self-contained set, folding load-bearing rationale into the surviving decision. **Phase 1** — strict no-legacy removal of the last Headroom code and tests (no shim, no absence tests). **Phase 2** — implement `llm-wiki headroom wrap`, covering **both** production and test MCP namespaces."
+  "Sources": "- wiki/decisions/headroom-single-posture-mcp-first.decision.md (Accepted; amended 2026-07-07) - wiki/evals/test-instance-live-session-proof.eval.md (prod/test coexistence) - src/instance.rs, src/cli.rs, src/main.rs, src/mcp/mod.rs - src/install.rs, src/manifest/schema.rs (Phase 1 removal targets) - Two 2026-07-07 read-only audits (code + wiki)"
+  "Status": "Completed"
+wiki/plans/hybrid-default-and-mcp-surface-repair.plan.md
+  title: Some("Plan: Default Hybrid Search and MCP Surface Repair")
+  "Category": "Search UX, hybrid retrieval, MCP surface, runtime correctness"
+  "Date": "2026-06-27"
+  "Document Class": "Plan"
+  "Related": "- wiki/plans/mcp-first-agent-guidance.plan.md (its Phase 0 diagnoses are superseded here) - wiki/plans/semantic-hybrid-search.plan.md - wiki/checklists/mcp-field-test.checklist.md"
+  "Scope": "Make hybrid/semantic search work out of the box on any freshly indexed project (no manual calibration), and fix the genuine MCP-surface defects surfaced by the keto-diet field test — while correcting the wrong root-cause record left by the prior Phase 0."
+  "Sources": "- raw/field-test/ketogenic_project_test.md (live keto-diet run, llm-wiki-test instance) - Direct CLI vs MCP differential (this investigation) - src/search/commands.rs, src/search/semantic.rs, src/search_models.rs, src/mcp/mod.rs, src/instance.rs, src/doctor.rs"
+  "Status": "Active"
+  "Updated": "2026-08-01"
+wiki/plans/idempotent-search-model-install.plan.md
+  title: Some("Plan: Idempotent Search Model Install")
+  "Category": "Install UX, search model materialization, managed runtime state"
+  "Date": "2026-05-14"
+  "Document Class": "Plan"
+  "Related": "wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/references/llm-search-model-licensing.reference.md, wiki/proposals/search-model-selection.proposal.md, wiki/specs/documentation-model.spec.md"
+  "Scope": "Make repeated `llm-wiki install` and `llm-wiki install --configure-search` reuse already verified search model artifacts instead of downloading unchanged model bytes again, while keeping search-type changes separate from artifact deletion."
+  "Sources": "user discussion 2026-05-14, wiki/plans/semantic-hybrid-search.plan.md, wiki/proposals/search-model-selection.proposal.md, wiki/references/llm-search-model-licensing.reference.md, src/install.rs, src/search_models.rs"
+  "Status": "Completed"
+wiki/plans/init-rerun-pack-drift.plan.md
+  title: Some("Plan: Init Rerun Schema Drift Recorded In Wiki")
+  "Category": "Tooling, project scaffolding, rerun observability"
+  "Date": "2026-05-14"
+  "Document Class": "Plan"
+  "Related": "wiki/decisions/composable-project-init.decision.md (2026-05-13 rerun revision), wiki/specs/wiki-init-skill.spec.md (Rerun Behavior section), wiki/plans/mcp-onboarding-init-register.plan.md and wiki/plans/mcp-first-agent-guidance.plan.md (consumers: the rerun refresh of framework-owned AGENTS.md is how existing projects pick up the MCP wiring + MCP-routing guidance changes from those plans)"
+  "Scope": "Extend `llm-wiki init` rerun behavior so that when the resolved pack set or resolved pack composition changes, the rerun records schema drift in `wiki/log.md` and a minimal `wiki/index.md` drift section. Orphan-folder content stays on disk; users or future lint cleanup decide whether to archive, rehome, or remove it."
+  "Sources": "src/init/scaffold.rs, src/init/answers.rs, src/init/manifest.rs, src/init/compose.rs, src/search/qmd_rs.rs (collect_wiki_documents), wiki/decisions/composable-project-init.decision.md, wiki/specs/wiki-init-skill.spec.md, wiki/plans/composable-project-init.plan.md"
+  "Status": "Completed"
+wiki/plans/knowledge-research-intake.plan.md
+  title: Some("Knowledge Research Intake Implementation")
+  "Category": "Tooling"
+  "Date": "2026-05-02"
+  "Document Class": "Plan"
+  "Related": "wiki/decisions/knowledge-research-intake.decision.md, wiki/specs/wiki-research-skill.spec.md, assets/skills/wiki-research/SKILL.md, assets/skills/wiki/SKILL.md, assets/skills/wiki-ingest/SKILL.md"
+  "Scope": "Execute the proposed upgrade of `knowledge-research` into a guided intake workflow with `raw/research/` bundles, `manifest.md`, and `research-summary.md`."
+  "Sources": "wiki/archive/knowledge-intake-command.proposal.md, wiki/specs/wiki-research-skill.spec.md, wiki/archive/knowledge-command-namespace.decision.md, templates/base/project_guidelines.md"
+  "Status": "Completed"
+wiki/plans/llm-wiki-binary.plan.md
+  title: Some("Plan: `llm-wiki` Binary Implementation (D8)")
+  "Category": "Tooling, framework distribution"
+  "Date": "2026-05-06"
+  "Document Class": "Plan"
+  "Related": "wiki/specs/documentation-model.spec.md, wiki/specs/wiki-ingest-skill.spec.md, wiki/specs/wiki-query-skill.spec.md, wiki/specs/wiki-research-skill.spec.md, wiki/specs/wiki-lint-skill.spec.md, assets/skills/README.md"
+  "Scope": "Implement the `llm-wiki` Rust binary that owns global skill installation, project scaffolding, and skill projection per the accepted D8 deliverable."
+  "Sources": "wiki/proposals/llm-wiki-binary.proposal.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/roadmaps/framework-v1.roadmap.md (D8), wiki/archive/single-source-skills.decision.md, wiki/archive/framework-path-resolution.decision.md, wiki/specs/wiki-init-skill.spec.md"
+  "Status": "Completed"
+wiki/plans/llm-wiki-product-layout-addendum.plan.md
+  title: Some("Plan: `llm-wiki` Product Layout Addendum")
+  "Category": "Tooling, repository layout"
+  "Date": "2026-05-06"
+  "Document Class": "Plan"
+  "Related": "wiki/specs/documentation-model.spec.md, wiki/specs/wiki-init-skill.spec.md, wiki/specs/wiki-query-skill.spec.md, wiki/specs/wiki-ingest-skill.spec.md, wiki/specs/wiki-research-skill.spec.md, wiki/specs/wiki-lint-skill.spec.md"
+  "Scope": "Completed post-D8 repository layout correction that makes the `llm-wiki` binary the root product crate and moves embedded product assets under `assets/`."
+  "Sources": "wiki/plans/llm-wiki-binary.plan.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, README.md, Cargo.toml, src/, assets/, tests/"
+  "Status": "Completed"
+wiki/plans/macos-installed-binary-codesign-repair.plan.md
+  title: Some("Plan: macOS Installed Binary Codesign Repair")
+  "Category": "macOS install, test instance, binary materialization, release readiness"
+  "Date": "2026-06-25"
+  "Document Class": "Plan"
+  "Scope": "Repair the macOS launch hang where newly installed `llm-wiki-test` and the matching local build binary enter kernel wait before CLI argument handling, by making macOS binary signing an explicit, tested part of managed install and release/test-instance proof."
+  "Sources": "Live diagnostic observation on 2026-06-23; `src/install.rs`; `src/paths.rs`; `src/manifest/schema.rs`; `tests/post_install.rs`; `tests/mcp_install.rs`; `wiki/plans/test-instance-namespaced-binary.plan.md`; `wiki/plans/headroom-mcp-merge-readiness-repair.plan.md`; `wiki/roadmaps/cross-platform-release-e2e.roadmap.md`."
+  "Status": "Completed (master)"
+wiki/plans/mcp-first-agent-guidance.plan.md
+  title: Some("Plan: MCP-First Agent Guidance Hardening")
+  "Category": "Agent runtime, MCP surface, project guidance, host parity"
+  "Date": "2026-06-25"
+  "Document Class": "Plan"
+  "Related": "- wiki/proposals/mcp-first-surface.proposal.md - wiki/proposals/harness-independent-wiki-read-tool.proposal.md - wiki/references/headroom-context-compression.reference.md - wiki/decisions/test-instance-namespaced-binary.decision.md - wiki/checklists/mcp-field-test.checklist.md (produced by Phase 1) - wiki/decisions/headroom-single-posture-mcp-first.decision.md (the posture this routing serves: the MCP tools are the wiki/raw surface, so AGENTS.md must route agents to them) - wiki/plans/mcp-onboarding-init-register.plan.md (sibling gap: that plan *wires* the MCP server into init/register; this plan makes generated AGENTS.md *route* agents to the MCP tools — the keto-diet field test hit both. The 2026-06-29 template edits to templates/base/agents.md and templates/packs/qmd-rs-scale/agents.md are a down payment on this plan's AGENTS.md-routing phases.) - wiki/plans/init-rerun-pack-drift.plan.md (Completed: rerun refresh of an existing project's framework-owned AGENTS.md after these templates change) - src/search/metadata.rs - src/search/commands.rs - src/instance.rs"
+  "Scope": "First fix the MCP correctness bugs that make the framework-owned tools untrustworthy, then prove them with a reusable field-test checklist across new/existing/migration projects, and only then strengthen generated LLM Wiki project guidance so ordinary agents use the MCP tools and resources as the primary surface for wiki operations, including instance-aware tool names, explicit operation routing, search readiness handling, honest research workflow guidance, tests, and host parity evidence."
+  "Sources": "- wiki/plans/mcp-first-agent-surface.plan.md - wiki/evals/mcp-first-host-parity.eval.md - wiki/plans/harness-independent-wiki-read-tool.plan.md - templates/base/agents.md - templates/base/project_guidelines.md"
+  "Status": "Active"
+wiki/plans/mcp-first-agent-surface.plan.md
+  title: Some("Plan: MCP-First Agent Surface No-Legacy Cutover")
+  "Category": "Internal architecture, MCP surface, harness independence, complexity reduction"
+  "Date": "2026-06-22"
+  "Document Class": "Plan"
+  "Promotion Target": "- wiki/decisions/skill-projection-template-engine.decision.md - wiki/references/headroom-context-compression.reference.md - wiki/index.md - wiki/log.md"
+  "Related": "- wiki/decisions/skill-projection-template-engine.decision.md - wiki/decisions/llm-wiki-binary-distribution.decision.md - wiki/decisions/agent-owns-wiki.decision.md - wiki/decisions/composable-project-init.decision.md"
+  "Scope": "Execute `wiki/proposals/mcp-first-surface.proposal.md` end-to-end as a no-legacy migration. Deterministic operations move behind one Rust-native stdio MCP server. Procedural workflows are carried by always-on project instructions (`AGENTS.md` / harness equivalents) plus MCP tools/resources, with MCP prompts added only if host support is proven. Generated Claude/Codex skill projection is retired after ordinary-language cross-harness parity is proven instead of being preserved as permanent thin shims."
+  "Sources": "- wiki/proposals/mcp-first-surface.proposal.md - wiki/proposals/harness-independent-wiki-read-tool.proposal.md - wiki/plans/harness-independent-wiki-read-tool.plan.md - wiki/references/headroom-context-compression.reference.md - raw/research/2026-06-11-headroom-llm-wiki-comparison/sources/05-headroom-docs-mcp.mdx - raw/research/2026-06-20-codex-tool-surface/research-summary.md"
+  "Status": "Active"
+  "Updated": "2026-08-01"
+wiki/plans/mcp-onboarding-init-register.plan.md
+  title: Some("Plan: Automatic MCP Onboarding At init/register")
+  "Category": "Tooling, MCP onboarding, init/register UX, host parity"
+  "Date": "2026-06-29 (decision accepted 2026-07-31)"
+  "Document Class": "Plan"
+  "Related": "- wiki/decisions/headroom-single-posture-mcp-first.decision.md (the posture this onboarding serves: MCP tools are the wiki/raw surface, so wiring them per project is what makes that posture real) - wiki/decisions/composable-project-init.decision.md - wiki/references/headroom-context-compression.reference.md - wiki/checklists/mcp-field-test.checklist.md - wiki/plans/mcp-first-agent-guidance.plan.md (sibling gap: this plan *wires* the MCP server; that plan makes generated AGENTS.md *route* agents to it — both are needed before an agent actually uses the tools) - wiki/plans/init-rerun-pack-drift.plan.md (Completed: the rerun mechanism that refreshes an existing project's framework-owned AGENTS.md after the templates change)"
+  "Scope": "Make the `llm-wiki` MCP server connect automatically for Claude Code the way it already does for Codex, by moving per-project `.mcp.json` wiring into the project-scoped `init` and `register` commands. Extract a shared, non-destructive, idempotent wiring core; call it from both commands; add a `doctor` check that a registered project is actually wired; demote `install`'s Claude staging from \"required manual step\" to \"fallback\"; and update docs and the field-test checklists to drop the manual `cp …/.mcp.json` step."
+  "Sources": "- wiki/decisions/mcp-onboarding-at-init-register.decision.md - src/install.rs (`materialize_mcp_configs`) - src/mcp_config.rs (`render_claude_project_mcp_config`, `merge_claude_project_mcp_config`, `merge_codex_config`) - src/mcp_wiring.rs (`wire_project_mcp`, `ensure_claude_project_mcp_config`, `ensure_codex_mcp_config`) - src/paths.rs (`claude_project_mcp_config`) - src/registry/mod.rs (`register`) - src/init/command.rs (`run`) - src/cli.rs (`RegisterArgs`, init registration flags)"
+  "Status": "Active"
+wiki/plans/noninteractive-llm-search-install.plan.md
+  title: Some("Plan: Non-Interactive LLM Search Install")
+  "Category": "Install UX, search model materialization, automation"
+  "Date": "2026-05-23"
+  "Document Class": "Plan"
+  "Related": "wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/plans/semantic-hybrid-search.plan.md, wiki/proposals/search-model-selection.proposal.md, wiki/checklists/observability-contract.checklist.md"
+  "Scope": "Implement explicit non-interactive LLM-search installation for the balanced profile with named posture, model-download, and profile-license flags; preserve install-owned model materialization, fail closed before any managed-state mutation when runtime confirmations are missing, and prove the installed binary changed with a one-off version bump."
+  "Sources": "wiki/proposals/noninteractive-llm-search-install.proposal.md, wiki/plans/idempotent-search-model-install.plan.md, wiki/references/llm-search-model-licensing.reference.md, wiki/checklists/observability-contract.checklist.md, wiki/plans/cli-observability.plan.md, src/cli.rs, src/install.rs, src/search_models.rs, tests/install.rs"
+  "Status": "Completed"
+wiki/plans/operations-setup-in-llm-wiki.plan.md
+  title: Some("Plan: The Operations Setup Ships With llm-wiki")
+  "Category": "Project init, MCP prompts, way of working"
+  "Date": "2026-10-06"
+  "Document Class": "Plan"
+  "Related": "- `wiki/decisions/composable-project-init.decision.md`: the rerun rule this plan changes - `wiki/specs/wiki-init-skill.spec.md`, \"Rerun Behavior\" - `wiki/plans/init-rerun-pack-drift.plan.md`: the marked Schema Drift section the block follows - `wiki/proposals/project-update-command.proposal.md` (Proposed): a later `update` command over the same framework-owned files - `wiki/decisions/skill-projection-template-engine.decision.md` (superseded): the no-shipped-skills posture the pack keeps - `wiki/evals/mcp-first-host-parity.eval.md`: why the steps are also a resource - `wiki/checklists/operation-manager.checklist.md`, `wiki/checklists/worker-briefs.checklist.md`, `wiki/plans/development-workflow-setup.plan.md`: this repository's own fitted copy of the kit"
+  "Scope": "Carry out P19 of the framework roadmap, as the accepted proposal describes it: first, `AGENTS.md`, `CLAUDE.md` and `project_guidelines.md` each get one marked block that init owns and refreshes, and init leaves everything outside it as it is; then an init pack writes the coordinated way of working's files, an `operations_setup` MCP prompt holds the setup steps, and a built-in MCP resource carries the same steps."
+  "Sources": "- `wiki/proposals/operations-setup-in-llm-wiki.proposal.md`, accepted by the owner on 2026-10-06 (#38), and its feedback review and fix round on #38 - `wiki/roadmaps/framework-v1.roadmap.md`, P19, and issue #40 - The owner's answers of 2026-10-06 to the proposal's open choices: when to build it, \"asap\"; where the kit's AGENTS sections go, \"I think we should have a needle, a part of the agents.md file that is dedicated to llm wiki\"; the pack's name, `operation-manager` - `src/init/scaffold.rs`, `src/init/compose.rs`, `src/init/template.rs`, `src/init/packs.rs`, `src/init/manifest.rs`, `src/init/collision.rs`, `src/cli.rs` (`InitArgs`), `src/mcp/mod.rs`, `src/wiki_read/mod.rs` (`discover_project_root`), `tests/init.rs`, `tests/snapshots/` and the `justfile` at `0c9a240`, read for \"Where It Stands\" - The owner's global operations setup skill (outside this repository): its steps, its fitting guide and its kit, which the pack's templates copy"
+  "Status": "Draft"
+wiki/plans/poman-shared-page-reader-and-types.plan.md
+  title: Some("Plan: The Shared Page Reader And File Types")
+  "Category": "poman development"
+  "Date": "2026-10-06"
+  "Document Class": "Plan"
+  "Related": "- `wiki/plans/poman-workspace-and-strict-gates.plan.md`: PM1, which made the crate and the gates this plan builds on - `wiki/decisions/deadline-files-hold-one-deadline-each.decision.md`: the first poman type, PM3's, which this plan makes room for - `wiki/plans/operations-setup-in-llm-wiki.plan.md`, P19 of `wiki/roadmaps/framework-v1.roadmap.md`: on PR #41's branch until that PR merges, not on `develop` at `92187d3`. It also changes what init writes; \"Where This Meets The Operations Setup\" below"
+  "Scope": "Carry out PM2 of the poman roadmap: the page reader moved from llm-wiki's search into `llm-wiki-core` and rewritten to the strictest gates, both search callers reading through it, llm-wiki's document types defined there with their suffix, folder, fields and statuses, `llm-wiki init` scaffolding from those definitions, and proof that search, init and the guidelines see no change."
+  "Sources": "- `wiki/roadmaps/poman.roadmap.md`, PM2, and issue #44 - `wiki/decisions/poman-lives-in-this-workspace.decision.md`: the shared crate, the strictest gates, and \"Consequences\" on the parser's forms and on the guidelines agreeing with the code - `wiki/decisions/poman-reads-only-its-own-file-types.decision.md`: poman's fields in the bullet block, no front matter, every message naming the file and the line - `wiki/decisions/typed-documents.decision.md`: each type has its own status vocabulary - `src/search/metadata.rs`, `src/search/qmd_rs.rs`, `src/search/semantic.rs`, `src/search/index_text.rs`, `src/init/compose.rs`, `src/init/packs.rs`, `crates/llm-wiki-core/`, `tools/strict-gates.sh` and `templates/base/project_guidelines.md` at `92187d3`, the state \"Where It Stands\" summarises - riseon issue #11: the founding tasks to be written as deadline files once PM3 lands"
+  "Status": "Draft"
+wiki/plans/poman-workspace-and-strict-gates.plan.md
+  title: Some("Plan: The Workspace And The Strict Gates")
+  "Category": "poman development"
+  "Date": "2026-10-06"
+  "Document Class": "Plan"
+  "Related": "- `wiki/decisions/llm-wiki-binary-distribution.decision.md`: the install and release poman joins - `wiki/decisions/work-is-recorded-in-the-repository.decision.md`: the plan comes before the code - `wiki/plans/develop-and-master-ci.plan.md`: the fast check and the full CI the new gates sit beside"
+  "Scope": "Carry out PM1 of the poman roadmap: the shared library crate and the `poman` crate in this workspace, both held to the strictest gates from their first commit, with one gate script running every gate; `llm-wiki install` and `uninstall` handling poman; and one release build producing both binaries."
+  "Sources": "- `wiki/roadmaps/poman.roadmap.md`, PM1, and issue #20 - `wiki/decisions/poman-lives-in-this-workspace.decision.md`, \"The strictest gates\": the gate list this plan carries out - The owner's decision of 2026-10-06 on install channels: \"The release archive ships both binaries, and llm-wiki install copies poman from beside itself; people installing with cargo install also run cargo install poman.\" Amended the same day, once cargo-dist 0.28 proved to build one archive per package: the release ships two archives per target, `llm-wiki-rs-<triple>` and `poman-<triple>` (the owner's decision of 2026-10-06, \"Two archives\") - `Cargo.toml`, `justfile`, `src/install.rs`, `src/uninstall.rs`, `src/manifest/schema.rs`, `src/paths.rs` and `src/instance.rs` at `dba2537`, the state before the work, which \"Where It Stands\" now summarises - crates.io, queried 2026-10-06: which crate names are free"
+  "Status": "Completed (develop)"
+wiki/plans/project-and-skill-rename.plan.md
+  title: Some("Plan: Project and Skill Rename")
+  "Category": "Branding, naming, migration"
+  "Date": "2026-05-08"
+  "Document Class": "Plan"
+  "Related": "wiki/roadmaps/framework-v1.roadmap.md, wiki/specs/wiki-init-skill.spec.md, wiki/specs/wiki-query-skill.spec.md, wiki/specs/wiki-ingest-skill.spec.md, wiki/specs/wiki-research-skill.spec.md, wiki/specs/wiki-lint-skill.spec.md"
+  "Scope": "Execute D11: the rename from `llm-wiki-framework` to `llm-wiki-rs` and from `knowledge*` skills to `wiki-*`, while handling the small set of legacy symlinked repos through a one-off migration that is explicitly outside the framework's long-term architecture."
+  "Sources": "wiki/proposals/project-and-skill-rename.proposal.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/decisions/composable-project-init.decision.md, live local skill-symlink inspection under `~/.claude/skills/` and `~/.codex/skills/` on 2026-05-08"
+  "Status": "Completed"
+wiki/plans/project-registry-search-artifacts.plan.md
+  title: Some("Plan: Project Registry and Search Artifacts")
+  "Category": "Search infrastructure, framework tooling"
+  "Date": "2026-05-07"
+  "Document Class": "Plan"
+  "Related": "wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/plans/qmd-rs-search-backend.plan.md, wiki/roadmaps/framework-v1.roadmap.md"
+  "Scope": "Implement D9 user-visible project registration, indexing, project-local search, and explicit cross-project search commands on top of the qmd-rs backend adapter."
+  "Sources": "wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/plans/qmd-rs-search-backend.plan.md, wiki/decisions/search-backend-selection.decision.md, wiki/evals/search-backend-selection.eval.md, wiki/specs/documentation-model.spec.md"
+  "Status": "Completed"
+wiki/plans/qmd-rs-search-backend.plan.md
+  title: Some("Plan: qmd-rs Search Backend")
+  "Category": "Search infrastructure, framework tooling"
+  "Date": "2026-05-07"
+  "Document Class": "Plan"
+  "Related": "wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/decisions/search-backend-selection.decision.md"
+  "Scope": "Implement the internal qmd-rs backend slice for D9 project-local search; user-visible D9 search commands and cross-project `search-all` remain later work."
+  "Sources": "wiki/decisions/search-backend-selection.decision.md, wiki/evals/search-backend-selection.eval.md, wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/references/qmd-rs-search-crate.reference.md"
+  "Status": "Completed"
+wiki/plans/sandbox-safe-search-cache-reads.plan.md
+  title: Some("Plan: Sandbox-Safe Search Cache Reads")
+  "Category": "Search infrastructure, sandboxed agents, qmd-rs adapter"
+  "Date": "2026-05-23"
+  "Document Class": "Plan"
+  "Related": "wiki/proposals/sandbox-safe-search-cache-reads.proposal.md, wiki/plans/qmd-rs-search-backend.plan.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/plans/semantic-hybrid-search.plan.md, wiki/checklists/observability-contract.checklist.md"
+  "Scope": "Implement immutable completed-store reads for qmd-rs-backed search, doctor, and registry status paths so read-only commands can inspect managed caches without mutating `~/.llm_wiki` state."
+  "Sources": "wiki/proposals/sandbox-safe-search-cache-reads.proposal.md, wiki/decisions/search-backend-selection.decision.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/checklists/observability-contract.checklist.md, src/search/qmd_rs.rs, src/search/adapter.rs, src/search/commands.rs, src/doctor.rs, src/registry/mod.rs, tests/search_commands.rs, tests/status_doctor.rs, local command reproduction 2026-05-23 after `llm-wiki index --force`, review findings 2026-05-23 on JSON failure envelopes, project-aware status, semantic/hybrid status paths, permission-preserving path checks, strict candidate verification, promotion-race `SQLITE_CANTOPEN` classification, and immutable-open retry routing, plus review finding 2026-05-24 on unreadable project cache directories in registry status, direct backend trait callers, active sqlite-row metadata proof, and unavailable cache-size reporting"
+  "Status": "Completed"
+wiki/plans/search-eval-test-frozen-wiki.plan.md
+  title: Some("Plan: The Search Eval Test Runs Against A Frozen Wiki")
+  "Category": "Search, tests, CI"
+  "Date": "2026-10-06"
+  "Document Class": "Plan"
+  "Related": "- `wiki/roadmaps/framework-v1.roadmap.md`, P14 and P9 - `src/search/qmd_rs.rs`, `tests/fixtures/`"
+  "Scope": "Make the search quality test in `src/search/qmd_rs.rs` read a frozen copy of the wiki instead of the live `wiki/`, without weakening what it checks, so the fast check on `develop` is green again and stays green as the wiki grows."
+  "Sources": "- The owner, 2026-10-06: open a PR from `develop` into master, \"and if it [CI] fails, fix it\" - The failed fast check on `develop` at `67c70ce`, run 37485986382, read by the coordinator"
+  "Status": "Completed (develop)"
+wiki/plans/search-ranking-weights-and-phrase-fallback.plan.md
+  title: Some("Plan: Lexical Search Weights Titles And File Names, And Falls Back To Phrases")
+  "Category": "Search, tests"
+  "Date": "2026-10-06"
+  "Document Class": "Plan"
+  "Related": "- `wiki/roadmaps/framework-v1.roadmap.md`, P16 (this plan), P9 (the investigation), P15 and P17 (compact search) - `wiki/plans/search-eval-test-frozen-wiki.plan.md` (the frozen wiki this plan's tests read) - `wiki/evals/natural-language-search.eval.md` (the lexical column this plan may move) - `src/search/qmd_rs.rs`, `src/search/sanitize.rs`, `tests/fixtures/search-eval/`"
+  "Scope": "Make a lexical search for a page's own title or file name put that page first, and make a query whose words no single page holds all of return the pages that hold its hyphenated names, each proven by a test on a frozen wiki."
+  "Sources": "- Issue #25, \"Search: Weight titles and file names, and fall back to phrases\" - The investigation on issue #7, comment of 2026-10-06 (https://github.com/NicolasMartino/llm-wiki-framework/issues/7#issuecomment-6020083709) - The code on `develop` at `9b64345`, read for this plan"
+  "Status": "Draft"
+wiki/plans/semantic-hybrid-search.plan.md
+  title: Some("Plan: Semantic and Hybrid Search")
+  "Category": "Search UX, semantic retrieval, qmd-rs adapter"
+  "Date": "2026-05-11"
+  "Document Class": "Plan"
+  "Related": "wiki/proposals/search-query-interpretation.proposal.md, wiki/proposals/cli-observability.proposal.md, wiki/decisions/search-backend-selection.decision.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/evals/search-backend-selection.eval.md, wiki/evals/natural-language-search.eval.md, wiki/references/qmd-rs-search-crate.reference.md, wiki/references/llm-search-model-licensing.reference.md, wiki/specs/wiki-query-skill.spec.md, wiki/specs/documentation-model.spec.md"
+  "Scope": "Implement natural-language `llm-wiki search` through explicit lexical, semantic, hybrid, and auto modes while preserving current lexical behavior and keeping model/index state inspectable under `~/.llm_wiki`."
+  "Sources": "wiki/proposals/search-query-interpretation.proposal.md, wiki/proposals/cli-observability.proposal.md, wiki/decisions/search-backend-selection.decision.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/evals/search-backend-selection.eval.md, wiki/evals/natural-language-search.eval.md, wiki/evals/natural-language-search-impact.md, wiki/references/qmd-rs-search-crate.reference.md, assets/skills/wiki-query/SKILL.md, user instruction 2026-05-11 to treat CLI observability as finished in a separate worktree, user instruction 2026-05-11 to support tuning different models in eval calibration"
+  "Status": "Completed"
+wiki/plans/skill-projection-template-engine.plan.md
+  title: Some("Plan: Skill Projection Template Engine")
+  "Category": "Tooling, skill projection, template engine adoption"
+  "Date": "2026-05-09"
+  "Document Class": "Plan"
+  "Related": "wiki/decisions/composable-project-init.decision.md, wiki/checklists/v1-fixture-smoke.checklist.md"
+  "Scope": "Execute the accepted skill projection template-engine decision by migrating Claude/Codex skill markdown and Codex runtime config rendering onto Askama templates."
+  "Sources": "wiki/proposals/skills-template-engine.proposal.md, wiki/decisions/skill-projection-template-engine.decision.md, templates/skills/, crates/llm-wiki-schema/src/projector/{claude,codex,format,types}.rs"
+  "Status": "Completed"
+wiki/plans/test-instance-namespaced-binary.plan.md
+  title: Some("Plan: Coexisting Test Instance via Build-Time Namespace")
+  "Category": "Developer ergonomics, install/runtime isolation, dogfooding safety"
+  "Date": "2026-06-21"
+  "Document Class": "Plan"
+  "Related": "- wiki/plans/project-and-skill-rename.plan.md (prior art: name plumbing)"
+  "Scope": "Implement the build-time instance namespace per the accepted decision: one derivation API driven by a build-script-validated compile-time constant (`build.rs` reads `LLM_WIKI_INSTANCE` and re-emits `LLM_WIKI_COMPILED_INSTANCE`, read via `env!`), a `test`-only scope guard, an output-equality invariant pinned by golden install snapshots, a scoped source lint, a release-build guard, namespaced install/uninstall/doctor, and a snapshot-bracketed live-session proof under both Claude Code and Codex. This plan must not change production behavior, names, paths, or the single-binary distribution invariant."
+  "Sources": "- wiki/decisions/test-instance-namespaced-binary.decision.md - wiki/proposals/test-instance-namespaced-binary.proposal.md"
+  "Status": "Completed"
+  "Status note": "Completed 2026-06-22. Build-time `test` scope guard, central instance derivation, suffixed paths/skills/manifest identity, the golden empty-namespace output-equality snapshot, the `build.rs` release-build guard, the scoped suffixed-identity source lint with a negative test, the doctor active-instance banner and shared-project-tree caveat, temp-home install/status/uninstall smoke, and the snapshot-bracketed live-session proof all pass. Phase 6 evidence is recorded in `wiki/evals/test-instance-live-session-proof.eval.md`; this update completes Phase 7 docs/bookkeeping."
+wiki/plans/tests-once-shared-ci-cache.plan.md
+  title: Some("Plan: Run The Tests Once And Share One CI Cache")
+  "Category": "CI, development process"
+  "Date": "2026-10-06"
+  "Document Class": "Plan"
+  "Related": "- `wiki/roadmaps/framework-v1.roadmap.md`, P13 - `wiki/plans/develop-and-master-ci.plan.md` - `justfile`, recipes `verify`, `test`, `snapshots`, `coverage`, `fast-check` - `.github/workflows/ci.yml`, `.github/workflows/fast-check.yml`"
+  "Scope": "Make `just verify`, and the full CI jobs that run it, run the test suite once instead of twice, and save the CI cache only from `develop` and master, so every PR starts from `develop`'s cache."
+  "Sources": "- The owner's decisions of 2026-10-06: \"I think it should get all cargo crates once, then run all tests\", and the follow-up to the develop and master CI (#12), approved the same day - The runs of PR #12, read by the coordinator"
+  "Status": "Completed (develop)"
+wiki/proposals/binary-path-bootstrap.proposal.md
+  title: Some("Managed Binary Install and PATH Guidance")
+  "Category": "Distribution tooling, install UX"
+  "Date": "2026-05-06"
+  "Document Class": "Proposal"
+  "Promoted To": "wiki/decisions/binary-path-bootstrap.decision.md, wiki/roadmaps/framework-v1.roadmap.md (D8.1), wiki/plans/binary-path-bootstrap.plan.md"
+  "Related": "wiki/decisions/binary-path-bootstrap.decision.md, wiki/plans/binary-path-bootstrap.plan.md, wiki/specs/knowledge-init-skill.spec.md, wiki/specs/documentation-model.spec.md, wiki/proposals/llm-wiki-binary.proposal.md"
+  "Scope": "Make `llm-wiki install` create a stable managed binary location for runtime skills, then guide users when `llm-wiki` is not discoverable on `PATH`."
+  "Sources": "user discussion 2026-05-06, proposal review 2026-05-06, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/plans/llm-wiki-binary.plan.md, wiki/plans/llm-wiki-product-layout-addendum.plan.md, https://docs.rs/which/latest/which/, https://docs.rs/dirs-next/latest/dirs_next/fn.executable_dir.html, https://docs.rs/dialoguer/latest/dialoguer/, https://docs.rs/is-terminal/latest/is_terminal/, https://doc.rust-lang.org/stable/cargo/commands/cargo-install.html"
+  "Status": "Accepted"
+wiki/proposals/blueprint-pack-init.proposal.md
+  title: Some("Composable Project Init: Blueprints and Packs")
+  "Category": "Tooling, project scaffolding, init UX"
+  "Date": "2026-05-07"
+  "Document Class": "Proposal"
+  "Promoted To": "wiki/decisions/composable-project-init.decision.md, wiki/plans/composable-project-init.plan.md, wiki/roadmaps/framework-v1.roadmap.md (D10)"
+  "Related": "wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-init-skill.spec.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/proposals/skills-template-engine.proposal.md"
+  "Scope": "Evolve `llm-wiki init` from one static template gated by two conditional flags (`SECTION:ML_AI`, `SECTION:SEARCH`) into a composable generator that produces a tailored canonical `AGENTS.md` and `project_guidelines.md` from a chosen blueprint plus a set of opt-in packs, and add a per-project `.llm_wiki/` folder for project-specific config and an init manifest."
+  "Sources": "templates/base/project_guidelines.md, templates/base/agents.md, templates/packs/, src/init/{blueprints,packs,compose,manifest,answers,template,scaffold,command}.rs"
+  "Status": "Accepted"
+wiki/proposals/cli-observability.proposal.md
+  title: Some("CLI Verbose Diagnostics")
+  "Category": "CLI UX, operational diagnostics"
+  "Date": "2026-05-10"
+  "Document Class": "Proposal"
+  "Implementation References": "src/cli.rs, src/main.rs, src/build.rs, src/install.rs, src/uninstall.rs, src/init/command.rs, src/search/commands.rs, src/registry/mod.rs, src/path_guidance.rs, src/status.rs, src/doctor.rs"
+  "Promoted To": "wiki/plans/cli-observability.plan.md"
+  "Promotion Target": "wiki/specs/documentation-model.spec.md, README.md"
+  "Related": "wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/plans/llm-wiki-binary.plan.md, wiki/specs/documentation-model.spec.md"
+  "Scope": "Add universal `-v/--verbose` diagnostics so every binary command can explain what it resolved or inspected without changing normal command output."
+  "Sources": "conversational input 2026-05-10 and proposal review 2026-05-11; no raw source file captured yet"
+  "Status": "Accepted"
+wiki/proposals/code-folders-opt-in.proposal.md
+  title: Some("Code Scaffolding As An Opt-In Pack")
+  "Category": "Init UX, project scaffolding, blueprint/pack catalog"
+  "Date": "2026-05-10"
+  "Document Class": "Proposal"
+  "Promoted To": "wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/plans/code-pack-cli-blueprint.plan.md"
+  "Related": "wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/plans/code-pack-cli-blueprint.plan.md, wiki/proposals/blueprint-pack-init.proposal.md, wiki/decisions/composable-project-init.decision.md, wiki/specs/documentation-model.spec.md"
+  "Scope": "Stop creating `src/`, `tests/`, `scripts/`, `infra/` unconditionally during `llm-wiki init`. Move them behind an opt-in `code` pack so research-only and documentation-only projects do not start with empty code folders, and add `cli-tool` as a first-class blueprint for command-line products."
+  "Sources": "src/init/compose.rs (CODE_FOLDERS, lines 25, 73-75), templates/base/project_guidelines.md (lines 264-268), src/init/blueprints.rs, src/init/packs.rs, dogfooding session 2026-05-10 against `/Users/nicolasmartino/Documents/car/electric` (research blueprint), user discussion 2026-05-11"
+  "Status": "Accepted"
+wiki/proposals/crash-reports.proposal.md
+  title: Some("Always-On Crash Reports")
+  "Category": "CLI UX, operational diagnostics"
+  "Date": "2026-05-11"
+  "Document Class": "Proposal"
+  "Implementation References": "src/main.rs, src/cli.rs, src/paths.rs"
+  "Related": "wiki/proposals/cli-observability.proposal.md, wiki/plans/cli-observability.plan.md, wiki/decisions/binary-path-bootstrap.decision.md"
+  "Scope": "Capture a crash report for every panic and every post-parse error-exit of the `llm-wiki` binary, written to a managed-home directory, with no opt-in flag required. Panic reports carry a full origin backtrace; error-return reports carry the `anyhow` error chain. CLI parse errors are owned by clap and stay out of scope for this iteration."
+  "Sources": "conversational input 2026-05-11 (`-v/--verbose` review follow-up); no raw source file captured yet"
+  "Status": "Proposed"
+wiki/proposals/deterministic-e2e-backbone.proposal.md
+  title: Some("Deterministic Workspace E2E Backbone")
+  "Category": "E2E, release engineering, verification"
+  "Date": "2026-06-04"
+  "Document Class": "Proposal"
+  "Related": "wiki/plans/cross-platform-release-e2e-harness.plan.md, wiki/proposals/full-windows-support.proposal.md, wiki/proposals/project-update-command.proposal.md, wiki/checklists/v1-fixture-smoke.checklist.md, wiki/specs/wiki-ingest-skill.spec.md"
+  "Scope": "Promote deterministic fixture-backed workspace scenarios as the backbone of cross-platform E2E testing for the `llm-wiki` binary, while keeping LLM/agent ingest characterization as a separate future lane."
+  "Sources": "conversational request 2026-06-04; wiki/plans/cross-platform-release-e2e-harness.plan.md; wiki/proposals/full-windows-support.proposal.md; wiki/proposals/project-update-command.proposal.md; wiki/specs/documentation-model.spec.md; wiki/specs/wiki-ingest-skill.spec.md; wiki/checklists/v1-fixture-smoke.checklist.md; tools/release-e2e/src/main.rs; src/cli.rs; src/init/sources.rs"
+  "Status": "Proposed"
+wiki/proposals/full-windows-support.proposal.md
+  title: Some("Cross-Platform Release E2E And Windows Support")
+  "Category": "Distribution tooling, platform support, release engineering"
+  "Date": "2026-05-15"
+  "Document Class": "Proposal"
+  "Related": "wiki/specs/documentation-model.spec.md, wiki/specs/wiki-init-skill.spec.md, wiki/checklists/observability-contract.checklist.md, wiki/proposals/project-update-command.proposal.md, wiki/roadmaps/cross-platform-release-e2e.roadmap.md, wiki/plans/cross-platform-release-e2e-harness.plan.md"
+  "Scope": "Establish black-box release E2E guarantees for every supported platform artifact and promote Windows from compatibility design to a first-class supported platform for the `llm-wiki` binary, including release artifacts, managed runtime paths, search parity, and install/doctor/uninstall behavior."
+  "Sources": "conversational request 2026-05-15; wiki/roadmaps/framework-v1.roadmap.md; wiki/roadmaps/cross-platform-release-e2e.roadmap.md; wiki/decisions/llm-wiki-binary-distribution.decision.md; wiki/plans/llm-wiki-binary.plan.md; wiki/decisions/binary-path-bootstrap.decision.md; wiki/plans/binary-path-bootstrap.plan.md; wiki/decisions/search-backend-selection.decision.md; wiki/plans/qmd-rs-search-backend.plan.md; proposal review feedback 2026-05-15; cross-platform E2E, real-use simulation, and re-review feedback 2026-05-15; command-surface review feedback 2026-05-15; Cargo.toml; src/cli.rs; src/paths.rs; src/skill_render.rs; src/doctor.rs; wiki/plans/cross-platform-release-e2e-harness.plan.md; raw/research/2026-05-26-cqrs-release-e2e-source-capture/manifest.md; raw/research/2026-05-26-cqrs-release-e2e-source-capture/research-summary.md"
+  "Status": "Proposed"
+wiki/proposals/harness-independent-wiki-read-tool.proposal.md
+  title: Some("Harness-Independent Wiki Read Tool")
+  "Category": "Agent runtime, context compression, provenance safety"
+  "Date": "2026-06-22"
+  "Document Class": "Proposal"
+  "Parent": "wiki/proposals/mcp-first-surface.proposal.md (this is increment 1)"
+  "Promoted": "2026-06-22 (see wiki/plans/harness-independent-wiki-read-tool.plan.md)"
+  "Related": "- wiki/references/headroom-context-compression.reference.md - wiki/proposals/test-instance-namespaced-binary.proposal.md - wiki/decisions/agent-owns-wiki.decision.md - wiki/decisions/llm-wiki-binary-distribution.decision.md"
+  "Scope": "Ship a harness-independent MCP tool, `llm_wiki_read` (and its namespaced test sibling `llm_wiki_read_test`), that returns the full, provenance-exact contents of a `wiki/` or `raw/` file to the agent, served by `llm-wiki mcp serve`. It is the full-file read counterpart to the already reserved `llm_wiki_search` / `llm_wiki_search_all` names, and exists so an agent on a harness without a native `Read` tool can still pull a whole wiki/raw file into context verbatim."
+  "Sources": "- raw/research/2026-06-11-headroom-llm-wiki-comparison/sources/10-headroom-source-content-router.py - raw/research/2026-06-11-headroom-llm-wiki-comparison/sources/13-headroom-source-mcp-server.py - raw/research/2026-06-11-headroom-llm-wiki-comparison/sources/17-headroom-config-excerpt.py - raw/research/2026-06-20-codex-tool-surface/research-summary.md - raw/research/2026-06-20-codex-tool-surface/sources/01-codex-handlers-shell-spec.rs"
+  "Status": "Proposed"
+wiki/proposals/llm-wiki-binary.proposal.md
+  title: Some("LLM Wiki Framework Binary")
+  "Category": "Tooling, framework distribution"
+  "Date": "2026-05-06"
+  "Document Class": "Proposal"
+  "Promoted To": "wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/roadmaps/framework-v1.roadmap.md (D8)"
+  "Related": "wiki/specs/documentation-model.spec.md, wiki/specs/knowledge-init-skill.spec.md, all `wiki/specs/knowledge-*-skill.spec.md`"
+  "Scope": "Replace the current symlink-and-skill-copy distribution model with a single Rust binary (`llm-wiki`) that installs framework skills globally, scaffolds new projects, and projects canonical skill definitions into per-runtime variants."
+  "Sources": "review.md §9-10, wiki/log.md (line-loss audit, 2026-05-06), wiki/plans/single-source-skills.plan.md, wiki/decisions/single-source-skills.decision.md, wiki/decisions/framework-path-resolution.decision.md, wiki/decisions/project-local-codex-skills.decision.md, wiki/specs/knowledge-init-skill.spec.md, wiki/roadmaps/framework-v1.roadmap.md"
+  "Status": "Accepted"
+wiki/proposals/mcp-first-surface.proposal.md
+  title: Some("MCP-First Agent Surface")
+  "Category": "Internal architecture, agent surface, harness independence, complexity reduction"
+  "Date": "2026-06-22"
+  "Document Class": "Proposal"
+  "Promotion Target": "- wiki/plans/mcp-first-agent-surface.plan.md - wiki/decisions/skill-projection-template-engine.decision.md (gated cutover) - wiki/references/headroom-context-compression.reference.md"
+  "Related": "- wiki/decisions/skill-projection-template-engine.decision.md - wiki/decisions/llm-wiki-binary-distribution.decision.md - wiki/decisions/agent-owns-wiki.decision.md - wiki/decisions/composable-project-init.decision.md"
+  "Scope": "Make a single Rust-native stdio MCP server (`llm-wiki mcp serve`, no SDK, single-binary preserved) the framework's primary agent surface. Deterministic operations become harness-independent tools. Procedural workflow guidance moves to the always-on project instruction layer (`AGENTS.md` / harness equivalents) plus MCP resources; MCP prompts are optional unless a host-UX spike proves they are supported and discoverable on both Claude Code and Codex. The intended end state is a no-legacy cutover: generated Claude/Codex skill projection, Codex runtime YAML, dual projectors, and dual install/embed/uninstall paths are removed after ordinary-language cross-harness parity is proven. This proposal does not change the document model, `agent-owns-wiki`, `wiki/`+`raw/` provenance invariants, the `headroom_read` ban, or the single-binary distribution invariant."
+  "Sources": "- wiki/proposals/harness-independent-wiki-read-tool.proposal.md - wiki/plans/harness-independent-wiki-read-tool.plan.md - wiki/plans/mcp-first-agent-surface.plan.md - wiki/references/headroom-context-compression.reference.md - raw/research/2026-06-11-headroom-llm-wiki-comparison/sources/05-headroom-docs-mcp.mdx - raw/research/2026-06-20-codex-tool-surface/research-summary.md"
+  "Status": "Proposed"
+wiki/proposals/noninteractive-llm-search-install.proposal.md
+  title: Some("Non-Interactive LLM Search Install")
+  "Category": "Install UX, search model materialization, automation"
+  "Date": "2026-05-23"
+  "Document Class": "Proposal"
+  "Related": "wiki/plans/noninteractive-llm-search-install.plan.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/references/llm-search-model-licensing.reference.md, wiki/plans/idempotent-search-model-install.plan.md, wiki/proposals/search-model-selection.proposal.md, wiki/checklists/observability-contract.checklist.md"
+  "Scope": "Add an explicit non-interactive `llm-wiki install` path that enables the balanced LLM search profile, accepts the selected profile's model licenses/terms by named flag, and confirms model downloads without requiring a terminal prompt. Keep model materialization install-owned and treat a package version bump as one-off verification evidence, not as a recurring mechanism."
+  "Sources": "conversational input 2026-05-23, wiki/plans/semantic-hybrid-search.plan.md, wiki/plans/idempotent-search-model-install.plan.md, wiki/references/llm-search-model-licensing.reference.md, wiki/proposals/search-model-selection.proposal.md"
+  "Status": "Accepted"
+wiki/proposals/operations-setup-in-llm-wiki.proposal.md
+  title: Some("Ship The Operations Setup With llm-wiki")
+  "Category": "Project init, MCP prompts, way of working"
+  "Date": "2026-10-06"
+  "Document Class": "Proposal"
+  "Promoted To": "wiki/plans/operations-setup-in-llm-wiki.plan.md (accepted by the owner on 2026-10-06, #38)"
+  "Promotion Target": "- a plan for P19, written once this proposal is accepted (when to start it is the owner's choice, in \"When To Build It\") - a decision recording the pack, the prompt and the skills exception"
+  "Related": "- wiki/roadmaps/framework-v1.roadmap.md (P18, P19) - wiki/decisions/composable-project-init.decision.md - wiki/decisions/skill-projection-template-engine.decision.md (superseded) - wiki/decisions/headroom-single-posture-mcp-first.decision.md - wiki/proposals/mcp-first-surface.proposal.md - wiki/plans/mcp-first-agent-surface.plan.md - wiki/checklists/operation-manager.checklist.md - wiki/checklists/worker-briefs.checklist.md - wiki/plans/development-workflow-setup.plan.md"
+  "Scope": "Ship the coordinated way of working (one coordinating session, Orca workers on GitHub issues, plans and roadmaps in the wiki as the record of work, one blind review per PR, the owner's verdict) with llm-wiki itself: an init pack holds the kit's files and an `operations_setup` MCP prompt holds the setup steps, so a host like Claude Code runs it as a slash command next to the wiki prompts. Wiki-only: nothing is built until the owner accepts it."
+  "Sources": "- GitHub issue #33 - The owner's decision, 2026-10-06: \"I think we should propose to include inside llm wiki; I think the pack and mcp make sense; so then we can just run in claude with the slash command for example?\" - The owner's global operations setup skill (outside this repository): its steps, its standard questions, its fitting guide with the 31 placeholders, and its kit - src/mcp/mod.rs (`prompts_list_result`, `prompt_text`, `resource_specs`, `resource_list`), src/init/packs.rs (`Pack`), src/init/compose.rs, src/init/scaffold.rs (`preserves_project_knowledge`), on develop 9b64345 - wiki/evals/mcp-first-host-parity.eval.md"
+  "Status": "Accepted"
+wiki/proposals/project-and-skill-rename.proposal.md
+  title: Some("Rename Project to `llm-wiki-rs` and Skills to `wiki-*`")
+  "Category": "Branding, naming, developer ergonomics"
+  "Date": "2026-05-08"
+  "Document Class": "Proposal"
+  "Related": "wiki/proposals/llm-wiki-binary.proposal.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/specs/wiki-init-skill.spec.md, wiki/proposals/blueprint-pack-init.proposal.md, wiki/plans/project-and-skill-rename.plan.md"
+  "Scope": "Rename the workspace package from `llm-wiki-framework` to `llm-wiki-rs`, leave the binary name (`llm-wiki`) intact, and re-namespace every Claude/Codex skill directory and user-facing invocation surface from `knowledge*` to `wiki-*`. Canonical skills are projected from embedded source by the binary (per the LLM Wiki Binary Distribution decision), so the rename touches the embedded canonical skill set, the projector, the global install paths under `~/.claude/skills/` and `~/.codex/skills/`, the in-repo runtime mirrors under `.claude/` and `.codex/`, the source tree under `src/`, the package metadata in `Cargo.toml` / `Cargo.lock`, the prose in `assets/templates/`, the project-root `AGENTS.md`, and every active `wiki/` document that references the old names. Managed runtime state under `~/.llm_wiki/` and per-project `.llm_wiki/init.toml` are intentionally unchanged by this rename. The on-disk wiki layout, document classes, and status vocabulary are untouched."
+  "Sources": "Cargo.toml, Cargo.lock, README.md, AGENTS.md, .claude/skills/{knowledge,knowledge-ingest,knowledge-lint,knowledge-query,knowledge-research,init-project}/, .codex/skills/, src/ (skill projector and any user-visible identifiers), assets/skills/ (canonical embedded source), assets/templates/project_guidelines.md, assets/templates/CLAUDE.md, wiki/specs/knowledge-*-skill.spec.md, wiki/decisions/knowledge-command-namespace.decision.md, wiki/decisions/knowledge-research-intake.decision.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/specs/documentation-model.spec.md, wiki/index.md, wiki/log.md"
+  "Status": "Accepted"
+  "Supersedes": "wiki/archive/knowledge-command-namespace.decision.md (replaces the `$knowledge` namespace and the \"existing direct skill names remain acceptable aliases\" clause with a clean `wiki-*` namespace and no aliases)"
+wiki/proposals/project-registry-search-artifacts.proposal.md
+  title: Some("Project Registry and Search Artifacts")
+  "Category": "Search infrastructure, framework tooling"
+  "Date": "2026-05-06"
+  "Document Class": "Proposal"
+  "Promoted To": "wiki/plans/project-registry-search-artifacts.plan.md"
+  "Related": "wiki/proposals/llm-wiki-binary.proposal.md, wiki/proposals/search-backend-selection.proposal.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/roadmaps/framework-v1.roadmap.md"
+  "Scope": "Add project registration, centralized per-project search artifacts, and explicit cross-project search commands to the `llm-wiki` binary after D8 ships."
+  "Sources": "wiki/plans/llm-wiki-binary.plan.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/specs/documentation-model.spec.md, wiki/references/qmd-rs-search-crate.reference.md, user discussion 2026-05-06"
+  "Status": "Accepted"
+wiki/proposals/project-update-command.proposal.md
+  title: Some("Project Update Command")
+  "Category": "Tooling, project update, migration UX"
+  "Date": "2026-05-15"
+  "Document Class": "Proposal"
+  "Related": "wiki/specs/documentation-model.spec.md, wiki/specs/wiki-init-skill.spec.md, wiki/decisions/composable-project-init.decision.md, wiki/checklists/observability-contract.checklist.md"
+  "Scope": "Add `llm-wiki update` as the project-scoped maintenance command. Update operates on the current or selected project only: it can refresh generated framework artifacts, adjust project layout, configure project-local search, update the same-root registry entry, and rebuild target-project search artifacts in host-local cache. Machine-wide defaults belong to `llm-wiki defaults`; global runtime assets and downloads belong to `llm-wiki install`."
+  "Sources": "conversational input 2026-05-15, wiki/decisions/composable-project-init.decision.md, wiki/specs/wiki-init-skill.spec.md, wiki/plans/init-rerun-pack-drift.plan.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/proposals/search-model-selection.proposal.md"
+  "Status": "Proposed"
+wiki/proposals/sandbox-safe-search-cache-reads.proposal.md
+  title: Some("Sandbox-Safe Search Cache Reads")
+  "Category": "Search infrastructure, sandboxed agents, qmd-rs adapter"
+  "Date": "2026-05-23"
+  "Document Class": "Proposal"
+  "Related": "wiki/plans/sandbox-safe-search-cache-reads.plan.md, wiki/plans/qmd-rs-search-backend.plan.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/checklists/observability-contract.checklist.md"
+  "Scope": "Make read-only search and diagnostics work against managed search caches, for example `~/.llm_wiki`, without requiring cache write permissions."
+  "Sources": "conversational input 2026-05-23, review reproduction and architecture notes 2026-05-23, wiki/decisions/search-backend-selection.decision.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/proposals/project-update-command.proposal.md, wiki/specs/wiki-query-skill.spec.md"
+  "Status": "Accepted"
+wiki/proposals/search-backend-selection.proposal.md
+  title: Some("Search Backend Selection")
+  "Category": "Search infrastructure, framework tooling"
+  "Date": "2026-05-06"
+  "Document Class": "Proposal"
+  "Promoted To": "wiki/decisions/search-backend-selection.decision.md"
+  "Related": "wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/specs/documentation-model.spec.md"
+  "Scope": "Choose the concrete search backend behind future `llm-wiki search` and `llm-wiki search-all` commands."
+  "Sources": "wiki/references/qmd-rs-search-crate.reference.md, wiki/proposals/project-registry-search-artifacts.proposal.md, https://docs.rs/qmd/latest/qmd/ (qmd 0.3.2 docs)"
+  "Status": "Accepted"
+wiki/proposals/search-model-selection.proposal.md
+  title: Some("Search Model Selection: Per-Project and Cross-Project Profiles")
+  "Category": "Search UX, install profile, runtime state"
+  "Date": "2026-05-11"
+  "Document Class": "Proposal"
+  "Related": "wiki/plans/semantic-hybrid-search.plan.md, wiki/proposals/search-query-interpretation.proposal.md, wiki/decisions/search-backend-selection.decision.md, wiki/references/llm-search-model-licensing.reference.md, wiki/specs/wiki-query-skill.spec.md"
+  "Scope": "Let users pick the model/profile bundle used by `llm-wiki search` and the cross-project profile used by `llm-wiki search-all` without rerunning the whole install flow manually. Project choices live in project-local `.llm_wiki/search.toml`; cross-project and new-project defaults live in `~/.llm_wiki/search.toml`. Interactive `--choose-model` may record a pending choice and hand off to the install flow, but only install-owned code may accept licenses, download artifacts, verify hashes, and promote the choice to active."
+  "Sources": "wiki/plans/semantic-hybrid-search.plan.md, wiki/proposals/search-query-interpretation.proposal.md, wiki/references/llm-search-model-licensing.reference.md, review conversation 2026-05-11 establishing pending project choices for uninstalled models"
+  "Status": "Proposed"
+wiki/proposals/search-query-interpretation.proposal.md
+  title: Some("Semantic and Hybrid Search for Natural-Language Queries")
+  "Category": "Search UX, semantic retrieval, qmd-rs adapter"
+  "Date": "2026-05-11"
+  "Document Class": "Proposal"
+  "Related": "wiki/plans/semantic-hybrid-search.plan.md, wiki/specs/wiki-query-skill.spec.md, wiki/decisions/search-backend-selection.decision.md, wiki/references/qmd-rs-search-crate.reference.md, wiki/evals/search-backend-selection.eval.md, wiki/proposals/cli-observability.proposal.md"
+  "Scope": "Move `llm-wiki search` beyond the current FTS-only path by adding semantic search, hybrid fusion, query expansion, and optional reranking for natural-language project questions. The immediate trigger is that `llm-wiki search 'what are the most cutting edge battery technologies'` returned zero results while a manually optimized keyword query worked."
+  "Sources": "wiki/decisions/search-backend-selection.decision.md, wiki/references/qmd-rs-search-crate.reference.md, wiki/evals/search-backend-selection.eval.md, assets/skills/wiki-query/SKILL.md (lines 32-34), src/search/qmd_rs.rs (current `store.search_fts` path), dogfooding session 2026-05-11 on `/Users/nicolasmartino/Documents/car/electric`"
+  "Status": "Accepted"
+wiki/proposals/skills-template-engine.proposal.md
+  title: Some("Skill Projection on the Composable-Init Template Engine")
+  "Category": "Tooling, skill projection, internal architecture"
+  "Date": "2026-05-07"
+  "Depends On": "wiki/proposals/blueprint-pack-init.proposal.md (satisfied by D10)"
+  "Document Class": "Proposal"
+  "Promoted To": "wiki/decisions/skill-projection-template-engine.decision.md, wiki/plans/skill-projection-template-engine.plan.md"
+  "Related": "wiki/proposals/blueprint-pack-init.proposal.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/references/askama-template-engine.reference.md"
+  "Scope": "Once the composable-init proposal lands its compile-time template engine (`askama`), migrate skill projection in `crates/llm-wiki-schema/src/projector/` onto the same engine so the framework has a single text-rendering pipeline."
+  "Sources": "crates/llm-wiki-schema/src/projector/{claude,codex,format,idiom,types}.rs, src/skill_render.rs"
+  "Status": "Accepted"
+wiki/proposals/test-instance-namespaced-binary.proposal.md
+  title: Some("Coexisting Test Instance via Build-Time Namespace")
+  "Category": "Developer ergonomics, install/runtime isolation, dogfooding safety"
+  "Date": "2026-06-21"
+  "Document Class": "Proposal"
+  "Promoted": "2026-06-21 (see wiki/decisions/test-instance-namespaced-binary.decision.md, wiki/plans/test-instance-namespaced-binary.plan.md)"
+  "Related": "- wiki/proposals/project-and-skill-rename.proposal.md (prior art: skill-name plumbing, projector, install paths, runtime proof matrix) - wiki/decisions/llm-wiki-binary-distribution.decision.md (skills are projected from embedded source by the binary) - wiki/decisions/agent-owns-wiki.decision.md"
+  "Scope": "Add an optional **build-time namespace** baked into the binary so that a single environment variable at compile time (`LLM_WIKI_INSTANCE=test`) produces a parallel `llm-wiki-test` instance — distinct binary name, managed home, skill names, MCP/tool names, command surface, and manifest identity — that coexists with the production install in the *same* `$HOME`. A normal build (empty namespace) produces **exactly today's names, paths, skill payloads, manifests, and install outputs**; that output-equality is the hard, test-enforced invariant. V1 is **developer-only and `test`-only**: the build refuses any non-empty value other than `test`, there is no runtime flag, and release builds fail if `LLM_WIKI_INSTANCE` is set. This touches the path layer (`src/paths.rs`), the embedded skill set and projector (`src/embed.rs`, `src/build.rs`), install/uninstall (`src/install.rs`, `src/uninstall.rs`), the manifest identity (`src/manifest/schema.rs`), the CLI command name (`src/cli.rs`), the doctor surface (`src/doctor.rs`), the reserved MCP tool names, and the release workflow. It does **not** change production behavior, paths, names, or the single-binary distribution invariant."
+  "Sources": "- src/paths.rs (managed home derives from `$HOME`; no instance seam today) - src/embed.rs (fixed skill names `wiki`, `wiki-init`, `wiki-query`, `wiki-ingest`, `wiki-research`, `wiki-lint`; reserved `llm_wiki_search*`) - src/build.rs (`apply_binary_context(doc, \"llm-wiki\")` injects the binary name into skill prose)"
+  "Status": "Accepted"
+wiki/references/askama-template-engine.reference.md
+  title: Some("Askama Template Engine for D10 Composable Init")
+  "Category": "Rust template engine, D10 implementation"
+  "Date": "2026-05-07"
+  "Document Class": "Reference"
+  "Related": "wiki/plans/composable-project-init.plan.md, wiki/decisions/composable-project-init.decision.md, wiki/proposals/skills-template-engine.proposal.md"
+  "Scope": "Askama usage guidance for implementing D10 composable project init with compile-time Markdown templates and runtime-selected packs."
+  "Sources": "raw/research/2026-05-07-askama-rust-d10-composable-init/manifest.md, raw/research/2026-05-07-askama-rust-d10-composable-init/research-summary.md, raw/research/2026-05-07-askama-rust-d10-composable-init/sources/001-askama-crate-latest.md, raw/research/2026-05-07-askama-rust-d10-composable-init/sources/002-askama-introduction.md, raw/research/2026-05-07-askama-rust-d10-composable-init/sources/003-askama-template-derive.md, raw/research/2026-05-07-askama-rust-d10-composable-init/sources/004-askama-configuration.md, raw/research/2026-05-07-askama-rust-d10-composable-init/sources/005-askama-template-syntax.md, raw/research/2026-05-07-askama-rust-d10-composable-init/sources/006-d10-local-context.md"
+  "Status": "Sourced"
+wiki/references/headroom-context-compression.reference.md
+  title: Some("Headroom Context Compression")
+  "Category": "Agent runtime, context compression, provenance safety"
+  "Date": "2026-06-21 (rewritten 2026-06-30; updated 2026-07-21 for Option A)"
+  "Document Class": "Reference"
+  "Related": "- wiki/decisions/headroom-single-posture-mcp-first.decision.md (the governing decision) - wiki/plans/headroom-wrap-command.plan.md (original launch convenience + no-legacy reduction) - wiki/plans/headroom-passthrough-launcher.plan.md (current passthrough process model) - wiki/decisions/three-layer-architecture.decision.md - wiki/decisions/agent-owns-wiki.decision.md - wiki/decisions/llm-wiki-binary-distribution.decision.md"
+  "Scope": "What Headroom is, why `llm-wiki` treats it as an optional, unmanaged external tool rather than a framework-integrated companion, and the single posture an opt-in user follows to keep `wiki/` and `raw/` provenance exact. The framework does not ship, vendor, configure, or depend on Headroom."
+  "Sources": "- raw/research/2026-06-11-headroom-llm-wiki-comparison/research-summary.md - raw/research/2026-06-11-headroom-llm-wiki-comparison/sources/03-headroom-docs-architecture.mdx - raw/research/2026-06-11-headroom-llm-wiki-comparison/sources/04-headroom-docs-ccr.mdx - raw/research/2026-06-11-headroom-llm-wiki-comparison/sources/05-headroom-docs-mcp.mdx - raw/research/2026-06-11-headroom-llm-wiki-comparison/sources/07-headroom-docs-limitations.mdx - raw/research/2026-06-11-headroom-llm-wiki-comparison/sources/13-headroom-source-mcp-server.py - Installed Headroom source read 2026-07-20 for `headroom-ai 0.32.0` (`headroom/proxy/handlers/openai.py`, `headroom/transforms/compression_units.py`)"
+  "Status": "Sourced"
+wiki/references/llm-search-model-licensing.reference.md
+  title: Some("LLM Search Model Licensing")
+  "Category": "Search model licensing, install state, runtime dependencies"
+  "Date": "2026-05-14"
+  "Document Class": "Reference"
+  "Related": "wiki/plans/semantic-hybrid-search.plan.md, wiki/plans/idempotent-search-model-install.plan.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/proposals/search-query-interpretation.proposal.md, wiki/evals/search-backend-selection.eval.md, wiki/evals/natural-language-search.eval.md, wiki/references/qmd-rs-search-crate.reference.md"
+  "Scope": "Stage 0 source record for semantic/hybrid search model candidates, licenses, terms, artifact hashes, download/cache implications, and qmd-rs resolver constraints."
+  "Sources": "raw/research/2026-05-11-llm-search-model-licensing/manifest.md, raw/research/2026-05-11-llm-search-model-licensing/research-summary.md, https://docs.rs/qmd/latest/qmd/, https://huggingface.co/ggml-org/embeddinggemma-300M-GGUF, https://huggingface.co/api/models/ggml-org/embeddinggemma-300M-GGUF?blobs=true, https://huggingface.co/google/embeddinggemma-300m, https://ai.google.dev/gemma/terms, https://huggingface.co/ggml-org/Qwen3-Reranker-0.6B-Q8_0-GGUF, https://huggingface.co/Qwen/Qwen3-Reranker-0.6B, https://huggingface.co/tobil/qmd-query-expansion-1.7B-gguf, https://huggingface.co/api/models/tobil/qmd-query-expansion-1.7B-gguf?blobs=true, wiki/plans/idempotent-search-model-install.plan.md, src/install.rs, src/search_models.rs, src/uninstall.rs"
+  "Status": "Sourced"
+wiki/references/llm-wiki-ecosystem.reference.md
+  title: Some("LLM Wiki Ecosystem Survey")
+  "Category": "Ecosystem analysis"
+  "Date": "2026-04-23"
+  "Document Class": "Reference"
+  "Related": "wiki/references/llm-wiki-pattern.reference.md, wiki/references/niharshrotri-llm-wiki.reference.md, wiki/references/qmd-rs-search-crate.reference.md"
+  "Scope": "30+ implementations of Karpathy's LLM Wiki pattern, organized by architectural innovation and delivery model."
+  "Sources": "raw/research/llm-wiki-ecosystem-survey.md"
+  "Status": "Sourced"
+wiki/references/llm-wiki-pattern.reference.md
+  title: Some("LLM Wiki Pattern")
+  "Category": "Knowledge management architecture"
+  "Date": "2026-04-23"
+  "Document Class": "Reference"
+  "Related": "wiki/references/qmd-rs-search-crate.reference.md, wiki/references/niharshrotri-llm-wiki.reference.md, wiki/references/llm-wiki-ecosystem.reference.md"
+  "Scope": "Synthesis of Karpathy's LLM Wiki pattern and extensions, applied to software project management."
+  "Sources": "raw/research/llm-wiki-pattern-research.md"
+  "Status": "Sourced"
+wiki/references/niharshrotri-llm-wiki.reference.md
+  title: Some("NiharShrotri/llm-wiki - Reference Implementation")
+  "Category": "Implementation reference"
+  "Date": "2026-04-23"
+  "Document Class": "Reference"
+  "Related": "wiki/references/llm-wiki-pattern.reference.md, wiki/references/qmd-rs-search-crate.reference.md, wiki/references/llm-wiki-ecosystem.reference.md"
+  "Scope": "Full working implementation of the LLM Wiki pattern with hybrid search, CLI tooling, and web UI."
+  "Sources": "raw/research/niharshrotri-llm-wiki-implementation.md"
+  "Status": "Sourced"
+wiki/references/qmd-rs-search-crate.reference.md
+  title: Some("qmd-rs Rust Search Crate")
+  "Category": "Search infrastructure"
+  "Date": "2026-05-06"
+  "Document Class": "Reference"
+  "Related": "wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/decisions/search-backend-selection.decision.md"
+  "Scope": "Rust `qmd` crate as a candidate library backend for future `llm-wiki` search commands."
+  "Sources": "https://docs.rs/qmd/latest/qmd/ (qmd 0.3.2 docs)"
+  "Status": "Sourced"
+wiki/references/three-phase-ingest-pipeline.reference.md
+  title: Some("Three-Phase Ingest Pipeline")
+  "Category": "Ingest design"
+  "Date": "2026-04-23"
+  "Document Class": "Reference"
+  "Related": "wiki/references/llm-wiki-pattern.reference.md, wiki/references/niharshrotri-llm-wiki.reference.md"
+  "Scope": "Detailed web-sourced explanation of the three-phase ingest pipeline used in LLM Wiki implementations."
+  "Sources": "https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f, https://github.com/NiharShrotri/llm-wiki"
+  "Status": "Sourced"
+wiki/review/headroom-mcp-branch-merge-readiness.eval.md
+  title: Some("Eval: Headroom/MCP Branch Merge-Readiness Review")
+  "Category": "Implementation review, merge readiness"
+  "Date": "2026-06-23"
+  "Document Class": "Eval"
+  "Related": "`wiki/plans/mcp-first-agent-surface.plan.md`; `wiki/evals/mcp-first-host-parity.eval.md`; `wiki/plans/test-instance-namespaced-binary.plan.md`; `wiki/evals/test-instance-live-session-proof.eval.md`; `wiki/references/headroom-context-compression.reference.md`."
+  "Scope": "Branch-level review of `impl/headroom-runtime-companion` against `master`, covering MCP-first cutover, legacy skill-projection deletion, test-instance binary, GGUF runtime, release E2E, runtime/upgrade impact of adopting MCP, and migration handling."
+  "Sources": "`git diff master...HEAD`; `src/mcp/mod.rs`; `src/mcp_config.rs`; `src/wiki_read/mod.rs`; `src/install.rs`; `src/uninstall.rs`; `src/paths.rs`; `src/instance.rs`; `tests/mcp.rs`; `tests/mcp_install.rs`; `tests/install.rs`; `tests/identity_lint.rs`; `README.md`; `wiki/evals/mcp-first-host-parity.eval.md`; `wiki/plans/mcp-first-agent-surface.plan.md`; `wiki/plans/harness-independent-wiki-read-tool.plan.md`; `wiki/proposals/mcp-first-surface.proposal.md`; `wiki/decisions/test-instance-namespaced-binary.decision.md`; `wiki/evals/test-instance-live-session-proof.eval.md`."
+  "Status": "Updated"
+  "Updated": "2026-08-01"
+wiki/review/test-instance-namespaced-binary-implementation.eval.md
+  title: Some("Eval: Test Instance Namespaced Binary Implementation Review")
+  "Category": "Implementation review"
+  "Date": "2026-06-22"
+  "Document Class": "Eval"
+  "Related": "`wiki/plans/test-instance-namespaced-binary.plan.md`; `wiki/decisions/test-instance-namespaced-binary.decision.md`"
+  "Scope": "Line-level review of the `wiki/plans/test-instance-namespaced-binary.plan.md` implementation across the full index diff from `03083c3` through the staged worktree."
+  "Sources": "`wiki/plans/test-instance-namespaced-binary.plan.md`; `wiki/decisions/test-instance-namespaced-binary.decision.md`; local diff `git diff 03083c3`; rendered test-instance skill output from `LLM_WIKI_INSTANCE=test target/debug/llm-wiki build --target both`"
+  "Status": "Candidate"
+wiki/roadmaps/cross-platform-release-e2e.roadmap.md
+  title: Some("Cross-Platform Release E2E Roadmap")
+  "Category": "Release engineering, E2E, platform support"
+  "Date": "2026-06-04"
+  "Document Class": "Roadmap"
+  "Execution Plan": "wiki/plans/cross-platform-release-e2e-harness.plan.md"
+  "Parent Proposal": "wiki/proposals/full-windows-support.proposal.md"
+  "Related": "wiki/proposals/full-windows-support.proposal.md, wiki/plans/cross-platform-release-e2e-harness.plan.md, wiki/plans/gguf-runtime-portability.plan.md, wiki/proposals/deterministic-e2e-backbone.proposal.md"
+  "Scope": "Coordinate the post-V1 deliverables that prove release artifacts on Linux, macOS, Windows, and GGUF CPU paths through target-aware E2E evidence."
+  "Sources": "templates/base/project_guidelines.md; wiki/proposals/full-windows-support.proposal.md; wiki/plans/cross-platform-release-e2e-harness.plan.md; wiki/plans/gguf-runtime-portability.plan.md; wiki/plans/gguf-runtime-smoke-probes.plan.md; wiki/index.md; wiki/log.md"
+  "Status": "Active"
+wiki/roadmaps/framework-v1.roadmap.md
+  title: Some("Framework V1 Roadmap")
+  "Category": "Framework development"
+  "Date": "2026-04-23"
+  "Document Class": "Roadmap"
+  "Scope": "Deliverables required to prove the project management framework works end-to-end and can spawn new self-managing projects."
+  "Status": "Active"
+wiki/roadmaps/poman.roadmap.md
+  title: Some("poman Roadmap")
+  "Category": "poman development"
+  "Date": "2026-10-06"
+  "Document Class": "Roadmap"
+  "Related": "- `wiki/roadmaps/framework-v1.roadmap.md`, P5, which wrote this roadmap - `wiki/decisions/poman-lives-in-this-workspace.decision.md` - `wiki/decisions/poman-reads-only-its-own-file-types.decision.md` - `wiki/decisions/deadline-files-hold-one-deadline-each.decision.md` - `wiki/decisions/poman-tree-and-list-show-the-files.decision.md` - `wiki/decisions/poman-syncs-a-tracker-the-way-git-syncs-a-remote.decision.md` - `wiki/decisions/work-is-recorded-in-the-repository.decision.md`"
+  "Scope": "The order in which poman, the project-management binary, is built: the workspace and the gates, the shared types, the deadline type, seeing the deadlines, the tracker sync, the forecast and what follows it, and the ratchet that brings llm-wiki's own code to the same gates."
+  "Sources": "- The owner's decisions, 2026-10-06: the suggested order of poman's first deliverables, and the answers recorded in the decision pages below - The owner's answer, 2026-10-06, recorded here in PM5: `poman tree` and `poman list` are their own deliverable, after the deadline commands"
+  "Status": "Active"
+wiki/specs/documentation-model.spec.md
+  title: Some("Documentation Model")
+  "Category": "Framework core"
+  "Date": "2026-05-14"
+  "Document Class": "Spec"
+  "Related": "wiki/decisions/three-layer-architecture.decision.md, wiki/decisions/agent-owns-wiki.decision.md, wiki/decisions/typed-documents.decision.md, wiki/references/qmd-rs-search-crate.reference.md, wiki/decisions/search-backend-selection.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/specs/wiki-init-skill.spec.md, wiki/specs/wiki-query-skill.spec.md, wiki/checklists/observability-contract.checklist.md"
+  "Scope": "The validated documentation and execution model for projects using this framework."
+  "Sources": "raw/legacy/legacy-project-guidelines.md, raw/research/llm-wiki-pattern-research.md, raw/research/niharshrotri-llm-wiki-implementation.md, wiki/plans/project-registry-search-artifacts.plan.md, wiki/plans/cli-observability.plan.md, wiki/decisions/composable-project-init.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/decisions/wiki-query-search-first.decision.md, wiki/plans/init-rerun-pack-drift.plan.md, wiki/evals/v1-proof-run.eval.md, wiki/evals/natural-language-search.eval.md, wiki/plans/poman-workspace-and-strict-gates.plan.md"
+  "Status": "Active"
+wiki/specs/wiki-ingest-skill.spec.md
+  title: Some("Wiki Ingest Skill")
+  "Category": "Tooling"
+  "Date": "2026-05-08"
+  "Document Class": "Spec"
+  "Related": "wiki/specs/documentation-model.spec.md, wiki/specs/wiki-research-skill.spec.md"
+  "Scope": "Ingest raw source material into typed wiki pages."
+  "Sources": ".claude/skills/wiki-ingest/SKILL.md, wiki/decisions/llm-wiki-binary-distribution.decision.md"
+  "Status": "Active"
+wiki/specs/wiki-init-skill.spec.md
+  title: Some("Wiki Init Skill")
+  "Category": "Tooling"
+  "Date": "2026-05-14"
+  "Document Class": "Spec"
+  "Related": "wiki/specs/documentation-model.spec.md, wiki/specs/wiki-ingest-skill.spec.md, wiki/decisions/composable-project-init.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/plans/composable-project-init.plan.md"
+  "Scope": "The `wiki-init` agent skill as a thin conversational wrapper over the `llm-wiki init` binary command."
+  "Sources": ".claude/skills/wiki-init/SKILL.md, src/init/mod.rs, src/init/blueprints.rs, src/init/packs.rs, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/decisions/composable-project-init.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/plans/init-rerun-pack-drift.plan.md"
+  "Status": "Active"
+wiki/specs/wiki-lint-skill.spec.md
+  title: Some("Wiki Lint Skill")
+  "Category": "Tooling"
+  "Date": "2026-05-08"
+  "Document Class": "Spec"
+  "Related": "wiki/specs/documentation-model.spec.md"
+  "Scope": "Scan the wiki for bookkeeping issues and fix them directly."
+  "Sources": ".claude/skills/wiki-lint/SKILL.md, wiki/decisions/llm-wiki-binary-distribution.decision.md"
+  "Status": "Active"
+wiki/specs/wiki-query-skill.spec.md
+  title: Some("Wiki Query Skill")
+  "Category": "Tooling"
+  "Date": "2026-05-08"
+  "Document Class": "Spec"
+  "Related": "wiki/specs/documentation-model.spec.md, wiki/specs/wiki-ingest-skill.spec.md, wiki/evals/natural-language-search.eval.md"
+  "Scope": "Query the project wiki and answer with citations."
+  "Sources": ".claude/skills/wiki-query/SKILL.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/decisions/wiki-query-search-first.decision.md"
+  "Status": "Active"
+wiki/specs/wiki-research-skill.spec.md
+  title: Some("Wiki Research Skill")
+  "Category": "Tooling"
+  "Date": "2026-05-08"
+  "Document Class": "Spec"
+  "Related": "wiki/specs/wiki-ingest-skill.spec.md, wiki/specs/documentation-model.spec.md"
+  "Scope": "Gather source material into `raw/research/` before ingest."
+  "Sources": ".claude/skills/wiki-research/SKILL.md, wiki/decisions/llm-wiki-binary-distribution.decision.md"
+  "Status": "Active"

@@ -1,5 +1,23 @@
 # Wiki Log
 
+## [2026-10-07] merge | poman's shared page reader and document types
+
+Merged #48 (closes #46): the page reader moves into `llm-wiki-core` under the
+strictest gates, with the wiki's view (search reads exactly what it read
+before, proved by a snapshot of a frozen copy of the wiki taken with the old
+reader) and poman's bullet-block view, which gives each field with its line
+and reports a leading byte-order mark and list-marker forms for PM3; llm-wiki's
+nine document types are defined there, and init takes its core folders, index
+labels and the ML pack's experiment and eval rows from them, with its nine
+snapshots unchanged and a check holding the rendered guidelines and AGENTS.md
+to the definitions. A second blind review and fix round ran at the owner's
+request. PM2 is Completed. The backlog gains P23, a recipe that runs the
+hand-run search eval in a temporary home (#49).
+
+Pages affected: `wiki/plans/poman-shared-page-reader-and-types.plan.md`,
+`wiki/roadmaps/poman.roadmap.md`, `wiki/roadmaps/framework-v1.roadmap.md`,
+`wiki/decisions/poman-lives-in-this-workspace.decision.md`, `wiki/index.md`.
+
 ## [2026-10-07] merge | The plan for poman's shared page reader and file types
 
 Merged #45 (closes #44): the plan for PM2 moves the page reader into
