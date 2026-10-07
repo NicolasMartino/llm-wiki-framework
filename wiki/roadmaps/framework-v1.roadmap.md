@@ -1024,7 +1024,7 @@ Proof:
 
 ### P17 - Compact Search Pages Follow The Limit
 
-Status: Draft
+Status: Active
 Promise: `llm_wiki_search` in compact mode returns as many results as its
 `limit` asks for by default, and says plainly when more exist.
 Depends On: P15
