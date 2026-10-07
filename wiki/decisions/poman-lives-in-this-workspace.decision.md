@@ -19,6 +19,9 @@
   - `Cargo.toml` and `justfile` at `41ae502`: the workspace and today's gates
   - The owner's answers of 2026-10-06 to the open choices of
     `wiki/plans/poman-workspace-and-strict-gates.plan.md`
+  - PR #64 (2026-10-07): the dependency check covers dev-dependencies, with
+    the `getrandom` exception, taken by the coordinator for the owner's
+    verdict on that PR to confirm
 - Related:
   - `wiki/decisions/poman-reads-only-its-own-file-types.decision.md`: what the
     shared file types are for
@@ -89,6 +92,11 @@ this project is held to the strictest gates.**
     library;
   - dependencies checked (advisories, licences, bans with one version of each
     crate, sources, unused dependencies);
+    - one dated exception (2026-10-07, PR #64): `getrandom` 0.3.4 is let
+      through beside 0.4.2, because both come from inside proptest, a
+      dev-dependency of both strict crates, so no change to this
+      repository's dependencies removes the pair
+      (`wiki/plans/dependency-gate-covers-dev-dependencies.plan.md`);
   - one gate script that runs every gate even after one fails, prints how many
     ran, passed, were skipped and failed, and fails loudly on a missing tool.
     A skip is never a pass.

@@ -127,12 +127,6 @@ build-bin:
 run *args:
     cargo run --bin llm-wiki -- {{args}}
 
-build-skills:
-    cargo run --bin llm-wiki -- build --out .
-
-build-skills-to out:
-    cargo run --bin llm-wiki -- build --out "{{out}}"
-
 # Install takes poman from beside llm-wiki, so both are built first.
 install:
     cargo build --bin poman

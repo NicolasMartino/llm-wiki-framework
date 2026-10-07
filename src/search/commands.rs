@@ -25,7 +25,7 @@ use crate::search::adapter::{
 };
 use crate::search::gguf_runtime::{self, GgufRuntimeError, GgufRuntimeReport};
 use crate::search::project::discover_from_cwd;
-use crate::search::qmd_rs::QmdRsBackend;
+use crate::search::qmd_rs::{LexicalSearch, QmdRsBackend};
 use crate::search::sanitize::sanitize_fts_query;
 use crate::search::semantic::{
     QueryEmbedder, SemanticIndexMetadata, SemanticSearchContext, SemanticVectorIndex,
@@ -643,6 +643,12 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
                 return Err(error);
             }
         };
+    let mut search = search;
+    search.warnings.extend(phrase_fallback_warning(
+        &project.id,
+        search.phrase_fallback_pages,
+        FallbackPlacement::Last,
+    ));
     context.diagnostic(format!(
         "index status: {}, open_mode={}, freshness={}, indexed_files={}",
         backend_state_label(&search.status.state),
@@ -697,7 +703,7 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
             Some((&project.id, &project.name)),
             warning,
             Some(&search.status),
-            &[],
+            &search.warnings,
             &[],
             &results,
             mode_metadata,
@@ -748,6 +754,7 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
     };
     let mut warnings = Vec::new();
     let mut fused: BTreeMap<(String, String), FusedResult> = BTreeMap::new();
+    let mut fallback_keys: BTreeSet<(String, String)> = BTreeSet::new();
     let mut project_reports = Vec::new();
 
     for project in &projects {
@@ -1016,9 +1023,23 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
         });
         warnings.extend(search.warnings);
         let mut results = search.results;
+        let all_words_pages = results.len() - search.phrase_fallback_pages;
+        for result in &results[all_words_pages..] {
+            fallback_keys.insert((
+                project.id.clone(),
+                result.path.to_string_lossy().to_string(),
+            ));
+        }
         for (rank, result) in results.iter_mut().enumerate() {
             result.project_id = project.id.clone();
             result.project_name = Some(project.name.clone());
+            // Fallback pages are ranked among themselves, then placed after
+            // every project's all-words pages below.
+            let rank = if rank < all_words_pages {
+                rank
+            } else {
+                rank - all_words_pages
+            };
             let rrf = 1.0 / (60.0 + rank as f64 + 1.0);
             let key = (
                 result.project_id.clone(),
@@ -1039,10 +1060,16 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
     }
 
     let mut results = fused.into_values().collect::<Vec<_>>();
+    let is_fallback = |fused: &FusedResult| {
+        fallback_keys.contains(&(
+            fused.result.project_id.clone(),
+            fused.result.path.to_string_lossy().to_string(),
+        ))
+    };
     results.sort_by(|left, right| {
-        right
-            .score
-            .total_cmp(&left.score)
+        is_fallback(left)
+            .cmp(&is_fallback(right))
+            .then_with(|| right.score.total_cmp(&left.score))
             .then_with(|| left.result.project_id.cmp(&right.result.project_id))
             .then_with(|| left.result.path.cmp(&right.result.path))
     });
@@ -1054,6 +1081,7 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
             fused.result
         })
         .collect::<Vec<_>>();
+    warnings.extend(shown_phrase_fallback_warnings(&results, &fallback_keys));
     for report in &project_reports {
         context.diagnostic(format!(
             "per-project results {}: {}",
@@ -1827,6 +1855,8 @@ struct SearchExecution {
     status: BackendStatus,
     runtime_report: Option<GgufRuntimeReport>,
     thresholds_source: Option<ThresholdsSource>,
+    /// How many of the last `results` the phrase fallback added.
+    phrase_fallback_pages: usize,
 }
 
 enum SearchAttempt {
@@ -2727,7 +2757,7 @@ fn explain_lexical_no_results(
 
     if filters_active(context.filters) {
         let unfiltered_count = backend
-            .search_project(
+            .search_project_with_phrase_fallback(
                 context.project_id,
                 context.store_path,
                 context.wiki_root,
@@ -2735,7 +2765,7 @@ fn explain_lexical_no_results(
                 &SearchFilters::default(),
                 context.limit.max(1),
             )
-            .map(|results| results.len())
+            .map(|search| search.results.len())
             .unwrap_or(0);
         if unfiltered_count > 0 {
             return Some("filters excluded all matched hits".to_string());
@@ -2779,6 +2809,7 @@ fn perform_resolved_project_search(
             input.query,
             input.filters,
             input.limit,
+            LexicalQuery::PhraseFallback,
         ),
         RuntimeSearchMode::Semantic => perform_semantic_project_search(input, resolution),
         RuntimeSearchMode::Hybrid => {
@@ -2843,6 +2874,7 @@ fn perform_semantic_project_search(
         status,
         runtime_report: query_embedding.runtime_report,
         thresholds_source: Some(state.thresholds_source),
+        phrase_fallback_pages: 0,
     })
 }
 
@@ -2879,15 +2911,7 @@ fn perform_hybrid_project_search(
     let mut status = None;
     let mut lexical_results = Vec::new();
     for lexical_query in &expanded.lexical {
-        let search = perform_project_search(
-            input.backend,
-            input.project,
-            input.store_path,
-            input.wiki_root,
-            lexical_query,
-            input.filters,
-            per_branch_limit,
-        )?;
+        let search = hybrid_lexical_branch_search(input, lexical_query, per_branch_limit)?;
         if status.is_none() {
             status = Some(search.status.clone());
         }
@@ -2982,6 +3006,7 @@ fn perform_hybrid_project_search(
         status,
         runtime_report,
         thresholds_source: Some(state.thresholds_source),
+        phrase_fallback_pages: 0,
     })
 }
 
@@ -3612,6 +3637,36 @@ fn deterministic_rerank_results(results: Vec<SearchResult>) -> Vec<SearchResult>
         .collect()
 }
 
+/// Which query a lexical search runs.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum LexicalQuery {
+    AllWords,
+    /// The all-words query, then the phrase fallback when it finds too few
+    /// pages. Hybrid's lexical branch never takes it: its partial matches
+    /// would enter fusion with lexical ranks they never earned (the owner's
+    /// choice on issue #25).
+    PhraseFallback,
+}
+
+/// Hybrid's lexical branch: the all-words query alone.
+fn hybrid_lexical_branch_search(
+    input: &ProjectSearchInput<'_>,
+    lexical_query: &str,
+    limit: usize,
+) -> Result<SearchExecution> {
+    perform_project_search(
+        input.backend,
+        input.project,
+        input.store_path,
+        input.wiki_root,
+        lexical_query,
+        input.filters,
+        limit,
+        LexicalQuery::AllWords,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
 fn perform_project_search(
     backend: &QmdRsBackend,
     project: &RegisteredProject,
@@ -3620,10 +3675,18 @@ fn perform_project_search(
     query: &str,
     filters: &SearchFilters,
     limit: usize,
+    lexical_query: LexicalQuery,
 ) -> Result<SearchExecution> {
     for attempt in 0..2 {
         match search_attempt(
-            backend, project, store_path, wiki_root, query, filters, limit,
+            backend,
+            project,
+            store_path,
+            wiki_root,
+            query,
+            filters,
+            limit,
+            lexical_query,
         )? {
             SearchAttempt::Success(search) => return Ok(search),
             SearchAttempt::Missing(_) if attempt == 0 => retry_search_delay(),
@@ -3674,6 +3737,7 @@ fn perform_project_search(
     unreachable!("search retry loop returns or bails")
 }
 
+#[allow(clippy::too_many_arguments)]
 fn search_attempt(
     backend: &QmdRsBackend,
     project: &RegisteredProject,
@@ -3682,6 +3746,7 @@ fn search_attempt(
     query: &str,
     filters: &SearchFilters,
     limit: usize,
+    lexical_query: LexicalQuery,
 ) -> Result<SearchAttempt> {
     let status = backend.status(&project.id, store_path, wiki_root)?;
     match status.state {
@@ -3694,34 +3759,50 @@ fn search_attempt(
         BackendState::Ready | BackendState::Stale => {}
     }
     maybe_sleep_for_test("LLM_WIKI_TEST_SEARCH_AFTER_STATUS_SLEEP_MS");
-    let results =
-        match backend.search_project(&project.id, store_path, wiki_root, query, filters, limit) {
-            Ok(results) => results,
-            Err(error) => {
-                if let Some(status) = backend_access_failure(&error) {
-                    return Ok(match status.state {
-                        BackendState::Transient | BackendState::Missing => {
-                            SearchAttempt::RetryableUnavailable(status)
-                        }
-                        BackendState::PermissionDenied => SearchAttempt::PermissionDenied(status),
-                        BackendState::Corrupt | BackendState::SchemaMismatch => {
-                            SearchAttempt::ForceReindex(status)
-                        }
-                        BackendState::Ready | BackendState::Stale => return Err(error),
-                    });
-                }
-                if is_retryable_search_open_error(&error) {
-                    return Ok(SearchAttempt::RetryableUnavailable(status));
-                }
-                return Err(error);
+    let search = match lexical_query {
+        LexicalQuery::AllWords => backend
+            .search_project(&project.id, store_path, wiki_root, query, filters, limit)
+            .map(|results| LexicalSearch {
+                results,
+                fallback_pages: 0,
+            }),
+        LexicalQuery::PhraseFallback => backend.search_project_with_phrase_fallback(
+            &project.id,
+            store_path,
+            wiki_root,
+            query,
+            filters,
+            limit,
+        ),
+    };
+    let search = match search {
+        Ok(search) => search,
+        Err(error) => {
+            if let Some(status) = backend_access_failure(&error) {
+                return Ok(match status.state {
+                    BackendState::Transient | BackendState::Missing => {
+                        SearchAttempt::RetryableUnavailable(status)
+                    }
+                    BackendState::PermissionDenied => SearchAttempt::PermissionDenied(status),
+                    BackendState::Corrupt | BackendState::SchemaMismatch => {
+                        SearchAttempt::ForceReindex(status)
+                    }
+                    BackendState::Ready | BackendState::Stale => return Err(error),
+                });
             }
-        };
+            if is_retryable_search_open_error(&error) {
+                return Ok(SearchAttempt::RetryableUnavailable(status));
+            }
+            return Err(error);
+        }
+    };
     Ok(SearchAttempt::Success(SearchExecution {
-        results,
+        results: search.results,
         warnings: stale_warning(project, &status).into_iter().collect(),
         status,
         runtime_report: None,
         thresholds_source: None,
+        phrase_fallback_pages: search.fallback_pages,
     }))
 }
 
@@ -3740,6 +3821,58 @@ fn stale_warning(project: &RegisteredProject, status: &BackendStatus) -> Option<
             project.id, project.id
         ),
     })
+}
+
+/// A line per project whose phrase-fallback pages made it into the fused,
+/// truncated reply; pages the limit cut off are not counted.
+fn shown_phrase_fallback_warnings(
+    results: &[SearchResult],
+    fallback_keys: &BTreeSet<(String, String)>,
+) -> Vec<SearchWarning> {
+    let mut shown: BTreeMap<&str, usize> = BTreeMap::new();
+    for result in results {
+        let key = (
+            result.project_id.clone(),
+            result.path.to_string_lossy().to_string(),
+        );
+        if fallback_keys.contains(&key) {
+            *shown.entry(result.project_id.as_str()).or_default() += 1;
+        }
+    }
+    shown
+        .into_iter()
+        .filter_map(|(project_id, pages)| {
+            phrase_fallback_warning(project_id, pages, FallbackPlacement::Fused)
+        })
+        .collect()
+}
+
+/// One project's line when the phrase fallback added pages to the reply. In a
+/// single-project reply they are its last results; in search-all, they come
+/// after every project's all-words results.
+fn phrase_fallback_warning(
+    project_id: &str,
+    shown_pages: usize,
+    placement: FallbackPlacement,
+) -> Option<SearchWarning> {
+    let which = match placement {
+        FallbackPlacement::Last => format!("the last {shown_pages} result(s)"),
+        FallbackPlacement::Fused => {
+            format!("{shown_pages} result(s) from project {project_id}")
+        }
+    };
+    (shown_pages > 0).then(|| SearchWarning {
+        project_id: project_id.to_string(),
+        message: format!(
+            "too few pages hold every word of the query; {which} hold only some of its names and are scored by a separate phrase search"
+        ),
+    })
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum FallbackPlacement {
+    Last,
+    Fused,
 }
 
 fn retry_search_delay() {
@@ -4250,5 +4383,90 @@ mod tests {
             embedding_artifact_sha256: "sha".to_string(),
             embedding_dimensions: 768,
         }
+    }
+
+    #[test]
+    fn the_phrase_fallback_runs_in_lexical_search_and_not_in_hybrids_lexical_branch() {
+        use super::{
+            LexicalQuery, ProjectSearchInput, hybrid_lexical_branch_search, perform_project_search,
+        };
+        use crate::paths::Paths;
+        use crate::registry::RegisteredProject;
+        use crate::search::adapter::{IndexOptions, SearchBackend, SearchFilters};
+        use crate::search::qmd_rs::QmdRsBackend;
+
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/search-eval");
+        let wiki = root.join("wiki");
+        let temp = tempfile::TempDir::new().expect("tempdir");
+        let store = temp.path().join("qmd-rs.sqlite");
+        let backend = QmdRsBackend::new();
+        backend
+            .index_project("fixture", &wiki, &store, &IndexOptions { force: true })
+            .expect("index");
+        let project = RegisteredProject {
+            id: "fixture".to_string(),
+            name: "fixture".to_string(),
+            root,
+            wiki_path: PathBuf::from("wiki"),
+            registered_at: String::new(),
+            last_indexed_at: None,
+            last_indexed_wiki_max_mtime: None,
+            indexed_file_count: 0,
+            backend: "qmd-rs".to_string(),
+            index_schema_version: 1,
+        };
+        let paths = Paths {
+            home: temp.path().to_path_buf(),
+            cache_home: temp.path().to_path_buf(),
+            data_home: temp.path().to_path_buf(),
+            managed_home: temp.path().to_path_buf(),
+        };
+        let query = "headroom-wrap-command headroom-passthrough-launcher";
+        let filters = SearchFilters::default();
+        let input = ProjectSearchInput {
+            paths: &paths,
+            backend: &backend,
+            project: &project,
+            store_path: &store,
+            wiki_root: &wiki,
+            query,
+            filters: &filters,
+            limit: 20,
+        };
+        let all_words = backend
+            .search_project("fixture", &store, &wiki, query, &filters, 20)
+            .expect("all words");
+        assert!(all_words.len() < 20, "the query needs the fallback to run");
+        let found = |results: &[SearchResult]| {
+            results
+                .iter()
+                .map(|result| result.path.clone())
+                .collect::<Vec<_>>()
+        };
+
+        let hybrid_branch = hybrid_lexical_branch_search(&input, query, 20).expect("hybrid");
+        assert_eq!(found(&hybrid_branch.results), found(&all_words));
+        assert_eq!(hybrid_branch.phrase_fallback_pages, 0);
+
+        let lexical = perform_project_search(
+            &backend,
+            &project,
+            &store,
+            &wiki,
+            query,
+            &filters,
+            20,
+            LexicalQuery::PhraseFallback,
+        )
+        .expect("lexical");
+        assert!(lexical.results.len() > all_words.len());
+        assert_eq!(
+            found(&lexical.results[..all_words.len()]),
+            found(&all_words)
+        );
+        assert_eq!(
+            lexical.phrase_fallback_pages,
+            lexical.results.len() - all_words.len()
+        );
     }
 }

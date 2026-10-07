@@ -1,27 +1,36 @@
 # Plan: The Dependency Gate Covers Dev-Dependencies
 
 - Document Class: Plan
-- Status: Draft
+- Status: Completed (develop)
 - Date: 2026-10-07
 - Category: Tooling, strict gates
-- Scope: Carry out P22 of the framework roadmap: show that the strict gates'
-  dependency check already covers the strict crates' dev-dependencies, the
-  gap #37 described being in `cargo deny list` only, and say so where the
-  gate is described, with the run that proves it recorded here.
+- Scope: Carry out P22 of the framework roadmap: make the strict gates'
+  dependency check cover the strict crates' dev-dependencies in all four of
+  its checks, two of which (duplicates and licences) left them out by default,
+  prove each check on a dev-dependency, and say so where the gate is
+  described, with the runs that prove it recorded here.
 - Sources:
   - Issue #37, "Tooling: Make the dependency gate cover dev-dependencies"
   - The blind review of PR #28, finding 5 (2026-10-06): with cargo-deny
     0.20.2, `cargo deny --manifest-path crates/llm-wiki-core/Cargo.toml list`
     shows the crate alone, with no proptest
-  - The blind review of this plan's PR (#59), finding 1: a ban on proptest
-    fails `cargo deny check bans` for both strict crates
+  - The blind review of PR #59, which wrote this plan, finding 1: a ban on
+    proptest fails `cargo deny check bans` for both strict crates
+  - The blind review of PR #64, which carries it out (2026-10-07), findings
+    1 and 2: the duplicate check leaves dev-dependencies out unless `[bans]`
+    sets `multiple-versions-include-dev`, and the licence check unless
+    `[licenses]` sets `include-dev`
+  - The second blind review of PR #64 (2026-10-07), finding 1: the `getrandom`
+    skip is an exception to the strict-gates decision's "one version of each
+    crate"
   - `tools/strict-gates.sh`, `deny.toml`, `justfile` and the strict crates'
     `Cargo.toml` at `cad8988`, read for this plan; the `list` command and the
     review's probe rerun on this plan's worktree
 - Related:
   - `wiki/roadmaps/framework-v1.roadmap.md`, P22 (this plan)
   - `wiki/decisions/poman-lives-in-this-workspace.decision.md`, "The
-    strictest gates" (the gates this check belongs to)
+    strictest gates" (the gates this check belongs to, and its dated
+    `getrandom` exception)
   - `wiki/plans/poman-workspace-and-strict-gates.plan.md` (PM1, which built
     the gate)
   - `wiki/roadmaps/poman.roadmap.md`, PM8 (llm-wiki's own modules)
@@ -46,39 +55,86 @@ in only by tests fails it like any other; and the gate's description says so.
   --manifest-path crates/llm-wiki-core/Cargo.toml list` prints one crate,
   `llm-wiki-core` itself, with no proptest. This is what PR #28's review saw,
   and what #37 was filed on.
-- **`check` covers them**: with a copy of `deny.toml` outside the repository
-  holding `deny = [{ crate = "proptest" }]` under `[bans]`, `cargo deny
-  --manifest-path crates/<crate>/Cargo.toml --config <copy> check bans`
-  exits 2 with `error[banned]: crate 'proptest = 1.11.0' is explicitly
-  banned`, its path `(dev) llm-wiki-core v0.2.15`, and the same on
-  `crates/poman` with `(dev) poman v0.2.15`. Found by this PR's blind review
-  and rerun for this plan with cargo-deny 0.20.2.
-- So the gate the strict gates run already walks the dev-dependencies; the gap
-  is smaller than #37 thought. What remains: the gate's comment and the
-  strict-gates decision do not say that dev-dependencies are covered, and
-  the proof is recorded nowhere but here.
+- **Bans, advisories and sources cover them**: with a copy of `deny.toml`
+  outside the repository holding `deny = [{ crate = "proptest" }]` under
+  `[bans]`, `cargo deny --manifest-path crates/<crate>/Cargo.toml --config
+  <copy> check bans` exits 2 with `error[banned]: crate 'proptest = 1.11.0'
+  is explicitly banned`, its path `(dev) llm-wiki-core v0.2.15`, and the same
+  on `crates/poman` with `(dev) poman v0.2.15`. Found by PR #59's blind
+  review. The advisory and source checks walk the same graph (see "The
+  Proof").
+- **Duplicates and licences do not**: cargo-deny's duplicate check leaves
+  dev-dependencies out unless `[bans]` sets `multiple-versions-include-dev =
+  true`, and its licence check unless `[licenses]` sets `include-dev = true`;
+  `deny.toml` sets neither. The tree already holds a duplicate reached only
+  through proptest, `getrandom` 0.3.4 (through rand 0.9) and 0.4.2 (through
+  tempfile), which the gate let through. Found by PR #64's blind review, after
+  this plan had concluded the gate needed no change.
 
 ## Target
 
-- **The proof, recorded**: the run above, a deliberate ban on a dev-dependency
-  rejected by `check` for each strict crate, kept in this plan with the
-  command and its output. Not committed: the ban lives in a copy of the
-  configuration outside the repository.
+- **`deny.toml` covers dev-dependencies**: `multiple-versions-include-dev =
+  true` under `[bans]` and `include-dev = true` under `[licenses]`. The
+  `getrandom` duplicate is let through by one `skip` entry pinned to 0.3.4,
+  with its reason: both versions come from inside proptest, so no change to
+  this repository's dependencies removes it.
+- **The proof, recorded**: for each of the four checks, a deliberate slip on
+  the dev-dependency, made in a copy of the configuration outside the
+  repository, rejected for each strict crate; kept in this plan with the
+  commands and their output.
 - **Said plainly**: the deny gate's comment in `tools/strict-gates.sh` says it
-  covers dev-dependencies, and that `cargo deny list` does not show them.
-  The strict-gates decision's wording is checked, and changed only if it
-  says otherwise.
+  covers dev-dependencies, through the two keys in `deny.toml`, and that
+  `cargo deny list` does not show them. The strict-gates decision says
+  "dependencies checked (advisories, licences, bans with one version of each
+  crate, sources, unused dependencies)", and PM1's plan says the same; the
+  `getrandom` skip is the one exception to "one version of each crate", so
+  both record it as a dated exception (2026-10-07), with its reason.
+
+## The Proof (2026-10-07, PR #64)
+
+Run with cargo-deny 0.20.2 on PR #64's branch, with its `deny.toml`. Each copy
+of `deny.toml` is kept outside the repository and changes one thing; the
+command is `cargo deny --manifest-path crates/<crate>/Cargo.toml --config
+<copy> check <check>` (with `--offline` for advisories and sources).
+
+| Copy changes | Check | llm-wiki-core | poman |
+|---|---|---|---|
+| `deny = [{ crate = "proptest" }]` under `[bans]` | bans | exit 2, `error[banned]` proptest, `(dev) llm-wiki-core` | exit 2, the same, `(dev) poman` |
+| the `getrandom` skip removed | bans | exit 2, `error[duplicate]` getrandom 0.3.4 and 0.4.2, both through `(dev) llm-wiki-core` | exit 2, the same, `(dev) poman` |
+| the skip and `multiple-versions-include-dev` removed (the gate before this PR) | bans | exit 0, `bans ok` | exit 0, `bans ok` |
+| `allow = ["Unicode-3.0"]` | licenses | exit 4, 29 crates rejected, proptest's 28 among them | exit 4, 46 rejected |
+| the same, and `include-dev` removed (the gate before this PR) | licenses | exit 4, 1 rejected (the crate itself) | exit 4, 18 rejected |
+| `db-path` to a copy of the advisory database holding a made-up advisory against every version of proptest | advisories | exit 1, `RUSTSEC-2099-0001`, proptest through `(dev) llm-wiki-core` | exit 1, the same, `(dev) poman` |
+| `allow-registry` naming only another registry | sources | exit 8, 28 rejected (all proptest's) | exit 8, 45 rejected |
+
+With the repository's own `deny.toml`, the deny gate of `just strict` passes
+for both crates: `advisories ok, bans ok, licenses ok, sources ok`. In the same
+tree, `cargo deny --manifest-path crates/llm-wiki-core/Cargo.toml list` still
+prints only `MIT (1): llm-wiki-core@0.2.15`: `list` hides the
+dev-dependencies whatever the configuration says.
 
 ## Done When
 
-- The deliberate ban above is rejected by `cargo deny check bans` for both
-  strict crates, recorded here (done for this plan, at `cad8988`; rerun on
-  the PR's head).
+- Each slip in "The Proof" is rejected for both strict crates on the PR's
+  head, and the two rows marked "the gate before this PR" show what the keys
+  added.
 - The deny gate's comment says what it covers.
 - `just strict` reports every gate run and passed, nothing skipped, and the
   fast check passes on the PR into `develop`.
 
 ## Open For The Owner
+
+Taken by the coordinator on 2026-10-07 while the owner was away, all to be
+confirmed by the owner's verdict on PR #64:
+
+- choice 1 below, as recommended;
+- after PR #64's review found the duplicate and licence checks left
+  dev-dependencies out, the change grew past the comment alone: the two
+  `deny.toml` keys (`multiple-versions-include-dev` and `include-dev`);
+- the `getrandom` 0.3.4 skip, which the review called the owner's call;
+- the narrower Out Of Scope below, which lets that skip through;
+- the dated exception for that skip in the strict-gates decision and in PM1's
+  plan, after PR #64's second review.
 
 1. **Close P22 with a one-line comment in the gate script**, the proof being
    the run recorded here, rerun on that PR's head. Not chosen: closing P22 on
@@ -91,4 +147,5 @@ in only by tests fails it like any other; and the gate's description says so.
 
 - llm-wiki's own crate under the strict gates (PM8).
 - The other gates of the strict-gates script.
-- Changing what `deny.toml` bans or allows.
+- Changing what `deny.toml` bans or allows, beyond the `getrandom` skip that
+  covering dev-dependencies needs.
