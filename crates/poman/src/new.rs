@@ -12,10 +12,10 @@ use llm_wiki_core::types::FieldDefinition;
 use llm_wiki_core::types::format::paths;
 use llm_wiki_core::types::poman::DEADLINE;
 
-use crate::check::is_deadline_file;
-use crate::deadline::{BLOCKED_BY, check_text};
+use crate::check::{Blocker, blocker as blocker_kind, deadline_folder};
+use crate::deadline::BLOCKED_BY;
 use crate::finding::Finding;
-use crate::graph::{Graph, loop_through};
+use crate::graph::loop_through;
 use crate::landing::{FILE, landing_branch};
 use crate::repo::root_from;
 use crate::{CANNOT_WORK, FIELD_FLAGS, OUTPUT_FAILED, REFUSED};
@@ -301,6 +301,8 @@ fn ask(
 /// Refuses a `Blocked by` path that is listed twice, is the new file, does
 /// not exist or is not a deadline file, and a loop the new file would close.
 fn check_blockers(root: &Path, path: &str, blockers: &[String]) -> Result<(), Refusal> {
+    let mut graph = deadline_folder(root);
+    let names = graph.keys().map(String::as_str).collect();
     let mut problems = Vec::new();
     for (position, blocker) in blockers.iter().enumerate() {
         if blockers
@@ -311,21 +313,22 @@ fn check_blockers(root: &Path, path: &str, blockers: &[String]) -> Result<(), Re
             problems.push(format!("--blocked-by lists `{blocker}` twice"));
         } else if blocker == path {
             problems.push(format!("--blocked-by names the new file itself, `{path}`"));
-        } else if !root.join(blocker).exists() {
-            problems.push(format!(
-                "--blocked-by names `{blocker}`, which does not exist"
-            ));
-        } else if !is_deadline_file(root, blocker) {
-            problems.push(format!(
-                "--blocked-by names `{blocker}`, which is not a deadline file in {}/",
-                DEADLINE.folder
-            ));
+        } else {
+            match blocker_kind(root, &names, blocker) {
+                Blocker::Deadline => {}
+                Blocker::Missing => problems.push(format!(
+                    "--blocked-by names `{blocker}`, which does not exist"
+                )),
+                Blocker::NotDeadline => problems.push(format!(
+                    "--blocked-by names `{blocker}`, which is not a deadline file in {}/",
+                    DEADLINE.folder
+                )),
+            }
         }
     }
     if !problems.is_empty() {
         return Err(Refusal::new(REFUSED, problems.join("\n")));
     }
-    let mut graph = existing_graph(root);
     graph.insert(path.to_owned(), blockers.to_vec());
     loop_through(&graph, path).map_or(Ok(()), |walk| {
         Err(Refusal::new(
@@ -336,27 +339,6 @@ fn check_blockers(root: &Path, path: &str, blockers: &[String]) -> Result<(), Re
             ),
         ))
     })
-}
-
-/// The `Blocked by` paths of every deadline file already in the folder.
-fn existing_graph(root: &Path) -> Graph {
-    let entries = fs::read_dir(root.join(DEADLINE.folder))
-        .into_iter()
-        .flatten()
-        .filter_map(Result::ok);
-    let mut graph = Graph::new();
-    for entry in entries {
-        let name = entry.file_name().to_string_lossy().into_owned();
-        let path = format!("{}/{name}", DEADLINE.folder);
-        if !is_deadline_file(root, &path) {
-            continue;
-        }
-        let text = fs::read_to_string(entry.path()).unwrap_or_default();
-        if let (_, Some(blockers)) = check_text(&path, &text) {
-            graph.insert(path, blockers.paths);
-        }
-    }
-    graph
 }
 
 /// The file's text: the title, a blank line, and the fields in the type's

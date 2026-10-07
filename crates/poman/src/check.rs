@@ -16,6 +16,9 @@ use crate::graph::{Graph, loops};
 use crate::landing::landing_branch;
 use crate::repo::{WIKI, relative};
 
+#[cfg(test)]
+mod tests;
+
 /// What a check found.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Report {
@@ -227,19 +230,92 @@ fn deadline_file(
     }
 }
 
-/// Whether `path`, from the repository root, names a deadline file where one
-/// may sit.
+/// What a `Blocked by` path names.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Blocker {
+    /// A deadline file read in its folder.
+    Deadline,
+    /// Nothing, by that exact name.
+    Missing,
+    /// Something that is not a deadline file read in its folder.
+    NotDeadline,
+}
+
+/// What `path` names, decided from the names folders list and never from a
+/// lookup: a file system that ignores letter case finds
+/// `wiki/deadlines/B.deadline.md` when the folder holds `b.deadline.md`, and
+/// the answer must not depend on the volume. `deadlines` are the deadline
+/// files read in their folder.
 #[must_use]
-pub fn is_deadline_file(root: &Path, path: &str) -> bool {
+pub fn blocker(root: &Path, deadlines: &BTreeSet<&str>, path: &str) -> Blocker {
+    if deadlines.contains(path) {
+        Blocker::Deadline
+    } else if exists_exactly(root, path) {
+        Blocker::NotDeadline
+    } else {
+        Blocker::Missing
+    }
+}
+
+/// Whether each part of `path`, from the repository root, is a name its
+/// folder lists, letter case included.
+fn exists_exactly(root: &Path, path: &str) -> bool {
+    let mut folder = root.to_path_buf();
+    for part in path
+        .split('/')
+        .filter(|part| !part.is_empty() && *part != ".")
+    {
+        let listed = part != ".."
+            && fs::read_dir(&folder).is_ok_and(|entries| {
+                entries
+                    .filter_map(Result::ok)
+                    .any(|entry| entry.file_name() == part)
+            });
+        if !listed {
+            return false;
+        }
+        folder.push(part);
+    }
+    true
+}
+
+fn in_deadline_folder(path: &str) -> bool {
     path.rsplit_once('/')
-        .is_some_and(|(folder, name)| folder == DEADLINE.folder && name.ends_with(&suffix()))
-        && root.join(path).is_file()
+        .is_some_and(|(folder, _)| folder == DEADLINE.folder)
+}
+
+/// The deadline files in their folder, read as `poman check` reads them, and
+/// the `Blocked by` paths of each.
+#[must_use]
+pub fn deadline_folder(root: &Path) -> Graph {
+    let mut read = Vec::new();
+    let canonical_root = fs::canonicalize(root).ok();
+    walk(
+        root,
+        canonical_root.as_deref(),
+        &root.join(DEADLINE.folder),
+        &mut read,
+        &mut Vec::new(),
+    );
+    read.into_iter()
+        .filter(|file| in_deadline_folder(&file.path))
+        .map(|file| {
+            (
+                file.path,
+                file.blockers.map(|found| found.paths).unwrap_or_default(),
+            )
+        })
+        .collect()
 }
 
 fn check_references(root: &Path, read: &[Read], findings: &mut Vec<Finding>) {
     let mut graph = Graph::new();
     let mut lines: BTreeMap<&str, usize> = BTreeMap::new();
-    let files: BTreeSet<&str> = read.iter().map(|file| file.path.as_str()).collect();
+    let deadlines: BTreeSet<&str> = read
+        .iter()
+        .map(|file| file.path.as_str())
+        .filter(|path| in_deadline_folder(path))
+        .collect();
     for file in read {
         let Some(blockers) = &file.blockers else {
             continue;
@@ -252,20 +328,20 @@ fn check_references(root: &Path, read: &[Read], findings: &mut Vec<Finding>) {
                 Some(format!("`{BLOCKED_BY}` lists `{blocker}` twice"))
             } else if *blocker == file.path {
                 Some(format!("`{BLOCKED_BY}` names this file itself"))
-            } else if !root.join(blocker).exists() {
-                Some(format!(
-                    "`{BLOCKED_BY}` names `{blocker}`, which does not exist"
-                ))
-            } else if !is_deadline_file(root, blocker) {
-                Some(format!(
-                    "`{BLOCKED_BY}` names `{blocker}`, which is not a deadline file in {}/",
-                    DEADLINE.folder
-                ))
             } else {
-                if files.contains(blocker.as_str()) {
-                    edges.push(blocker.clone());
+                match self::blocker(root, &deadlines, blocker) {
+                    Blocker::Deadline => {
+                        edges.push(blocker.clone());
+                        None
+                    }
+                    Blocker::Missing => Some(format!(
+                        "`{BLOCKED_BY}` names `{blocker}`, which does not exist"
+                    )),
+                    Blocker::NotDeadline => Some(format!(
+                        "`{BLOCKED_BY}` names `{blocker}`, which is not a deadline file in {}/",
+                        DEADLINE.folder
+                    )),
                 }
-                None
             };
             if let Some(problem) = problem {
                 findings.push(Finding::error(&file.path, blockers.line, problem));

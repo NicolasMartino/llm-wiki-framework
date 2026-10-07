@@ -418,6 +418,30 @@ fn broken_references_are_refused() -> Result {
     Ok(())
 }
 
+/// `poman check` reads blockers by their exact names, so `new` refuses a
+/// mis-cased one too, even where the volume would find it.
+#[test]
+fn a_blocker_in_other_letter_case_is_refused() -> Result {
+    let repo = repo()?;
+    write(repo.path(), "wiki/deadlines/a.deadline.md", OK)?;
+    let mut args = RENEW.to_vec();
+    args.truncate(11);
+    args.extend(["--blocked-by", "wiki/deadlines/A.deadline.md"]);
+    let (code, _, err) = poman(repo.path(), &args, "", false);
+    assert_eq!(code, poman::REFUSED);
+    assert_eq!(
+        err,
+        "poman: --blocked-by names `wiki/deadlines/A.deadline.md`, which does not exist\n"
+    );
+    assert!(
+        !repo
+            .path()
+            .join("wiki/deadlines/renew-the-domain.deadline.md")
+            .exists()
+    );
+    Ok(())
+}
+
 #[test]
 fn a_loop_the_new_file_would_close_is_refused() -> Result {
     let repo = repo()?;
