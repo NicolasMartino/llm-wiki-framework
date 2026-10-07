@@ -1,8 +1,7 @@
 # Plan: Compact Search Pages Follow The Limit
 
 - Document Class: Plan
-- Status: Active
-- Branch: `NicolasMartino/compact-29`
+- Status: Completed (develop)
 - Date: 2026-10-07
 - Category: Search, MCP
 - Scope: Carry out P17 of the framework roadmap: a compact search returns as
