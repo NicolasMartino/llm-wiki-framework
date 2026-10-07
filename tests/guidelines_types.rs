@@ -1,23 +1,25 @@
 //! The document types `llm-wiki-core` defines and the `project_guidelines.md`
-//! that `llm-wiki init` renders say the same thing, section by section and
-//! both ways: every type a section names is defined, and every definition the
-//! section should name is named, with the same suffix, folder, index, fields
-//! and statuses. The guidelines are read, not rendered from the definitions:
-//! they stay a template people edit.
+//! and `AGENTS.md` that `llm-wiki init` renders say the same thing, section by
+//! section and both ways: every type a section names is defined, and every
+//! definition the section should name is named, with the same suffix, folder,
+//! index, fields and statuses. The guidelines are read, not rendered from the
+//! definitions: they stay a template people edit.
 
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
 use llm_wiki_core::types::DocumentType;
-use llm_wiki_core::types::llm_wiki::{CORE, FIELDS, ML};
+use llm_wiki_core::types::llm_wiki::{CORE, EVAL, FIELDS, ML};
 use tempfile::TempDir;
 
 mod support;
 
-/// An initialised project's guidelines, and the `wiki/` folders init made.
+/// An initialised project's guidelines and `AGENTS.md`, and the `wiki/`
+/// folders init made.
 struct Render {
     guidelines: String,
+    agents: String,
     wiki_folders: BTreeSet<String>,
 }
 
@@ -42,6 +44,7 @@ fn init(blueprint: &str, packs: &[&str]) -> Render {
         .success();
     let guidelines =
         fs::read_to_string(project.path().join("project_guidelines.md")).expect("guidelines");
+    let agents = fs::read_to_string(project.path().join("AGENTS.md")).expect("agents");
     let wiki_folders = fs::read_dir(project.path().join("wiki"))
         .expect("wiki")
         .map(|entry| entry.expect("entry").path())
@@ -50,6 +53,7 @@ fn init(blueprint: &str, packs: &[&str]) -> Render {
         .collect();
     Render {
         guidelines,
+        agents,
         wiki_folders,
     }
 }
@@ -113,6 +117,28 @@ fn table_rows(lines: &[&str]) -> Vec<Vec<String>> {
                 .collect()
         })
         .collect()
+}
+
+/// The code spans in `text`, in order: `` `a`, `b` `` gives `a` and `b`.
+fn code_spans(text: &str) -> Vec<String> {
+    text.split('`')
+        .skip(1)
+        .step_by(2)
+        .map(ToString::to_string)
+        .collect()
+}
+
+/// The sentence in `lines` that starts with `opening`, up to its full stop,
+/// its lines joined by spaces.
+fn sentence(lines: &[&str], opening: &str) -> Option<String> {
+    let text = lines.join(" ");
+    let start = text.find(opening)?;
+    let rest = &text[start + opening.len()..];
+    Some(
+        rest.split_once('.')
+            .map_or(rest, |(sentence, _)| sentence)
+            .to_string(),
+    )
 }
 
 /// A code span's text: `` `x` `` gives `x`.
@@ -333,6 +359,37 @@ fn disagreements(render: &Render, with_ml: bool) -> Vec<String> {
         statuses,
         all.iter()
             .map(|doc_type| format!("{}: {}", doc_type.plural, doc_type.statuses.join(", ")))
+            .collect(),
+    );
+
+    match section(text, "## ML Pack Additions") {
+        Some(additions) if with_ml => {
+            let shown = sentence(&additions, "Eval statuses include").map(|text| code_spans(&text));
+            let defined: Vec<String> = EVAL.statuses.iter().map(ToString::to_string).collect();
+            if shown.as_ref() != Some(&defined) {
+                problems.push(format!(
+                    "ML Pack Additions: shows Eval statuses {shown:?}, the definitions give {defined:?}"
+                ));
+            }
+        }
+        Some(_) => problems.push("ML Pack Additions: shown without the ML pack".into()),
+        None if with_ml => problems.push("ML Pack Additions: missing with the ML pack".into()),
+        None => {}
+    }
+
+    let agents: Vec<&str> = render.agents.lines().collect();
+    compare(
+        &mut problems,
+        "AGENTS.md's document types",
+        sentence(&agents, "- Document types: ")
+            .unwrap_or_default()
+            .split(',')
+            .map(|name| name.trim().to_string())
+            .filter(|name| !name.is_empty())
+            .collect(),
+        rendered
+            .iter()
+            .map(|doc_type| doc_type.name.to_lowercase())
             .collect(),
     );
     problems
