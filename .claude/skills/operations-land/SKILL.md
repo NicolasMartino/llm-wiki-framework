@@ -31,13 +31,17 @@ hears why. Workers are released when their report is read, not here
    the CI part: every job of the full CI passed on its head, with no
    `## Full gate run` comment expected (checklist, "Develop And Master").
 3. **The bookkeeping commit** (moment (a), the usual one; checklist, "Landing
-   A PR", has the commands). On the PR's branch, after merging `develop` into
-   it: the PR's own entry at the top of `wiki/log.md` in this wiki's format,
+   A PR", has the commands and checks). On the PR's branch, merge `develop`
+   into it, never a rebase; if
+   `git show --remerge-diff --name-only --format= <merge sha>` names anything
+   but `wiki/log.md` and roadmap pages, abort it: the PR goes back to a fix
+   round, and the coordinator fixes no code conflict. Then the PR's own entry at the top of `wiki/log.md` in this wiki's format,
    written as if merged and citing the PR, and any backlog roadmap entries
    waiting then, among them the entry of a PR from `develop` into master
-   merged since the last one. No plan status: that came with the work. Then
-   check CI passes on the new head; the `## Full gate run` comment keeps
-   naming the head before it. The PR from `develop` into master gets none of
+   merged since the last one. No plan status: that came with the work. Back
+   from a failed verdict, rewrite the entry already there, never add a second
+   one. Then check CI passes on the new head; the full gates, and the
+   `## Full gate run` comment, stay those of the head before it. The PR from `develop` into master gets none of
    its own: its entry goes in the next PR's.
 4. **Ready.** If the PR is draft (`gh pr view <n> --json isDraft`),
    `gh pr ready <n>`, then tell the owner it waits for them, by name.
@@ -51,15 +55,17 @@ hears why. Workers are released when their report is read, not here
    failed verdict: `gh pr ready <n> --undo`, then a fix round; when it is
    pushed, come back to step 2.
 
-   Moment (b), just after the PASS, only when the bookkeeping commit was not
-   added at step 3, or a backlog entry arrived since: add it the same way,
-   then check `git diff --name-only <passed sha>..<new head>` names nothing
-   but `wiki/log.md` and roadmap pages (when `develop` moved since the PASS,
-   check the bookkeeping commit alone and a merge of `develop` with no
-   conflict fixed by hand outside the log). Record it on the PR as a comment
-   headed `## Bookkeeping after the verdict — <new head>`, naming the passed
-   SHA, the new head and those files; merge pinned to the new head. Anything
-   else in the diff: the PR waits for the owner's verdict on the new head.
+   Moment (b), just after the PASS: when the bookkeeping was not added at
+   step 3, when a backlog entry arrived since, or when another PR merged
+   since and took the log's top, so this one no longer merges cleanly. Merge
+   `develop` again and add or move the entry the same way, then run the
+   checklist's three checks on the commits since the passed head: each merge
+   of `develop` fixed by hand only `wiki/log.md` and roadmap pages
+   (`--remerge-diff`); the branch's own other commits name only those files;
+   and the roadmap pages lost no line (`--numstat`). Record it on the PR as a
+   comment headed `## Bookkeeping after the verdict — <new head>`, naming the
+   passed SHA, the new head and those files; merge pinned to the new head.
+   Anything else: the PR waits for the owner's verdict on the new head.
 6. **Check it yourself.** Read the diff against the issue, the plan and its
    Done when; a review can be wrong or incomplete. A PR with a plan marks it
    `Completed (develop)` with its Branch line removed, and updates its roadmap

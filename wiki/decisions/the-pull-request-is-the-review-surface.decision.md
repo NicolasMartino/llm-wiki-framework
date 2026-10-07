@@ -52,13 +52,17 @@ a worker's report.
    merge, as `## PASS — <full sha>` saying so.
 4. **A merge needs the owner's PASS naming the PR's current head**, checked by
    the coordinator against the diff, and, for a PR whose kind has gates, the
-   full gates passed on that head. Every PR into `develop` or into an
+   full gates passed on the head before its bookkeeping commit (rule 5), and
+   CI on the head itself. Every PR into `develop` or into an
    integration branch is a squash merge pinned to that head. One narrow
    exception, the owner's of 2026-10-07 ("it's ok just after the pass only if
    it touches logs/backlog and no code"): a bookkeeping commit added just
-   after the PASS (rule 5), when the diff from the passed head names nothing
-   but `wiki/log.md` and roadmap entries; it is recorded on the PR, and the
-   merge is pinned to the new head.
+   after the PASS (rule 5), when the commits since the passed head change
+   nothing but `wiki/log.md` and add roadmap entries, and any merge of
+   `develop` among them fixed by hand only those; it is recorded on the PR,
+   and the merge is pinned to the new head. A merge of `develop` that
+   conflicts anywhere else, at either moment, sends the PR back to a fix
+   round: the coordinator fixes no code conflict.
 5. **The log and the backlog ride in each PR's bookkeeping commit; there are
    no log PRs.** The coordinator adds one commit to each PR into `develop`
    holding its own log entry and any backlog roadmap entries waiting then,

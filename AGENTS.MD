@@ -110,7 +110,7 @@ board true. It writes no product code.
   full CI and the owner's PASS
   (`wiki/decisions/the-pull-request-is-the-review-surface.decision.md`, rule 6).
 - **Every change goes through a PR**, ingest and lint included, the log and
-  the backlog too: the coordinator adds one bookkeeping commit to each PR,
+  the backlog too: the coordinator adds one bookkeeping commit to each PR into `develop`,
   holding its own log entry (at the top of `wiki/log.md` in its usual form,
   citing the PR) and any backlog roadmap entries waiting then, just before the
   PR goes ready, or just after the owner's PASS if it touches only the log and

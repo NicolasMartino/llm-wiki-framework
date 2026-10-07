@@ -266,8 +266,11 @@ before the blind review's findings): a worker of the same kind, Opus medium,
 in the PR's existing worktree (`--worktree path:<worktree>`), or, if that is
 gone, a new-child worktree from `origin/<PR branch>` after `git fetch origin`.
 Its spec's Goal says "Fix round on PR #<n>: <the review's link>" and its
-Context says "the review already ran: skip the review ask". One blind review
-and one fix round per PR.
+Context says "the review already ran: skip the review ask". After a failed
+verdict its Context also says "the branch carries the coordinator's merge of
+`develop` and bookkeeping commit: run `git pull --no-rebase` before working",
+since those were pushed from the main checkout and workers never force-push.
+One blind review and one fix round per PR.
 
 **What workers may not do**, which the shared rules tell them: open a PR into
 master, merge, tag or release, start workers of their own, touch files outside the spec, edit
@@ -385,11 +388,12 @@ the coordinator (`orchestration ask`) for anything else.
   Why: a verify script once exited 0 with gates skipped, and the
   owner refused a PR whose gates had been skipped ("no excuses"). Wiki PRs run
   no local gates; CI still runs on them. The bookkeeping commit, added after
-  this check, moves the head: CI runs again on it, and the gate run comment
-  still names the head before it.
+  this check, moves the head: the full gates stay those of the head before it,
+  which the gate run comment names, and CI runs again, and must pass, on the
+  new head.
 - **The bookkeeping commit.** Only the coordinator writes `wiki/log.md`, and
-  only here: each PR into `develop` gets one commit, added by the coordinator
-  on the PR's own branch, holding
+  only here: each PR into `develop` gets one log entry, added by the
+  coordinator in a commit on the PR's own branch, together with
   - the PR's own log entry, at the top of the log, in this wiki's format
     (`## [<date>] <operation> | <subject>`, a paragraph on what changed and
     why citing the PR, then `Pages affected: …`), written as if merged;
@@ -399,24 +403,40 @@ the coordinator (`orchestration ask`) for anything else.
 
   It carries no plan status: that came with the work ("The Board"). First merge
   `develop` into the branch, never a rebase, so the log's top does not
-  conflict. Two moments are allowed (owner, 2026-10-07):
+  conflict, and check what that merge fixed by hand:
+  `git show --remerge-diff --name-only --format= <merge sha>` names nothing
+  but `wiki/log.md` and roadmap pages. A conflict anywhere else is not the
+  coordinator's to fix, since it writes no product code: abort the merge, add
+  no bookkeeping, and the PR goes back to a fix round. Two moments are allowed
+  (owner, 2026-10-07):
   - **(a) just before the PR goes ready**, after its fix round and the gate
-    check, so the owner's PASS covers it. The usual one.
-  - **(b) just after the owner's PASS**, only if
-    `git diff --name-only <passed sha>..<new head>` names nothing but
-    `wiki/log.md` and roadmap pages: no code, no other page. When `develop`
-    moved since the PASS, that diff also shows `develop`'s own changes; then
-    check the bookkeeping commit alone (`git diff --name-only <new head>^ <new head>`)
-    and that the merge of `develop` needed no conflict fixed by hand outside
-    `wiki/log.md`. Record it on the PR before merging, as a comment headed
+    check, so the owner's PASS covers it. The usual one. When the PR comes
+    back from a failed verdict, its fix round done, the entry already on the
+    branch is rewritten to match, never added a second time.
+  - **(b) just after the owner's PASS**, when the bookkeeping was not added at
+    (a), when a backlog entry arrived since, or when another PR merged since
+    and took the log's top, so this one no longer merges cleanly: merge
+    `develop` again, put the entry back at the top, add what waits. Before
+    merging, check on the commits since the passed head:
+    - every merge of `develop` among them passes the `--remerge-diff` check
+      above;
+    - `git log --first-parent --no-merges --name-only --format= <passed sha>..<new head>`
+      names nothing but `wiki/log.md` and roadmap pages: no code, no other
+      page;
+    - `git log --first-parent --no-merges --numstat --format= <passed sha>..<new head> -- wiki/roadmaps`
+      shows 0 deleted lines: roadmap changes only add entries, never change
+      another entry's status or promise.
+
+    Record it on the PR before merging, as a comment headed
     `## Bookkeeping after the verdict — <new head>` naming the passed SHA, the
-    new head and the files the diff names; then merge pinned to the new head.
-    Anything else in the diff: the PASS does not cover it, and the PR waits
-    for the owner's verdict on the new head.
+    new head and the files those checks name; then merge pinned to the new
+    head. Anything else: the PASS does not cover it, and the PR waits for the
+    owner's verdict on the new head.
 
   ```bash
   git fetch origin && git switch --detach origin/<PR branch>   # in the main checkout
   git merge origin/develop
+  git show --remerge-diff --name-only --format= HEAD   # only the log and roadmap pages
   # the entry at the top of wiki/log.md; the waiting entries in their roadmap
   git commit -am "Wiki: Add the bookkeeping for #<n>" && git push origin HEAD:<PR branch>
   git switch develop
@@ -435,7 +455,9 @@ the coordinator (`orchestration ask`) for anything else.
   verdict of their own. A failed verdict: `gh pr ready <n> --undo`, then a fix
   round.
 - **Merge only with the owner's PASS on the PR's current head** (or on the
-  head before a bookkeeping commit added at moment (b)), after reading
+  head before a bookkeeping commit added at moment (b)), with the full gates
+  on the head before the bookkeeping commit and CI on the head itself, after
+  reading
   the diff yourself against the issue and the plan, and checking that it marks
   its plan Completed with its roadmap entry ("The Board"); a PR that does not
   goes back to its worker:

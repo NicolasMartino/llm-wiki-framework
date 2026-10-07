@@ -1050,7 +1050,7 @@ Status: Completed (develop)
 Promise: A plan's status changes in the PR that does its work: the worker sets
 it Active with its Branch line in its first push and Completed before the PR
 leaves draft, and the merge makes it true. The coordinator commits no status,
-the log PR carries only the log, and `just branch-status` reads each branch's
+the log PR carries only the log (log PRs replaced by P24 on 2026-10-07), and `just branch-status` reads each branch's
 plans from its own `origin/<branch>`.
 Depends On: None
 Execution Plan: Not needed (the rules change is wiki-only; the recipe change is
