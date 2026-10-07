@@ -1,6 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command as StdCommand;
+use std::process::{Command as StdCommand, Stdio};
 use std::thread;
 use std::time::Duration;
 
@@ -2252,7 +2252,10 @@ fn cross_process_index_lock_is_exclusive() {
         .env_remove("XDG_CACHE_HOME")
         .env_remove("XDG_DATA_HOME")
         .env("LLM_WIKI_TEST_INDEX_SLEEP_MS", "300")
-        .args(["index", "--project", "fixture", "--force"]);
+        .args(["index", "--project", "fixture", "--force"])
+        // Either process may take the lock first, so both outputs are kept.
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
     let first = first.spawn().expect("spawn first");
 
     thread::sleep(Duration::from_millis(50));
