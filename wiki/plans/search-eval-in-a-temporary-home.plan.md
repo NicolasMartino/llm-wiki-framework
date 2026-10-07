@@ -1,7 +1,7 @@
 # Plan: The Search Eval Runs In A Temporary Home
 
 - Document Class: Plan
-- Status: Draft
+- Status: Completed (develop)
 - Date: 2026-10-07
 - Category: Tooling, search eval
 - Scope: Carry out P23 of the framework roadmap: one `just` recipe sets up a
@@ -69,21 +69,34 @@ and the checkout's own files, are the same afterwards as before.
 
 ## Target
 
-- **One recipe** (name: the owner's choice 2) that:
+- **One recipe**, `just search-eval` (choice 2), that:
   - makes a temporary home and points `HOME` and the XDG variables into it;
-  - gives that home the managed models and the accepted licenses from the
-    real one, without writing to the real one (how: the owner's choice 1),
-    and fails with one plain line naming `llm-wiki install` when the real
-    home has none;
+  - gives that home copies of the real one's small records: the model
+    records (`models/artifacts.toml`), the accepted licenses, the search
+    settings, and the install manifest, without which search stops with
+    "llm-wiki install is required before search" (found by the first run).
+    The model records name the real home's model files by absolute path, so
+    index and search read those files where they are (choice 1);
+  - stops before building anything, with one plain line naming `llm-wiki
+    install --configure-search`, when the real home lacks one of those
+    records or has meaning-based search off in its default settings, reading
+    `search.toml` as TOML (with `python3` 3.11 or newer), so any spelling
+    llm-wiki reads the same way says the same here (the second blind review
+    of PR #67, finding 1);
   - makes the eval project's own root inside the temporary directory: a copy
-    of the checkout's `wiki/`, with its own `.llm_wiki/search.toml` turning
-    meaning-based search on, never the checkout itself;
+    of the checkout's `wiki/` and `AGENTS.MD` (register wants an orientation
+    file), with the home's default search settings as its own
+    `.llm_wiki/search.toml`, never the checkout itself;
   - registers that root under `llm-wiki-framework-semantic-search` with
     `--no-mcp`, and indexes it;
   - runs the ignored eval test, which writes its report under `target/` as
     today;
   - removes the temporary home on the way out, success or failure.
 - **The eval page** names the recipe where it says how to run the eval.
+- **A quick test of the recipe's stops** (`tools/search-eval-test.sh`, in
+  `just verify` and the fast check), since nothing else runs the script: a
+  later edit to its checks would otherwise go unseen until someone ran the
+  20-minute eval. Asked by the blind review of PR #67, finding 6.
 
 ## Done When
 
@@ -99,16 +112,90 @@ and the checkout's own files, are the same afterwards as before.
 - The eval page names the recipe.
 - The fast check passes on the PR into `develop`.
 
-## Open For The Owner
+## Runs (2026-10-07)
 
-1. **The models: linked from the real managed home**, with the accepted
-   licenses and search settings copied. No download and no copy; search and
-   index only read the models folder (to be rechecked by whoever does the
-   work), and the before-and-after checksums of the Done When prove nothing
-   was written there. Not chosen: copying them (1.6 GB on the machine this
-   plan was written on, at every run), or downloading them into the
-   temporary home (slow, needs the network, and the eval would measure
-   another copy).
+All on one machine where `llm-wiki-framework-semantic-search` was not
+registered, before and after each run.
+
+- **No managed models:** `HOME=<an empty folder> just search-eval` stopped
+  before building anything, exit 1, with: "search-eval needs the managed search
+  models with meaning-based search on: run `llm-wiki install
+  --configure-search` first (<that folder>/.llm_wiki/manifest.json is
+  missing)" (rerun at the second review's fix round; the first run's line
+  lacked "with meaning-based search on").
+- **First runs:** register refused a root without an
+  orientation file, then every search stopped with "llm-wiki install is
+  required before search"; the recipe now copies `AGENTS.MD` and the install
+  manifest (the Target above).
+- **On `develop` (`c6e4995` plus this branch's recipe):** `just search-eval`
+  registered the copy in the temporary home, indexed 135 files, and ran all
+  30 cases in about 11 minutes (22 minutes with the index). The eval ran to
+  its end and failed one floor: semantic 23 of 30 against a floor of 24. Per
+  mode, passes over judged cases: lexical 18/26, semantic 23/29, hybrid 23/30,
+  auto 23/30. The no-match sentinels C10, H9, H11 and H20 return results in
+  meaning-based modes; C5 misses in every mode (lexical included), C8 in hybrid and auto, and
+  H12 in the meaning-based modes. Hybrid and
+  auto beat lexical, 23 to 18.
+- **On PR #58's head (`d8eab20`, the ranking fix before its fix round):** the same
+  script, run from a separate checkout, gave lexical 22/26 and the other modes
+  exactly as on `develop`. The test stops at the same semantic floor before
+  reaching its last assertion, that hybrid and auto beat lexical; from the
+  report's counts that assertion holds there by one case, 23 to 22.
+- **After the review's fix round (`69caab3`, the models read in place):** the
+  same counts as the first `develop` run, mode by mode and case by case, in
+  22 minutes. The first two runs had linked the model files into the
+  temporary home; nothing read the links (choice 1).
+- **On this branch with `develop` merged in (`b038f00`, the ranking fix as
+  it landed, `011979d`):** the same counts as on PR #58's head: lexical
+  22/26, semantic 23/29, hybrid 23/30, auto 23/30, in 21 minutes. The test
+  stops at the semantic floor; hybrid and auto beat lexical by one case.
+- **Left as it was, by checksum:** the listing below, taken before and after
+  each of the four runs, was the same each time (SHA-256, first 16 digits;
+  `~` is the real home):
+
+  | SHA-256 | File |
+  | --- | --- |
+  | `604c329a31518187` | `~/.llm_wiki/accepted-licenses.toml` |
+  | `7997e9302aeacbed` | `~/.llm_wiki/backups/install-<date>/backup-manifest.json` |
+  | `771179514816456a` | `~/.llm_wiki/bin/llm-wiki` |
+  | `d734d4fd09c6dfd7` | `~/.llm_wiki/external-dependencies.toml` |
+  | `104e6fd062656736` | `~/.llm_wiki/manifest.json` |
+  | `185e4d52094b24ac` | `~/.llm_wiki/mcp/claude-project.mcp.json` |
+  | `48fa8eaf6e0bcad0` | `~/.llm_wiki/models/artifacts.toml` |
+  | `b5ce9d77a3fc4b3b` | `~/.llm_wiki/models/embeddinggemma-300m-q8_0/embeddinggemma-300M-Q8_0.gguf` |
+  | `000dfb1c06efa6a0` | `~/.llm_wiki/models/qmd-query-expansion-1.7b-q4_k_m/qmd-query-expansion-1.7B-q4_k_m.gguf` |
+  | `3cad88be795df555` | `~/.llm_wiki/search-runtime-probes.toml` |
+  | `3de702d89dbfe39e` | `~/.llm_wiki/search.toml` |
+  | `95f74ae45ed9e8b3` | the checkout's `.llm_wiki/search.toml` |
+  | absent | the real cache, `~/.cache/llm-wiki` |
+  | absent | the checkout's `.mcp.json` |
+
+  The real registry and the managed home's `indexes/` are the machine's
+  shared state, so they were listed by project id and folder name instead:
+  around the third run, for example, 91 ids before and 99 after, 14 index folders before
+  and 12 after, all the difference being other worktrees made and removed
+  by Orca meanwhile and test fixtures named `fixture-project-<n>` registered
+  by other test runs on the machine. Neither ever held
+  `llm-wiki-framework-semantic-search`, before, during or after any run.
+
+## The Two Choices
+
+Taken by the coordinator on 2026-10-07 while the owner was away, both as this
+plan recommended, to be confirmed by the owner's verdict on the PR that does
+the work:
+
+1. **The models: read in place from the real managed home**, never copied
+   or downloaded, with the model records, accepted licenses and search
+   settings copied, and the before-and-after checksums of the Done When
+   proving nothing was written there. Recommended and taken as "linked from
+   the real managed home"; the work found the links unneeded: index and
+   search reach a model only through the absolute path in its record
+   (`src/search/commands.rs`, `src/search/semantic.rs`), and only install and
+   uninstall look at the models folder itself, so the copied records already
+   point at the real files, read-only. Found by the blind review of PR #67,
+   finding 1. Not chosen: copying them (1.6 GB on the machine this plan was
+   written on, at every run), or downloading them into the temporary home
+   (slow, needs the network, and the eval would measure another copy).
 2. **The recipe's name: `just search-eval`.** Not chosen: `just eval`, which
    reads as if it ran `llm-wiki eval`, a different command.
 

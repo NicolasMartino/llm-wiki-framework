@@ -222,6 +222,29 @@ work:
 Semantic/hybrid implementation should extend this surface; it should not add a
 second diagnostics system.
 
+<!-- llm-wiki-search-ignore-start -->
+
+## How To Run
+
+Run `just search-eval` (`tools/search-eval.sh`, from
+`wiki/plans/search-eval-in-a-temporary-home.plan.md`). It needs the managed
+search models in the real managed home, with meaning-based search on (`llm-wiki
+install --configure-search`), and `python3` 3.11 or newer, which reads the
+home's `search.toml` as TOML; nothing needs registering: it makes a temporary
+home, copies the real home's model records, install manifest, accepted
+licenses and search settings into it, registers a copy of this checkout's
+`wiki/` and `AGENTS.MD` there as `llm-wiki-framework-semantic-search` (with
+`--no-mcp`), indexes it, runs the ignored `cargo test --test
+natural_language_search_eval -- --ignored --nocapture`, and removes the
+temporary home. The model records name the real home's model files, which are
+read where they are, never copied. The report lands in `target/evals/` as
+before. The machine's registry, managed home and cache, and the checkout's
+`.mcp.json` and `.llm_wiki/`, are left as they were. A run takes about 20
+minutes, half of it indexing. The `cargo run -- index` and `cargo test`
+commands in the runs below assume a project registered by hand.
+
+<!-- llm-wiki-search-ignore-end -->
+
 ## Observed Runs
 
 ### 2026-05-11 Seeded Local GGUF Run
@@ -792,5 +815,28 @@ passed. H11 hybrid and auto both returned zero results with
 domain-corpus confirmation is now the next promotion check. A real reranker
 comparison still requires the Qwen3 reranker artifact and accepted-license
 record.
+
+## Temporary-Home Runs (2026-10-07)
+
+The first runs through `just search-eval`, on a wiki of 135 indexed files
+(`wiki/plans/search-eval-in-a-temporary-home.plan.md`, "Runs"). Passes over
+judged cases:
+
+| Run | Lexical | Semantic | Hybrid | Auto |
+| --- | --- | --- | --- | --- |
+| `develop` at `c6e4995` | 18/26 | 23/29 | 23/30 | 23/30 |
+| PR #58's head `d8eab20` (ranking fix, before its fix round) | 22/26 | 23/29 | 23/30 | 23/30 |
+| `develop` at `011979d` (ranking fix landed, #58) | 22/26 | 23/29 | 23/30 | 23/30 |
+
+- Every run fails the semantic floor, 23 of 30 against 24, so the test stops
+  there; the hybrid and auto floors (22) hold.
+- Hybrid and auto beat lexical before the ranking fix, 23 to 18, and after it
+  by one case, 23 to 22 (from the report: the test stops before that
+  assertion).
+- The no-match sentinels C10, H9, H11 and H20 now return results in semantic,
+  hybrid and auto; C5 misses in every meaning-based mode (and in lexical on
+  `develop`), C8 in hybrid and auto, H12 in the meaning-based modes. The wiki
+  has more than doubled since the 61-file runs above; Next Actions 1 and 3
+  apply.
 
 <!-- llm-wiki-search-ignore-end -->

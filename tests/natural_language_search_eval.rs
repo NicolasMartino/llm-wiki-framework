@@ -88,7 +88,7 @@ fn natural_language_eval_query_table_is_well_formed() {
 }
 
 #[test]
-#[ignore = "requires managed ~/.llm_wiki model artifacts and a fresh semantic index; run with `cargo test --test natural_language_search_eval -- --ignored --nocapture`"]
+#[ignore = "needs the managed search models and its project registered and indexed; run it with `just search-eval`, which sets both up in a temporary home"]
 fn natural_language_eval_runs_against_managed_models() {
     let cases = parse_eval_cases();
     let started = Instant::now();

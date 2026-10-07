@@ -83,7 +83,7 @@ verify-coverage: fmt coverage checks
 
 # The gates `verify` and `verify-coverage` share; one list, so they cannot
 # drift apart.
-checks: test-tools clippy-strict audit-legacy branch-status-test local-release-test
+checks: test-tools clippy-strict audit-legacy branch-status-test local-release-test search-eval-test
 
 # The integration test files that take longest; they run in `just verify` and
 # the full CI, not in `just fast-check`.
@@ -92,7 +92,7 @@ slow_tests := "install mcp_install post_install properties search_commands"
 # The fast check on PRs into develop: `just verify` without the slow test
 # files. One `cargo insta test --check` runs the quick tests and checks the
 # snapshots together. A new test file is quick until it is named above.
-fast-check: fmt clippy-strict audit-legacy branch-status-test
+fast-check: fmt clippy-strict audit-legacy branch-status-test search-eval-test
     #!/usr/bin/env bash
     set -euo pipefail
     cargo insta --version >/dev/null 2>&1 || { echo "fast-check needs cargo-insta: install it with \`cargo install cargo-insta\`" >&2; exit 1; }
@@ -105,6 +105,17 @@ fast-check: fmt clippy-strict audit-legacy branch-status-test
     just test-tools
 
 verify-full: verify-coverage udeps
+
+# The hand-run search eval, in a temporary home that reads the real home's model
+# files in place; nothing on the machine needs registering, and nothing in its
+# llm-wiki setup changes. See tools/search-eval.sh.
+search-eval:
+    bash tools/search-eval.sh
+
+# The quick stops of `search-eval`, which nothing else runs; `just verify` and
+# the fast check run it.
+search-eval-test:
+    bash tools/search-eval-test.sh
 
 post-install:
     cargo test --test post_install
