@@ -1,5 +1,24 @@
 # Wiki Log
 
+## [2026-10-07] merge | Lexical search weights titles and file names, and falls back to phrases
+
+Merged #58 (closes #25): lexical ranking weights a page's file path and title
+ten to one over its body, so "operation manager" puts the "Operation Manager"
+checklist first instead of sixth; when the all-words query finds fewer pages
+than asked, lexical search alone runs a phrase-OR fallback, adds those pages
+after the all-words ones and says so in one warning line, which the JSON reply
+and `search-all` now carry correctly. The four plan names return three of the
+four plans in the top ten, and all four in the top five with the plan filter
+(the owner's bar of 2026-10-07); the lexical eval replay rose from 18 to 22 of
+26. P16 is Completed. The ignored natural-language eval's "hybrid and auto beat
+lexical" assertion may break on its next manual run; it could not be measured
+here.
+
+Pages affected: `wiki/plans/search-ranking-weights-and-phrase-fallback.plan.md`,
+`wiki/specs/documentation-model.spec.md`,
+`wiki/decisions/search-backend-selection.decision.md`,
+`wiki/roadmaps/framework-v1.roadmap.md`, `wiki/index.md`.
+
 ## [2026-10-07] merge | Five short plans, and poman is MCP-friendly
 
 Merged #59 (closes #57; part of #29, #36, #37, #49 and #5): plans for compact
