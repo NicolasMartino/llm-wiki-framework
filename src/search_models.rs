@@ -581,8 +581,8 @@ pub fn classify_model_artifact_with_progress(
     })
 }
 
-/// Downloads `model` to `path` through `download_once`, retrying from zero up to
-/// three times, then checks its hash; progress for both steps goes to
+/// Downloads `model` to `path` through `download_once`, trying up to three
+/// times, each from zero, then checks its hash; progress for both steps goes to
 /// `reporter`. Production passes [`network_download`]; tests pass a fake.
 pub fn download_and_verify_model(
     model: SearchModel,

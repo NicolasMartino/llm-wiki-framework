@@ -278,6 +278,10 @@ fn enabled_install_reports_existing_model_hashing_as_bounded_stderr_lines() {
 }
 
 #[test]
+#[cfg_attr(
+    not(debug_assertions),
+    ignore = "needs the debug-only LLM_WIKI_TEST_MODEL_SOURCE hook; release builds would fetch the real models"
+)]
 fn verbose_enabled_install_reports_download_and_verify_progress_once() {
     let home = TempDir::new().expect("home");
     let source = home.path().join("wrong-model.gguf");
