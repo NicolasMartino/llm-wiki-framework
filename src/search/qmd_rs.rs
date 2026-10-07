@@ -5,6 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
+use llm_wiki_core::page::Page;
 use qmd::Store;
 use rusqlite::{Connection, OpenFlags, params};
 use serde::{Deserialize, Serialize};
@@ -15,7 +16,6 @@ use crate::search::adapter::{
     MatchSpan, Score, SearchBackend, SearchFilters, SearchMode, SearchResult,
 };
 use crate::search::index_text::mask_search_ignored_spans;
-use crate::search::metadata::parse_wiki_metadata;
 use crate::search::sanitize::{query_terms, sanitize_fts_query};
 
 const BACKEND_NAME: &str = "qmd-rs";
@@ -53,12 +53,11 @@ impl SearchBackend for QmdRsBackend {
             let raw_body = fs::read_to_string(&doc.absolute_path)
                 .with_context(|| format!("read {}", doc.absolute_path.display()))?;
             let body = mask_search_ignored_spans(&raw_body);
-            let metadata = parse_wiki_metadata(&body);
+            let metadata = Page::read(&body).wiki_view();
             let title = metadata
-                .title
-                .clone()
+                .title()
                 .filter(|value| !value.is_empty())
-                .unwrap_or_else(|| Store::extract_title(&body));
+                .map_or_else(|| Store::extract_title(&body), ToString::to_string);
             let hash = Store::hash_content(&body);
             let modified_at = rfc3339(doc.modified)?;
             store.insert_content(&hash, &body, &modified_at)?;
@@ -136,7 +135,7 @@ impl SearchBackend for QmdRsBackend {
             results.clear();
 
             for raw in raw_results {
-                let metadata = parse_wiki_metadata(&raw.body);
+                let metadata = Page::read(&raw.body).wiki_view();
                 let document_class = metadata.document_class().map(ToString::to_string);
                 let doc_status = metadata.status().map(ToString::to_string);
                 if !filters.matches(document_class.as_deref(), doc_status.as_deref()) {
@@ -150,10 +149,9 @@ impl SearchBackend for QmdRsBackend {
                     project_name: None,
                     path: PathBuf::from(&raw.path),
                     title: metadata
-                        .title
-                        .clone()
+                        .title()
                         .filter(|value| !value.is_empty())
-                        .unwrap_or(raw.title),
+                        .map_or(raw.title, ToString::to_string),
                     document_class,
                     status: doc_status,
                     score: Score(raw.score),

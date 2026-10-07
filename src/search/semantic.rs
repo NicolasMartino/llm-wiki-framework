@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, bail};
+use llm_wiki_core::page::Page;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -12,7 +13,6 @@ use crate::search::adapter::{
 };
 use crate::search::gguf_runtime::{self, GgufRuntimeReport};
 use crate::search::index_text::mask_search_ignored_spans;
-use crate::search::metadata::parse_wiki_metadata;
 use crate::search::qmd_rs::{WalkEntry, classify_walk_entry};
 use crate::search_models::{
     ADAPTER_SCHEMA_VERSION, ModelArtifactRecord, ModelArtifacts, QMD_RS_VERSION,
@@ -147,12 +147,11 @@ impl SemanticIndexMetadata {
             let raw_body = fs::read_to_string(&doc.absolute_path)
                 .with_context(|| format!("read {}", doc.absolute_path.display()))?;
             let body = mask_search_ignored_spans(&raw_body);
-            let metadata = parse_wiki_metadata(&body);
+            let metadata = Page::read(&body).wiki_view();
             let title = metadata
-                .title
-                .clone()
+                .title()
                 .filter(|value| !value.is_empty())
-                .unwrap_or_else(|| doc.canonical_path.clone());
+                .map_or_else(|| doc.canonical_path.clone(), ToString::to_string);
             for (ordinal, chunk) in chunk_document(&body, CHUNK_SIZE_CHARS, CHUNK_OVERLAP_CHARS)
                 .into_iter()
                 .enumerate()

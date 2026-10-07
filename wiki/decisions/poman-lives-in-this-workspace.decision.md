@@ -26,6 +26,8 @@
     and release poman joins
   - `wiki/roadmaps/poman.roadmap.md`: PM1 (the workspace and the gates), PM2
     (the shared reader and types), PM8 (the ratchet)
+  - `wiki/plans/poman-shared-page-reader-and-types.plan.md`: PM2, which
+    settled how the reader serves both forms
 
 ## Decision
 
@@ -130,12 +132,15 @@ this project is held to the strictest gates.**
 - `rust-toolchain.toml` pins the toolchain for the whole repository, but
   llm-wiki-rs does not take the lint table, so the ratchet starts from nothing
   of llm-wiki switched to strict.
-- The parser moves crate, so llm-wiki's search reads pages through the shared
-  crate (today `src/search/qmd_rs.rs` and `src/search/semantic.rs` import
-  it), and the parser is rewritten to the strictest gates as it moves. The parser also accepts
-  `---` front matter and bold `**Key:**` lines today, while poman's own types
-  use the bullet block only; how the shared reader serves both is PM2's to
-  settle. Whoever does the work rechecks every caller.
+- The parser moved crate in PM2, rewritten to the strictest gates:
+  llm-wiki's search reads pages through `llm-wiki-core`'s `page` module
+  (`src/search/qmd_rs.rs` and `src/search/semantic.rs` call it), and
+  `src/search/metadata.rs` is gone. One pass finds the title and every field
+  with its line, block and form. Its wiki view gives search what the old
+  parser gave, `---` front matter and bold `**Key:**` lines included; its
+  bullet-block view gives poman the `- Key: Value` block under the title and,
+  apart, every field found in another block or form with its line, so poman
+  can refuse those by name.
 - The shared crate is `llm-wiki-core`, with a `types` module inside it (the
   owner, 2026-10-06); its first piece is splitting a wiki filename into its
   parts.
@@ -153,8 +158,12 @@ this project is held to the strictest gates.**
   (2026-10-06), and `llm-wiki install` still finds poman beside itself once
   both are unpacked into one folder or installed by dist's shell installers.
 - `templates/base/project_guidelines.md` keeps describing the wiki's types for
-  people and agents; once the types are also defined in code, the two must say
-  the same, which PM2 makes sure of.
+  people and agents. Since PM2 the nine are also defined in `llm-wiki-core`'s
+  `types` module, `llm-wiki init` takes its core folders, index sections and
+  the ML pack's experiment and eval rows from them, and a test renders the
+  guidelines with and without the ML pack and fails when the two stop saying
+  the same thing (`tests/guidelines_types.rs`). The packs' other types stay
+  in `src/init/packs.rs` for now.
 
 ## What Would Revisit This
 

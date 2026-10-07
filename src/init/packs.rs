@@ -3,6 +3,8 @@ use std::str::FromStr;
 
 use anyhow::{Result, bail};
 use askama::Template;
+use llm_wiki_core::types::DocumentType;
+use llm_wiki_core::types::llm_wiki::{EVAL, EXPERIMENT};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
@@ -26,6 +28,17 @@ pub struct DocType {
     pub name: &'static str,
     pub suffix: &'static str,
     pub folder: &'static str,
+}
+
+impl DocType {
+    /// A pack's row for one of llm-wiki's own document types.
+    const fn defined(doc_type: DocumentType) -> Self {
+        Self {
+            name: doc_type.name,
+            suffix: doc_type.suffix,
+            folder: doc_type.folder,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -53,16 +66,8 @@ const LIBRARY_DOC_TYPES: &[DocType] = &[DocType {
 }];
 
 const ML_DOC_TYPES: &[DocType] = &[
-    DocType {
-        name: "Experiment",
-        suffix: "experiment.md",
-        folder: "wiki/experiments",
-    },
-    DocType {
-        name: "Eval",
-        suffix: "eval.md",
-        folder: "wiki/evals",
-    },
+    DocType::defined(EXPERIMENT),
+    DocType::defined(EVAL),
     DocType {
         name: "Model Card",
         suffix: "model-card.md",
@@ -136,15 +141,8 @@ const RESEARCH_DOC_TYPES: &[DocType] = &[
 const EMPTY_DOC_TYPES: &[DocType] = &[];
 
 const ML_STATUS: &[StatusEntry] = &[StatusEntry {
-    document_class: "Evals",
-    statuses: &[
-        "Planned",
-        "Baseline",
-        "Candidate",
-        "Accepted",
-        "Rejected",
-        "Superseded",
-    ],
+    document_class: EVAL.plural,
+    statuses: EVAL.statuses,
 }];
 
 const OPS_STATUS: &[StatusEntry] = &[
@@ -278,8 +276,8 @@ impl Pack {
             Pack::Frontend => &["wiki/designs", "wiki/components", "raw/screenshots"],
             Pack::Library => &["wiki/compatibility", "examples"],
             Pack::Ml => &[
-                "wiki/experiments",
-                "wiki/evals",
+                EXPERIMENT.folder,
+                EVAL.folder,
                 "wiki/model-cards",
                 "models",
                 "notebooks",
