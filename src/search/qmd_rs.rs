@@ -1980,4 +1980,76 @@ Visible calibration evidence.",
 
         assert_eq!(search.fallback_pages, 0);
     }
+
+    #[test]
+    fn the_phrase_fallback_grows_its_window_under_a_filter() {
+        let temp = tempfile::TempDir::new().expect("tempdir");
+        let wiki = temp.path().join("wiki");
+        fs::create_dir_all(wiki.join("decisions")).expect("decisions dir");
+        fs::create_dir_all(wiki.join("plans")).expect("plans dir");
+        fs::write(
+            wiki.join("plans/both.plan.md"),
+            "# Both Plan\n\n- Document Class: Plan\n- Status: Active\n\n## Work\nThe alpha-beta switch and the gamma-delta switch.",
+        )
+        .expect("both plan");
+        // Short decisions named after the phrase outrank the two plans in the
+        // phrase query, filling the first window with pages the filter drops.
+        for index in 0..30 {
+            fs::write(
+                wiki.join(format!("decisions/alpha-beta-{index:02}.decision.md")),
+                format!(
+                    "# Alpha Beta {index:02}\n\n- Document Class: Decision\n- Status: Accepted\n\n## Decision\nAlpha beta."
+                ),
+            )
+            .expect("decision");
+        }
+        // Unrelated pages keep "alpha" and "beta" under half the pages, where
+        // BM25 would give them almost no weight.
+        for index in 0..70 {
+            fs::write(
+                wiki.join(format!("decisions/other-{index:02}.decision.md")),
+                format!("# Other {index:02}\n\n- Document Class: Decision\n\nUnrelated."),
+            )
+            .expect("other decision");
+        }
+        let filler = "Unrelated planning words fill this page. ".repeat(40);
+        for index in 0..2 {
+            fs::write(
+                wiki.join(format!("plans/late-{index}.plan.md")),
+                format!(
+                    "# Late Plan {index}\n\n- Document Class: Plan\n- Status: Active\n\n## Work\n{filler}Once, the gamma-delta switch."
+                ),
+            )
+            .expect("late plan");
+        }
+        let store = temp.path().join("qmd-rs.sqlite");
+        let backend = QmdRsBackend::new();
+        backend
+            .index_project("fixture", &wiki, &store, &IndexOptions { force: true })
+            .expect("index");
+        let plans_only = SearchFilters {
+            document_class: Some("plan".to_string()),
+            status: None,
+        };
+
+        let search = backend
+            .search_project_with_phrase_fallback(
+                "fixture",
+                &store,
+                &wiki,
+                "alpha-beta gamma-delta",
+                &plans_only,
+                3,
+            )
+            .expect("search");
+
+        let mut found = paths(&search.results);
+        assert_eq!(found.remove(0), "wiki/plans/both.plan.md");
+        found.sort();
+        assert_eq!(
+            found,
+            ["wiki/plans/late-0.plan.md", "wiki/plans/late-1.plan.md"]
+        );
+        assert_eq!(search.fallback_pages, 2);
+    }
 }
