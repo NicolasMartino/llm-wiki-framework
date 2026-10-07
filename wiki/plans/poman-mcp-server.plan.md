@@ -156,14 +156,23 @@ before any real release.
 - **What it saves first**, in a dated folder under
   `~/.llm_wiki/local-release/`: every file of the managed home except the
   models and indexes, every file the manifest lists, and the Codex config with
-  its backup, with a list of which existed.
+  its backup, with a list of which existed; right after the install, each of
+  those places' hash as the release left it. A `HOME` written another way
+  (`/home/u/`) names the same places.
 - **`just local-release-revert`** restores the newest saved state exactly:
-  each saved file put back, and each file the release added (one the saved
-  list did not hold, among the same places and the files the release's
-  manifest lists) removed.
+  each saved file put back, and each file that was not there before removed.
+  It never throws away a change made after the release (a trusted project in
+  the Codex config, an accepted licence, a search setting): while a file
+  differs from the release's hash, it refuses, names each such file and the
+  command below, and changes nothing. `just local-release-revert --overwrite`
+  copies each of them into the save's `after-release/` folder, says where,
+  and reverts. It fails, and never says it reverted, when any place does not
+  come back as saved (the owner's ask, 2026-10-07: a revert that is easy and
+  safe; #62's second review).
 - **Both commands are in `README.md`.** Neither is ever run here against the
   real `~/.llm_wiki`, which serves every session on this machine; they are
-  proved under a temporary `HOME`.
+  proved under a temporary `HOME` by `tools/local-release-test.sh`, which
+  `just verify` runs.
 - **The owner's test follows:** with the local release installed, the owner
   uses poman on the riseon repository; no worker touches that repository.
 
@@ -217,7 +226,9 @@ and its revert run there.
 (the `mcp` subcommand and `--json`), `src/mcp/mod.rs`, `src/mcp_config.rs`,
 `src/mcp_wiring.rs`, `src/install.rs`, `src/uninstall.rs`, their tests, the
 lock file, the `justfile`, `tools/local-release.sh` (the coordinator's yes,
-2026-10-07) and `README.md`.
+2026-10-07), `tools/local-release-state.py` and `tools/local-release-test.sh`
+(the coordinator's yes, 2026-10-07, in #62's second fix round) and
+`README.md`.
 
 ### What Closes This Plan
 

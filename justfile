@@ -83,7 +83,7 @@ verify-coverage: fmt coverage checks
 
 # The gates `verify` and `verify-coverage` share; one list, so they cannot
 # drift apart.
-checks: test-tools clippy-strict audit-legacy branch-status-test
+checks: test-tools clippy-strict audit-legacy branch-status-test local-release-test
 
 # The integration test files that take longest; they run in `just verify` and
 # the full CI, not in `just fast-check`.
@@ -148,9 +148,11 @@ release-guard:
 local-release *args: release-guard
     tools/local-release.sh install {{args}}
 
-# Puts back exactly what the newest `just local-release` saved.
-local-release-revert: release-guard
-    tools/local-release.sh revert
+# Puts back exactly what the newest `just local-release` saved, but refuses
+# while a file changed after the release; `--overwrite` keeps a copy of each
+# and reverts anyway.
+local-release-revert *args: release-guard
+    tools/local-release.sh revert {{args}}
 
 release-plan: release-guard
     dist plan
@@ -227,6 +229,11 @@ git-summary:
 # `just branch-status` against a scratch origin; `just verify` runs it.
 branch-status-test:
     bash tools/branch-status-test.sh
+
+# The local release's save and revert under a temporary HOME; `just verify`
+# runs it.
+local-release-test:
+    bash tools/local-release-test.sh
 
 # The commit on develop where statuses moved into PRs (#32, 2026-10-06). A plan
 # that already named its branch there keeps the line until its own PR completes

@@ -68,14 +68,19 @@ archives and install from them, then go back to what was installed before:
 
 ```bash
 just local-release          # flags after it go to `llm-wiki install`
-just local-release-revert
+just local-release-revert   # `--overwrite` to revert over later changes
 ```
 
 `just local-release` builds the archives with cargo-dist for this machine (no
 tag, nothing published), saves what is installed now in a dated folder under
 `~/.llm_wiki/local-release/`, and runs the archives' `llm-wiki install`.
-`just local-release-revert` puts back exactly the newest saved state: the
-managed binaries, the manifest and every file it lists, and the Codex config. A
+`just local-release-revert` puts back exactly the newest saved state: every
+file of `~/.llm_wiki` but its models and indexes (the binaries, the manifest,
+the settings such as `search.toml` and `accepted-licenses.toml`), every file
+the manifest lists, and the Codex config with its backup. If one of those
+changed after the release, it refuses, names each such file and changes
+nothing; `just local-release-revert --overwrite` reverts anyway, first copying
+each of them into the save's `after-release/` folder, and says where. A
 project's `.mcp.json` that `llm-wiki register` changes afterwards is not part
 of it.
 
