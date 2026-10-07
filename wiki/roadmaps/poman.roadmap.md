@@ -192,6 +192,30 @@ Proof:
 
 ---
 
+### PM3.2 - doctor Checks poman's MCP Wiring
+
+Status: Draft
+Promise: `llm-wiki doctor` reports poman's MCP server wiring the way it
+reports llm-wiki's, so a missing or stale poman entry in a host's config is
+found without opening the config by hand.
+Depends On: PM3.1
+Execution Plan: Not created yet
+
+Included:
+- the gap PM3.1's build left (PR #62, 2026-10-07): doctor checks the managed
+  poman binary and its hash, and llm-wiki's own server wiring, but not
+  poman's server entry in the Codex config or a project's `.mcp.json`
+- a finding for each, with the command that repairs it
+
+Excluded:
+- what install writes, and poman's tools
+
+Proof:
+- an install into a redirected home with poman's entry removed or pointing
+  elsewhere makes doctor report it, and a fresh install reports nothing
+
+---
+
 ### PM4 - Where poman check Runs
 
 Status: Draft
