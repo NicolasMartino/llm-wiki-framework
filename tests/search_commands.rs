@@ -1194,6 +1194,79 @@ fn compact_hybrid_rerank_keeps_the_limit_hits_and_says_when_more_match() {
     assert_eq!(paths(&reranked), expected);
 }
 
+#[test]
+fn compact_semantic_search_says_when_more_match_than_the_limit() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project_with_matching_pages(workspace.path(), "Semantic", 13);
+    register_project(home.path(), &project);
+    write_enabled_search_profile_with_fake_artifacts(home.path());
+    write_search_thresholds(home.path());
+    llm_wiki(home.path())
+        .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let semantic = |limit: &str| {
+        let mut command = llm_wiki(home.path());
+        command.env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic");
+        let args = [
+            "--project",
+            "fixture",
+            "--mode",
+            "semantic",
+            "--limit",
+            limit,
+        ];
+        run_compact_with(command, "search", &args)
+    };
+
+    let more = semantic("12");
+    assert_eq!(more["selected_mode"], "semantic");
+    assert_eq!(more["results"].as_array().expect("results").len(), 12);
+    assert_eq!(more["has_more"], true);
+
+    let all = semantic("13");
+    assert_eq!(all["results"].as_array().expect("results").len(), 13);
+    assert_eq!(all["has_more"], false);
+}
+
+#[test]
+fn compact_hybrid_says_when_more_match_from_a_limit_of_twenty() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project_with_matching_pages(workspace.path(), "Hybrid", 25);
+    register_project(home.path(), &project);
+    write_enabled_search_profile_with_fake_artifacts(home.path());
+    write_search_thresholds(home.path());
+    llm_wiki(home.path())
+        .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let search = |mode: &str, limit: &str| {
+        let mut command = llm_wiki(home.path());
+        command
+            .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+            .env("LLM_WIKI_TEST_QUERY_EXPANSION", "deterministic");
+        let args = ["--project", "fixture", "--mode", mode, "--limit", limit];
+        run_compact_with(command, "search", &args)
+    };
+
+    for mode in ["hybrid", "auto"] {
+        let more = search(mode, "20");
+        assert_eq!(more["selected_mode"], "hybrid", "{mode}");
+        assert_eq!(more["results"].as_array().expect("results").len(), 20);
+        assert_eq!(more["has_more"], true, "{mode}");
+
+        let all = search(mode, "25");
+        assert_eq!(all["results"].as_array().expect("results").len(), 25);
+        assert_eq!(all["has_more"], false, "{mode}");
+    }
+}
+
 fn compact_search(home: &Path, extra: &[&str]) -> Value {
     run_compact(home, "search", extra)
 }
