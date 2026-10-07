@@ -830,7 +830,7 @@ Proof:
 
 ### P8 - Working build-skills Recipes
 
-Status: Draft
+Status: Completed (develop)
 Promise: `just build-skills` and `just build-skills-to <out>` do what their
 names say, or are gone, instead of failing with "unrecognized subcommand
 'build'".
@@ -844,7 +844,7 @@ Included:
 
 Proof:
 - each recipe runs and produces its output, or it no longer exists and no page
-  names it
+  tells anyone to run it (pages that record the failure as history stay)
 
 ### P9 - Search Ranks A Page's Own Title Low
 

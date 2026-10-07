@@ -1,5 +1,17 @@
 # Wiki Log
 
+## [2026-10-07] merge | The dead build-skills recipes are gone
+
+Merged #65 (closes #5): `just build-skills` and `just build-skills-to` failed
+with "unrecognized subcommand 'build'" since the skill renderer was retired in
+the MCP-first move, and nothing in the repository or its CI called them; both
+recipes are removed rather than repaired, and the pages that record the
+failure stay as history. Both of the plan's choices were taken by the
+coordinator while the owner was away. P8 is Completed.
+
+Pages affected: `wiki/plans/build-skills-recipes.plan.md`,
+`wiki/roadmaps/framework-v1.roadmap.md`, `wiki/index.md`.
+
 ## [2026-10-07] merge | The dependency gate covers dev-dependencies
 
 Merged #64 (closes #37): `cargo deny check` already rejected a banned crate
