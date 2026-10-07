@@ -59,9 +59,9 @@ it cannot misread, not only through a `next_offset` nobody documented.
   carries up to `limit` results; `page_size` stays the way to ask for smaller
   pages, and `offset` works as today. Search and search-all alike.
 - **The reply says when more exist**: one plain field that is true when more
-  pages match than this reply carries, past `limit` included, and false
-  otherwise, beside `next_offset`, which stays. The search asks the backend
-  for `limit + 1` hits and drops the extra one, so a default call (`page_size`
+  hits follow this page, whether kept or past `limit`, and false otherwise,
+  beside `next_offset`, which stays. The search asks the backend for
+  `limit + 1` hits and drops the extra one, so a default call (`page_size`
   unset, the page reaching `limit`) still says whether more matched.
 - **Written down**: the MCP schemas of both search tools describe `limit`,
   `page_size` (its default), `offset`, `next_offset` and the new field; a spec
@@ -97,6 +97,7 @@ hits arrived whole, about 3.6 KB, with no CCR marker and no field dropped.
 Not covered: the Codex (OpenAI Responses) path, where the earlier field tests
 saw compression, which needs a nested agent run.
 
+## The Owner's Choices
 
 Both recommendations below were taken by the coordinator on 2026-10-07 while
 the owner was away, to be confirmed by the owner's verdict on PR #61.

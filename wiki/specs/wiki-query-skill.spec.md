@@ -60,6 +60,8 @@ With `compact` set, `llm_wiki_search` and `llm_wiki_search_all` (and
 
 To learn `has_more`, the search asks for one hit past `limit` and drops it;
 the hits it keeps, and the pool a reranker orders, are the same as without it.
+A hybrid search also lets each branch bring in one hit past its window, and
+fuses that wider window only to learn whether a hit past `limit` survives.
 
 ## Skill Source
 
@@ -78,7 +80,10 @@ Invocation:
   fallback, and zero-result metadata the skill inspects.
 - `tests/search_commands.rs` proves the compact paging contract
   (`compact_search_page_follows_the_limit_and_says_when_more_match`, its two
-  search-all twins and
-  `compact_hybrid_rerank_keeps_the_limit_hits_and_says_when_more_match`), and
+  search-all twins,
+  `compact_search_with_phrase_fallback_pages_follows_the_limit_and_says_when_more_match`,
+  `compact_semantic_search_says_when_more_match_than_the_limit`,
+  `compact_hybrid_rerank_keeps_the_limit_hits_and_says_when_more_match` and
+  `compact_hybrid_says_when_more_match_from_a_limit_of_twenty`), and
   `tests/mcp.rs` the tools' schemas (`mcp_search_tools_describe_compact_paging`).
 - `wiki/evals/natural-language-search.eval.md` measures the underlying search.

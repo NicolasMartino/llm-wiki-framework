@@ -4,9 +4,11 @@
 
 Merged #61 (closes #29): a compact search page now holds up to the limit
 asked for, ten hits by default instead of three, and a new `has_more` field is
-true when more hits follow the page, kept or past the limit. The look-ahead
-that learns it is cut before fusion and rerank, so full replies, reranked
-searches and the search eval are unchanged. The contract is in the query
+true when more hits follow the page, kept or past the limit. The search asks
+for one hit past the limit, and a hybrid search widens each branch by one hit
+only to learn whether a hit past the limit survives fusion; the kept hits and the rerank pool
+stay as they were, so full replies, reranked searches and the search eval are
+unchanged. The contract is in the query
 skill's spec; both of the plan's choices (that spec, and the name `has_more`)
 were taken by the coordinator while the owner was away, for the owner's
 verdict to confirm. A Headroom probe on the Claude path found all ten hits
