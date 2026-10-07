@@ -1,5 +1,22 @@
 # Wiki Log
 
+## [2026-10-07] merge | Search says when its index is stale, and rebuilds a small one
+
+Merged #63 (closes #36): after pages change, a word-match project's search
+rebuilds its stale index before answering when the lock is free and the cache
+is writable; otherwise it answers with a warning that gives the reason and the
+next step, the exact index command for the running binary, or to search again
+in a moment while another process holds the lock, which the warning names.
+`rebuild_stale_index = false` in the project's `search.toml` turns it off;
+`search-all` and projects with meaning-based search on only warn. The rebuild
+keeps a project's meaning-based files, and an `index` that meets a rebuilding
+search says so, since the lock now names its holder. The search backend
+decision gained its stale index contract. P21 is Completed.
+
+Pages affected: `wiki/plans/search-stale-index-warning-and-rebuild.plan.md`,
+`wiki/decisions/search-backend-selection.decision.md`,
+`wiki/roadmaps/framework-v1.roadmap.md`, `wiki/index.md`.
+
 ## [2026-10-07] merge | Five short plans, and poman is MCP-friendly
 
 Merged #59 (closes #57; part of #29, #36, #37, #49 and #5): plans for compact
