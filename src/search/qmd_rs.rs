@@ -81,7 +81,7 @@ impl QmdRsBackend {
                 &phrase_query,
                 query,
                 filters,
-                limit + all_words_pages,
+                limit.saturating_add(all_words_pages),
             )?;
             for result in fallback {
                 if results.len() == limit {
@@ -1991,6 +1991,26 @@ Visible calibration evidence.",
         unique.sort();
         unique.dedup();
         assert_eq!(unique.len(), found.len(), "a page repeated: {found:?}");
+    }
+
+    #[test]
+    fn the_phrase_fallback_takes_the_largest_limit() {
+        let (_temp, wiki, store, backend) = indexed_search_eval_wiki();
+        let query = "three phase ingest extraction drafting bookkeeping";
+
+        let search = backend
+            .search_project_with_phrase_fallback(
+                "fixture",
+                &store,
+                &wiki,
+                query,
+                &SearchFilters::default(),
+                usize::MAX,
+            )
+            .expect("search");
+
+        assert!(search.results.len() > search.fallback_pages);
+        assert!(search.fallback_pages > 0);
     }
 
     #[test]

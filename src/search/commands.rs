@@ -1033,6 +1033,13 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
         for (rank, result) in results.iter_mut().enumerate() {
             result.project_id = project.id.clone();
             result.project_name = Some(project.name.clone());
+            // Fallback pages are ranked among themselves, then placed after
+            // every project's all-words pages below.
+            let rank = if rank < all_words_pages {
+                rank
+            } else {
+                rank - all_words_pages
+            };
             let rrf = 1.0 / (60.0 + rank as f64 + 1.0);
             let key = (
                 result.project_id.clone(),
@@ -1053,10 +1060,16 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
     }
 
     let mut results = fused.into_values().collect::<Vec<_>>();
+    let is_fallback = |fused: &FusedResult| {
+        fallback_keys.contains(&(
+            fused.result.project_id.clone(),
+            fused.result.path.to_string_lossy().to_string(),
+        ))
+    };
     results.sort_by(|left, right| {
-        right
-            .score
-            .total_cmp(&left.score)
+        is_fallback(left)
+            .cmp(&is_fallback(right))
+            .then_with(|| right.score.total_cmp(&left.score))
             .then_with(|| left.result.project_id.cmp(&right.result.project_id))
             .then_with(|| left.result.path.cmp(&right.result.path))
     });
@@ -2744,7 +2757,7 @@ fn explain_lexical_no_results(
 
     if filters_active(context.filters) {
         let unfiltered_count = backend
-            .search_project(
+            .search_project_with_phrase_fallback(
                 context.project_id,
                 context.store_path,
                 context.wiki_root,
@@ -2752,7 +2765,7 @@ fn explain_lexical_no_results(
                 &SearchFilters::default(),
                 context.limit.max(1),
             )
-            .map(|results| results.len())
+            .map(|search| search.results.len())
             .unwrap_or(0);
         if unfiltered_count > 0 {
             return Some("filters excluded all matched hits".to_string());
@@ -3835,8 +3848,8 @@ fn shown_phrase_fallback_warnings(
 }
 
 /// One project's line when the phrase fallback added pages to the reply. In a
-/// single-project reply they are its last results; in search-all, fusion
-/// places them among other projects' results.
+/// single-project reply they are its last results; in search-all, they come
+/// after every project's all-words results.
 fn phrase_fallback_warning(
     project_id: &str,
     shown_pages: usize,
@@ -3844,7 +3857,9 @@ fn phrase_fallback_warning(
 ) -> Option<SearchWarning> {
     let which = match placement {
         FallbackPlacement::Last => format!("the last {shown_pages} result(s)"),
-        FallbackPlacement::Fused => format!("{shown_pages} result(s) from this project"),
+        FallbackPlacement::Fused => {
+            format!("{shown_pages} result(s) from project {project_id}")
+        }
     };
     (shown_pages > 0).then(|| SearchWarning {
         project_id: project_id.to_string(),

@@ -110,9 +110,10 @@ Validated search behavior:
   quote or a backtick; hyphens, slashes and dots inside it join its words), the
   phrases joined by OR, and adds the new pages after the all-words ones. The
   reply's warnings, in text and in JSON, then say in one line how many results
-  hold only some of the query; in `search-all`, one line per project counts
-  only its fallback pages among the results shown. Hybrid's lexical branch
-  never takes this fallback.
+  hold only some of the query; `search-all` places every project's fallback
+  pages after every project's all-words pages, and one line per project, naming
+  it, counts only its fallback pages among the results shown. Hybrid's lexical
+  branch never takes this fallback.
 - Hybrid is the promoted natural-language path; semantic-only mode is
   diagnostic and not the promotion surface.
 - Thresholds are scoped by project/corpus, profile, embedding artifact,

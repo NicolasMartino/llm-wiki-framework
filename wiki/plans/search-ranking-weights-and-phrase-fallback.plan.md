@@ -271,7 +271,13 @@ on the code it fixes: the fallback's window growth under a filter (fails
 with a fixed window), the fallback line in the JSON reply beside a stale
 index's line, and search-all naming only the fallback pages it prints (both
 fail on the reviewed head, which kept only the first warning in JSON and
-copied each project's line before fusion and the limit).
+copied each project's line before fusion and the limit). The second review's
+fix round added four, each failing on its reviewed head: search-all keeping
+every project's all-words pages above any project's fallback pages (one
+project's partial matches had pushed another's full matches out of the
+reply), the search-all line naming its project, a filter that drops every
+fallback page reported as such, and the largest `--limit` not overflowing
+the fallback's window.
 
 **Phase 5, the impacts:**
 - `tests/snapshots/`: no change. `tests/search_commands.rs`: no existing
@@ -279,8 +285,9 @@ copied each project's line before fusion and the limit).
   reply's `warnings` list now holds every warning (`warning` still holds the
   first), so the stale-index line and the fallback line both reach the MCP
   tool. In search-all, the line counts only the fallback pages among the
-  printed results, per project, and does not call them "the last", since
-  fusion places them among other projects' results.
+  printed results, per project, names the project, and does not call them
+  "the last": search-all fuses every project's all-words pages first and the
+  fallback pages after them, ranked among themselves.
 - Hybrid: its lexical branch gets the weights and never the fallback
   (`hybrid_lexical_branch_search`, tested); results not tuned.
 - The eval page's lexical column, replayed through

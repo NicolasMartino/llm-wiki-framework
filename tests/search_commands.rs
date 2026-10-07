@@ -1844,9 +1844,133 @@ fn search_all_names_only_the_phrase_fallback_pages_it_shows() {
         .collect::<Vec<_>>();
     assert_eq!(fallback.len(), 1, "{warnings:?}");
     assert!(
-        fallback[0].contains("3 result(s) from this project") && !fallback[0].contains("the last"),
+        fallback[0].contains("3 result(s) from project fixture")
+            && !fallback[0].contains("the last"),
         "{}",
         fallback[0]
+    );
+}
+
+#[test]
+fn search_all_keeps_every_projects_all_words_pages_above_phrase_fallback_pages() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    fs::create_dir_all(workspace.path().join("a")).expect("a");
+    fs::create_dir_all(workspace.path().join("b")).expect("b");
+    // One page in A holds every word, so A's three partial pages would rank
+    // 2nd to 4th inside A; B has 25 pages that hold every word.
+    let a = phrase_fallback_project(&workspace.path().join("a"), 1);
+    let b = phrase_fallback_project(&workspace.path().join("b"), 25);
+    for partial in 0..3 {
+        fs::remove_file(b.join(format!("wiki/decisions/partial-{partial:02}.decision.md")))
+            .expect("remove b partial");
+    }
+    register_project_with_id(home.path(), &a, "aproj");
+    register_project_with_id(home.path(), &b, "bproj");
+    llm_wiki(home.path())
+        .args(["index-all", "--force"])
+        .assert()
+        .success();
+
+    let search_all = |limit: &str, format: &str| {
+        let output = llm_wiki(home.path())
+            .args([
+                "search-all",
+                "--mode",
+                "lexical",
+                "--limit",
+                limit,
+                "--format",
+                format,
+                "--",
+                "alpha-beta gamma-delta",
+            ])
+            .output()
+            .expect("search-all output");
+        assert!(output.status.success());
+        output.stdout
+    };
+
+    let ten: Value = serde_json::from_slice(&search_all("10", "json")).expect("json");
+    let results = ten["results"].as_array().expect("results");
+    assert_eq!(results.len(), 10);
+    for result in results {
+        let path = result["path"].as_str().expect("path");
+        assert!(
+            path.contains("/full-"),
+            "a partial match shown: {results:?}"
+        );
+    }
+    assert!(
+        !json_warnings(&ten)
+            .iter()
+            .any(|message| message.contains("phrase search"))
+    );
+
+    // With room for all 26 full pages, A's partial pages come after them,
+    // and the text line names the project they come from.
+    let thirty: Value = serde_json::from_slice(&search_all("30", "json")).expect("json");
+    let paths = thirty["results"]
+        .as_array()
+        .expect("results")
+        .iter()
+        .map(|result| result["path"].as_str().expect("path").to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(paths.len(), 29, "{paths:?}");
+    assert!(
+        paths[..26].iter().all(|path| path.contains("/full-")),
+        "{paths:?}"
+    );
+    assert!(
+        paths[26..].iter().all(|path| path.contains("/partial-")),
+        "{paths:?}"
+    );
+    let text = String::from_utf8(search_all("30", "text")).expect("utf8");
+    assert!(text.contains("3 result(s) from project aproj"), "{text}");
+}
+
+#[test]
+fn search_reports_a_filter_that_drops_every_phrase_fallback_page() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = phrase_fallback_project(workspace.path(), 1);
+    register_project(home.path(), &project);
+    llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let search = |class: Option<&str>| -> Value {
+        let mut command = llm_wiki(home.path());
+        command.args([
+            "search",
+            "--project",
+            "fixture",
+            "--mode",
+            "lexical",
+            "--format",
+            "json",
+        ]);
+        if let Some(class) = class {
+            command.args(["--class", class]);
+        }
+        let output = command
+            .args(["--", "alpha-beta zeta-eta"])
+            .output()
+            .expect("search output");
+        assert!(output.status.success());
+        serde_json::from_slice(&output.stdout).expect("search json")
+    };
+
+    assert_eq!(
+        search(None)["results"].as_array().expect("results").len(),
+        4
+    );
+    let filtered = search(Some("plan"));
+    assert!(filtered["results"].as_array().expect("results").is_empty());
+    assert_eq!(
+        filtered["zero_result_reason"],
+        "filters excluded all matched hits"
     );
 }
 
