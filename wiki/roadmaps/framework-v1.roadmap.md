@@ -1180,3 +1180,26 @@ Excluded:
 
 Proof:
 - the plan's Done When
+
+### P23 - The Search Eval Runs In A Temporary Home
+
+Status: Draft
+Promise: The hand-run search eval runs on any machine through one `just`
+recipe that registers and indexes its project in a temporary home, without
+touching the machine's real llm-wiki registry.
+Depends On: None
+Execution Plan: Not created yet (a short plan comes before its worker)
+
+Included:
+- the gap met in poman's PM1 and PM2 (2026-10-06 and 2026-10-07): the ignored
+  `tests/natural_language_search_eval.rs` needs the project id
+  `llm-wiki-framework-semantic-search` registered with its managed models, and
+  nothing says how
+- a recipe, and the eval page naming it
+
+Excluded:
+- what the eval measures, and its floors
+
+Proof:
+- the recipe runs the eval with that project unregistered on the machine, and
+  the real registry is unchanged afterwards
