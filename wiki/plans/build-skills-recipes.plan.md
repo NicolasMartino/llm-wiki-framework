@@ -1,8 +1,7 @@
 # Plan: Working build-skills Recipes
 
 - Document Class: Plan
-- Status: Active
-- Branch: `NicolasMartino/build-skills-5`
+- Status: Completed (develop)
 - Date: 2026-10-07
 - Category: Tooling
 - Scope: Carry out P8 of the framework roadmap: `just build-skills` and `just
