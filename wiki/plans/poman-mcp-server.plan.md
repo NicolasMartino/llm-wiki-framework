@@ -140,14 +140,11 @@ The decision's first list, rechecked:
    install never replaces the real registration; its binary and tool names
    do not change. Not chosen: a `poman-test` binary, which `install` would
    have to build and find beside a test llm-wiki.
-2. **How `poman push` asks to apply: an `apply` boolean**, false when left
-   out, so a call without it shows the changeset and changes nothing. PM6
-   builds it; this plan only names it.
-3. **Where hosts are wired: everywhere llm-wiki's server is** (install,
+2. **Where hosts are wired: everywhere llm-wiki's server is** (install,
    `init`, `register`), above. Not chosen: install's configurations only,
    which leaves Claude Code without poman, since it reads the project's
    `.mcp.json`.
-4. **Uninstall: removes poman's registration with llm-wiki's**, above.
+3. **Uninstall: removes poman's registration with llm-wiki's**, above.
 
 ### The local release and its revert
 
@@ -237,7 +234,7 @@ recommendation.
 1. **`run_cli` and the config writers stay with llm-wiki**, made general over
    the server, as "What moves" says. Not chosen: moving them into the shared
    crate, where poman would never call them.
-2. **The four open points** as answered above.
+2. **The three open points** as answered above.
 
 ## Out Of Scope
 
