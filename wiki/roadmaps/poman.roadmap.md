@@ -5,7 +5,7 @@
 - Date: 2026-10-06
 - Category: poman development
 - Scope: The order in which poman, the project-management binary, is built: the workspace and the gates, the shared types, the
-  deadline type, seeing the deadlines, the tracker sync, the forecast and what
+  deadline type, poman's MCP server, seeing the deadlines, the tracker sync, the forecast and what
   follows it, and the ratchet that brings llm-wiki's own code to the same
   gates.
 - Sources:
@@ -16,6 +16,8 @@
   - The owner's decision, 2026-10-07, on the poman track (#19), recorded
     here in PM3's Proof: PM3 is proved on the riseon repository as well as
     on fixtures
+  - The owner, 2026-10-07: "i think poman like llm wiki should mcp
+    friendly", recorded in PM3.1 and in each later entry's MCP line (#57)
 - Related:
   - `wiki/roadmaps/framework-v1.roadmap.md`, P5, which wrote this roadmap
   - `wiki/decisions/poman-lives-in-this-workspace.decision.md`
@@ -23,6 +25,7 @@
   - `wiki/decisions/deadline-files-hold-one-deadline-each.decision.md`
   - `wiki/decisions/poman-tree-and-list-show-the-files.decision.md`
   - `wiki/decisions/poman-syncs-a-tracker-the-way-git-syncs-a-remote.decision.md`
+  - `wiki/decisions/poman-is-mcp-friendly.decision.md`
   - `wiki/decisions/work-is-recorded-in-the-repository.decision.md`
 
 ## Objective
@@ -151,6 +154,40 @@ Proof:
 
 ---
 
+### PM3.1 - poman's MCP Server
+
+Status: Draft
+Promise: `poman mcp` serves poman's commands as MCP tools with the same
+behaviour and a JSON result, `llm-wiki install` registers it beside
+llm-wiki's server, and the MCP plumbing both servers use lives in
+`llm-wiki-core`, as `poman-is-mcp-friendly.decision.md` sets them (the owner,
+2026-10-07).
+Depends On: PM3
+Execution Plan: Not created yet (it comes when this entry starts)
+
+Included:
+- `poman mcp`, serving the commands PM3 adds: `poman_new_deadline`, which says
+  it writes a file and names it, and `poman_check`
+- the shared plumbing moved out of llm-wiki's server into `llm-wiki-core`
+  under the strictest gates, llm-wiki's server reading through it, and the
+  dependencies it brings into the shared crate
+- `llm-wiki install` registering poman's server beside llm-wiki's
+- the decision's open points: a test instance for poman, how `poman push` asks
+  to apply, where hosts are wired, and uninstall
+
+Excluded:
+- the tools of later entries' commands, which each entry ships with its
+  commands
+
+Proof:
+- each tool's result matches its command's JSON on the same fixture, and
+  `poman_new_deadline` writes the file `poman new deadline` writes
+- llm-wiki's MCP tests pass unchanged through the shared plumbing
+- an install into a redirected home registers both servers, and a host's
+  tool list shows poman's tools
+
+---
+
 ### PM4 - Where poman check Runs
 
 Status: Draft
@@ -161,6 +198,8 @@ pre-push hook stops it for those who turn it on, `poman push` keeps it off the
 tracker, and CI flags it once it is on the landing branch.
 Depends On: PM3; PM6 for the `poman push` refusal
 Execution Plan: Not created yet
+MCP: the refusals hold through the tools too: `poman_check` fails and
+`poman_push` refuses as their commands do (`poman-is-mcp-friendly.decision.md`).
 
 Included:
 - the opt-in pre-push hook, which runs only where it is turned on
@@ -189,6 +228,8 @@ Promise: `poman tree` and `poman list` show the files as
 Depends On: PM3 (the owner, 2026-10-06: their own deliverable, after the
 deadline commands)
 Execution Plan: Not created yet
+MCP: `poman tree` and `poman list` ship as MCP tools too
+(`poman-is-mcp-friendly.decision.md`).
 
 Included:
 - `poman tree` with `--invert` and the `(*)` repeat mark
@@ -215,6 +256,9 @@ a view of the repository's files, through an adapter, GitHub's first, as
 `poman-syncs-a-tracker-the-way-git-syncs-a-remote.decision.md` sets them.
 Depends On: PM3
 Execution Plan: Not created yet
+MCP: `poman fetch`, `poman diff` and `poman push` ship as MCP tools too, the
+push applying its changeset only when asked
+(`poman-is-mcp-friendly.decision.md`).
 
 Included:
 - poman's tracker-free model: items, links, the board, the mirror and the
@@ -250,6 +294,8 @@ Promise: poman tells each morning what must start, from the files alone, and
 keeps recurring obligations and absences in the repository.
 Depends On: PM3; PM6 for showing the forecast on the tracker
 Execution Plan: Not created yet (one plan per part, in the order below)
+MCP: its commands ship as MCP tools too
+(`poman-is-mcp-friendly.decision.md`).
 
 Included:
 - the forecast: the 15-day window, `should-start` computed backwards through
@@ -281,6 +327,8 @@ Promise: llm-wiki's existing modules reach the strictest gates one at a time,
 and none slips back once switched.
 Depends On: PM1
 Execution Plan: Not created yet
+MCP: it adds no command; the MCP plumbing PM3.1 moves into the shared crate
+is already under the strictest gates (`poman-is-mcp-friendly.decision.md`).
 
 Included:
 - the ratchet as `poman-lives-in-this-workspace.decision.md`, "The strictest
@@ -302,6 +350,8 @@ Promise: The board of this repository is drawn by poman from its roadmaps and
 plans, and the coordinator stops mirroring statuses by hand.
 Depends On: PM6
 Execution Plan: Not created yet
+MCP: its commands ship as MCP tools too
+(`poman-is-mcp-friendly.decision.md`).
 
 Included:
 - poman reading this repository's roadmap entries and plans, and how: through
