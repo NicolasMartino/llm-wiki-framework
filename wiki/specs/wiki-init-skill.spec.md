@@ -5,7 +5,7 @@
 - Date: 2026-05-14
 - Category: Tooling
 - Scope: The `wiki-init` agent skill as a thin conversational wrapper over the `llm-wiki init` binary command.
-- Sources: .claude/skills/wiki-init/SKILL.md, src/init/mod.rs, src/init/blueprints.rs, src/init/packs.rs, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/decisions/composable-project-init.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/plans/init-rerun-pack-drift.plan.md
+- Sources: .claude/skills/wiki-init/SKILL.md, src/init/mod.rs, src/init/blueprints.rs, src/init/packs.rs, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/binary-path-bootstrap.decision.md, wiki/decisions/composable-project-init.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/plans/init-rerun-pack-drift.plan.md, wiki/plans/operations-setup-in-llm-wiki.plan.md
 - Related: wiki/specs/documentation-model.spec.md, wiki/specs/wiki-ingest-skill.spec.md, wiki/decisions/composable-project-init.decision.md, wiki/decisions/code-pack-cli-blueprint.decision.md, wiki/plans/composable-project-init.plan.md
 
 ## Contract
@@ -78,13 +78,48 @@ during rerun, pack defaults follow the newly selected blueprint so changing
 project shape exposes the expected pack set. Saved packs from the previous
 blueprint are not preselected after a blueprint switch.
 
-Rerun init refreshes framework-owned root schema files and creates folders for
-the selected pack set. It does not overwrite existing `wiki/index.md` or
-`wiki/log.md`, because those files are live project knowledge after bootstrap.
-Fresh init still refuses paths containing framework artifacts unless a project
-manifest is present. When registration is enabled, rerun init updates the
-existing registry entry matched by canonical project root rather than creating
-a duplicate; the existing project id remains stable.
+Rerun init refreshes the block init owns in each root schema file and creates
+folders for the selected pack set. It does not overwrite existing
+`wiki/index.md` or `wiki/log.md`, because those files are live project
+knowledge after bootstrap. Fresh init still refuses paths containing framework
+artifacts, `AGENTS.MD` included, unless a project manifest is present.
+
+`AGENTS.md`, `CLAUDE.md` and `project_guidelines.md` each hold one block
+between `<!-- llm-wiki:managed:start -->` and `<!-- llm-wiki:managed:end -->`.
+Init owns the text between the markers and the project owns the rest:
+
+- A fresh init writes each file as its block alone.
+- A rerun replaces the text between the markers and leaves every byte before
+  and after them as it was, line endings and a missing final newline
+  included; a missing file is written as on a fresh init.
+- Before writing anything, init reads the three files, checks their markers
+  and renders each block. A begin marker without its end, an end before its
+  begin, or a second block refuses the run, naming the file and the line, and
+  nothing is written: not `.llm_wiki/init.toml`, the folders, the files or the
+  schema-drift audit.
+- `.llm_wiki/init.toml` records the SHA-256 of each block under
+  `[managed_blocks]`. A block that no longer matches its hash, or, with no
+  hash recorded, differs from the render of the previous answers, was edited:
+  init saves the edited block to `.llm_wiki/saved-blocks/<file>-<date and
+  time>.md` (a counter is added when the name is taken; a copy is never
+  overwritten), replaces it, and warns naming the file, the copy and the
+  edited lines the new block does not hold. A block that matches is refreshed
+  without a warning, even after a template change.
+- A file without markers is migrated once. If it equals the render of the
+  answers recorded before this run, with the guidelines' `- Date:` line left
+  out on both sides, it becomes the block alone. Otherwise init writes the
+  block, then a dated `## Kept From Before The llm-wiki Block` heading, then
+  the old file unchanged, and warns that the kept text may repeat the block.
+- Init writes into the AGENTS file that exists, `AGENTS.md` or `AGENTS.MD`,
+  and never a second one beside it; `CLAUDE.md`'s block names that file.
+- A root schema file that is a link to another, such as `CLAUDE.md` linked to
+  `AGENTS.md`, is left alone: init writes the block into the file it links to
+  and says so.
+- An empty root schema file is written as a missing one.
+
+When registration is enabled, rerun init updates the existing registry entry
+matched by canonical project root rather than creating a duplicate; the
+existing project id remains stable.
 
 When a rerun changes the resolved pack set, or when the same resolved pack set
 now resolves to a different folder composition than the previous manifest
@@ -105,7 +140,16 @@ directory timestamps.
 - Code-pack tests assert `research` has no root code folders by default, while
   `web-product`, `cli-tool`, and explicit `--pack code` do and record `code` in
   `.llm_wiki/init.toml`.
-- `llm-wiki init` refuses paths containing framework artifacts.
+- `llm-wiki init` refuses paths containing framework artifacts, and a fresh
+  folder holding only `AGENTS.MD`.
+- Block tests in `tests/init.rs`, each on a temporary project: reruns with the
+  same answers and adding a pack keep the text before and after each block
+  byte for byte (CRLF lines, no final newline); an unmarked file equal to the
+  previous render becomes the block alone, and an edited one is kept below
+  the block with a warning, the next rerun silent; an edited block is saved
+  and replaced, twice giving two copies; an unedited block after a template
+  change is refreshed silently; broken markers refuse a run adding a pack and
+  leave the project unchanged; an `AGENTS.MD` project gets its block there.
 - Initial-source tests assert files are copied into `raw/initial/` and no ingest results appear in `wiki/`.
 - The init manifest records project name, project description, blueprint,
   resolved packs, resolved folders, and framework version in

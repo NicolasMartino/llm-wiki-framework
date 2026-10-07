@@ -312,9 +312,10 @@ models themselves.
 The first implementation should treat these as framework-owned generated
 artifacts for `update --framework`:
 
-- `AGENTS.md`
-- `CLAUDE.md`
-- `project_guidelines.md`
+- the block init owns in `AGENTS.md` (or `AGENTS.MD`), `CLAUDE.md` and
+  `project_guidelines.md`, between `<!-- llm-wiki:managed:start -->` and
+  `<!-- llm-wiki:managed:end -->`; the text outside it is the project's
+  (`wiki/decisions/composable-project-init.decision.md`, 2026-10-07)
 - `.llm_wiki/init.toml`
 - the generated `## Schema Drift` section in `wiki/index.md`
 - generated update state or manifests under `.llm_wiki/`, excluding

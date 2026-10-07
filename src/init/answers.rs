@@ -8,6 +8,7 @@ use inquire::{MultiSelect, Select, Text};
 use crate::cli::InitArgs;
 
 use super::blueprints::Blueprint;
+use super::managed_block::{agents_file_name, folder_names};
 use super::manifest::InitManifest;
 use super::packs::Pack;
 
@@ -144,7 +145,7 @@ fn read_project_description(path: &Path, project_name: Option<&str>) -> Option<S
 }
 
 fn read_agent_description(path: &Path, project_name: Option<&str>) -> Option<String> {
-    let agents = fs::read_to_string(path.join("AGENTS.md")).ok()?;
+    let agents = fs::read_to_string(path.join(agents_file_name(&folder_names(path)))).ok()?;
     let prefix = match project_name {
         Some(name) if !name.trim().is_empty() => format!("This is {}: ", name.trim()),
         _ => "This is ".to_string(),

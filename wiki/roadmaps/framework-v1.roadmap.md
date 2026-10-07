@@ -1083,8 +1083,8 @@ named by the owner on 2026-10-06) holds the kit's files, and an
 it as a slash command (`/mcp__llm-wiki__operations_setup`) next to the wiki
 prompts.
 Depends On: P18
-Execution Plan: `wiki/plans/operations-setup-in-llm-wiki.plan.md` (Draft, for
-the owner to approve), from the accepted proposal
+Execution Plan: `wiki/plans/operations-setup-in-llm-wiki.plan.md` (Active),
+from the accepted proposal
 `wiki/proposals/operations-setup-in-llm-wiki.proposal.md`
 
 Included:

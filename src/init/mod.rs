@@ -8,6 +8,7 @@ mod answers;
 pub mod blueprints;
 mod command;
 pub mod compose;
+mod managed_block;
 pub mod packs;
 mod runtime;
 mod scaffold;
