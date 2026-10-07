@@ -643,6 +643,12 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
                 return Err(error);
             }
         };
+    let mut search = search;
+    search.warnings.extend(phrase_fallback_warning(
+        &project.id,
+        search.phrase_fallback_pages,
+        FallbackPlacement::Last,
+    ));
     context.diagnostic(format!(
         "index status: {}, open_mode={}, freshness={}, indexed_files={}",
         backend_state_label(&search.status.state),
@@ -697,7 +703,7 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
             Some((&project.id, &project.name)),
             warning,
             Some(&search.status),
-            &[],
+            &search.warnings,
             &[],
             &results,
             mode_metadata,
@@ -748,6 +754,7 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
     };
     let mut warnings = Vec::new();
     let mut fused: BTreeMap<(String, String), FusedResult> = BTreeMap::new();
+    let mut fallback_keys: BTreeSet<(String, String)> = BTreeSet::new();
     let mut project_reports = Vec::new();
 
     for project in &projects {
@@ -1016,6 +1023,13 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
         });
         warnings.extend(search.warnings);
         let mut results = search.results;
+        let all_words_pages = results.len() - search.phrase_fallback_pages;
+        for result in &results[all_words_pages..] {
+            fallback_keys.insert((
+                project.id.clone(),
+                result.path.to_string_lossy().to_string(),
+            ));
+        }
         for (rank, result) in results.iter_mut().enumerate() {
             result.project_id = project.id.clone();
             result.project_name = Some(project.name.clone());
@@ -1054,6 +1068,7 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
             fused.result
         })
         .collect::<Vec<_>>();
+    warnings.extend(shown_phrase_fallback_warnings(&results, &fallback_keys));
     for report in &project_reports {
         context.diagnostic(format!(
             "per-project results {}: {}",
@@ -1827,6 +1842,8 @@ struct SearchExecution {
     status: BackendStatus,
     runtime_report: Option<GgufRuntimeReport>,
     thresholds_source: Option<ThresholdsSource>,
+    /// How many of the last `results` the phrase fallback added.
+    phrase_fallback_pages: usize,
 }
 
 enum SearchAttempt {
@@ -2844,6 +2861,7 @@ fn perform_semantic_project_search(
         status,
         runtime_report: query_embedding.runtime_report,
         thresholds_source: Some(state.thresholds_source),
+        phrase_fallback_pages: 0,
     })
 }
 
@@ -2975,6 +2993,7 @@ fn perform_hybrid_project_search(
         status,
         runtime_report,
         thresholds_source: Some(state.thresholds_source),
+        phrase_fallback_pages: 0,
     })
 }
 
@@ -3764,14 +3783,13 @@ fn search_attempt(
             return Err(error);
         }
     };
-    let mut warnings: Vec<SearchWarning> = stale_warning(project, &status).into_iter().collect();
-    warnings.extend(phrase_fallback_warning(project, &search));
     Ok(SearchAttempt::Success(SearchExecution {
         results: search.results,
-        warnings,
+        warnings: stale_warning(project, &status).into_iter().collect(),
         status,
         runtime_report: None,
         thresholds_source: None,
+        phrase_fallback_pages: search.fallback_pages,
     }))
 }
 
@@ -3792,17 +3810,54 @@ fn stale_warning(project: &RegisteredProject, status: &BackendStatus) -> Option<
     })
 }
 
+/// A line per project whose phrase-fallback pages made it into the fused,
+/// truncated reply; pages the limit cut off are not counted.
+fn shown_phrase_fallback_warnings(
+    results: &[SearchResult],
+    fallback_keys: &BTreeSet<(String, String)>,
+) -> Vec<SearchWarning> {
+    let mut shown: BTreeMap<&str, usize> = BTreeMap::new();
+    for result in results {
+        let key = (
+            result.project_id.clone(),
+            result.path.to_string_lossy().to_string(),
+        );
+        if fallback_keys.contains(&key) {
+            *shown.entry(result.project_id.as_str()).or_default() += 1;
+        }
+    }
+    shown
+        .into_iter()
+        .filter_map(|(project_id, pages)| {
+            phrase_fallback_warning(project_id, pages, FallbackPlacement::Fused)
+        })
+        .collect()
+}
+
+/// One project's line when the phrase fallback added pages to the reply. In a
+/// single-project reply they are its last results; in search-all, fusion
+/// places them among other projects' results.
 fn phrase_fallback_warning(
-    project: &RegisteredProject,
-    search: &LexicalSearch,
+    project_id: &str,
+    shown_pages: usize,
+    placement: FallbackPlacement,
 ) -> Option<SearchWarning> {
-    (search.fallback_pages > 0).then(|| SearchWarning {
-        project_id: project.id.clone(),
+    let which = match placement {
+        FallbackPlacement::Last => format!("the last {shown_pages} result(s)"),
+        FallbackPlacement::Fused => format!("{shown_pages} result(s) from this project"),
+    };
+    (shown_pages > 0).then(|| SearchWarning {
+        project_id: project_id.to_string(),
         message: format!(
-            "too few pages hold every word of the query; the last {} result(s) hold only some of its names and are scored by a separate phrase search",
-            search.fallback_pages
+            "too few pages hold every word of the query; {which} hold only some of its names and are scored by a separate phrase search"
         ),
     })
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum FallbackPlacement {
+    Last,
+    Fused,
 }
 
 fn retry_search_delay() {
@@ -4376,7 +4431,7 @@ mod tests {
 
         let hybrid_branch = hybrid_lexical_branch_search(&input, query, 20).expect("hybrid");
         assert_eq!(found(&hybrid_branch.results), found(&all_words));
-        assert!(hybrid_branch.warnings.is_empty());
+        assert_eq!(hybrid_branch.phrase_fallback_pages, 0);
 
         let lexical = perform_project_search(
             &backend,
@@ -4394,19 +4449,9 @@ mod tests {
             found(&lexical.results[..all_words.len()]),
             found(&all_words)
         );
-        let fallback_warnings = lexical
-            .warnings
-            .iter()
-            .filter(|warning| warning.message.contains("phrase search"))
-            .collect::<Vec<_>>();
-        assert_eq!(fallback_warnings.len(), 1, "{:?}", lexical.warnings);
-        assert!(
-            fallback_warnings[0].message.contains(&format!(
-                "the last {} result(s)",
-                lexical.results.len() - all_words.len()
-            )),
-            "{}",
-            fallback_warnings[0].message
+        assert_eq!(
+            lexical.phrase_fallback_pages,
+            lexical.results.len() - all_words.len()
         );
     }
 }
