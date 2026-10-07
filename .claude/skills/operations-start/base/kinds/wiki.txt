@@ -6,7 +6,7 @@ Files, as well as the spec's:
 
 Out of scope, as well as the spec's:
 - Code and infra.
-- wiki/log.md and AGENTS.MD: the coordinator writes the log entry at merge and makes AGENTS.MD changes itself. If AGENTS.MD needs a line, write the exact line in the PR body.
+- wiki/log.md and AGENTS.MD: the coordinator writes the log entry in the PR's bookkeeping commit and makes AGENTS.MD changes itself. If AGENTS.MD needs a line, write the exact line in the PR body.
 - Any plan's or roadmap entry's status but the ones the spec names (the plan-status part); a plan this PR writes stays Draft.
 - templates/, unless the spec names it: it is the framework's output, not this wiki.
 - Changing a rule another page owns: point to that page instead of restating it.

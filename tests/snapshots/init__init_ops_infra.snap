@@ -13,6 +13,9 @@ expression: snapshot
 - wiki/log.md
 
 # project_guidelines.md
+<!-- llm-wiki:managed:start -->
+<!-- llm-wiki init rewrites the text between these markers on every run; write this project's own text above or below them. -->
+
 # Project Guidelines - Fixture Project
 
 - Document Class: Spec
@@ -557,8 +560,12 @@ maintains, cross-references, and keeps the wiki consistent.
 8. tests, demos, and operational checks produce evidence
 9. the index is always current
 10. knowledge compounds with every ingest
+<!-- llm-wiki:managed:end -->
 
 # AGENTS.md
+<!-- llm-wiki:managed:start -->
+<!-- llm-wiki init rewrites the text between these markers on every run; write this project's own text above or below them. -->
+
 # AGENTS.md - Project Schema
 
 This is Fixture Project: A fixture project.
@@ -660,9 +667,14 @@ Periodically or on request:
 - Keep project utilities and automation under `scripts/`.
 - Keep infrastructure definitions under `infra/`.
 
+<!-- llm-wiki:managed:end -->
 
 # CLAUDE.md
+<!-- llm-wiki:managed:start -->
+<!-- llm-wiki init rewrites the text between these markers on every run; write this project's own text above or below them. -->
+
 See @AGENTS.md.
+<!-- llm-wiki:managed:end -->
 
 # .llm_wiki/init.toml
 framework_version = "[version]"
@@ -692,6 +704,11 @@ resolved_folders = [
     "wiki/slos",
     "wiki/specs",
 ]
+
+[managed_blocks]
+agents = "588f9af495e9deb3e44da3908fa591a2ccd7c5150b2ba9aa989f6ce531bea342"
+claude = "6a274cf199dc16b9b65e04283d77441c70a080e01f03edc3fda56bcc67a9eae3"
+guidelines = "[sha256]"
 
 # wiki/index.md
 # Wiki Index

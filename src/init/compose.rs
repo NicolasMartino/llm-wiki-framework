@@ -23,8 +23,6 @@ const CORE_INDEX: &[DocumentType] = &[
     SPEC, DECISION, ROADMAP, REFERENCE, PROPOSAL, PLAN, CHECKLIST,
 ];
 
-const CLAUDE_REDIRECT: &str = "See @AGENTS.md.\n";
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RenderPlan {
     pub name: String,
@@ -86,10 +84,6 @@ pub fn compose(plan: &RenderPlan) -> Result<InitOutput> {
                 &profile,
                 &agents_fragments,
             )?,
-        },
-        InitFile {
-            path: "CLAUDE.md".to_string(),
-            contents: CLAUDE_REDIRECT.to_string(),
         },
         InitFile {
             path: "wiki/index.md".to_string(),
