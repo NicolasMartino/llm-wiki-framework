@@ -119,8 +119,10 @@ registered, before and after each run.
 
 - **No managed models:** `HOME=<an empty folder> just search-eval` stopped
   before building anything, exit 1, with: "search-eval needs the managed search
-  models: run `llm-wiki install --configure-search` first
-  (<that folder>/.llm_wiki/manifest.json is missing)".
+  models with meaning-based search on: run `llm-wiki install
+  --configure-search` first (<that folder>/.llm_wiki/manifest.json is
+  missing)" (rerun at the second review's fix round; the first run's line
+  lacked "with meaning-based search on").
 - **First runs:** register refused a root without an
   orientation file, then every search stopped with "llm-wiki install is
   required before search"; the recipe now copies `AGENTS.MD` and the install
