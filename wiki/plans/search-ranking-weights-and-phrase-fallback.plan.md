@@ -1,8 +1,7 @@
 # Plan: Lexical Search Weights Titles And File Names, And Falls Back To Phrases
 
 - Document Class: Plan
-- Status: Active
-- Branch: `NicolasMartino/ranking-25`
+- Status: Completed (develop)
 - Date: 2026-10-06
 - Category: Search, tests
 - Scope: Make a lexical search for a page's own title or file name put that
@@ -137,7 +136,8 @@ Checked against the code at `9b64345`:
     pages, counted on its index, comes first when searched by its title;
   - the four plan names searched together return at least three of the
     plans in the top 10, and with the plan filter (`--class plan`) all four
-    in the top four (the owner's choice, below);
+    in the top five, behind the setup plan that names them all (the owner's
+    choice, below, as changed on 2026-10-07);
   - unit tests for how a query splits into names: `qmd-rs,search-all` gives
     two phrases, and `wiki/plans/headroom-wrap-command.plan.md` gives one;
   - each new test fails on the ranking as it is at `9b64345` (shown once, not
@@ -195,7 +195,8 @@ Checked against the code at `9b64345`:
   that test fails on the ranking at `9b64345`.
 - A test on the frozen wiki searches the four plan names together and gets
   at least three of the plans in the top 10, recording the fourth's rank; the
-  same search with the plan filter gets all four plans in the top four.
+  same search with the plan filter gets all four plans in the top five,
+  behind the setup plan that names them all (the owner, 2026-10-07).
 - The two unit tests on how a query splits into names pass.
 - The fallback runs in lexical search only: a test shows hybrid's lexical
   branch gets the all-words results alone, with no fallback pages.
@@ -256,8 +257,7 @@ named constants in `src/search/qmd_rs.rs`, bound into `bm25()`; no reindex):
   the phrase query alone, 11.3 against 10.5). "All four in the top four" can
   only hold by moving an all-words result below the fallback, which the
   Target rules out, so the test asserts all four in the top five, behind the
-  setup plan; the coordinator put this change to the owner's bar of
-  2026-10-06 to the owner on 2026-10-07.
+  setup plan; the owner confirmed this bar on 2026-10-07.
 - The fallback's own window grows with a filter as the all-words query's
   does; the pages it adds keep the all-words results first and never repeat
   one.
@@ -266,10 +266,21 @@ named constants in `src/search/qmd_rs.rs`, bound into `bm25()`; no reindex):
 committed): the title test, both plan-name tests, the order test in
 `src/search/qmd_rs.rs` and the lexical-versus-hybrid test in
 `src/search/commands.rs` all fail; the single-name test is a guard that
-passes on both.
+passes on both. The blind review's fix round added three more, each failing
+on the code it fixes: the fallback's window growth under a filter (fails
+with a fixed window), the fallback line in the JSON reply beside a stale
+index's line, and search-all naming only the fallback pages it prints (both
+fail on the reviewed head, which kept only the first warning in JSON and
+copied each project's line before fusion and the limit).
 
 **Phase 5, the impacts:**
-- `tests/search_commands.rs` and `tests/snapshots/`: no change.
+- `tests/snapshots/`: no change. `tests/search_commands.rs`: no existing
+  case changed; the two CLI cases above were added. The single-project JSON
+  reply's `warnings` list now holds every warning (`warning` still holds the
+  first), so the stale-index line and the fallback line both reach the MCP
+  tool. In search-all, the line counts only the fallback pages among the
+  printed results, per project, and does not call them "the last", since
+  fusion places them among other projects' results.
 - Hybrid: its lexical branch gets the weights and never the fallback
   (`hybrid_lexical_branch_search`, tested); results not tuned.
 - The eval page's lexical column, replayed through
@@ -281,7 +292,10 @@ passes on both.
   weights but not the fallback. The ignored
   `tests/natural_language_search_eval.rs` asserts that hybrid and auto beat
   lexical; with lexical at 22, its next manual run fails unless hybrid and
-  auto pass at least 23.
+  auto pass at least 23. Hybrid and auto could not be measured here: LLM
+  search is disabled on the machine that did the work, and enabling it
+  would change a shared setup. The assertion is unchanged; whether it
+  should change is the owner's call, with the eval recipe (#49).
 
 ## The Owner's Choices
 
@@ -321,7 +335,10 @@ All four decided by the owner on 2026-10-06, each as recommended.
    (`--class plan`, or `class` in the MCP tool). So a second check runs the
    same four names with the plan filter on and asserts all four plans in the
    top four; the unfiltered bar stays, because it is what an agent runs when
-   it does not know which kind of page it wants.
+   it does not know which kind of page it wants. Changed by the owner on
+   2026-10-07: all four plans in the top five with the plan filter, behind
+   the setup plan, which names all four, holds all twelve words and every
+   phrase, and so rightly comes first ("What Was Found", phase 3).
 4. **Saying when the fallback ran.** Pages added by the fallback matched
    only some of the query, and their scores come from a different query, so
    the score column may rise after them. The reply's warnings are built in
