@@ -1,5 +1,21 @@
 # Wiki Log
 
+## [2026-10-07] merge | The root schema files get one block that init owns
+
+Merged #55 (closes #53), phase 1 of the plan for shipping the operations setup:
+`AGENTS.md` (or `AGENTS.MD`), `CLAUDE.md` and `project_guidelines.md` each
+get one marked `llm-wiki:managed` block that init writes and refreshes, and
+a rerun leaves everything outside it as it was (the owner's "needle",
+2026-10-06). Init checks every file's markers and renders each block before
+writing anything, saves and warns about edits made inside a block, migrates an
+unmarked file once, records each block's hash in `.llm_wiki/init.toml`, and
+its collision guard also refuses `AGENTS.MD`. The plan stays Active for the
+pack, the prompt and the resource.
+
+Pages affected: `wiki/decisions/composable-project-init.decision.md`,
+`wiki/specs/wiki-init-skill.spec.md`,
+`wiki/plans/operations-setup-in-llm-wiki.plan.md`, `wiki/index.md`.
+
 ## [2026-10-07] merge | The plan for poman's deadline type
 
 Merged #56 (closes #54): the plan for PM3 has `poman new deadline` write a
