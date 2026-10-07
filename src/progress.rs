@@ -15,7 +15,7 @@ pub struct ProgressReporter {
 }
 
 enum ProgressOutput {
-    Terminal,
+    Terminal(Box<dyn Fn() -> ProgressDrawTarget>),
     Lines(LineSink),
     #[cfg(test)]
     Hidden,
@@ -42,7 +42,9 @@ impl ProgressReporter {
     pub fn stderr() -> Self {
         Self {
             output: if io::stderr().is_terminal() {
-                ProgressOutput::Terminal
+                ProgressOutput::Terminal(Box::new(|| {
+                    ProgressDrawTarget::stderr_with_hz(TTY_REFRESH_HZ)
+                }))
             } else {
                 ProgressOutput::Lines(LineSink::Stderr)
             },
@@ -53,6 +55,14 @@ impl ProgressReporter {
     pub fn hidden() -> Self {
         Self {
             output: ProgressOutput::Hidden,
+        }
+    }
+
+    /// The terminal form, drawing to `draw_target` instead of stderr.
+    #[cfg(test)]
+    pub fn terminal(draw_target: impl Fn() -> ProgressDrawTarget + 'static) -> Self {
+        Self {
+            output: ProgressOutput::Terminal(Box::new(draw_target)),
         }
     }
 
@@ -76,7 +86,7 @@ impl ProgressReporter {
     ) -> ProgressOperation {
         let prefix = format!("[{index}/{total_models}] {label}");
         match &self.output {
-            ProgressOutput::Terminal => {
+            ProgressOutput::Terminal(draw_target) => {
                 let style = ProgressStyle::with_template(
                     "{prefix} {msg:<8} {percent:>3}%  {bytes} / {total_bytes}  {bytes_per_sec:>10}  eta {floored_eta}",
                 )
@@ -94,7 +104,7 @@ impl ProgressReporter {
                     .with_prefix(prefix)
                     .with_message(phase);
                 bar.set_length(total_bytes);
-                bar.set_draw_target(ProgressDrawTarget::stderr_with_hz(TTY_REFRESH_HZ));
+                bar.set_draw_target(draw_target());
                 ProgressOperation::Terminal(bar)
             }
             ProgressOutput::Lines(sink) => {
@@ -276,6 +286,10 @@ fn format_bytes(bytes: u64) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::{Arc, Mutex};
+
+    use indicatif::TermLike;
+
     use super::*;
 
     #[test]
@@ -315,6 +329,84 @@ mod tests {
         let mut operation = reporter.begin("verify", "fixture", 1, 1, 100);
         operation.advance(100);
         operation.finish();
+    }
+
+    /// A one-line terminal that keeps what is on its line.
+    #[derive(Debug, Clone, Default)]
+    struct OneLineTerm(Arc<Mutex<String>>);
+
+    impl OneLineTerm {
+        fn line(&self) -> String {
+            self.0.lock().expect("terminal lock").trim().to_string()
+        }
+    }
+
+    impl TermLike for OneLineTerm {
+        fn width(&self) -> u16 {
+            200
+        }
+        fn move_cursor_up(&self, _: usize) -> io::Result<()> {
+            Ok(())
+        }
+        fn move_cursor_down(&self, _: usize) -> io::Result<()> {
+            Ok(())
+        }
+        fn move_cursor_right(&self, _: usize) -> io::Result<()> {
+            Ok(())
+        }
+        fn move_cursor_left(&self, _: usize) -> io::Result<()> {
+            Ok(())
+        }
+        fn write_line(&self, s: &str) -> io::Result<()> {
+            self.write_str(s)
+        }
+        fn write_str(&self, s: &str) -> io::Result<()> {
+            self.0.lock().expect("terminal lock").push_str(s);
+            Ok(())
+        }
+        fn clear_line(&self) -> io::Result<()> {
+            self.0.lock().expect("terminal lock").clear();
+            Ok(())
+        }
+        fn flush(&self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    /// Runs a 100-byte terminal step that stops at 19 bytes and ends with
+    /// `end`, then returns the bar's position and what the terminal shows once
+    /// the bar is gone.
+    fn short_terminal_step(end: impl FnOnce(ProgressOperation)) -> (u64, String) {
+        let term = OneLineTerm::default();
+        let target = term.clone();
+        let reporter = ProgressReporter::terminal(move || {
+            ProgressDrawTarget::term_like(Box::new(target.clone()))
+        });
+        let mut operation = reporter.begin("download", "fixture", 1, 1, 100);
+        let ProgressOperation::Terminal(bar) = &operation else {
+            panic!("a terminal reporter begins a terminal operation");
+        };
+        let watch = bar.clone();
+        operation.advance(19);
+        end(operation);
+        let position = watch.position();
+        // The last handle going is what makes indicatif finish an unfinished bar.
+        drop(watch);
+        (position, term.line())
+    }
+
+    #[test]
+    fn terminal_step_finished_short_keeps_its_real_position() {
+        let (position, shown) = short_terminal_step(ProgressOperation::finish);
+        assert_eq!(position, 19);
+        assert!(shown.contains("19 B / 100 B"), "terminal shows {shown:?}");
+    }
+
+    #[test]
+    fn terminal_step_dropped_short_keeps_its_real_position() {
+        let (position, shown) = short_terminal_step(drop);
+        assert_eq!(position, 19);
+        assert!(shown.contains("19 B / 100 B"), "terminal shows {shown:?}");
     }
 
     #[test]
