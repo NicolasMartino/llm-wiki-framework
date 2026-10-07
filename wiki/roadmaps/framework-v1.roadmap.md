@@ -1231,3 +1231,64 @@ Proof:
 - no page of the way of working tells the coordinator to open a log PR, except
   as history, and the landing steps describe the bookkeeping commit and both
   moments
+
+### P27 - Progress For doctor And index
+
+Status: Draft
+Promise: `llm-wiki doctor` and `llm-wiki index` show progress on stderr
+during their long steps, the way `install` does since P7, under the same
+rule in the observability checklist.
+Depends On: P7
+Execution Plan: Not created yet
+
+Included:
+- the gap P7 left (PR #66, 2026-10-07): the observability checklist and the
+  documentation-model spec scope the progress rule to `install`, and doctor
+  hashes the model silently; `index` over a large wiki is silent too
+
+Excluded:
+- install's progress, done in P7
+
+Proof:
+- doctor's hashing and a long `index` show a bar on a terminal and the
+  25 % lines otherwise, with stdout and JSON unchanged
+
+### P28 - The Model Download Survives A Stall And Resumes
+
+Status: Draft
+Promise: A model download that stalls fails with a clear message after a
+timeout instead of hanging, and a rerun resumes a partial download instead
+of starting over.
+Depends On: P7
+Execution Plan: Not created yet
+
+Included:
+- the two follow-ups P7's plan names (PR #66, 2026-10-07): a stall timeout
+  and resumable downloads
+
+Excluded:
+- the progress display, done in P7
+
+Proof:
+- a test server that stops sending makes install fail within the timeout,
+  naming the step; a rerun after an interrupted download fetches only the
+  rest and verifies the whole file
+
+### P29 - Release-Profile Clippy Passes
+
+Status: Draft
+Promise: `cargo clippy --release` passes on the workspace, as the debug
+build's clippy already does.
+Depends On: None
+Execution Plan: Not needed (a small fix)
+
+Included:
+- found in PR #66 (2026-10-07): an unused import and dead code outside debug
+  builds in the model runtime code (`runtime_probe`, `gguf_runtime`), which
+  only a release-profile clippy sees
+
+Excluded:
+- adding release-profile clippy to CI, unless the fix shows it is cheap
+
+Proof:
+- `cargo clippy --release --workspace --all-targets` passes
