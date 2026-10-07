@@ -1183,7 +1183,7 @@ Proof:
 
 ### P23 - The Search Eval Runs In A Temporary Home
 
-Status: Draft
+Status: Active
 Promise: The hand-run search eval runs on any machine through one `just`
 recipe that registers and indexes its project in a temporary home, without
 touching the machine's real llm-wiki registry.

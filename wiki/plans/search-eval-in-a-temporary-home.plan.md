@@ -1,7 +1,8 @@
 # Plan: The Search Eval Runs In A Temporary Home
 
 - Document Class: Plan
-- Status: Draft
+- Status: Active
+- Branch: `NicolasMartino/eval-49`
 - Date: 2026-10-07
 - Category: Tooling, search eval
 - Scope: Carry out P23 of the framework roadmap: one `just` recipe sets up a
@@ -69,10 +70,10 @@ and the checkout's own files, are the same afterwards as before.
 
 ## Target
 
-- **One recipe** (name: the owner's choice 2) that:
+- **One recipe**, `just search-eval` (choice 2), that:
   - makes a temporary home and points `HOME` and the XDG variables into it;
   - gives that home the managed models and the accepted licenses from the
-    real one, without writing to the real one (how: the owner's choice 1),
+    real one, without writing to the real one (linked, choice 1),
     and fails with one plain line naming `llm-wiki install` when the real
     home has none;
   - makes the eval project's own root inside the temporary directory: a copy
@@ -99,7 +100,11 @@ and the checkout's own files, are the same afterwards as before.
 - The eval page names the recipe.
 - The fast check passes on the PR into `develop`.
 
-## Open For The Owner
+## The Two Choices
+
+Taken by the coordinator on 2026-10-07 while the owner was away, both as this
+plan recommended, to be confirmed by the owner's verdict on the PR that does
+the work:
 
 1. **The models: linked from the real managed home**, with the accepted
    licenses and search settings copied. No download and no copy; search and
