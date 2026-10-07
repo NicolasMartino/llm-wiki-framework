@@ -1052,6 +1052,110 @@ fn compact_search_json_returns_essential_paged_hits() {
 }
 
 #[test]
+fn compact_search_page_follows_the_limit_and_says_when_more_match() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let over = fixture_project_with_matching_pages(workspace.path(), "Over", 13);
+    let exact = fixture_project_with_matching_pages(workspace.path(), "Exact", 12);
+    register_project_with_id(home.path(), &over, "over");
+    register_project_with_id(home.path(), &exact, "exact");
+    llm_wiki(home.path())
+        .args(["index-all", "--force"])
+        .assert()
+        .success();
+
+    let more = compact_search(home.path(), &["--project", "over", "--limit", "12"]);
+    assert_eq!(more["result_count"], 12);
+    assert_eq!(more["page_size"], 12);
+    assert_eq!(more["results"].as_array().expect("results").len(), 12);
+    assert_eq!(more["has_more"], true);
+    assert!(more["next_offset"].is_null());
+
+    let all = compact_search(home.path(), &["--project", "exact", "--limit", "12"]);
+    assert_eq!(all["result_count"], 12);
+    assert_eq!(all["results"].as_array().expect("results").len(), 12);
+    assert_eq!(all["has_more"], false);
+    assert!(all["next_offset"].is_null());
+
+    let paged = compact_search(
+        home.path(),
+        &["--project", "exact", "--limit", "12", "--page-size", "3"],
+    );
+    assert_eq!(paged["result_count"], 12);
+    assert_eq!(paged["results"].as_array().expect("results").len(), 3);
+    assert_eq!(paged["has_more"], true);
+    assert_eq!(paged["next_offset"], 3);
+}
+
+#[test]
+fn compact_search_all_page_follows_the_limit_and_says_when_more_match() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let alpha = fixture_project_with_matching_pages(workspace.path(), "Alpha", 7);
+    let beta = fixture_project_with_matching_pages(workspace.path(), "Beta", 5);
+    register_project_with_id(home.path(), &alpha, "alpha");
+    register_project_with_id(home.path(), &beta, "beta");
+    llm_wiki(home.path())
+        .args(["index-all", "--force"])
+        .assert()
+        .success();
+
+    let all = compact_search_all(home.path(), &["--limit", "12"]);
+    assert_eq!(all["result_count"], 12);
+    assert_eq!(all["results"].as_array().expect("results").len(), 12);
+    assert_eq!(all["has_more"], false);
+    assert!(all["next_offset"].is_null());
+
+    let paged = compact_search_all(home.path(), &["--limit", "12", "--page-size", "3"]);
+    assert_eq!(paged["result_count"], 12);
+    assert_eq!(paged["results"].as_array().expect("results").len(), 3);
+    assert_eq!(paged["has_more"], true);
+    assert_eq!(paged["next_offset"], 3);
+
+    let gamma = fixture_project_with_matching_pages(workspace.path(), "Gamma", 1);
+    register_project_with_id(home.path(), &gamma, "gamma");
+    llm_wiki(home.path())
+        .args(["index", "--project", "gamma", "--force"])
+        .assert()
+        .success();
+
+    let more = compact_search_all(home.path(), &["--limit", "12"]);
+    assert_eq!(more["result_count"], 12);
+    assert_eq!(more["page_size"], 12);
+    assert_eq!(more["results"].as_array().expect("results").len(), 12);
+    assert_eq!(more["has_more"], true);
+    assert!(more["next_offset"].is_null());
+}
+
+fn compact_search(home: &Path, extra: &[&str]) -> Value {
+    run_compact(home, "search", extra)
+}
+
+fn compact_search_all(home: &Path, extra: &[&str]) -> Value {
+    run_compact(home, "search-all", extra)
+}
+
+fn run_compact(home: &Path, command: &str, extra: &[&str]) -> Value {
+    let output = llm_wiki(home)
+        .args([
+            command,
+            "zephyrine lantern",
+            "--format",
+            "json",
+            "--compact",
+        ])
+        .args(extra)
+        .output()
+        .expect("compact search output");
+    assert!(
+        output.status.success(),
+        "{command} failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    serde_json::from_slice(&output.stdout).expect("compact search json")
+}
+
+#[test]
 fn compact_search_all_json_pages_fused_hits_and_reports_projects() {
     let home = TempDir::new().expect("home");
     let workspace = TempDir::new().expect("workspace");
@@ -2446,6 +2550,24 @@ fn fixture_project(root: &Path, name: &str) -> PathBuf {
         "Search Decision",
         "Reciprocal rank fusion keeps search-all result ordering deterministic.",
     )
+}
+
+fn fixture_project_with_matching_pages(root: &Path, name: &str, pages: usize) -> PathBuf {
+    let project = root.join(name);
+    fs::create_dir_all(project.join("wiki/decisions")).expect("wiki");
+    fs::write(project.join("wiki/index.md"), "# Index\n").expect("index");
+    fs::write(project.join("wiki/log.md"), "# Log\n").expect("log");
+    fs::write(project.join("AGENTS.md"), "# Agents\n").expect("agents");
+    for page in 0..pages {
+        fs::write(
+            project.join(format!("wiki/decisions/{name}-{page}.decision.md")),
+            format!(
+                "# {name} Decision {page}\n\n- Document Class: Decision\n- Status: Accepted\n- Date: 2026-10-07\n- Category: Search\n- Scope: Test\n- Sources: raw/test.md\n\n## Decision\nThe zephyrine lantern appears in page {page} of {name}.\n"
+            ),
+        )
+        .expect("decision");
+    }
+    project.canonicalize().expect("canonical")
 }
 
 fn fixture_project_with_decision(root: &Path, name: &str, title: &str, body: &str) -> PathBuf {

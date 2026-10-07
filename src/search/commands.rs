@@ -559,9 +559,9 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
         wiki_root: &wiki_root,
         query: &args.query,
         filters: &filters,
-        limit: args.limit,
+        limit: limit_with_lookahead(args.limit),
     };
-    let search =
+    let mut search =
         match perform_resolved_project_search(&search_input, &resolution, args.rerank, context) {
             Ok(search) => search,
             Err(error) => {
@@ -643,6 +643,8 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
                 return Err(error);
             }
         };
+    let more_beyond_limit = search.results.len() > args.limit;
+    search.results.truncate(args.limit);
     context.diagnostic(format!(
         "index status: {}, open_mode={}, freshness={}, indexed_files={}",
         backend_state_label(&search.status.state),
@@ -701,7 +703,7 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
             &[],
             &results,
             mode_metadata,
-            SearchJsonOptions::from_search_args(args),
+            SearchJsonOptions::from_search_args(args).with_more_beyond_limit(more_beyond_limit),
         ),
     }
     Ok(())
@@ -779,7 +781,7 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
         let per_project_limit = if args.limit == 0 {
             0
         } else {
-            args.limit.max(20)
+            limit_with_lookahead(args.limit).max(20)
         };
         let search_input = ProjectSearchInput {
             paths: &paths,
@@ -1046,6 +1048,7 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
             .then_with(|| left.result.project_id.cmp(&right.result.project_id))
             .then_with(|| left.result.path.cmp(&right.result.path))
     });
+    let more_beyond_limit = results.len() > args.limit;
     let results = results
         .into_iter()
         .take(args.limit)
@@ -1086,7 +1089,8 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
                 &project_reports,
                 &results,
                 mode_metadata,
-                SearchJsonOptions::from_search_all_args(args),
+                SearchJsonOptions::from_search_all_args(args)
+                    .with_more_beyond_limit(more_beyond_limit),
             )
         }
     }
@@ -1779,44 +1783,67 @@ struct SearchWarning {
     message: String,
 }
 
-const DEFAULT_COMPACT_SEARCH_PAGE_SIZE: usize = 3;
+/// The search asks for one hit past `limit` and drops it, so a reply can say
+/// whether more pages matched than `limit` let it keep.
+fn limit_with_lookahead(limit: usize) -> usize {
+    if limit == 0 {
+        0
+    } else {
+        limit.saturating_add(1)
+    }
+}
 
 #[derive(Clone, Copy, Debug)]
 struct SearchJsonOptions {
     compact: bool,
+    limit: usize,
     page_size: Option<usize>,
     offset: usize,
+    more_beyond_limit: bool,
 }
 
 impl SearchJsonOptions {
     const fn full() -> Self {
         Self {
             compact: false,
+            limit: 0,
             page_size: None,
             offset: 0,
+            more_beyond_limit: false,
         }
     }
 
     fn from_search_args(args: &SearchArgs) -> Self {
         Self {
             compact: args.compact,
+            limit: args.limit,
             page_size: args.page_size,
             offset: args.offset,
+            more_beyond_limit: false,
         }
     }
 
     fn from_search_all_args(args: &SearchAllArgs) -> Self {
         Self {
             compact: args.compact,
+            limit: args.limit,
             page_size: args.page_size,
             offset: args.offset,
+            more_beyond_limit: false,
+        }
+    }
+
+    const fn with_more_beyond_limit(self, more_beyond_limit: bool) -> Self {
+        Self {
+            more_beyond_limit,
+            ..self
         }
     }
 
     fn effective_page_size(self) -> usize {
         self.page_size
             .filter(|page_size| *page_size > 0)
-            .unwrap_or(DEFAULT_COMPACT_SEARCH_PAGE_SIZE)
+            .unwrap_or(self.limit)
     }
 }
 
@@ -2391,6 +2418,7 @@ struct CompactSearchEnvelopeJson {
     page_size: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     next_offset: Option<usize>,
+    has_more: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     warning: Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -2580,6 +2608,7 @@ fn print_compact_search_json(
             offset,
             page_size,
             next_offset,
+            has_more: next_offset.is_some() || options.more_beyond_limit,
             warning: warning.map(str::to_string),
             warnings,
             projects,
