@@ -14,6 +14,7 @@ mod mcp_wiring;
 mod path_guidance;
 mod paths;
 mod payload_integrity;
+mod progress;
 mod registry;
 mod search;
 mod search_models;

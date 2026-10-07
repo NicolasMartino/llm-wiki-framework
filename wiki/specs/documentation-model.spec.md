@@ -159,6 +159,13 @@ Required behavior:
 - Diagnostic facts come from the same state and decisions used by the command;
   formatters must not re-resolve paths or duplicate command logic.
 - `--verbose` does not alter success, failure, or exit-code semantics.
+- Install's long-running byte-oriented steps (hashing, downloading and
+  verifying search models) provide unconditional progress on stderr. TTY
+  output is terminal-aware and redraws in place; non-TTY output is bounded and
+  append-only. Progress never contaminates normal or JSON stdout and does not
+  introduce new interactivity. Other commands are not held to this yet:
+  `doctor` hashes every model artifact and `index` builds embeddings, both
+  silently.
 - Tests for new CLI behavior include a nearby verbose assertion and protect
   stderr expectations from inherited `RUST_LOG`.
 

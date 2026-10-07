@@ -225,6 +225,117 @@ fn noninteractive_enable_hash_mismatch_without_force_writes_no_install_state() {
 }
 
 #[test]
+fn enabled_install_reports_existing_model_hashing_as_bounded_stderr_lines() {
+    let home = TempDir::new().expect("home");
+    let model_path = home
+        .path()
+        .join(".llm_wiki/models/embeddinggemma-300m-q8_0/embeddinggemma-300M-Q8_0.gguf");
+    fs::create_dir_all(model_path.parent().expect("model parent")).expect("model dir");
+    fs::write(&model_path, "corrupt model bytes").expect("model bytes");
+
+    let output = llm_wiki(home.path())
+        .args([
+            "--verbose",
+            "install",
+            "--non-interactive",
+            "--enable-llm-search",
+            "--profile",
+            "balanced",
+            "--confirm-model-downloads",
+            "--accept-profile-licenses",
+        ])
+        .output()
+        .expect("run install");
+    assert!(!output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("utf8 stdout");
+    let stderr = String::from_utf8(output.stderr).expect("utf8 stderr");
+
+    let progress = stderr
+        .lines()
+        .filter(|line| line.starts_with('['))
+        .collect::<Vec<_>>();
+    assert_eq!(progress.len(), 2, "{stderr}");
+    assert_eq!(
+        progress[0],
+        "[1/2] embeddinggemma-300m-q8_0 verify start 318.1 MiB"
+    );
+    assert!(
+        progress[1].starts_with("[1/2] embeddinggemma-300m-q8_0 verify done 19 B in "),
+        "{stderr}"
+    );
+    assert!(!stderr.contains("\x1b[") && !stderr.contains('\r'));
+    assert!(
+        !stdout.lines().any(|line| line.starts_with("[1/2]")),
+        "{stdout}"
+    );
+    assert_eq!(
+        stderr
+            .matches("search artifact classification: embeddinggemma-300m-q8_0 hash-mismatch")
+            .count(),
+        1,
+        "{stderr}"
+    );
+}
+
+#[test]
+#[cfg_attr(
+    not(debug_assertions),
+    ignore = "needs the debug-only LLM_WIKI_TEST_MODEL_SOURCE hook; release builds would fetch the real models"
+)]
+fn verbose_enabled_install_reports_download_and_verify_progress_once() {
+    let home = TempDir::new().expect("home");
+    let source = home.path().join("wrong-model.gguf");
+    fs::write(&source, vec![0_u8; 1000]).expect("model source");
+
+    let output = llm_wiki(home.path())
+        .env("LLM_WIKI_TEST_MODEL_SOURCE", &source)
+        .args([
+            "--verbose",
+            "install",
+            "--non-interactive",
+            "--enable-llm-search",
+            "--profile",
+            "balanced",
+            "--confirm-model-downloads",
+            "--accept-profile-licenses",
+        ])
+        .output()
+        .expect("run install");
+    assert!(!output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("utf8 stdout");
+    let stderr = String::from_utf8(output.stderr).expect("utf8 stderr");
+
+    let progress = stderr
+        .lines()
+        .filter(|line| line.starts_with('['))
+        .map(|line| line.split(" in ").next().expect("line"))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        progress,
+        [
+            "[1/2] embeddinggemma-300m-q8_0 download start 318.1 MiB",
+            "[1/2] embeddinggemma-300m-q8_0 download done 1000 B",
+            "[1/2] embeddinggemma-300m-q8_0 verify start 318.1 MiB",
+        ],
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("downloaded model artifact hash mismatch for embeddinggemma-300m-q8_0")
+    );
+    for diagnostic in [
+        "search model materialization: embeddinggemma-300m-q8_0 -> ",
+        "search model content length mismatch: embeddinggemma-300m-q8_0 expected 333590944 bytes, server reported 1000 bytes",
+    ] {
+        assert_eq!(stderr.matches(diagnostic).count(), 1, "{stderr}");
+    }
+    assert!(!stderr.contains("\x1b[") && !stderr.contains('\r'));
+    assert!(
+        !stdout.lines().any(|line| line.starts_with("[1/2]")),
+        "{stdout}"
+    );
+}
+
+#[test]
 fn install_disable_llm_search_writes_disabled_search_profile() {
     let home = TempDir::new().expect("home");
 

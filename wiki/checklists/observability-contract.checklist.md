@@ -33,6 +33,15 @@ that adds or changes:
   output change.
 - JSON stdout remains parseable and contains no diagnostic text or ANSI escape
   sequences.
+- Install's long-running byte-oriented steps (hashing, downloading and
+  verifying search models) report normal progress on stderr even without
+  `--verbose`: attended terminals may redraw a single line, while non-TTY
+  stderr uses bounded append-only milestones with no ANSI or carriage returns.
+  Other commands are not held to this yet: `doctor` hashes every model artifact
+  and `index` builds embeddings, both silently.
+- Progress totals come from command-owned validated metadata, and progress
+  reporting does not change stdout, JSON, interactivity, success, failure, or
+  exit-code behavior.
 - `--verbose` does not change success, failure, or exit-code behavior.
 - `--help` and `--version` stay exempt from diagnostics.
 - Dependency logs stay disabled unless `RUST_LOG` is set.

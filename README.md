@@ -61,6 +61,29 @@ The full enabled command is the portable form for scripts. Shorter enabled
 commands are only valid when the current local model and license state no
 longer needs the omitted confirmation.
 
+Enabled LLM-search installs show model download and verification progress on
+stderr. Interactive terminals receive a live progress bar with transferred
+bytes, rate, percentage, and ETA. Redirected stderr receives bounded milestone
+lines instead, so automation logs show that large model transfers are moving
+without contaminating stdout.
+
+On a terminal, one line per step, redrawn in place:
+
+```text
+[1/2] embeddinggemma-300m-q8_0 download  61%  195.20 MiB / 318.14 MiB  3.61 MiB/s  eta 00:34
+```
+
+With stderr redirected, a start line, one line per 25 %, and a done line:
+
+```text
+[1/2] embeddinggemma-300m-q8_0 download start 318.1 MiB
+[1/2] embeddinggemma-300m-q8_0 download 25% 79.5 MiB / 318.1 MiB 3.7 MiB/s eta 01:05
+...
+[1/2] embeddinggemma-300m-q8_0 download done 318.1 MiB in 01:31 (3.5 MiB/s)
+```
+
+A model already on disk is hashed first, reported as `verify`.
+
 ### A local release, and going back
 
 To try this checkout as a release before one is published, build its release

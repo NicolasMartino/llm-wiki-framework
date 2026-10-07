@@ -1,5 +1,23 @@
 # Wiki Log
 
+## [2026-10-07] merge | install shows progress while the search model downloads and verifies
+
+Merged #66 (closes #4): with meaning-based search enabled, `llm-wiki install`
+reports progress on stderr while it hashes, downloads and verifies the model,
+a bar on a terminal and a line every 25 % otherwise, keeping the bar's real
+position when a file is short; stdout and JSON output are unchanged. The work
+was one commit of 2026-10-06 on `impl/install-download-progress`, carried
+onto `develop` without rewriting that branch. The observability checklist and
+the documentation-model spec state the rule for install; progress for doctor
+and index is P27, a stall timeout and resumable downloads P28, and a
+release-profile clippy that fails on the model runtime code P29. P7 is
+Completed.
+
+Pages affected: `wiki/plans/install-download-progress.plan.md`,
+`wiki/checklists/observability-contract.checklist.md`,
+`wiki/specs/documentation-model.spec.md`,
+`wiki/roadmaps/framework-v1.roadmap.md`, `wiki/index.md`.
+
 ## [2026-10-07] merge | Compact search pages follow the limit and say when more exist
 
 Merged #61 (closes #29): a compact search page now holds up to the limit
