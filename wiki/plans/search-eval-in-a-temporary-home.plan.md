@@ -131,7 +131,7 @@ registered, before and after each run.
   meaning-based modes; C5 misses in every mode (lexical included), C8 in hybrid and auto, and
   H12 in the meaning-based modes. Hybrid and
   auto beat lexical, 23 to 18.
-- **On PR #58's head (`d8eab20`, the ranking fix, not merged):** the same
+- **On PR #58's head (`d8eab20`, the ranking fix before its fix round):** the same
   script, run from a separate checkout, gave lexical 22/26 and the other modes
   exactly as on `develop`. The test stops at the same semantic floor before
   reaching its last assertion, that hybrid and auto beat lexical; from the
@@ -140,8 +140,12 @@ registered, before and after each run.
   same counts as the first `develop` run, mode by mode and case by case, in
   22 minutes. The first two runs had linked the model files into the
   temporary home; nothing read the links (choice 1).
+- **On this branch with `develop` merged in (`b038f00`, the ranking fix as
+  it landed, `011979d`):** the same counts as on PR #58's head: lexical
+  22/26, semantic 23/29, hybrid 23/30, auto 23/30, in 21 minutes. The test
+  stops at the semantic floor; hybrid and auto beat lexical by one case.
 - **Left as it was, by checksum:** the listing below, taken before and after
-  each of the three runs, was the same each time (SHA-256, first 16 digits;
+  each of the four runs, was the same each time (SHA-256, first 16 digits;
   `~` is the real home):
 
   | SHA-256 | File |
@@ -163,7 +167,7 @@ registered, before and after each run.
 
   The real registry and the managed home's `indexes/` are the machine's
   shared state, so they were listed by project id and folder name instead:
-  around the third run, 91 ids before and 99 after, 14 index folders before
+  around the third run, for example, 91 ids before and 99 after, 14 index folders before
   and 12 after, all the difference being other worktrees made and removed
   by Orca meanwhile and test fixtures named `fixture-project-<n>` registered
   by other test runs on the machine. Neither ever held

@@ -824,12 +824,14 @@ judged cases:
 | Run | Lexical | Semantic | Hybrid | Auto |
 | --- | --- | --- | --- | --- |
 | `develop` at `c6e4995` | 18/26 | 23/29 | 23/30 | 23/30 |
-| PR #58's head `d8eab20` (ranking fix, not merged) | 22/26 | 23/29 | 23/30 | 23/30 |
+| PR #58's head `d8eab20` (ranking fix, before its fix round) | 22/26 | 23/29 | 23/30 | 23/30 |
+| `develop` at `011979d` (ranking fix landed, #58) | 22/26 | 23/29 | 23/30 | 23/30 |
 
-- Both runs fail the semantic floor, 23 of 30 against 24, so the test stops
+- Every run fails the semantic floor, 23 of 30 against 24, so the test stops
   there; the hybrid and auto floors (22) hold.
-- Hybrid and auto beat lexical on `develop`, 23 to 18, and on PR #58's head by
-  one case, 23 to 22 (from the report: the test stops before that assertion).
+- Hybrid and auto beat lexical before the ranking fix, 23 to 18, and after it
+  by one case, 23 to 22 (from the report: the test stops before that
+  assertion).
 - The no-match sentinels C10, H9, H11 and H20 now return results in semantic,
   hybrid and auto; C5 misses in every meaning-based mode (and in lexical on
   `develop`), C8 in hybrid and auto, H12 in the meaning-based modes. The wiki has more than doubled since the 61-file runs
