@@ -695,6 +695,73 @@ fn mcp_register_index_and_search_round_trip() {
 }
 
 #[test]
+fn mcp_search_on_a_stale_index_carries_the_warning() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path());
+    install_without_llm_search(home.path());
+    let register = llm_wiki(home.path())
+        .args(["register", "--id", "fixture", "--name", "Fixture"])
+        .arg(&project)
+        .output()
+        .expect("register");
+    assert!(register.status.success());
+    let index = llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .output()
+        .expect("index");
+    assert!(index.status.success());
+    fs::write(
+        project.join("wiki/index.md"),
+        "# Wiki Index\n\nfreshly edited\n",
+    )
+    .expect("edit index");
+    // With the rebuild turned off, search answers stale.
+    fs::create_dir_all(project.join(".llm_wiki")).expect("project manifest dir");
+    fs::write(
+        project.join(".llm_wiki/search.toml"),
+        "schema_version = 1\nupdated_at = \"2026-10-07T00:00:00Z\"\n\n[project]\nllm_search_enabled = false\nrebuild_stale_index = false\nconfigured_at = \"2026-10-07T00:00:00Z\"\nconfigured_by_version = \"test\"\n",
+    )
+    .expect("project search profile");
+
+    let responses = run_mcp_session(
+        home.path(),
+        &project,
+        &[json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+                "name": mcp_tool_name("llm_wiki_search"),
+                "arguments": {"query": "wiki index", "project": "fixture"}
+            }
+        })],
+    );
+
+    let search = tool_payload(&responses[0]);
+    let messages = search["warnings"]
+        .as_array()
+        .expect("warnings array")
+        .iter()
+        .map(|warning| warning["message"].as_str().expect("message"))
+        .collect::<Vec<_>>();
+    // Only `wiki/index.md` holds both words, so the phrase fallback's line
+    // follows the stale warning.
+    assert_eq!(
+        messages,
+        [
+            format!(
+                "search index stale for project fixture; run `{} index --project fixture` (about a second for a word-match index) and search again",
+                binary_stem()
+            )
+            .as_str(),
+            "too few pages hold every word of the query; the last 1 result(s) hold only some of its names and are scored by a separate phrase search",
+        ],
+        "{search}"
+    );
+}
+
+#[test]
 fn mcp_cli_tool_failure_returns_tool_error_result() {
     let home = TempDir::new().expect("home");
     let workspace = TempDir::new().expect("workspace");

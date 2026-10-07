@@ -1,7 +1,7 @@
 # Plan: Search Says When Its Index Is Stale, And Rebuilds A Small One
 
 - Document Class: Plan
-- Status: Draft
+- Status: Completed (develop)
 - Date: 2026-10-07
 - Category: Search, MCP
 - Scope: Carry out P21 of the framework roadmap: a stale index is reported
@@ -84,7 +84,10 @@ never turns that search into a failure.
   writable, search answers from the stale index as today, with the warning
   above and the reason in a few words ("another index build is running",
   "the search cache is read-only").
-- **Opt-out**: a project can turn the rebuild off (how: the owner's choice 1).
+- **Opt-out**: a project can turn the rebuild off with
+  `rebuild_stale_index = false` in the `[project]` table of its
+  `.llm_wiki/search.toml`, beside `llm_search_enabled`; unset means on
+  (the owner's choice 1).
 - **The setup script's comment** says about 5 MB.
 
 ## Done When
@@ -103,6 +106,9 @@ never turns that search into a failure.
 - The fast check passes on the PR into `develop`.
 
 ## Open For The Owner
+
+The coordinator took both recommendations below on 2026-10-07, while the
+owner was away; the owner's verdict on the PR confirms or changes them.
 
 1. **The opt-out: a setting in the project's `.llm_wiki/search.toml`**, beside
    `llm_search_enabled`, on by default for word-match projects. Not chosen: an

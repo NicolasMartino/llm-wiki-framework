@@ -5,8 +5,8 @@
 - Date: 2026-05-07
 - Category: Search infrastructure, framework tooling
 - Scope: Use qmd-rs as the D9 backend for `llm-wiki search` and `llm-wiki search-all`.
-- Sources: wiki/evals/search-backend-selection.eval.md, issue #25, wiki/proposals/search-backend-selection.proposal.md, wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/references/qmd-rs-search-crate.reference.md
-- Related: wiki/proposals/search-backend-selection.proposal.md, wiki/proposals/project-registry-search-artifacts.proposal.md
+- Sources: wiki/evals/search-backend-selection.eval.md, issue #25, wiki/proposals/search-backend-selection.proposal.md, wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/references/qmd-rs-search-crate.reference.md, issue #36
+- Related: wiki/proposals/search-backend-selection.proposal.md, wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/plans/search-stale-index-warning-and-rebuild.plan.md
 
 ## Choice
 
@@ -111,6 +111,38 @@ Validated read behavior:
   plain `bm25()`, and adds a phrase fallback qmd-rs does not have; the
   adapter owns lexical ranking, as
   `wiki/plans/search-ranking-weights-and-phrase-fallback.plan.md` records.)
+
+## Stale Index Contract (P21)
+
+A stale index stays searchable, and `search` writes in one case: plan
+`wiki/plans/search-stale-index-warning-and-rebuild.plan.md`, issue #36.
+
+- When `search` selects lexical mode, the project searches by word match only
+  (`llm_search_enabled = false`, or no profile) and its index is stale,
+  `search` rebuilds the word-match store first, the word-match part of
+  `llm-wiki index`'s build, then answers fresh. It leaves the meaning-based
+  index's files as they are; only `llm-wiki index` writes or removes them. A
+  project turns this off with `rebuild_stale_index = false` in the
+  `[project]` table of its `.llm_wiki/search.toml`.
+- The build takes the project's index lock with `try_lock` and never waits.
+  A held lock, a read-only cache or any other failed build leaves the index as
+  it was, and `search` answers from it with the stale warning, naming the
+  reason ("another index build is running", "the search cache is
+  read-only"); the search itself still succeeds. The lock file names its
+  holder, so an `llm-wiki index` that meets a rebuilding search says so.
+- `search-all`, and a project with LLM search on, never rebuild: they warn.
+- The stale warning sits in the JSON reply's `warnings` list (full and
+  compact) as well as its single `warning` string, so the MCP search tools
+  carry it too. It says what to do next: with the lock held, search again in
+  a moment; otherwise run the running binary's exact
+  `<binary> index --project <id>` command, which takes about a second for a
+  word-match index and, for a project with LLM search on, rebuilds the
+  meaning-based index too, which can take minutes.
+- The stale warning comes before the phrase fallback's line (issue #25) in
+  the `warnings` list and the text reply, each whole. The rebuild runs before
+  the search, so the page, `has_more` and the fallback's count are those of
+  the fresh index; a search that answers from a stale index computes them the
+  same way from it.
 
 ## Revisit When
 
