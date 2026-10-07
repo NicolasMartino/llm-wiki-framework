@@ -249,6 +249,9 @@ run_deny() {
   need_cargo_tool deny "cargo install cargo-deny --locked" || return 1
   local dir ok=0
   # Each strict crate's own graph; llm-wiki's joins with the ratchet (PM8).
+  # Every check covers dev-dependencies too: duplicates and licences through
+  # the two include-dev keys in deny.toml. `cargo deny list` never shows them.
+  # P22's plan records a slip in a dev-dependency rejected by each check.
   for dir in "${CRATE_DIRS[@]}"; do
     say "-- cargo deny over $dir"
     cargo deny --manifest-path "$dir/Cargo.toml" check advisories licenses bans sources || ok=1

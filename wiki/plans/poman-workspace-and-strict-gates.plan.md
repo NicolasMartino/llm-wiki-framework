@@ -58,7 +58,12 @@ with one binary, and `uninstall` keeping the binary unless
   deliberate slip of phase 2 failed its gate, shown in PR #28's "Gates". The dated nightly is
   named in `tools/udeps-nightly` (`nightly-2026-10-01`). cargo-deny 0.20.2
   leaves dev-dependencies out of the graph it checks, so the deny gate covers
-  the crates' normal and build dependencies.
+  the crates' normal and build dependencies. Corrected 2026-10-07 (P22, issue
+  #37): that sentence was read from `cargo deny list`, which does not show
+  dev-dependencies. At this plan's close, `cargo deny check` did walk them for
+  bans, advisories and sources, but not for duplicates or licences; P22 turned
+  those on, so the deny gate now covers every dependency, dev ones included
+  (`wiki/plans/dependency-gate-covers-dev-dependencies.plan.md`).
 - **Install:** `llm-wiki install` copies the poman of its own version from
   beside its binary into the managed bin folder and records it in a schema 3
   manifest; with none usable it keeps a recorded poman, else refuses. The
@@ -162,6 +167,10 @@ is run is a first sketch; whoever does the work rechecks each tool's flags.
   - `cargo deny check` (advisories, licences, bans with one version of each
     crate, sources) over the two new crates' dependency graph only: llm-wiki's
     own graph comes in with the ratchet (PM8);
+  - since 2026-10-07 (PR #64, P22) the check covers the dev-dependencies too,
+    with one exception: `getrandom` 0.3.4 is let through beside 0.4.2, both
+    coming from inside proptest
+    (`wiki/plans/dependency-gate-covers-dev-dependencies.plan.md`);
   - unused dependencies with `cargo udeps` on the dated nightly above, over
     the two crates.
 - **The gate script:**
