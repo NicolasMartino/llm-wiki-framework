@@ -559,9 +559,9 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
         wiki_root: &wiki_root,
         query: &args.query,
         filters: &filters,
-        limit: limit_with_lookahead(args.limit),
+        limit: args.limit,
     };
-    let mut search =
+    let search =
         match perform_resolved_project_search(&search_input, &resolution, args.rerank, context) {
             Ok(search) => search,
             Err(error) => {
@@ -643,8 +643,6 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
                 return Err(error);
             }
         };
-    let more_beyond_limit = search.results.len() > args.limit;
-    search.results.truncate(args.limit);
     context.diagnostic(format!(
         "index status: {}, open_mode={}, freshness={}, indexed_files={}",
         backend_state_label(&search.status.state),
@@ -703,7 +701,8 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
             &[],
             &results,
             mode_metadata,
-            SearchJsonOptions::from_search_args(args).with_more_beyond_limit(more_beyond_limit),
+            SearchJsonOptions::from_search_args(args)
+                .with_more_beyond_limit(search.more_beyond_limit),
         ),
     }
     Ok(())
@@ -750,6 +749,7 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
     };
     let mut warnings = Vec::new();
     let mut fused: BTreeMap<(String, String), FusedResult> = BTreeMap::new();
+    let mut project_more_beyond_limit = false;
     let mut project_reports = Vec::new();
 
     for project in &projects {
@@ -781,7 +781,7 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
         let per_project_limit = if args.limit == 0 {
             0
         } else {
-            limit_with_lookahead(args.limit).max(20)
+            args.limit.max(20)
         };
         let search_input = ProjectSearchInput {
             paths: &paths,
@@ -1017,6 +1017,9 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
             thresholds_source: search.thresholds_source,
         });
         warnings.extend(search.warnings);
+        // A project with more hits than it returned has more than `limit`,
+        // since it returned at least `limit`.
+        project_more_beyond_limit |= search.more_beyond_limit;
         let mut results = search.results;
         for (rank, result) in results.iter_mut().enumerate() {
             result.project_id = project.id.clone();
@@ -1048,7 +1051,7 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
             .then_with(|| left.result.project_id.cmp(&right.result.project_id))
             .then_with(|| left.result.path.cmp(&right.result.path))
     });
-    let more_beyond_limit = results.len() > args.limit;
+    let more_beyond_limit = project_more_beyond_limit || results.len() > args.limit;
     let results = results
         .into_iter()
         .take(args.limit)
@@ -1793,6 +1796,12 @@ fn limit_with_lookahead(limit: usize) -> usize {
     }
 }
 
+fn cut_to_limit(mut search: SearchExecution, limit: usize) -> SearchExecution {
+    search.more_beyond_limit |= search.results.len() > limit;
+    search.results.truncate(limit);
+    search
+}
+
 #[derive(Clone, Copy, Debug)]
 struct SearchJsonOptions {
     compact: bool,
@@ -1850,6 +1859,8 @@ impl SearchJsonOptions {
 #[derive(Debug)]
 struct SearchExecution {
     results: Vec<SearchResult>,
+    /// More hits matched than `results` carries, which stops at the limit.
+    more_beyond_limit: bool,
     warnings: Vec<SearchWarning>,
     status: BackendStatus,
     runtime_report: Option<GgufRuntimeReport>,
@@ -2807,9 +2818,11 @@ fn perform_resolved_project_search(
             input.wiki_root,
             input.query,
             input.filters,
-            input.limit,
-        ),
-        RuntimeSearchMode::Semantic => perform_semantic_project_search(input, resolution),
+            limit_with_lookahead(input.limit),
+        )
+        .map(|search| cut_to_limit(search, input.limit)),
+        RuntimeSearchMode::Semantic => perform_semantic_project_search(input, resolution)
+            .map(|search| cut_to_limit(search, input.limit)),
         RuntimeSearchMode::Hybrid => {
             perform_hybrid_project_search(input, resolution, rerank_requested, context)
         }
@@ -2860,7 +2873,7 @@ fn perform_semantic_project_search(
             wiki_root: input.wiki_root,
             query_embedding: &query_embedding.embedding,
             filters: input.filters,
-            limit: input.limit,
+            limit: limit_with_lookahead(input.limit),
             floor: state.thresholds.semantic_similarity_floor,
             freshness: freshness_for_status(&status),
             mode: SearchMode::Semantic,
@@ -2868,6 +2881,7 @@ fn perform_semantic_project_search(
     )?;
     Ok(SearchExecution {
         results,
+        more_beyond_limit: false,
         warnings: stale_warning(input.project, &status).into_iter().collect(),
         status,
         runtime_report: query_embedding.runtime_report,
@@ -2961,13 +2975,14 @@ fn perform_hybrid_project_search(
         )?);
     }
     let semantic_results = dedupe_by_path_preserving_rank(semantic_results);
+    let fused_limit = limit_with_lookahead(input.limit);
     let mut results = if state.thresholds_source == ThresholdsSource::Default {
         let results = fuse_hybrid_results(
             input.query,
             &state.thresholds,
             lexical_results.clone(),
             semantic_results.clone(),
-            input.limit,
+            fused_limit,
         );
         if results.is_empty() {
             let relaxed_thresholds = relaxed_default_hybrid_thresholds(&state.thresholds);
@@ -2976,7 +2991,7 @@ fn perform_hybrid_project_search(
                 &relaxed_thresholds,
                 lexical_results,
                 semantic_results,
-                input.limit,
+                fused_limit,
             )
         } else {
             results
@@ -2987,9 +3002,13 @@ fn perform_hybrid_project_search(
             &state.thresholds,
             lexical_results,
             semantic_results,
-            input.limit,
+            fused_limit,
         )
     };
+    // Fusion keeps its order whatever the cut, so the extra hit only says
+    // whether more matched; the reranker still sees `limit` hits.
+    let more_beyond_limit = results.len() > input.limit;
+    results.truncate(input.limit);
     let rerank_output = maybe_rerank_results(
         input.query,
         results,
@@ -3007,6 +3026,7 @@ fn perform_hybrid_project_search(
 
     Ok(SearchExecution {
         results,
+        more_beyond_limit,
         warnings,
         status,
         runtime_report,
@@ -3747,6 +3767,7 @@ fn search_attempt(
         };
     Ok(SearchAttempt::Success(SearchExecution {
         results,
+        more_beyond_limit: false,
         warnings: stale_warning(project, &status).into_iter().collect(),
         status,
         runtime_report: None,

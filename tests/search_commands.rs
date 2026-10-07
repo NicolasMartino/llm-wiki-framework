@@ -1127,6 +1127,73 @@ fn compact_search_all_page_follows_the_limit_and_says_when_more_match() {
     assert!(more["next_offset"].is_null());
 }
 
+#[test]
+fn compact_search_all_says_when_one_project_has_more_than_the_limit() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let solo = fixture_project_with_matching_pages(workspace.path(), "Solo", 21);
+    register_project_with_id(home.path(), &solo, "solo");
+    llm_wiki(home.path())
+        .args(["index-all", "--force"])
+        .assert()
+        .success();
+
+    let more = compact_search_all(home.path(), &["--limit", "20"]);
+    assert_eq!(more["result_count"], 20);
+    assert_eq!(more["results"].as_array().expect("results").len(), 20);
+    assert_eq!(more["has_more"], true);
+    assert!(more["next_offset"].is_null());
+}
+
+#[test]
+fn compact_hybrid_rerank_keeps_the_limit_hits_and_says_when_more_match() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project_with_matching_pages(workspace.path(), "Hybrid", 13);
+    register_project(home.path(), &project);
+    write_enabled_search_profile_with_fake_artifacts(home.path());
+    write_search_thresholds(home.path());
+    add_fake_reranker(home.path());
+    llm_wiki(home.path())
+        .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let hybrid = |extra: &[&str]| {
+        let mut command = llm_wiki(home.path());
+        command
+            .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+            .env("LLM_WIKI_TEST_QUERY_EXPANSION", "deterministic")
+            .env("LLM_WIKI_TEST_RERANK", "deterministic");
+        let args = [&["--project", "fixture", "--mode", "hybrid"], extra].concat();
+        run_compact_with(command, "search", &args)
+    };
+    let paths = |json: &Value| {
+        json["results"]
+            .as_array()
+            .expect("results")
+            .iter()
+            .map(|hit| hit["path"].as_str().expect("path").to_string())
+            .collect::<Vec<_>>()
+    };
+
+    let fused = hybrid(&["--limit", "3"]);
+    assert_eq!(fused["selected_mode"], "hybrid");
+    assert_eq!(fused["has_more"], true);
+    let fused = paths(&fused);
+    assert_eq!(fused.len(), 3);
+    assert_eq!(paths(&hybrid(&["--limit", "4"]))[..3], fused[..]);
+
+    // The test reranker reverses its pool: a pool of the first 3 fused hits
+    // comes back as those 3 reversed, a wider pool would let the 4th in.
+    let reranked = hybrid(&["--limit", "3", "--rerank"]);
+    assert_eq!(reranked["has_more"], true);
+    let mut expected = fused.clone();
+    expected.reverse();
+    assert_eq!(paths(&reranked), expected);
+}
+
 fn compact_search(home: &Path, extra: &[&str]) -> Value {
     run_compact(home, "search", extra)
 }
@@ -1136,7 +1203,11 @@ fn compact_search_all(home: &Path, extra: &[&str]) -> Value {
 }
 
 fn run_compact(home: &Path, command: &str, extra: &[&str]) -> Value {
-    let output = llm_wiki(home)
+    run_compact_with(llm_wiki(home), command, extra)
+}
+
+fn run_compact_with(mut base: Command, command: &str, extra: &[&str]) -> Value {
+    let output = base
         .args([
             command,
             "zephyrine lantern",
@@ -2443,6 +2514,64 @@ verified_at = "2026-05-11T00:00:00Z"
     if write_licenses {
         write_search_licenses(home);
     }
+}
+
+fn add_fake_reranker(home: &Path) {
+    let managed = home.join(".llm_wiki");
+    let reranker_path =
+        managed.join("models/qwen3-reranker-0.6b-q8_0/qwen3-reranker-0.6b-q8_0.gguf");
+    fs::create_dir_all(reranker_path.parent().expect("reranker parent")).expect("reranker dir");
+    fs::write(&reranker_path, "fake reranker").expect("reranker file");
+    let profile = fs::read_to_string(managed.join("search.toml")).expect("search profile");
+    fs::write(
+        managed.join("search.toml"),
+        profile.replace(
+            "query_expansion_model = \"qmd-query-expansion-1.7b-q4_k_m\"\n",
+            "query_expansion_model = \"qmd-query-expansion-1.7b-q4_k_m\"\nreranker_model = \"qwen3-reranker-0.6b-q8_0\"\n",
+        ),
+    )
+    .expect("search profile with reranker");
+    append(
+        &managed.join("models/artifacts.toml"),
+        &format!(
+            r#"
+[[artifacts]]
+model_id = "qwen3-reranker-0.6b-q8_0"
+role = "reranker"
+profile = "balanced"
+repository = "ggml-org/Qwen3-Reranker-0.6B-Q8_0-GGUF"
+revision = "a02f48bb4f057028298c21fa033da2b30d7742d5"
+file = "qwen3-reranker-0.6b-q8_0.gguf"
+download_url = "https://example.invalid/reranker.gguf"
+path = "{}"
+expected_sha256 = "22c9979ce4fbcdc5acdc310c6641c32797eff1aa980b8f7a2db8a8ea23429a48"
+observed_sha256 = "22c9979ce4fbcdc5acdc310c6641c32797eff1aa980b8f7a2db8a8ea23429a48"
+size_bytes = 1
+license = "apache-2.0"
+dimensions = 0
+qmd_rs_version = "0.3.2"
+adapter_schema_version = 1
+verified_at = "2026-05-11T00:00:00Z"
+"#,
+            reranker_path.display()
+        ),
+    );
+    append(
+        &managed.join("accepted-licenses.toml"),
+        r#"
+[[licenses]]
+model_id = "qwen3-reranker-0.6b-q8_0"
+license = "apache-2.0"
+accepted_at = "2026-05-11T00:00:00Z"
+accepted_by_version = "0.1.1"
+"#,
+    );
+}
+
+fn append(path: &Path, text: &str) {
+    let mut contents = fs::read_to_string(path).expect("read file to extend");
+    contents.push_str(text);
+    fs::write(path, contents).expect("extend file");
 }
 
 fn write_search_licenses(home: &Path) {

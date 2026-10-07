@@ -53,10 +53,13 @@ With `compact` set, `llm_wiki_search` and `llm_wiki_search_all` (and
 - `offset` (default 0) is where the page starts among the kept hits.
 - `next_offset` is present when kept hits follow this page: pass it as
   `offset` for the next one.
-- `has_more` is `true` whenever more pages match than the reply carries, past
-  `limit` included, and `false` otherwise. A reply with `has_more` true and no
-  `next_offset` has every kept hit: ask again with a higher `limit` for the
+- `has_more` is `true` when more hits follow this page, whether kept or past
+  `limit`, and `false` otherwise. A reply with `has_more` true and no
+  `next_offset` ends the kept hits: ask again with a higher `limit` for the
   rest.
+
+To learn `has_more`, the search asks for one hit past `limit` and drops it;
+the hits it keeps, and the pool a reranker orders, are the same as without it.
 
 ## Skill Source
 
@@ -73,8 +76,9 @@ Invocation:
 
 - The `llm_wiki_search` / `llm_wiki_search_all` MCP tools return the readiness,
   fallback, and zero-result metadata the skill inspects.
-- `tests/search_commands.rs` (`compact_search_page_follows_the_limit_and_says_when_more_match`
-  and its search-all twin) and `tests/mcp.rs`
-  (`mcp_search_tools_describe_compact_paging`) prove the compact paging
-  contract and the tools' schemas.
+- `tests/search_commands.rs` proves the compact paging contract
+  (`compact_search_page_follows_the_limit_and_says_when_more_match`, its two
+  search-all twins and
+  `compact_hybrid_rerank_keeps_the_limit_hits_and_says_when_more_match`), and
+  `tests/mcp.rs` the tools' schemas (`mcp_search_tools_describe_compact_paging`).
 - `wiki/evals/natural-language-search.eval.md` measures the underlying search.

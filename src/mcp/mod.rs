@@ -210,7 +210,7 @@ fn tools_list_result() -> Value {
             },
             {
                 "name": instance::mcp_search_tool_name(),
-                "description": "Search one registered LLM Wiki project using the same deterministic search path as the CLI. With compact, the reply carries one page of the hits: up to page_size of them from offset; next_offset is where the next page starts, and has_more is true whenever more pages match than the reply carries, past limit included.",
+                "description": "Search one registered LLM Wiki project using the same deterministic search path as the CLI. With compact, the reply carries one page of the hits: up to page_size of them from offset; next_offset is where the next page starts, and has_more is true when more hits follow this page, whether kept or past limit.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
@@ -232,7 +232,7 @@ fn tools_list_result() -> Value {
             },
             {
                 "name": instance::mcp_search_all_tool_name(),
-                "description": "Search across registered LLM Wiki projects using the same deterministic search-all path as the CLI. With compact, the reply carries one page of the hits: up to page_size of them from offset; next_offset is where the next page starts, and has_more is true whenever more pages match than the reply carries, past limit included.",
+                "description": "Search across registered LLM Wiki projects using the same deterministic search-all path as the CLI. With compact, the reply carries one page of the hits: up to page_size of them from offset; next_offset is where the next page starts, and has_more is true when more hits follow this page, whether kept or past limit.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
