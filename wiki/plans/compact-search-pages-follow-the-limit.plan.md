@@ -32,7 +32,9 @@ it cannot misread, not only through a `next_offset` nobody documented.
 ## Where It Stands (2026-10-07, at `cad8988`)
 
 - `limit` (default 10) caps how many hits the search keeps and sets
-  `result_count`; `page_size` cuts how many of those the compact reply
+  `result_count`: the backend is asked for `limit` hits (`limit: args.limit`
+  in the search command), so nothing in the reply knows whether more pages
+  matched; `page_size` cuts how many of those the compact reply
   carries; `offset` is where the page starts.
 - Unset, `page_size` is the constant `DEFAULT_COMPACT_SEARCH_PAGE_SIZE`, 3
   (`src/search/commands.rs`, used by `effective_page_size`). It never comes
@@ -56,15 +58,20 @@ it cannot misread, not only through a `next_offset` nobody documented.
 - **The page size follows the limit**: with `page_size` unset, a compact page
   carries up to `limit` results; `page_size` stays the way to ask for smaller
   pages, and `offset` works as today. Search and search-all alike.
-- **The reply says when more exist**: one plain field that is true when results
-  past this page exist and false on the last page, beside `next_offset`, which
-  stays.
+- **The reply says when more exist**: one plain field that is true when more
+  pages match than this reply carries, past `limit` included, and false
+  otherwise, beside `next_offset`, which stays. The search asks the backend
+  for `limit + 1` hits and drops the extra one, so a default call (`page_size`
+  unset, the page reaching `limit`) still says whether more matched.
 - **Written down**: the MCP schemas of both search tools describe `limit`,
   `page_size` (its default), `offset`, `next_offset` and the new field; a spec
   states the compact paging contract (where: the owner's choice 1).
-- **Tested**: a compact search with `limit` 12 over a wiki with at least 12
-  matches returns 12 results and says no more exist; one with `page_size` 3
-  returns 3 and says more exist, with `next_offset` 3; search-all likewise.
+- **Tested**, for search and search-all:
+  - `limit` 12 on a query more than 12 pages match: 12 results, the field
+    true;
+  - `limit` 12 on a query exactly 12 pages match: 12 results, the field
+    false;
+  - `limit` 12 and `page_size` 3: 3 results, the field true, `next_offset` 3.
   Each test fails on the code at `cad8988` (shown once, not committed).
 
 ## Done When

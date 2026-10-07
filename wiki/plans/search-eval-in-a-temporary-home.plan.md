@@ -27,8 +27,8 @@
 ## What This Proves
 
 Anyone can run the search eval on any machine with the managed models
-installed, with one command, and the machine's registry, indexes and settings
-are the same afterwards as before.
+installed, with one command, and the machine's registry, indexes and settings,
+and the checkout's own files, are the same afterwards as before.
 
 ## Where It Stands (2026-10-07, at `cad8988`)
 
@@ -55,17 +55,31 @@ are the same afterwards as before.
   llm-wiki-framework-semantic-search --force`, but no page says how to
   register it.
 - The `justfile` has no recipe for the eval.
+- Two writes land in a project's own folder, not the home:
+  - `llm-wiki register <root>` without `--no-mcp` wires `<root>/.mcp.json` to
+    the managed binary of the current home (`src/registry/mod.rs`,
+    `src/mcp_wiring.rs`); under a temporary `HOME` that binary is deleted
+    with the home. `.mcp.json` is not in `.gitignore`.
+  - A project's search settings come from `<root>/.llm_wiki/search.toml`
+    first, and from the home's `search.toml` only when that file is absent
+    (`project_search_profile`, `src/search/commands.rs`). In an Orca
+    worktree, `tools/wiki-worktree.sh` writes that file with meaning-based
+    search off, and the worktree's own registered project reads it.
+  Found by this plan's blind review (PR #59, finding 3).
 
 ## Target
 
 - **One recipe** (name: the owner's choice 2) that:
   - makes a temporary home and points `HOME` and the XDG variables into it;
-  - gives that home the managed models, the accepted licenses and the search
-    settings (`search.toml`) from the real one, without writing to the real
-    one (how: the owner's choice 1), and fails with one plain line
-    naming `llm-wiki install` when the real home has none;
-  - registers this checkout under `llm-wiki-framework-semantic-search` with
-    meaning-based search on, and indexes it;
+  - gives that home the managed models and the accepted licenses from the
+    real one, without writing to the real one (how: the owner's choice 1),
+    and fails with one plain line naming `llm-wiki install` when the real
+    home has none;
+  - makes the eval project's own root inside the temporary directory: a copy
+    of the checkout's `wiki/`, with its own `.llm_wiki/search.toml` turning
+    meaning-based search on, never the checkout itself;
+  - registers that root under `llm-wiki-framework-semantic-search` with
+    `--no-mcp`, and indexes it;
   - runs the ignored eval test, which writes its report under `target/` as
     today;
   - removes the temporary home on the way out, success or failure.
@@ -76,8 +90,9 @@ are the same afterwards as before.
 - On a machine where `llm-wiki-framework-semantic-search` is not registered,
   the recipe runs the eval to its end, recorded in this plan with the
   command and the counts it printed.
-- The real registry, the real managed home and the real cache hold the same
-  files with the same contents before and after the run, shown by a listing
+- The real registry, the real managed home, the real cache, and the
+  checkout's `.mcp.json` and `.llm_wiki/` hold the same files with the same
+  contents before and after the run (or stay absent), shown by a listing
   with checksums taken before and after, recorded once.
 - With no managed models in the real home, the recipe stops with the one
   line of the Target, shown once.

@@ -32,8 +32,8 @@
 **Every poman command is also an MCP tool, with the same behaviour and a JSON
 result, served by `poman mcp`, poman's own server, which `llm-wiki install`
 registers beside llm-wiki's. The MCP plumbing is shared through
-`llm-wiki-core`. A tool that writes says so, and nothing reaches a tracker
-without being asked for.**
+`llm-wiki-core`. A tool that writes says so, and a push, command or tool,
+applies only the changeset a diff showed first.**
 
 ### One command, one tool
 
@@ -41,6 +41,10 @@ without being asked for.**
   `poman_new_deadline`, `poman check` is `poman_check`, and so on for the
   commands each later entry adds. In Claude Code they show as
   `mcp__poman__…`.
+- **Off a terminal**: a tool behaves as its command does when no terminal is
+  attached: it asks nothing, and a call missing a mandatory field is refused
+  with every missing argument named, as `poman new deadline` refuses off a
+  terminal (`wiki/plans/poman-deadline-type.plan.md`).
 - **Same behaviour**: a tool does what its command does, with the same checks,
   the same refusals and the same files written; its result is the command's
   JSON output.
@@ -61,9 +65,13 @@ without being asked for.**
 - **A tool that writes says so** in its description and its result:
   `poman_new_deadline` says it writes a deadline file and names the file it
   wrote.
-- **A push shows before it applies**: `poman push` as a tool shows its
-  changeset and applies it only when asked, by an explicit argument; a call
-  without it changes nothing on the tracker.
+- **A push shows before it applies, command and tool alike**: `poman push`
+  and `poman_push` behave the same. Both apply only the changeset `poman
+  diff` wrote and showed, so nothing reaches the tracker that a diff did not
+  show first, and calling push is the ask to apply it
+  (`poman-syncs-a-tracker-the-way-git-syncs-a-remote.decision.md`, "Fetch,
+  diff, push"). The tool's description says it writes to the tracker, and its
+  result names what it applied.
 
 ### What moves to `llm-wiki-core`
 
@@ -120,13 +128,12 @@ poman's tools, schemas and instructions live in the poman crate.
 - The shared code is held to the strictest gates when it moves, as the page
   reader was in PM2, ahead of PM8's ratchet for the rest of llm-wiki.
 - Open, for PM3.1's plan: whether poman needs a test instance with its own
-  server and tool names, as llm-wiki has; how `poman push` asks to apply
-  (the argument's name); and where hosts are wired for poman (install's
-  configurations only, or `init` and `register` as well); and whether
+  server and tool names, as llm-wiki has; and where hosts are wired for poman (install's
+  configurations only, or `init` and `register` as well); whether
   uninstall removes poman's server registration with llm-wiki's.
 
 ## What Would Revisit This
 
-- A poman command whose behaviour cannot be the same as a tool (one that
-  must ask a person something mid-run).
+- A poman command with no behaviour off a terminal (one that cannot run
+  without asking a person something mid-run).
 - A host that cannot run two MCP servers side by side.

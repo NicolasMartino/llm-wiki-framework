@@ -138,6 +138,9 @@ Included:
   `deadline-files-hold-one-deadline-each.decision.md`, "How the files land",
   sets it (the owner's decisions, 2026-10-06); where and how a repository
   sets it is open, and PM3's plan decides it
+- a JSON output for `poman new deadline` and `poman check`, the result
+  PM3.1's tools return (the owner, 2026-10-07: PM3 and PM3.1 are built in
+  one PR)
 
 Excluded:
 - the importance buffer in `should-start` (PM7)
@@ -162,7 +165,7 @@ behaviour and a JSON result, `llm-wiki install` registers it beside
 llm-wiki's server, and the MCP plumbing both servers use lives in
 `llm-wiki-core`, as `poman-is-mcp-friendly.decision.md` sets them (the owner,
 2026-10-07).
-Depends On: PM3
+Depends On: PM3, built in the same PR (the owner, 2026-10-07)
 Execution Plan: Not created yet (it comes when this entry starts)
 
 Included:
@@ -172,8 +175,8 @@ Included:
   under the strictest gates, llm-wiki's server reading through it, and the
   dependencies it brings into the shared crate
 - `llm-wiki install` registering poman's server beside llm-wiki's
-- the decision's open points: a test instance for poman, how `poman push` asks
-  to apply, where hosts are wired, and uninstall
+- the decision's open points: a test instance for poman, where hosts are
+  wired, and uninstall
 
 Excluded:
 - the tools of later entries' commands, which each entry ships with its
@@ -257,7 +260,7 @@ a view of the repository's files, through an adapter, GitHub's first, as
 Depends On: PM3
 Execution Plan: Not created yet
 MCP: `poman fetch`, `poman diff` and `poman push` ship as MCP tools too, the
-push applying its changeset only when asked
+push tool applying, like the command, only the changeset a diff showed
 (`poman-is-mcp-friendly.decision.md`).
 
 Included:

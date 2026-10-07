@@ -40,12 +40,20 @@ never turns that search into a failure.
   `src/search/commands.rs` accept `BackendState::Ready | BackendState::Stale`.
 - `stale_warning` already names the command:
   ``search index stale for project <id>; run `llm-wiki index --project <id>` ``.
-- Where it shows: one `Warning:` line in the CLI's text; in JSON, the
-  top-level `warning` string. The `warnings` list stays empty, measured on
+- Where it shows, for `search`: one `Warning:` line in the CLI's text; in
+  JSON, the top-level `warning` string. The `warnings` list stays empty (the
+  search command passes an empty list to the JSON printer), measured on
   this plan's worktree after a `touch` of one page (`--format json`, lexical:
   `"warning"` set, `"warnings": []`). The compact reply drops an empty list
   and carries `warning` alone. The MCP search tools always ask the CLI for
   JSON (`search_cli_args`, `src/mcp/mod.rs`), so they show the same.
+- `search-all` already collects each project's stale warning into its
+  `warnings` list, and reaches each project through the same lexical path
+  as `search`.
+- `stale_warning` writes `llm-wiki` into the command whatever binary runs it;
+  the test build is `llm-wiki-test` (`src/instance.rs`), and other places name
+  the running binary with `instance::binary_stem()` (`src/registry/mod.rs`,
+  `src/mcp_wiring.rs`).
 - Index builds take a lock with `try_lock` on `qmd-rs.lock` in the project's
   index folder and never wait; a second concurrent `llm-wiki index` fails with
   "lock acquisition failed because the operation would block". With the
@@ -62,13 +70,16 @@ never turns that search into a failure.
 - **The warning where it is read**: when the index is stale, the JSON reply's
   `warnings` list carries it, in the full and the compact reply, beside the
   `warning` string, which stays for current readers. The text names the
-  project's exact `llm-wiki index --project <id>` command and says it takes
+  project's exact `<binary> index --project <id>` command, `<binary>` being the
+  running binary (`llm-wiki`, or `llm-wiki-test` for the test build), and says it takes
   about a second for a word-match index. The MCP reply shows the same, since
   it is the CLI's JSON.
 - **A small index rebuilds itself**: when the index is stale, the project's
   search is word-match only, the lock is free and the cache writable, search
   rebuilds the index first, then answers from it, fresh, with no stale
-  warning.
+  warning. `search` only: `search-all` keeps warning and never rebuilds,
+  since one call from one worktree would otherwise rewrite every other
+  worktree's index (about 0.65 s each, in other workers' caches).
 - **Fallback, never failure**: when the lock is held or the cache is not
   writable, search answers from the stale index as today, with the warning
   above and the reason in a few words ("another index build is running",
@@ -84,7 +95,8 @@ never turns that search into a failure.
   stale, its `warnings` list names the exact command and the reason, and the
   exit code is success. A second test does the same with a read-only cache.
 - A test shows a project with LLM search on is never rebuilt by search, only
-  warned.
+  warned, and one shows `search-all` over a stale word-match project warns
+  and does not rebuild it.
 - A test reads the MCP search reply on a stale index and finds the warning in
   its `warnings` list.
 - Each of these fails on `cad8988` (shown once, not committed).
@@ -101,8 +113,9 @@ never turns that search into a failure.
    lock; a loser falls back to the warning, so nothing fails, but some
    answers come from the old index. Recommended: accept it, and add one test
    that starts three searches together on a stale index and checks every one
-   answers. Not chosen: waiting for the lock, which the code's own comment
-   on `try_lock` forbids.
+   answers. Not chosen: waiting for the lock, which would add a whole
+   rebuild's time, or more, to a search that can answer at once with the
+   warning.
 
 ## Out Of Scope
 

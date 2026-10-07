@@ -982,7 +982,7 @@ Promise: `llm_wiki_search` with `compact` set returns as many results as its
 `limit` asks for, or says plainly how to get the rest, instead of a first page
 of three that reads as the limit being ignored.
 Depends On: None
-Execution Plan: Not created yet (an investigation first; any fix gets its plan)
+Execution Plan: Not needed (an investigation first; any fix gets its own plan)
 
 Included:
 - the case met on 2026-10-06: `compact=true` with `limit=12` returned a page
