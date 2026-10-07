@@ -60,16 +60,24 @@ impl QmdRsBackend {
         filters: &SearchFilters,
         limit: usize,
     ) -> Result<LexicalSearch> {
-        let mut results =
-            self.search_project(project_id, store_path, wiki_root, query, filters, limit)?;
+        let sanitized = sanitize_fts_query(query);
+        if limit == 0 || sanitized.is_empty() {
+            return Ok(LexicalSearch {
+                results: Vec::new(),
+                fallback_pages: 0,
+            });
+        }
+        // One status check and one connection serve both queries, so the
+        // fallback adds no second chance to meet a store mid-promotion.
+        let reader = FtsReader::open(project_id, store_path, wiki_root)?;
+        let mut results = search_fts(&reader, project_id, &sanitized, query, filters, limit)?;
         let all_words_pages = results.len();
         if all_words_pages < limit
             && let Some(phrase_query) = fts_phrase_fallback_query(query)
         {
             let fallback = search_fts(
+                &reader,
                 project_id,
-                store_path,
-                wiki_root,
                 &phrase_query,
                 query,
                 filters,
@@ -172,9 +180,8 @@ impl SearchBackend for QmdRsBackend {
         if sanitized.is_empty() {
             return Ok(Vec::new());
         }
-        search_fts(
-            project_id, store_path, wiki_root, &sanitized, query, filters, limit,
-        )
+        let reader = FtsReader::open(project_id, store_path, wiki_root)?;
+        search_fts(&reader, project_id, &sanitized, query, filters, limit)
     }
 
     fn status(
@@ -657,22 +664,53 @@ fn classify_mismatch_after_metadata_reread(
     }
 }
 
+/// A searchable store's status, checked once, and its read-only connection.
+struct FtsReader {
+    status: BackendStatus,
+    conn: Connection,
+    store_path: PathBuf,
+}
+
+impl FtsReader {
+    fn open(project_id: &str, store_path: &Path, wiki_root: &Path) -> Result<Self> {
+        let status = status_for_store(project_id, store_path, wiki_root, StatusPurpose::LiveRead)?;
+        if !matches!(status.state, BackendState::Ready | BackendState::Stale) {
+            return Err(BackendAccessError::new(status).into());
+        }
+        let conn = open_immutable_connection(store_path).map_err(|classification| {
+            BackendAccessError::new(status_with_message(
+                store_path,
+                classification.state,
+                classification.open_mode,
+                status.indexed_files,
+                status.stale,
+                format!(
+                    "qmd-rs immutable read failed for {}: {}",
+                    store_path.display(),
+                    classification.message
+                ),
+            ))
+        })?;
+        Ok(Self {
+            status,
+            conn,
+            store_path: store_path.to_path_buf(),
+        })
+    }
+}
+
 /// Runs one FTS5 query and keeps up to `limit` results that pass the filters.
 /// `query` is the user's query, whose words place each result's snippet.
 fn search_fts(
+    reader: &FtsReader,
     project_id: &str,
-    store_path: &Path,
-    wiki_root: &Path,
     fts_query: &str,
     query: &str,
     filters: &SearchFilters,
     limit: usize,
 ) -> Result<Vec<SearchResult>> {
-    let status = status_for_store(project_id, store_path, wiki_root, StatusPurpose::LiveRead)?;
-    if !matches!(status.state, BackendState::Ready | BackendState::Stale) {
-        return Err(BackendAccessError::new(status).into());
-    }
-    let freshness = freshness_for_status(&status);
+    let status = &reader.status;
+    let freshness = freshness_for_status(status);
     let terms = query_terms(query);
     let filter_active = filters.is_active();
 
@@ -684,7 +722,13 @@ fn search_fts(
     let mut window = limit.saturating_mul(4).max(20);
     let mut results = Vec::new();
     loop {
-        let raw_results = immutable_search_fts(store_path, project_id, fts_query, window, &status)?;
+        let raw_results = immutable_search_fts(
+            &reader.conn,
+            &reader.store_path,
+            project_id,
+            fts_query,
+            window,
+        )?;
         let raw_len = raw_results.len();
         results.clear();
 
@@ -737,26 +781,12 @@ fn search_fts(
 }
 
 fn immutable_search_fts(
+    conn: &Connection,
     store_path: &Path,
     project_id: &str,
     query: &str,
     limit: usize,
-    last_status: &BackendStatus,
 ) -> Result<Vec<ImmutableFtsRow>> {
-    let conn = open_immutable_connection(store_path).map_err(|classification| {
-        BackendAccessError::new(status_with_message(
-            store_path,
-            classification.state,
-            classification.open_mode,
-            last_status.indexed_files,
-            last_status.stale,
-            format!(
-                "qmd-rs immutable read failed for {}: {}",
-                store_path.display(),
-                classification.message
-            ),
-        ))
-    })?;
     let collection = collection_name(project_id);
     let mut stmt = conn
         .prepare(
