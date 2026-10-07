@@ -1,5 +1,23 @@
 # Wiki Log
 
+## [2026-10-07] merge | Compact search pages follow the limit and say when more exist
+
+Merged #61 (closes #29): a compact search page now holds up to the limit
+asked for, ten hits by default instead of three, and a new `has_more` field is
+true when more hits follow the page, kept or past the limit. The search asks
+for one hit past the limit, and a hybrid search widens each branch by one hit
+only to learn whether a hit past the limit survives fusion; the kept hits and the rerank pool
+stay as they were, so full replies, reranked searches and the search eval are
+unchanged. The contract is in the query
+skill's spec; both of the plan's choices (that spec, and the name `has_more`)
+were taken by the coordinator while the owner was away, for the owner's
+verdict to confirm. A Headroom probe on the Claude path found all ten hits
+whole; the Codex path is P25. P17 is Completed.
+
+Pages affected: `wiki/plans/compact-search-pages-follow-the-limit.plan.md`,
+`wiki/specs/wiki-query-skill.spec.md`, `wiki/roadmaps/framework-v1.roadmap.md`,
+`wiki/index.md`.
+
 ## [2026-10-07] merge | poman writes and checks deadline files, and serves them over MCP
 
 Merged #62 (closes #60): PM3 and PM3.1 built in one PR, as the owner decided
@@ -21,6 +39,7 @@ Pages affected: `wiki/plans/poman-deadline-type.plan.md`,
 `wiki/decisions/poman-is-mcp-friendly.decision.md`,
 `wiki/decisions/poman-reads-only-its-own-file-types.decision.md`,
 `wiki/decisions/deadline-files-hold-one-deadline-each.decision.md`,
+
 `wiki/index.md`.
 
 ## [2026-10-07] merge | Lexical search weights titles and file names, and falls back to phrases
@@ -40,6 +59,7 @@ here.
 Pages affected: `wiki/plans/search-ranking-weights-and-phrase-fallback.plan.md`,
 `wiki/specs/documentation-model.spec.md`,
 `wiki/decisions/search-backend-selection.decision.md`,
+`wiki/roadmaps/framework-v1.roadmap.md`, `wiki/index.md`.
 
 ## [2026-10-07] merge | The dead build-skills recipes are gone
 
@@ -68,7 +88,6 @@ by the coordinator while the owner was away. P22 is Completed.
 
 Pages affected: `wiki/plans/dependency-gate-covers-dev-dependencies.plan.md`,
 `wiki/plans/poman-workspace-and-strict-gates.plan.md`,
-
 `wiki/roadmaps/framework-v1.roadmap.md`, `wiki/index.md`.
 
 

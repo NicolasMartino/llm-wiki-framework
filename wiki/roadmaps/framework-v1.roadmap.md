@@ -1024,7 +1024,7 @@ Proof:
 
 ### P17 - Compact Search Pages Follow The Limit
 
-Status: Draft
+Status: Completed (develop)
 Promise: `llm_wiki_search` in compact mode returns as many results as its
 `limit` asks for by default, and says plainly when more exist.
 Depends On: P15
@@ -1239,3 +1239,27 @@ Proof:
 - no page of the way of working tells the coordinator to open a log PR, except
   as history, and the landing steps describe the bookkeeping commit and both
   moments
+
+### P25 - Compact Search's Default Page Checked On The Codex Path
+
+Status: Draft
+Promise: The default compact search page (10 hits since P17) is known to
+arrive whole through Headroom on the Codex path too, or is made smaller there.
+Depends On: P17
+Execution Plan: Not created yet (one probe first; a fix, if needed, gets its
+plan)
+
+Included:
+- the gap left by P17's Headroom check (2026-10-07, PR #61): one read-only
+  probe through `llm-wiki headroom -- wrap claude` found all 10 hits whole, but
+  the Codex (OpenAI Responses) path, where the earlier field tests saw
+  compression, needs a nested agent run and was not covered
+- the same probe on the Codex path, nothing registered and no proxy setting
+  touched, its result written in the compact paging plan's "Headroom Check"
+
+Excluded:
+- the compact envelope's fields, and the default page size, unless the probe
+  shows hits lost
+
+Proof:
+- the Codex-path probe's result recorded, and any loss fixed or filed

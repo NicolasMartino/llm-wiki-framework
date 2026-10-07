@@ -1,7 +1,7 @@
 # Plan: Compact Search Pages Follow The Limit
 
 - Document Class: Plan
-- Status: Draft
+- Status: Completed (develop)
 - Date: 2026-10-07
 - Category: Search, MCP
 - Scope: Carry out P17 of the framework roadmap: a compact search returns as
@@ -59,9 +59,9 @@ it cannot misread, not only through a `next_offset` nobody documented.
   carries up to `limit` results; `page_size` stays the way to ask for smaller
   pages, and `offset` works as today. Search and search-all alike.
 - **The reply says when more exist**: one plain field that is true when more
-  pages match than this reply carries, past `limit` included, and false
-  otherwise, beside `next_offset`, which stays. The search asks the backend
-  for `limit + 1` hits and drops the extra one, so a default call (`page_size`
+  hits follow this page, whether kept or past `limit`, and false otherwise,
+  beside `next_offset`, which stays. The search asks the backend for
+  `limit + 1` hits and drops the extra one, so a default call (`page_size`
   unset, the page reaching `limit`) still says whether more matched.
 - **Written down**: the MCP schemas of both search tools describe `limit`,
   `page_size` (its default), `offset`, `next_offset` and the new field; a spec
@@ -84,7 +84,23 @@ it cannot misread, not only through a `next_offset` nobody documented.
 - Pages that still say the compact page is 3, found by searching the wiki at
   that time, say what is true.
 
-## Open For The Owner
+## Headroom Check (2026-10-07)
+
+Compact search exists because it survived Headroom when full replies did not
+(`wiki/evals/headroom-0-32-compact-search-field-test.eval.md`, pages of 1),
+and this plan grows the default page from 3 hits to 10. One read-only probe,
+with nothing registered and no proxy setting touched: a Claude Code session
+running behind `llm-wiki headroom -- wrap claude` (Headroom 0.39.1, managed
+`llm-wiki 0.2.15`) called `llm_wiki_search` with `compact:true`,
+`page_size:10` and `limit` unset, the size of the new default page. All 10
+hits arrived whole, about 3.6 KB, with no CCR marker and no field dropped.
+Not covered: the Codex (OpenAI Responses) path, where the earlier field tests
+saw compression, which needs a nested agent run.
+
+## The Owner's Choices
+
+Both recommendations below were taken by the coordinator on 2026-10-07 while
+the owner was away, to be confirmed by the owner's verdict on PR #61.
 
 1. **Where the contract is written: a section in
    `wiki/specs/wiki-query-skill.spec.md`**, whose "Proven By" already relies

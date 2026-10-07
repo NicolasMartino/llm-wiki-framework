@@ -707,7 +707,8 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
             &[],
             &results,
             mode_metadata,
-            SearchJsonOptions::from_search_args(args),
+            SearchJsonOptions::from_search_args(args)
+                .with_more_beyond_limit(search.more_beyond_limit),
         ),
     }
     Ok(())
@@ -754,6 +755,7 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
     };
     let mut warnings = Vec::new();
     let mut fused: BTreeMap<(String, String), FusedResult> = BTreeMap::new();
+    let mut project_more_beyond_limit = false;
     let mut fallback_keys: BTreeSet<(String, String)> = BTreeSet::new();
     let mut project_reports = Vec::new();
 
@@ -1022,6 +1024,9 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
             thresholds_source: search.thresholds_source,
         });
         warnings.extend(search.warnings);
+        // A project with more hits than it returned has more than `limit`,
+        // since it returned at least `limit`.
+        project_more_beyond_limit |= search.more_beyond_limit;
         let mut results = search.results;
         let all_words_pages = results.len() - search.phrase_fallback_pages;
         for result in &results[all_words_pages..] {
@@ -1073,6 +1078,7 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
             .then_with(|| left.result.project_id.cmp(&right.result.project_id))
             .then_with(|| left.result.path.cmp(&right.result.path))
     });
+    let more_beyond_limit = project_more_beyond_limit || results.len() > args.limit;
     let results = results
         .into_iter()
         .take(args.limit)
@@ -1114,7 +1120,8 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
                 &project_reports,
                 &results,
                 mode_metadata,
-                SearchJsonOptions::from_search_all_args(args),
+                SearchJsonOptions::from_search_all_args(args)
+                    .with_more_beyond_limit(more_beyond_limit),
             )
         }
     }
@@ -1807,50 +1814,84 @@ struct SearchWarning {
     message: String,
 }
 
-const DEFAULT_COMPACT_SEARCH_PAGE_SIZE: usize = 3;
+/// The search asks for one hit past `limit` and drops it, so a reply can say
+/// whether more pages matched than `limit` let it keep.
+fn limit_with_lookahead(limit: usize) -> usize {
+    if limit == 0 {
+        0
+    } else {
+        limit.saturating_add(1)
+    }
+}
+
+fn cut_to_limit(mut search: SearchExecution, limit: usize) -> SearchExecution {
+    search.more_beyond_limit |= search.results.len() > limit;
+    // The phrase fallback's pages come last, so the cut drops them first.
+    let dropped = search.results.len().saturating_sub(limit);
+    search.phrase_fallback_pages = search.phrase_fallback_pages.saturating_sub(dropped);
+    search.results.truncate(limit);
+    search
+}
 
 #[derive(Clone, Copy, Debug)]
 struct SearchJsonOptions {
     compact: bool,
+    limit: usize,
     page_size: Option<usize>,
     offset: usize,
+    more_beyond_limit: bool,
 }
 
 impl SearchJsonOptions {
     const fn full() -> Self {
         Self {
             compact: false,
+            limit: 0,
             page_size: None,
             offset: 0,
+            more_beyond_limit: false,
         }
     }
 
     fn from_search_args(args: &SearchArgs) -> Self {
         Self {
             compact: args.compact,
+            limit: args.limit,
             page_size: args.page_size,
             offset: args.offset,
+            more_beyond_limit: false,
         }
     }
 
     fn from_search_all_args(args: &SearchAllArgs) -> Self {
         Self {
             compact: args.compact,
+            limit: args.limit,
             page_size: args.page_size,
             offset: args.offset,
+            more_beyond_limit: false,
+        }
+    }
+
+    const fn with_more_beyond_limit(self, more_beyond_limit: bool) -> Self {
+        Self {
+            more_beyond_limit,
+            ..self
         }
     }
 
     fn effective_page_size(self) -> usize {
         self.page_size
             .filter(|page_size| *page_size > 0)
-            .unwrap_or(DEFAULT_COMPACT_SEARCH_PAGE_SIZE)
+            .unwrap_or(self.limit)
     }
 }
 
 #[derive(Debug)]
 struct SearchExecution {
     results: Vec<SearchResult>,
+    /// More hits matched than `results` carries, which stops at the limit.
+    more_beyond_limit: bool,
     warnings: Vec<SearchWarning>,
     status: BackendStatus,
     runtime_report: Option<GgufRuntimeReport>,
@@ -2421,6 +2462,7 @@ struct CompactSearchEnvelopeJson {
     page_size: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     next_offset: Option<usize>,
+    has_more: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     warning: Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -2610,6 +2652,7 @@ fn print_compact_search_json(
             offset,
             page_size,
             next_offset,
+            has_more: next_offset.is_some() || options.more_beyond_limit,
             warning: warning.map(str::to_string),
             warnings,
             projects,
@@ -2808,10 +2851,12 @@ fn perform_resolved_project_search(
             input.wiki_root,
             input.query,
             input.filters,
-            input.limit,
+            limit_with_lookahead(input.limit),
             LexicalQuery::PhraseFallback,
-        ),
-        RuntimeSearchMode::Semantic => perform_semantic_project_search(input, resolution),
+        )
+        .map(|search| cut_to_limit(search, input.limit)),
+        RuntimeSearchMode::Semantic => perform_semantic_project_search(input, resolution)
+            .map(|search| cut_to_limit(search, input.limit)),
         RuntimeSearchMode::Hybrid => {
             perform_hybrid_project_search(input, resolution, rerank_requested, context)
         }
@@ -2862,7 +2907,7 @@ fn perform_semantic_project_search(
             wiki_root: input.wiki_root,
             query_embedding: &query_embedding.embedding,
             filters: input.filters,
-            limit: input.limit,
+            limit: limit_with_lookahead(input.limit),
             floor: state.thresholds.semantic_similarity_floor,
             freshness: freshness_for_status(&status),
             mode: SearchMode::Semantic,
@@ -2870,6 +2915,7 @@ fn perform_semantic_project_search(
     )?;
     Ok(SearchExecution {
         results,
+        more_beyond_limit: false,
         warnings: stale_warning(input.project, &status).into_iter().collect(),
         status,
         runtime_report: query_embedding.runtime_report,
@@ -2907,16 +2953,21 @@ fn perform_hybrid_project_search(
     } else {
         input.limit.max(20)
     };
+    // From `limit` 20 up the window is `limit`, so the hit past `limit` may be
+    // one only a wider window brings in.
+    let lookahead_window = limit_with_lookahead(input.limit).max(per_branch_limit);
     let mut warnings = Vec::new();
     let mut status = None;
     let mut lexical_results = Vec::new();
+    let mut lexical_lookahead = Vec::new();
     for lexical_query in &expanded.lexical {
-        let search = hybrid_lexical_branch_search(input, lexical_query, per_branch_limit)?;
+        let search = hybrid_lexical_branch_search(input, lexical_query, lookahead_window)?;
         if status.is_none() {
             status = Some(search.status.clone());
         }
         warnings.extend(search.warnings);
-        lexical_results.extend(search.results);
+        lexical_results.extend(search.results.iter().take(per_branch_limit).cloned());
+        lexical_lookahead.extend(search.results);
     }
     dedupe_warnings(&mut warnings);
     let status = match status {
@@ -2929,8 +2980,10 @@ fn perform_hybrid_project_search(
         )?,
     };
     let lexical_results = dedupe_by_path_preserving_rank(lexical_results);
+    let lexical_lookahead = dedupe_by_path_preserving_rank(lexical_lookahead);
 
     let mut semantic_results = Vec::new();
+    let mut semantic_lookahead = Vec::new();
     // Load the embedding engine once and reuse it across every expanded sub-query
     // instead of reconstructing the ~333 MB model per expansion.
     let mut query_embedder = QueryEmbedder::new(
@@ -2940,7 +2993,7 @@ fn perform_hybrid_project_search(
     for semantic_query in &expanded.semantic {
         let query_embedding = query_embedder.embed(semantic_query)?;
         merge_runtime_report(&mut runtime_report, query_embedding.runtime_report);
-        semantic_results.extend(state.vectors.search(
+        let search = state.vectors.search(
             &state.metadata,
             SemanticSearchContext {
                 project_id: &input.project.id,
@@ -2948,43 +3001,55 @@ fn perform_hybrid_project_search(
                 wiki_root: input.wiki_root,
                 query_embedding: &query_embedding.embedding,
                 filters: input.filters,
-                limit: per_branch_limit,
+                limit: lookahead_window,
                 floor: state.thresholds.hybrid_pre_fusion_semantic_floor,
                 freshness: freshness_for_status(&status),
                 mode: SearchMode::Semantic,
             },
-        )?);
+        )?;
+        semantic_results.extend(search.iter().take(per_branch_limit).cloned());
+        semantic_lookahead.extend(search);
     }
     let semantic_results = dedupe_by_path_preserving_rank(semantic_results);
-    let mut results = if state.thresholds_source == ThresholdsSource::Default {
-        let results = fuse_hybrid_results(
+    let semantic_lookahead = dedupe_by_path_preserving_rank(semantic_lookahead);
+    let fused_limit = limit_with_lookahead(input.limit);
+    let relaxed_thresholds;
+    let mut thresholds = &state.thresholds;
+    let mut results = fuse_hybrid_results(
+        input.query,
+        thresholds,
+        lexical_results.clone(),
+        semantic_results.clone(),
+        fused_limit,
+    );
+    if results.is_empty() && state.thresholds_source == ThresholdsSource::Default {
+        relaxed_thresholds = relaxed_default_hybrid_thresholds(&state.thresholds);
+        thresholds = &relaxed_thresholds;
+        results = fuse_hybrid_results(
             input.query,
-            &state.thresholds,
-            lexical_results.clone(),
-            semantic_results.clone(),
-            input.limit,
-        );
-        if results.is_empty() {
-            let relaxed_thresholds = relaxed_default_hybrid_thresholds(&state.thresholds);
-            fuse_hybrid_results(
-                input.query,
-                &relaxed_thresholds,
-                lexical_results,
-                semantic_results,
-                input.limit,
-            )
-        } else {
-            results
-        }
-    } else {
-        fuse_hybrid_results(
-            input.query,
-            &state.thresholds,
+            thresholds,
             lexical_results,
             semantic_results,
-            input.limit,
+            fused_limit,
+        );
+    }
+    // Fusion keeps its order whatever the cut, so the extra hit only says
+    // whether more matched; the reranker still sees `limit` hits.
+    let mut more_beyond_limit = results.len() > input.limit;
+    if !more_beyond_limit && lookahead_window > per_branch_limit {
+        // The kept hits come from today's window; fusing the wider one only
+        // learns whether a hit past `limit` survives the gate.
+        more_beyond_limit = fuse_hybrid_results(
+            input.query,
+            thresholds,
+            lexical_lookahead,
+            semantic_lookahead,
+            fused_limit,
         )
-    };
+        .len()
+            > input.limit;
+    }
+    results.truncate(input.limit);
     let rerank_output = maybe_rerank_results(
         input.query,
         results,
@@ -3002,6 +3067,7 @@ fn perform_hybrid_project_search(
 
     Ok(SearchExecution {
         results,
+        more_beyond_limit,
         warnings,
         status,
         runtime_report,
@@ -3798,6 +3864,7 @@ fn search_attempt(
     };
     Ok(SearchAttempt::Success(SearchExecution {
         results: search.results,
+        more_beyond_limit: false,
         warnings: stale_warning(project, &status).into_iter().collect(),
         status,
         runtime_report: None,

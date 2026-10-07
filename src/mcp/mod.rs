@@ -130,7 +130,7 @@ fn tools_list_result() -> Value {
             },
             {
                 "name": instance::mcp_search_tool_name(),
-                "description": "Search one registered LLM Wiki project using the same deterministic search path as the CLI.",
+                "description": "Search one registered LLM Wiki project using the same deterministic search path as the CLI. With compact, the reply carries one page of the hits: up to page_size of them from offset; next_offset is where the next page starts, and has_more is true when more hits follow this page, whether kept or past limit.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
@@ -139,10 +139,10 @@ fn tools_list_result() -> Value {
                         "mode": {"type": "string", "enum": ["auto", "lexical", "semantic", "hybrid"]},
                         "class": {"type": "string"},
                         "status": {"type": "string"},
-                        "limit": {"type": "integer", "minimum": 1},
+                        "limit": {"type": "integer", "minimum": 1, "default": 10, "description": "The most hits the search keeps; result_count counts them."},
                         "compact": {"type": "boolean"},
-                        "page_size": {"type": "integer", "minimum": 1},
-                        "offset": {"type": "integer", "minimum": 0},
+                        "page_size": {"type": "integer", "minimum": 1, "description": "With compact, the most results one reply carries; defaults to limit."},
+                        "offset": {"type": "integer", "minimum": 0, "default": 0, "description": "With compact, where the page starts among the kept hits; pass next_offset for the next page."},
                         "allow_lexical_fallback": {"type": "boolean"},
                         "rerank": {"type": "boolean"}
                     },
@@ -152,7 +152,7 @@ fn tools_list_result() -> Value {
             },
             {
                 "name": instance::mcp_search_all_tool_name(),
-                "description": "Search across registered LLM Wiki projects using the same deterministic search-all path as the CLI.",
+                "description": "Search across registered LLM Wiki projects using the same deterministic search-all path as the CLI. With compact, the reply carries one page of the hits: up to page_size of them from offset; next_offset is where the next page starts, and has_more is true when more hits follow this page, whether kept or past limit.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
@@ -162,10 +162,10 @@ fn tools_list_result() -> Value {
                         "mode": {"type": "string", "enum": ["auto", "lexical", "semantic", "hybrid"]},
                         "class": {"type": "string"},
                         "status": {"type": "string"},
-                        "limit": {"type": "integer", "minimum": 1},
+                        "limit": {"type": "integer", "minimum": 1, "default": 10, "description": "The most hits the search keeps; result_count counts them."},
                         "compact": {"type": "boolean"},
-                        "page_size": {"type": "integer", "minimum": 1},
-                        "offset": {"type": "integer", "minimum": 0},
+                        "page_size": {"type": "integer", "minimum": 1, "description": "With compact, the most results one reply carries; defaults to limit."},
+                        "offset": {"type": "integer", "minimum": 0, "default": 0, "description": "With compact, where the page starts among the kept hits; pass next_offset for the next page."},
                         "allow_lexical_fallback": {"type": "boolean"},
                         "rerank": {"type": "boolean"}
                     },
