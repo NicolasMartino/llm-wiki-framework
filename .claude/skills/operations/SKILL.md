@@ -61,9 +61,14 @@ not this summary.
   owner's ("Limits Across Workers").
 - Work PRs go into `develop`; master takes `develop` only through a PR from
   `develop`, with the full CI and the owner's PASS ("Develop And Master").
-- Every PR but a log PR and the PR into master gets one blind review and one
-  fix round before the owner's verdict; merge only with the owner's PASS on
-  the current head, checked yourself ("Landing A PR").
+- Every PR but the PR into master gets one blind review and one fix round
+  before the owner's verdict; merge only with the owner's PASS on the current
+  head, checked yourself ("Landing A PR").
+- Each PR into `develop` carries its own log entry and any waiting backlog
+  roadmap entries in one bookkeeping commit, added by the coordinator just
+  before it goes ready, or just after the PASS if it touches only the log and
+  roadmap entries; no log PRs, and no roadmap entry committed straight to
+  `develop` ("Landing A PR").
 - Workers never merge, release or start workers ("Starting A Worker").
 - Worktrees are removed with `--run-hooks` ("Worktrees").
 

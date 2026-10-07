@@ -40,8 +40,9 @@ every task, with its reason in the worker briefs checklist.
 
 **A fix round** (after the owner's FAIL, or a blind review whose PR worker is
 gone) uses the kind of the PR's work, in the PR's worktree; the checklist,
-"Starting A Worker", "A fix round", has the placement and the two lines its
-spec must carry.
+"Starting A Worker", "A fix round", has the placement and the lines its spec
+must carry, among them, after a failed verdict, `git pull --no-rebase` first,
+since the branch carries the coordinator's bookkeeping commit.
 
 A task that fits none: write the spec from the template and the shared rules,
 and once it is done add a kind here, a base text, and its section in the

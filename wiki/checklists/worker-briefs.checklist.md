@@ -165,7 +165,9 @@ A change to wiki pages only, plans included.
   the worker re-indexes its worktree after moving pages, because the worktree's
   word-match index is built when the worktree is made.
 
-A **log PR** is the coordinator's own, written at merge.
+The **log entry and backlog lines** are the coordinator's own, in the PR's
+bookkeeping commit (operation manager checklist, "Landing A PR"); no worker
+writes them.
 
 ### An Investigation
 

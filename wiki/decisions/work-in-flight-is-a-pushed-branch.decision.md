@@ -43,7 +43,7 @@
    branch is gone. Any other Branch line on the checkout is STALE whether or
    not its branch is still on `origin`, since merged branches stay there. A
    pushed branch no plan names is listed as "no plan", for information: wiki
-   work, investigations and log PRs have none. `tools/branch-status-test.sh`
+   work and investigations have none. `tools/branch-status-test.sh`
    checks these cases against a scratch origin, and `just verify` runs it.
 5. **A plan completed from now on says where its proof holds**:
    `Completed (develop)` once its PR merges into `develop` (decided by the

@@ -1050,7 +1050,7 @@ Status: Completed (develop)
 Promise: A plan's status changes in the PR that does its work: the worker sets
 it Active with its Branch line in its first push and Completed before the PR
 leaves draft, and the merge makes it true. The coordinator commits no status,
-the log PR carries only the log, and `just branch-status` reads each branch's
+the log PR carries only the log (log PRs replaced by P24 on 2026-10-07), and `just branch-status` reads each branch's
 plans from its own `origin/<branch>`.
 Depends On: None
 Execution Plan: Not needed (the rules change is wiki-only; the recipe change is
@@ -1203,3 +1203,32 @@ Excluded:
 Proof:
 - the recipe runs the eval with that project unregistered on the machine, and
   the real registry is unchanged afterwards
+
+### P24 - Each PR Carries Its Own Log Entry And Backlog Lines
+
+Status: Completed (develop)
+Promise: Each PR into `develop` carries its own log entry and any waiting
+backlog roadmap entries in one bookkeeping commit, which the coordinator adds
+just before the PR goes ready, or just after the owner's PASS when it touches
+only `wiki/log.md` and roadmap entries. Log PRs stop, and no roadmap entry is
+committed straight to `develop`.
+Depends On: P18
+Execution Plan: Not needed (the rules change is wiki-only, with the operations
+skills)
+
+Included:
+- the owner's decision of 2026-10-07: "just before the merge you add a commit
+  with the backlog and all the llm wiki logs", and "it's ok just after the pass
+  only if it touches logs/backlog and no code"
+- AGENTS.MD, the operation manager checklist, the worker briefs checklist, the
+  review-surface and work-in-flight decisions, the operations skills and the
+  workers' base texts (issue #51)
+
+Excluded:
+- `wiki/log.md` entries and past records, which stay as written
+- the blind review and the owner's verdict rules themselves
+
+Proof:
+- no page of the way of working tells the coordinator to open a log PR, except
+  as history, and the landing steps describe the bookkeeping commit and both
+  moments

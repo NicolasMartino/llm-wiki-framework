@@ -7,12 +7,17 @@
 - Scope: What the coordinating session does between the owner and the
   workers: talking with the owner, the plans and the board, issues and names,
   starting a worker, fix rounds, the limits across workers, worktrees,
-  integration branches, the blind review, landing a PR or a comment, the log
-  entry, taking `develop` to master, and clean-up. Each rule with its reason.
+  integration branches, the blind review, landing a PR or a comment, the
+  bookkeeping commit (log entry and backlog), taking `develop` to master, and
+  clean-up. Each rule with its reason.
 - Sources:
   - The owner's decisions of 2026-10-06 on how this repository is worked on,
     and that work lands on `develop` ("all issues/PR should be pointing at
     develop now")
+  - The owner's decision of 2026-10-07 on the bookkeeping commit: "just before
+    the merge you add a commit with the backlog and all the llm wiki logs",
+    and "it's ok just after the pass only if it touches logs/backlog and no
+    code"
   - The operation manager runbooks of RepForge and riseon (2026-10-02 to
     2026-10-06), cut down for this repository; the reasons cite what happened
     there
@@ -41,8 +46,8 @@ Three repo commands walk the steps and point back here:
   kind → plan → facts → spec → checklist → worker → board. The base texts sit
   beside it.
 - `/operations-land <PR>` (`.claude/skills/operations-land/SKILL.md`): blind
-  review → gate check → ready → verdict → check it yourself → merge → log and
-  board → clean-up.
+  review → gate check → bookkeeping commit → ready → verdict → check it
+  yourself → merge → board → clean-up.
 
 Workers run under Orca. The machine-wide rules (every agent is an Orca worker,
 the worker lifecycle, the spec shape) are in the owner's global Claude
@@ -152,7 +157,7 @@ the status, and the board shows it.
   poman's workspace and strict gates, PR #28, is one): their own PR completes
   them. The coordinator writes that exception into the worker's spec (or its
   fix round's), naming the plan, so the plan-status part's Completed step
-  applies to it; the log PR still carries no status.
+  applies to it; the bookkeeping commit still carries no status.
 - **The board follows the work**, moved by the coordinator: Active when the
   worker starts, Blocked with the title note (` (blocked: <short name> #<n>)`)
   and, when the blocker is an issue, GitHub's "Blocked by" link, Completed when
@@ -195,7 +200,12 @@ the status, and the board shows it.
   change; a list of impacts says plainly that whoever does the work rechecks
   it. Its body: what, why, where (a first list), out of scope, done when.
 - **Backlog means a roadmap entry**, and its issue on the board. A line in a
-  plan or a chat alone gets lost.
+  plan or a chat alone gets lost. A new entry waits for the next PR's
+  bookkeeping commit ("Landing A PR"); its issue can be filed and put on the
+  board at once, naming the entry's number. The coordinator never commits a
+  roadmap entry straight to `develop`, and opens no PR for backlog alone
+  (owner, 2026-10-07). Why: backlog committed straight to `develop` broke
+  "every change goes through a PR", and a PR for it alone was extra ceremony.
 - **Do not change an issue while its worker writes against it.** A change goes
   in a comment the worker is told about, or waits for the PR. Why: in riseon
   two issues were filed against a page while its worker was writing it, and
@@ -256,8 +266,11 @@ before the blind review's findings): a worker of the same kind, Opus medium,
 in the PR's existing worktree (`--worktree path:<worktree>`), or, if that is
 gone, a new-child worktree from `origin/<PR branch>` after `git fetch origin`.
 Its spec's Goal says "Fix round on PR #<n>: <the review's link>" and its
-Context says "the review already ran: skip the review ask". One blind review
-and one fix round per PR.
+Context says "the review already ran: skip the review ask". After a failed
+verdict its Context also says "the branch carries the coordinator's merge of
+`develop` and bookkeeping commit: run `git pull --no-rebase` before working",
+since those were pushed from the main checkout and workers never force-push.
+One blind review and one fix round per PR.
 
 **What workers may not do**, which the shared rules tell them: open a PR into
 master, merge, tag or release, start workers of their own, touch files outside the spec, edit
@@ -348,8 +361,8 @@ the coordinator (`orchestration ask`) for anything else.
 
 `/operations-land` walks these steps.
 
-- **One blind review first**, for every PR but a log PR and the PR from
-  `develop` into master ("Develop And Master"). At the worker's review ask:
+- **One blind review first**, for every PR but the PR from `develop` into
+  master ("Develop And Master"). At the worker's review ask:
 
   ```bash
   sed "s/<PR>/<n>/g" .claude/skills/operations-start/base/blind-review.txt > <scratchpad>/review-<n>.txt
@@ -374,7 +387,64 @@ the coordinator (`orchestration ask`) for anything else.
   which on the PR into master, is `wiki/plans/develop-and-master-ci.plan.md`'s).
   Why: a verify script once exited 0 with gates skipped, and the
   owner refused a PR whose gates had been skipped ("no excuses"). Wiki PRs run
-  no local gates; CI still runs on them.
+  no local gates; CI still runs on them. The bookkeeping commit, added after
+  this check, moves the head: the full gates stay those of the head before it,
+  which the gate run comment names, and CI runs again, and must pass, on the
+  new head.
+- **The bookkeeping commit.** Only the coordinator writes `wiki/log.md`, and
+  only here: each PR into `develop` gets one log entry, added by the
+  coordinator in a commit on the PR's own branch, together with
+  - the PR's own log entry, at the top of the log, in this wiki's format
+    (`## [<date>] <operation> | <subject>`, a paragraph on what changed and
+    why citing the PR, then `Pages affected: …`), written as if merged;
+  - any backlog roadmap entries waiting then ("Issues And Names"), and the
+    entry of a merge with no worker PR of its own (the PR from `develop` into
+    master, "Develop And Master").
+
+  It carries no plan status: that came with the work ("The Board"). First merge
+  `develop` into the branch, never a rebase, so the log's top does not
+  conflict, and check what that merge fixed by hand:
+  `git show --remerge-diff --name-only --format= <merge sha>` names nothing
+  but `wiki/log.md` and roadmap pages. A conflict anywhere else is not the
+  coordinator's to fix, since it writes no product code: abort the merge, add
+  no bookkeeping, and the PR goes back to a fix round. Two moments are allowed
+  (owner, 2026-10-07):
+  - **(a) just before the PR goes ready**, after its fix round and the gate
+    check, so the owner's PASS covers it. The usual one. When the PR comes
+    back from a failed verdict, its fix round done, the entry already on the
+    branch is rewritten to match, never added a second time.
+  - **(b) just after the owner's PASS**, when the bookkeeping was not added at
+    (a), when a backlog entry arrived since, or when another PR merged since
+    and took the log's top, so this one no longer merges cleanly: merge
+    `develop` again, put the entry back at the top, add what waits. Before
+    merging, check on the commits since the passed head:
+    - every merge of `develop` among them passes the `--remerge-diff` check
+      above;
+    - `git log --first-parent --no-merges --name-only --format= <passed sha>..<new head>`
+      names nothing but `wiki/log.md` and roadmap pages: no code, no other
+      page;
+    - `git log --first-parent --no-merges --numstat --format= <passed sha>..<new head> -- wiki/roadmaps`
+      shows 0 deleted lines: roadmap changes only add entries, never change
+      another entry's status or promise.
+
+    Record it on the PR before merging, as a comment headed
+    `## Bookkeeping after the verdict — <new head>` naming the passed SHA, the
+    new head and the files those checks name; then merge pinned to the new
+    head. Anything else: the PASS does not cover it, and the PR waits for the
+    owner's verdict on the new head.
+
+  ```bash
+  git fetch origin && git switch --detach origin/<PR branch>   # in the main checkout
+  git merge origin/develop
+  git show --remerge-diff --name-only --format= HEAD   # only the log and roadmap pages
+  # the entry at the top of wiki/log.md; the waiting entries in their roadmap
+  git commit -am "Wiki: Add the bookkeeping for #<n>" && git push origin HEAD:<PR branch>
+  git switch develop
+  ```
+
+  Why: the log and the backlog go through a PR like every other change, with
+  no separate log PR to review and land (owner, 2026-10-07; log PRs were used
+  from 2026-10-06 to 2026-10-07).
 - **Ready**: `gh pr ready <n>`, then tell the owner it waits for them.
 - **The verdict is the owner's.** A PR comment whose heading contains PASS or
   FAIL; CHANGES REQUESTED counts as FAIL; a heading with both is no pass. A
@@ -384,7 +454,10 @@ the coordinator (`orchestration ask`) for anything else.
   owner's GitHub login, so the owner once took a blind review's comment for a
   verdict of their own. A failed verdict: `gh pr ready <n> --undo`, then a fix
   round.
-- **Merge only with the owner's PASS on the PR's current head**, after reading
+- **Merge only with the owner's PASS on the PR's current head** (or on the
+  head before a bookkeeping commit added at moment (b)), with the full gates
+  on the head before the bookkeeping commit and CI on the head itself, after
+  reading
   the diff yourself against the issue and the plan, and checking that it marks
   its plan Completed with its roadmap entry ("The Board"); a PR that does not
   goes back to its worker:
@@ -399,23 +472,7 @@ the coordinator (`orchestration ask`) for anything else.
   PR's `mergeable` to leave UNKNOWN. Then check the issue closed: GitHub
   closes it on a merge into `develop`, its default branch. The PR from
   `develop` into master merges another way ("Develop And Master").
-- **The log entry at merge.** Only the coordinator writes
-  `wiki/log.md`: one entry per merge into `develop`, at the top of the log, in
-  this wiki's format (`## [<date>] <operation> | <subject>`, a paragraph on
-  what changed and why citing the PR, then `Pages affected: …`). The log PR,
-  into `develop`, carries only the log entries: the plan's status came with
-  the work's own PR ("The Board"). A log PR may gather several merges; it gets no log entry of its own and no blind review, and the owner's
-  PASS decides it. Then the issue to Completed on the board. The PR from
-  `develop` into master gets its own entry ("Develop And Master"). Both as
-  written here, decided by the owner on 2026-10-06.
-
-  ```bash
-  git fetch origin && git switch -c wiki-log-<n> origin/develop   # in the main checkout
-  # add the entries at the top of wiki/log.md
-  git commit -am "Wiki: Log the merge of #<n>" && git push -u origin wiki-log-<n>
-  gh pr create --base develop --title "Wiki: Log the merge of #<n>" --body "Logs #<n>." --draft
-  git switch develop
-  ```
+- **Then the issue to Completed on the board.**
 - **Remove the worktree** of a merged PR ("Worktrees").
 
 ## Develop And Master
@@ -456,17 +513,19 @@ merges into or is pushed to master. What follows was decided by the owner on
 
   Why: a squash would put on master one commit `develop` lacks, so the next PR
   from `develop` would carry every earlier change again and conflict with it.
-- **Its log entry** is written in the next log PR into `develop`, after the
-  merge: one entry for the PR into master, naming the PRs it carried. Plans'
-  statuses do not change ("The Board").
+- **Its log entry** goes in the next PR's bookkeeping commit after the merge
+  ("Landing A PR"): one entry for the PR into master, naming the PRs it
+  carried. Plans' statuses do not change ("The Board").
 
 ### Why These Steps
 
-- **Where the log entry is written** (decided by the owner on 2026-10-06): one entry per merge into
-  `develop`, in a log PR into `develop`, as "Landing A PR" says; and one entry
-  for each PR from `develop` into master, in the next log PR into `develop`
-  after it merges. Why: every change to the log goes through `develop` like
-  any other, and master gets its log with the next PR from `develop`.
+- **Where the log entry is written** (decided by the owner on 2026-10-07,
+  replacing the log PRs of 2026-10-06): one entry per merge into `develop`,
+  in that PR's own bookkeeping commit, as "Landing A PR" says; and one entry
+  for each PR from `develop` into master, in the next PR's bookkeeping commit
+  after it merges. Why: every change to the log goes through a PR into
+  `develop` like any other, and master gets its log with the next PR from
+  `develop`.
 - **When `develop` goes to master, who opens the PR and how it merges**:
   the steps above, decided by the owner on 2026-10-06.
 - **What follows Completed** is
