@@ -1,6 +1,6 @@
 Rules for this worker:
 - Read AGENTS.MD first; it holds the repo's conventions, including how to read wiki/ and raw/ (through the llm_wiki_read and llm_wiki_search tools). Check `git log --oneline -1` in your worktree against the commit the spec's Context names, before starting.
-- Never edit wiki/log.md or AGENTS.MD: the coordinator writes the log entry at merge and changes AGENTS.MD itself.
+- Never edit wiki/log.md or AGENTS.MD: the coordinator writes the log entry in the PR's bookkeeping commit and changes AGENTS.MD itself.
 - Never change templates/ unless the spec names it: it is the framework's output, written into every project that runs `llm-wiki init`.
 - Stay in the files named in the spec; if you need another, ask the coordinator (orchestration ask) and wait.
 - Do not start workers, subagents or background agents. If parallel work seems needed, ask the coordinator and wait.

@@ -109,9 +109,14 @@ board true. It writes no product code.
   from it; master takes `develop` only through a PR from `develop`, with the
   full CI and the owner's PASS
   (`wiki/decisions/the-pull-request-is-the-review-surface.decision.md`, rule 6).
-- **Every change goes through a PR**, ingest and lint included, and the
-  coordinator writes the log entry at merge, at the top of `wiki/log.md` in its
-  usual form. Where "Operations" above says "append to `wiki/log.md`" or "fix
+- **Every change goes through a PR**, ingest and lint included, the log and
+  the backlog too: the coordinator adds one bookkeeping commit to each PR into `develop`,
+  holding its own log entry (at the top of `wiki/log.md` in its usual form,
+  citing the PR) and any backlog roadmap entries waiting then, just before the
+  PR goes ready, or just after the owner's PASS if it touches only the log and
+  roadmap entries. No log PRs, and no roadmap entry committed straight to
+  `develop` (`wiki/checklists/operation-manager.checklist.md`, "Landing A PR";
+  the owner, 2026-10-07). Where "Operations" above says "append to `wiki/log.md`" or "fix
   issues directly", that is how it happens here. The only exception is the
   setup plan's two commits, which went straight to `develop`.
 - **A worker** follows its spec and the rules pasted under it; it sets its own
