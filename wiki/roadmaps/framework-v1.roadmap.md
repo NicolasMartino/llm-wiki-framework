@@ -1140,7 +1140,7 @@ Proof:
 
 ### P21 - Search Says When Its Index Is Stale, And Rebuilds A Small One
 
-Status: Active
+Status: Completed (develop)
 Promise: After pages change, search says plainly, in the CLI and in the MCP
 reply, that its index is stale and the exact command that rebuilds it, and a
 small word-match index rebuilds itself before answering when that is safe.

@@ -114,20 +114,25 @@ A stale index stays searchable, and `search` writes in one case: plan
 
 - When `search` selects lexical mode, the project searches by word match only
   (`llm_search_enabled = false`, or no profile) and its index is stale,
-  `search` rebuilds the index first, the same build as `llm-wiki index`, then
-  answers fresh. A project turns this off with `rebuild_stale_index = false`
-  in the `[project]` table of its `.llm_wiki/search.toml`.
+  `search` rebuilds the word-match store first, the word-match part of
+  `llm-wiki index`'s build, then answers fresh. It leaves the meaning-based
+  index's files as they are; only `llm-wiki index` writes or removes them. A
+  project turns this off with `rebuild_stale_index = false` in the
+  `[project]` table of its `.llm_wiki/search.toml`.
 - The build takes the project's index lock with `try_lock` and never waits.
   A held lock, a read-only cache or any other failed build leaves the index as
   it was, and `search` answers from it with the stale warning, naming the
   reason ("another index build is running", "the search cache is
-  read-only"); the search itself still succeeds.
+  read-only"); the search itself still succeeds. The lock file names its
+  holder, so an `llm-wiki index` that meets a rebuilding search says so.
 - `search-all`, and a project with LLM search on, never rebuild: they warn.
-- The stale warning names the running binary's exact
-  `<binary> index --project <id>` command, says it takes about a second for a
-  word-match index, and sits in the JSON reply's `warnings` list (full and
+- The stale warning sits in the JSON reply's `warnings` list (full and
   compact) as well as its single `warning` string, so the MCP search tools
-  carry it too.
+  carry it too. It says what to do next: with the lock held, search again in
+  a moment; otherwise run the running binary's exact
+  `<binary> index --project <id>` command, which takes about a second for a
+  word-match index and, for a project with LLM search on, rebuilds the
+  meaning-based index too, which can take minutes.
 
 ## Revisit When
 

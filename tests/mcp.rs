@@ -696,17 +696,13 @@ fn mcp_search_on_a_stale_index_carries_the_warning() {
         "# Wiki Index\n\nfreshly edited\n",
     )
     .expect("edit index");
-    // A held lock keeps search from rebuilding, so it answers stale.
-    let lock = fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open(
-            home.path()
-                .join(managed_home_dir_name())
-                .join("indexes/fixture/qmd-rs.lock"),
-        )
-        .expect("open index lock");
-    lock.try_lock().expect("hold index lock");
+    // With the rebuild turned off, search answers stale.
+    fs::create_dir_all(project.join(".llm_wiki")).expect("project manifest dir");
+    fs::write(
+        project.join(".llm_wiki/search.toml"),
+        "schema_version = 1\nupdated_at = \"2026-10-07T00:00:00Z\"\n\n[project]\nllm_search_enabled = false\nrebuild_stale_index = false\nconfigured_at = \"2026-10-07T00:00:00Z\"\nconfigured_by_version = \"test\"\n",
+    )
+    .expect("project search profile");
 
     let responses = run_mcp_session(
         home.path(),
@@ -725,13 +721,12 @@ fn mcp_search_on_a_stale_index_carries_the_warning() {
     let search = tool_payload(&responses[0]);
     let warnings = search["warnings"].as_array().expect("warnings array");
     assert_eq!(warnings.len(), 1, "{search}");
-    let message = warnings[0]["message"].as_str().expect("warning message");
-    assert!(
-        message.contains(&format!(
-            "not rebuilt: another index build is running; run `{} index --project fixture`",
+    assert_eq!(
+        warnings[0]["message"],
+        format!(
+            "search index stale for project fixture; run `{} index --project fixture` (about a second for a word-match index) and search again",
             binary_stem()
-        )),
-        "{message}"
+        )
     );
 }
 

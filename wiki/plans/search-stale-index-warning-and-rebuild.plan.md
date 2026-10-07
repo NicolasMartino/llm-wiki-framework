@@ -1,8 +1,7 @@
 # Plan: Search Says When Its Index Is Stale, And Rebuilds A Small One
 
 - Document Class: Plan
-- Status: Active
-- Branch: `NicolasMartino/stale-36`
+- Status: Completed (develop)
 - Date: 2026-10-07
 - Category: Search, MCP
 - Scope: Carry out P21 of the framework roadmap: a stale index is reported

@@ -106,15 +106,27 @@ fn index_registered_project(
     force: bool,
     context: &CliContext,
 ) -> Result<()> {
-    let indexed_files = build_project_index(paths, project, force, context)?;
+    let indexed_files = build_project_index(paths, project, force, BuildScope::Full, context)?;
     println!("Indexed project: {} ({indexed_files} files)", project.id);
     Ok(())
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum BuildScope {
+    /// What `index` builds: the word-match store, then the meaning-based
+    /// index's files, written or, with LLM search off, removed.
+    Full,
+    /// What a stale `search` rebuilds: the word-match store alone, leaving
+    /// the meaning-based files and the Time Machine exclusion to `index`.
+    /// It runs no child process, so nothing reaches a JSON reply's stdout.
+    WordMatchOnly,
 }
 
 fn build_project_index(
     paths: &Paths,
     project: &RegisteredProject,
     force: bool,
+    scope: BuildScope,
     context: &CliContext,
 ) -> Result<usize> {
     let store_path = paths.qmd_rs_store_path(&project.id);
@@ -130,8 +142,14 @@ fn build_project_index(
     context.diagnostic(format!("lock path: {}", lock_path.display()));
     fs::create_dir_all(&project_index_dir)
         .with_context(|| format!("create search index dir {}", project_index_dir.display()))?;
-    exclude_rebuildable_from_time_machine(&paths.managed_index_root(), context);
-    let _lock = ProjectIndexLock::acquire(&project_index_dir)?;
+    let holder = match scope {
+        BuildScope::Full => {
+            exclude_rebuildable_from_time_machine(&paths.managed_index_root(), context);
+            LockHolder::Index
+        }
+        BuildScope::WordMatchOnly => LockHolder::Search,
+    };
+    let _lock = ProjectIndexLock::acquire(&project_index_dir, holder)?;
     maybe_sleep_for_test("LLM_WIKI_TEST_INDEX_SLEEP_MS");
     let temp_build = TempIndexBuild::new(&project_index_dir)?;
     context.diagnostic(format!("temp store: {}", temp_build.store_path.display()));
@@ -169,7 +187,9 @@ fn build_project_index(
     // is now live on disk rather than disagreeing with observable state.
     registry::record_index_success(&project.id, status.indexed_files, &project.wiki_root())?;
     context.diagnostic("registry metadata: recorded index success");
-    update_semantic_index_metadata(paths, project, context)?;
+    if scope == BuildScope::Full {
+        update_semantic_index_metadata(paths, project, context)?;
+    }
     Ok(status.indexed_files)
 }
 
@@ -272,13 +292,28 @@ struct ProjectIndexLock {
     _file: File,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum LockHolder {
+    Index,
+    Search,
+}
+
+impl LockHolder {
+    const fn label(self) -> &'static str {
+        match self {
+            Self::Index => "index",
+            Self::Search => "search",
+        }
+    }
+}
+
 impl ProjectIndexLock {
     /// Do not add a retry loop on `try_lock` failure. The OS lock is keyed on
     /// the inode; if the lockfile is unlinked between attempts, a retry can
     /// lock a dead inode and stop conflicting with a fresh acquisition. Any
     /// future retry must reopen the file after verifying it still names the
     /// live inode.
-    fn acquire(project_index_dir: &Path) -> Result<Self> {
+    fn acquire(project_index_dir: &Path, holder: LockHolder) -> Result<Self> {
         let path = project_index_dir.join("qmd-rs.lock");
         let mut file = OpenOptions::new()
             .read(true)
@@ -288,14 +323,21 @@ impl ProjectIndexLock {
             .open(&path)
             .with_context(|| format!("project index lock cannot be opened: {}", path.display()))?;
         file.try_lock().with_context(|| {
+            // The holder wrote its command into the file once it had the lock.
+            let running = match fs::read_to_string(&path) {
+                Ok(contents) if contents.lines().any(|line| line == "command=search") => {
+                    "An llm-wiki search is rebuilding the stale index; it takes about a second, so retry in a moment"
+                }
+                _ => "Another llm-wiki index process is likely running; wait for it to finish and retry",
+            };
             format!(
-                "project index is already locked: {}. Another llm-wiki index process is likely running; wait for it to finish and retry. Do not delete the lock file: the OS lock is keyed on the inode, so unlinking it can let a concurrent process acquire a stale lock.",
+                "project index is already locked: {}. {running}. Do not delete the lock file: the OS lock is keyed on the inode, so unlinking it can let a concurrent process acquire a stale lock.",
                 path.display()
             )
         })?;
         file.set_len(0)
             .with_context(|| format!("truncate project index lock {}", path.display()))?;
-        writeln!(file, "pid={}", process::id())
+        writeln!(file, "pid={}\ncommand={}", process::id(), holder.label())
             .with_context(|| format!("write project index lock {}", path.display()))?;
         Ok(Self { _file: file })
     }
@@ -538,11 +580,11 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
     if let Some(reason) = &resolution.fallback_reason {
         context.diagnostic(format!("fallback reason: {reason}"));
     }
-    let rebuild_skipped = match resolution.selected_mode {
+    let rebuild = match resolution.selected_mode {
         RuntimeSearchMode::Lexical => {
             rebuild_stale_word_match_index(&paths, &project, resolution.profile.as_ref(), context)
         }
-        RuntimeSearchMode::Semantic | RuntimeSearchMode::Hybrid => None,
+        RuntimeSearchMode::Semantic | RuntimeSearchMode::Hybrid => RebuildOutcome::default(),
     };
     let filters = SearchFilters {
         document_class: args.document_class.clone(),
@@ -574,6 +616,7 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
         query: &args.query,
         filters: &filters,
         limit: args.limit,
+        checked_status: rebuild.checked_status.as_ref(),
     };
     let search =
         match perform_resolved_project_search(&search_input, &resolution, args.rerank, context) {
@@ -692,11 +735,12 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
         result.project_name = Some(project.name.clone());
     }
     let mut warnings = search.warnings;
-    if let Some(reason) = rebuild_skipped.as_deref() {
-        for warning in &mut warnings {
-            warning.message = stale_warning_message(&project.id, Some(reason));
-        }
-    }
+    describe_stale_warnings(
+        &mut warnings,
+        &project.id,
+        resolution.profile.as_ref(),
+        rebuild.skipped.as_ref(),
+    );
     let warning = warnings.first().map(|warning| warning.message.as_str());
     let mut mode_metadata = SearchModeJson::from_resolution(&resolution, args.rerank);
     mode_metadata.zero_result_reason = no_result;
@@ -807,6 +851,7 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
             query: &args.query,
             filters: &filters,
             limit: per_project_limit,
+            checked_status: None,
         };
         let resolution =
             match resolve_project_mode(&paths, project, args.mode, args.allow_lexical_fallback)? {
@@ -819,6 +864,7 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
                     warnings.push(SearchWarning {
                         project_id: project.id.clone(),
                         message: format!("project skipped: {}", failure.guidance),
+                        stale: false,
                     });
                     project_reports.push(ProjectSearchReport {
                         project_id: project.id.clone(),
@@ -866,6 +912,7 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
                         warnings.push(SearchWarning {
                             project_id: project.id.clone(),
                             message: format!("project skipped: {}", failure.guidance),
+                            stale: false,
                         });
                         project_reports.push(ProjectSearchReport {
                             project_id: project.id.clone(),
@@ -904,6 +951,7 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
                                 "project skipped: {}",
                                 runtime_failure_guidance(failure)
                             ),
+                            stale: false,
                         });
                         project_reports.push(ProjectSearchReport {
                             project_id: project.id.clone(),
@@ -939,6 +987,7 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
                     warnings.push(SearchWarning {
                         project_id: project.id.clone(),
                         message: format!("project skipped: {error}"),
+                        stale: false,
                     });
                     project_reports.push(ProjectSearchReport {
                         project_id: project.id.clone(),
@@ -1031,7 +1080,14 @@ pub fn search_all(args: &SearchAllArgs, context: &CliContext) -> Result<()> {
             profile: resolution.profile.clone(),
             thresholds_source: search.thresholds_source,
         });
-        warnings.extend(search.warnings);
+        let mut project_warnings = search.warnings;
+        describe_stale_warnings(
+            &mut project_warnings,
+            &project.id,
+            resolution.profile.as_ref(),
+            None,
+        );
+        warnings.extend(project_warnings);
         let mut results = search.results;
         for (rank, result) in results.iter_mut().enumerate() {
             result.project_id = project.id.clone();
@@ -1669,6 +1725,7 @@ fn stale_project_search_report(
     warnings.push(SearchWarning {
         project_id: project.id.clone(),
         message: format!("project skipped: {detail}"),
+        stale: false,
     });
 
     Some(ProjectSearchReport {
@@ -1794,6 +1851,7 @@ struct ProjectSearchReport {
 struct SearchWarning {
     project_id: String,
     message: String,
+    stale: bool,
 }
 
 const DEFAULT_COMPACT_SEARCH_PAGE_SIZE: usize = 3;
@@ -2779,6 +2837,9 @@ struct ProjectSearchInput<'a> {
     query: &'a str,
     filters: &'a SearchFilters,
     limit: usize,
+    /// A status `search` already computed this run, so the wiki is not
+    /// hashed twice.
+    checked_status: Option<&'a BackendStatus>,
 }
 
 fn perform_resolved_project_search(
@@ -2796,6 +2857,7 @@ fn perform_resolved_project_search(
             input.query,
             input.filters,
             input.limit,
+            input.checked_status,
         ),
         RuntimeSearchMode::Semantic => perform_semantic_project_search(input, resolution),
         RuntimeSearchMode::Hybrid => {
@@ -2904,6 +2966,7 @@ fn perform_hybrid_project_search(
             lexical_query,
             input.filters,
             per_branch_limit,
+            None,
         )?;
         if status.is_none() {
             status = Some(search.status.clone());
@@ -3629,6 +3692,7 @@ fn deterministic_rerank_results(results: Vec<SearchResult>) -> Vec<SearchResult>
         .collect()
 }
 
+#[allow(clippy::too_many_arguments)]
 fn perform_project_search(
     backend: &QmdRsBackend,
     project: &RegisteredProject,
@@ -3637,10 +3701,19 @@ fn perform_project_search(
     query: &str,
     filters: &SearchFilters,
     limit: usize,
+    checked_status: Option<&BackendStatus>,
 ) -> Result<SearchExecution> {
     for attempt in 0..2 {
+        let checked_status = checked_status.filter(|_| attempt == 0);
         match search_attempt(
-            backend, project, store_path, wiki_root, query, filters, limit,
+            backend,
+            project,
+            store_path,
+            wiki_root,
+            query,
+            filters,
+            limit,
+            checked_status,
         )? {
             SearchAttempt::Success(search) => return Ok(search),
             SearchAttempt::Missing(_) if attempt == 0 => retry_search_delay(),
@@ -3691,6 +3764,7 @@ fn perform_project_search(
     unreachable!("search retry loop returns or bails")
 }
 
+#[allow(clippy::too_many_arguments)]
 fn search_attempt(
     backend: &QmdRsBackend,
     project: &RegisteredProject,
@@ -3699,8 +3773,12 @@ fn search_attempt(
     query: &str,
     filters: &SearchFilters,
     limit: usize,
+    checked_status: Option<&BackendStatus>,
 ) -> Result<SearchAttempt> {
-    let status = backend.status(&project.id, store_path, wiki_root)?;
+    let status = match checked_status {
+        Some(status) => status.clone(),
+        None => backend.status(&project.id, store_path, wiki_root)?,
+    };
     match status.state {
         BackendState::Missing => return Ok(SearchAttempt::Missing(status)),
         BackendState::Transient => return Ok(SearchAttempt::RetryableUnavailable(status)),
@@ -3752,72 +3830,137 @@ fn cache_access_guidance(project: &RegisteredProject) -> String {
 fn stale_warning(project: &RegisteredProject, status: &BackendStatus) -> Option<SearchWarning> {
     matches!(status.state, BackendState::Stale).then(|| SearchWarning {
         project_id: project.id.clone(),
-        message: stale_warning_message(&project.id, None),
+        message: stale_warning_message(&project.id, true, None),
+        stale: true,
     })
 }
 
-fn stale_warning_message(project_id: &str, rebuild_skipped: Option<&str>) -> String {
-    let not_rebuilt = rebuild_skipped
-        .map(|reason| format!(", not rebuilt: {reason}"))
+/// Words the stale warnings for the project's kind of search, and for why
+/// `search` did not rebuild the index, if it tried.
+fn describe_stale_warnings(
+    warnings: &mut [SearchWarning],
+    project_id: &str,
+    profile: Option<&SearchProfile>,
+    skipped: Option<&RebuildSkip>,
+) {
+    let word_match_only = is_word_match_only(profile);
+    for warning in warnings.iter_mut().filter(|warning| warning.stale) {
+        warning.message = stale_warning_message(project_id, word_match_only, skipped);
+    }
+}
+
+fn stale_warning_message(
+    project_id: &str,
+    word_match_only: bool,
+    skipped: Option<&RebuildSkip>,
+) -> String {
+    let not_rebuilt = skipped
+        .map(|reason| format!(", not rebuilt: {}", reason.label()))
         .unwrap_or_default();
-    format!(
-        "search index stale for project {project_id}{not_rebuilt}; run `{} index --project {project_id}` (about a second for a word-match index) and search again",
-        instance::binary_stem()
-    )
+    let index_command = format!("`{} index --project {project_id}`", instance::binary_stem());
+    let action = match skipped {
+        Some(RebuildSkip::LockHeld) => "search again in a moment".to_string(),
+        _ if word_match_only => {
+            format!("run {index_command} (about a second for a word-match index) and search again")
+        }
+        _ => format!(
+            "run {index_command} and search again (it rebuilds the meaning-based index too, which can take minutes)"
+        ),
+    };
+    format!("search index stale for project {project_id}{not_rebuilt}; {action}")
+}
+
+fn is_word_match_only(profile: Option<&SearchProfile>) -> bool {
+    profile.is_none_or(|profile| !profile.llm_search_enabled)
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum RebuildSkip {
+    LockHeld,
+    ReadOnlyCache,
+    Failed(String),
+}
+
+impl RebuildSkip {
+    fn from_error(error: &anyhow::Error) -> Self {
+        for cause in error.chain() {
+            if let Some(fs::TryLockError::WouldBlock) = cause.downcast_ref::<fs::TryLockError>() {
+                return Self::LockHeld;
+            }
+            if let Some(io_error) = cause.downcast_ref::<std::io::Error>()
+                && matches!(
+                    io_error.kind(),
+                    std::io::ErrorKind::PermissionDenied | std::io::ErrorKind::ReadOnlyFilesystem
+                )
+            {
+                return Self::ReadOnlyCache;
+            }
+        }
+        Self::Failed(error.to_string())
+    }
+
+    fn label(&self) -> String {
+        match self {
+            Self::LockHeld => "another index build is running".to_string(),
+            Self::ReadOnlyCache => "the search cache is read-only".to_string(),
+            Self::Failed(error) => format!("the rebuild failed: {error}"),
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+struct RebuildOutcome {
+    /// The index's status when search found it ready, for the search to reuse.
+    checked_status: Option<BackendStatus>,
+    /// Why a stale index was left as it is.
+    skipped: Option<RebuildSkip>,
 }
 
 /// Rebuilds a stale index before a lexical `search` when the project searches
-/// by word match only and has not turned the rebuild off. Returns why a stale
-/// index was left as it is, for the warning; search then answers from it, so a
-/// held lock or a read-only cache never fails the search.
+/// by word match only and has not turned the rebuild off. A held lock or a
+/// read-only cache leaves the stale index for search to answer from, so it
+/// never fails the search.
 fn rebuild_stale_word_match_index(
     paths: &Paths,
     project: &RegisteredProject,
     profile: Option<&SearchProfile>,
     context: &CliContext,
-) -> Option<String> {
-    let word_match_only = profile.is_none_or(|profile| !profile.llm_search_enabled);
+) -> RebuildOutcome {
     let rebuild_allowed = profile.is_none_or(|profile| profile.rebuild_stale_index != Some(false));
-    if !word_match_only || !rebuild_allowed {
-        return None;
+    if !is_word_match_only(profile) || !rebuild_allowed {
+        return RebuildOutcome::default();
     }
     let (store_path, _) = qmd_store_path_for_search(paths, &project.id);
-    let status = QmdRsBackend::new()
-        .status(&project.id, &store_path, &project.wiki_root())
-        .ok()?;
-    if !matches!(status.state, BackendState::Stale) {
-        return None;
+    let Ok(status) = QmdRsBackend::new().status(&project.id, &store_path, &project.wiki_root())
+    else {
+        return RebuildOutcome::default();
+    };
+    match status.state {
+        BackendState::Ready => {
+            return RebuildOutcome {
+                checked_status: Some(status),
+                skipped: None,
+            };
+        }
+        BackendState::Stale => {}
+        _ => return RebuildOutcome::default(),
     }
     context.diagnostic("stale index rebuild: started");
-    match build_project_index(paths, project, false, context) {
+    match build_project_index(paths, project, false, BuildScope::WordMatchOnly, context) {
         Ok(indexed_files) => {
             context.diagnostic(format!(
                 "stale index rebuild: indexed {indexed_files} files"
             ));
-            None
+            RebuildOutcome::default()
         }
         Err(error) => {
             context.diagnostic(format!("stale index rebuild: failed: {error:#}"));
-            Some(rebuild_failure_reason(&error))
+            RebuildOutcome {
+                checked_status: None,
+                skipped: Some(RebuildSkip::from_error(&error)),
+            }
         }
     }
-}
-
-fn rebuild_failure_reason(error: &anyhow::Error) -> String {
-    for cause in error.chain() {
-        if let Some(fs::TryLockError::WouldBlock) = cause.downcast_ref::<fs::TryLockError>() {
-            return "another index build is running".to_string();
-        }
-        if let Some(io_error) = cause.downcast_ref::<std::io::Error>()
-            && matches!(
-                io_error.kind(),
-                std::io::ErrorKind::PermissionDenied | std::io::ErrorKind::ReadOnlyFilesystem
-            )
-        {
-            return "the search cache is read-only".to_string();
-        }
-    }
-    format!("the rebuild failed: {error}")
 }
 
 fn retry_search_delay() {
@@ -3872,8 +4015,8 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     use super::{
-        FusedResult, ProjectIndexLock, RelatedStorePaths, StoreFileRole, fuse_hybrid_results,
-        hybrid_candidate_survives_final_gate, is_retryable_search_open_error,
+        FusedResult, LockHolder, ProjectIndexLock, RelatedStorePaths, StoreFileRole,
+        fuse_hybrid_results, hybrid_candidate_survives_final_gate, is_retryable_search_open_error,
         promote_qmd_rs_store_inner, query_anchor_terms,
     };
     use crate::search::adapter::{
@@ -4111,13 +4254,14 @@ mod tests {
     #[test]
     fn project_index_lock_is_exclusive() {
         let temp = tempfile::TempDir::new().expect("tempdir");
-        let first = ProjectIndexLock::acquire(temp.path()).expect("first lock");
+        let first = ProjectIndexLock::acquire(temp.path(), LockHolder::Index).expect("first lock");
 
-        let error = ProjectIndexLock::acquire(temp.path()).expect_err("second lock");
+        let error =
+            ProjectIndexLock::acquire(temp.path(), LockHolder::Index).expect_err("second lock");
 
         assert!(error.to_string().contains("qmd-rs.lock"));
         drop(first);
-        ProjectIndexLock::acquire(temp.path()).expect("lock after drop");
+        ProjectIndexLock::acquire(temp.path(), LockHolder::Index).expect("lock after drop");
     }
 
     #[test]
@@ -4125,7 +4269,8 @@ mod tests {
         let temp = tempfile::TempDir::new().expect("tempdir");
         fs::write(temp.path().join("qmd-rs.lock"), "pid=999999").expect("stale lock");
 
-        let lock = ProjectIndexLock::acquire(temp.path()).expect("lock with stale file");
+        let lock = ProjectIndexLock::acquire(temp.path(), LockHolder::Index)
+            .expect("lock with stale file");
 
         assert!(temp.path().join("qmd-rs.lock").exists());
         drop(lock);
