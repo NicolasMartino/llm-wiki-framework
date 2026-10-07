@@ -312,11 +312,16 @@ fn a_poman_toml_without_the_key_passes() -> Result {
     Ok(())
 }
 
+/// This repository's own wiki, copied, so the test runs where `.git` is not
+/// part of the checkout (a mutation run's copy of the tree).
 #[test]
-fn this_repository_has_no_deadline_file_and_no_warning() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let (code, out, err) = check(&root, &[]);
+fn this_repository_has_no_deadline_file_and_no_warning() -> Result {
+    let repo = empty_repo()?;
+    let wiki = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../wiki");
+    copy_tree(&wiki, &repo.path().join("wiki"))?;
+    let (code, out, err) = check(repo.path(), &[]);
     assert_eq!(code, poman::SUCCESS);
     assert_eq!(out, "deadline files checked: 0, errors: 0, warnings: 0\n");
     assert_eq!(err, "");
+    Ok(())
 }
