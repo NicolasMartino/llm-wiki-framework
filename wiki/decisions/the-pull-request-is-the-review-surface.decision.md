@@ -17,6 +17,10 @@
     branch with the merge the pr to master triggering the longer CI"; "a merge
     into develop PR only triggers fast CI"; "all issues/PR should be pointing
     at develop now"
+  - The owner's decision of 2026-10-07 on the bookkeeping commit: "just before
+    the merge you add a commit with the backlog and all the llm wiki logs",
+    and "it's ok just after the pass only if it touches logs/backlog and no
+    code"
 - Related:
   - `wiki/decisions/work-is-recorded-in-the-repository.decision.md`
   - `wiki/checklists/operation-manager.checklist.md`, "Landing A PR"
@@ -49,13 +53,23 @@ a worker's report.
 4. **A merge needs the owner's PASS naming the PR's current head**, checked by
    the coordinator against the diff, and, for a PR whose kind has gates, the
    full gates passed on that head. Every PR into `develop` or into an
-   integration branch is a squash merge pinned to that head.
-5. **A log PR gets no blind review.** It holds only the coordinator's record of
-   merges already reviewed, which the coordinator checks line by line against
-   GitHub and Git; the owner's PASS still decides it.
+   integration branch is a squash merge pinned to that head. One narrow
+   exception, the owner's of 2026-10-07 ("it's ok just after the pass only if
+   it touches logs/backlog and no code"): a bookkeeping commit added just
+   after the PASS (rule 5), when the diff from the passed head names nothing
+   but `wiki/log.md` and roadmap entries; it is recorded on the PR, and the
+   merge is pinned to the new head.
+5. **The log and the backlog ride in each PR's bookkeeping commit; there are
+   no log PRs.** The coordinator adds one commit to each PR into `develop`
+   holding its own log entry and any backlog roadmap entries waiting then,
+   just before the PR goes ready, so the owner's PASS covers it, or just after
+   the PASS under rule 4's exception. Decided by the owner on 2026-10-07 ("just
+   before the merge you add a commit with the backlog and all the llm wiki
+   logs"), replacing the separate log PRs of 2026-10-06. The steps are in
+   `wiki/checklists/operation-manager.checklist.md`, "Landing A PR".
 6. **Work PRs go into `develop`; master takes `develop` only through a PR.**
-   `develop` is GitHub's default branch, and every work PR, log PR and
-   integration branch targets it. Master changes only by a PR from `develop`,
+   `develop` is GitHub's default branch, and every work PR and integration
+   branch targets it. Master changes only by a PR from `develop`,
    which runs the full CI and needs the owner's PASS on its head like any
    other; it merges only once every job of the full CI passed on that head
    (`gh pr checks <n>`). Decided by the owner on 2026-10-06: its head is
@@ -94,6 +108,10 @@ Decided by the owner on 2026-10-06: the coordinator opens the
   the owner saw them. It gets no spec so it does not inherit the spec's blind
   spots. A second reviewer per PR found nothing the first had missed, so there
   is one.
+- **A log PR for each merge was extra ceremony**, and backlog entries
+  committed straight to `develop` broke "every change goes through a PR"; the
+  bookkeeping commit puts both in the PR they belong to (the owner,
+  2026-10-07).
 - **Merges without a recorded PASS happened.** PRs merged after CHANGES
   REQUESTED and a fix with no PASS ever posted; pinning the merge to the
   reviewed head stops a later push slipping in.

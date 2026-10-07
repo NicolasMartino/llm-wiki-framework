@@ -1180,3 +1180,32 @@ Excluded:
 
 Proof:
 - the plan's Done When
+
+### P24 - Each PR Carries Its Own Log Entry And Backlog Lines
+
+Status: Active
+Promise: Each PR into `develop` carries its own log entry and any waiting
+backlog roadmap entries in one bookkeeping commit, which the coordinator adds
+just before the PR goes ready, or just after the owner's PASS when it touches
+only `wiki/log.md` and roadmap entries. Log PRs stop, and no roadmap entry is
+committed straight to `develop`.
+Depends On: P18
+Execution Plan: Not needed (the rules change is wiki-only, with the operations
+skills)
+
+Included:
+- the owner's decision of 2026-10-07: "just before the merge you add a commit
+  with the backlog and all the llm wiki logs", and "it's ok just after the pass
+  only if it touches logs/backlog and no code"
+- AGENTS.MD, the operation manager checklist, the worker briefs checklist, the
+  review-surface and work-in-flight decisions, the operations skills and the
+  workers' base texts (issue #51)
+
+Excluded:
+- `wiki/log.md` entries and past records, which stay as written
+- the blind review and the owner's verdict rules themselves
+
+Proof:
+- no page of the way of working tells the coordinator to open a log PR, except
+  as history, and the landing steps describe the bookkeeping commit and both
+  moments
