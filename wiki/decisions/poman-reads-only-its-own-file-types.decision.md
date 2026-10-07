@@ -10,6 +10,8 @@
   - The owner's decisions, 2026-10-06: types defined in code and written by
     poman, checking by suffix only, near-miss warnings, fields in the bullet
     block, free content, and reference fields as repository paths
+  - `wiki/plans/poman-deadline-type.plan.md`, approved with #56 (its choices
+    1, 2, 7 and 8), and the PR that built it (#62)
 - Related:
   - `wiki/decisions/poman-lives-in-this-workspace.decision.md`: the types are
     defined once, in the shared crate
@@ -80,11 +82,18 @@ only files of those types.**
 ## Consequences
 
 - Adding a type is a code change, reviewed like any other.
-- How close counts as a near miss is a rule for PM3's code.
-- Whether a poman file also carries the wiki's metadata fields (Document
-  Class, Category, Scope, Sources), and whether it is listed in
-  `wiki/index.md` or exempt from the wiki's orphan check, is not decided;
-  PM3 settles it.
+- A near miss is at most two single-letter insertions, deletions or changes
+  from a known suffix or key, a change of case counting as one
+  (`llm_wiki_core::names`, PM3).
+- A poman file carries poman's fields only, not the wiki's metadata fields:
+  a key in the bullet block that is neither the type's nor a near miss, such
+  as `- Document Class: Plan`, fails `poman check` (PM3, the owner's choices 1
+  and 8).
+- poman files are not listed one by one in `wiki/index.md`, where one line
+  points to their folder, and the wiki's orphan check passes over them. What
+  llm-wiki ships says so (`templates/base/project_guidelines.md`,
+  `templates/base/agents.md` and the lint prompt), so lint and `poman check`
+  agree in every project (PM3, the owner's choices 2 and 7).
 
 ## What Would Revisit This
 

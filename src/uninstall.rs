@@ -126,7 +126,8 @@ fn cleanup_codex_mcp_config(paths: &Paths, context: &CliContext) -> Result<()> {
         }
     };
 
-    let Some(updated) = mcp_config::remove_codex_mcp_server(&existing)? else {
+    let names = [instance::mcp_server_name(), mcp_config::poman_server_name()];
+    let Some(updated) = mcp_config::remove_codex_servers(&existing, &names)? else {
         remove_file_if_exists(&backup_path, context)?;
         return Ok(());
     };

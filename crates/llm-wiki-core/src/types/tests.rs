@@ -1,3 +1,5 @@
+use super::format::ValueFormat;
+use super::poman::DEADLINE;
 use super::{FieldDefinition, FilenameError, WikiFilename};
 
 #[test]
@@ -105,14 +107,62 @@ fn a_field_is_required_or_optional() {
         FieldDefinition::required("Status"),
         FieldDefinition {
             key: "Status",
-            required: true
+            required: true,
+            format: ValueFormat::FreeText,
         }
     );
     assert_eq!(
         FieldDefinition::optional("Owner"),
         FieldDefinition {
             key: "Owner",
-            required: false
+            required: false,
+            format: ValueFormat::FreeText,
         }
+    );
+}
+
+#[test]
+fn a_format_replaces_free_text_and_keeps_the_rest() {
+    let field = FieldDefinition::required("Deadline").with_format(ValueFormat::DateOrNone);
+    assert_eq!(
+        field,
+        FieldDefinition {
+            key: "Deadline",
+            required: true,
+            format: ValueFormat::DateOrNone,
+        }
+    );
+}
+
+#[test]
+fn a_type_finds_its_field_by_key() {
+    assert_eq!(
+        DEADLINE.field("Blocked by").map(|field| field.key),
+        Some("Blocked by")
+    );
+    assert_eq!(DEADLINE.field("Blocked By"), None);
+}
+
+#[test]
+fn an_unindexed_name_keeps_its_digits_in_the_slug() -> Result<(), FilenameError> {
+    let name = WikiFilename::parse_unindexed("2026-taxes.deadline.md")?;
+    assert_eq!(name.index(), None);
+    assert_eq!(name.slug(), "2026-taxes");
+    assert_eq!(name.doc_type(), "deadline");
+    assert_eq!(name.to_string(), "2026-taxes.deadline.md");
+    let indexed = WikiFilename::parse("2026-taxes.deadline.md")?;
+    assert_eq!(indexed.index(), Some("2026"));
+    Ok(())
+}
+
+#[test]
+fn an_unindexed_name_refuses_what_the_splitter_refuses() {
+    assert_eq!(
+        WikiFilename::parse_unindexed("v1.2.deadline.md"),
+        Err(FilenameError::ExtraDot)
+    );
+    assert_eq!(
+        WikiFilename::parse_unindexed(".deadline.md"),
+        Err(FilenameError::EmptySlug)
     );
 }

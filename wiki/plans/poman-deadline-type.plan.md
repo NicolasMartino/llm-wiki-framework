@@ -1,7 +1,7 @@
 # Plan: The Deadline Type
 
 - Document Class: Plan
-- Status: Draft
+- Status: Completed (develop)
 - Date: 2026-10-07
 - Category: poman development
 - Scope: Carry out PM3 of the poman roadmap: the deadline type defined in
@@ -9,8 +9,8 @@
   writing a deadline file, `poman check` holding every deadline file to the type with
   each message naming the file and the line, where a repository sets its
   landing branch, the answers to PM3's open points and where they are
-  written, poman's exit codes, and the proof on fixtures
-  and on the riseon repository's founding tasks.
+  written, poman's exit codes, and the proof on fixtures, followed by the
+  owner's own test on the riseon repository after a local release.
 - Sources:
   - `wiki/roadmaps/poman.roadmap.md`, PM3, and issue #54
   - `wiki/decisions/deadline-files-hold-one-deadline-each.decision.md`: the
@@ -30,6 +30,10 @@
     plan was written from, kept in git history
   - The owner, 2026-10-07, on the poman track (#19): PM3 is proved on the
     riseon repository as well as on fixtures
+  - The owner, 2026-10-07: "You don't have the right to modify riseon
+    project directly"; the owner tests poman on riseon after a local release
+  - The owner, 2026-10-07: PM3 and PM3.1 are built in one PR, so PM3's
+    commands give the JSON output PM3.1's tools return
   - riseon issue #11, "Company: Write the founding tasks as deadline files"
 - Related:
   - `wiki/plans/poman-shared-page-reader-and-types.plan.md`: PM2, the reader
@@ -48,39 +52,29 @@ each broken field and reference and on each field written in a form poman does
 not read, warns on near misses, ignores every other Markdown file, and names
 the file and the line in every message. The type is defined once, in the
 shared crate, so the code that writes a file and the code that checks it read
-the same definition. And it works on a real repository: riseon's founding
-tasks are written with `poman new deadline`, `poman check` accepts them, and
-they land on riseon's master, which closes riseon issue #11.
+the same definition. And the owner can try it on a real repository: a local
+release puts this poman on the owner's machine, where the owner writes
+riseon's founding tasks with it.
 
-## Where It Stands (2026-10-07, at `301cb0c`)
+## Where It Stands (2026-10-07, after PM3)
 
-- **poman does nothing yet:** `crates/poman/src/lib.rs` builds a clap command
-  with no subcommand; `run` prints the help or the version. The crate depends
-  on clap only, not yet on `llm-wiki-core`.
-- **The reader is ready** (PM2): `Page::bullet_block` gives the `- Key:
-  Value` fields just after the title, each with its line; `elsewhere()` gives
-  every field found in another block (front matter, before the title, a page
-  with no title) or form (bare, bold, `* `), with its line;
-  `byte_order_mark()` says whether the page starts with one.
-- **The type shape has no value formats:** `DocumentType` holds a name,
-  plural, suffix, folder, whether it is indexed, its fields and its statuses;
-  `FieldDefinition` holds a key and whether it is required. llm-wiki's nine
-  types are the `types::llm_wiki` set; poman has no type yet.
-- **The filename splitter accepts `deadline`** (`tests/filenames.rs` in the
-  shared crate). It reads leading digits and a hyphen as an index for every
-  type, so `2026-taxes.deadline.md` splits as index `2026` and slug `taxes`.
-- **llm-wiki's search reads every Markdown file under `wiki/`**
-  (`collect_markdown` in `src/search/qmd_rs.rs`), so a deadline page is
-  searchable today, read by the wiki view as a page with a title and a
-  `Status` and no `Document Class`.
-- **The orphan check is the agent's lint, not code**: the guidelines'
-  "Lint", item 3, and the lint prompt in `src/mcp/mod.rs`. No llm-wiki
-  command fails on a page missing from `wiki/index.md` or missing its
-  metadata fields.
-- **`toml` and `chrono` are already workspace dependencies**, which
-  llm-wiki uses; the strict crates take neither.
-- **No repository keeps deadline files yet.** riseon's issue #11 waits on
-  PM3; riseon's main branch is master.
+- **The type is defined once, in `llm-wiki-core`:** `types::poman::DEADLINE`
+  with its fields, each with its value format (`types::format::ValueFormat`);
+  `names` holds the slug rule, the title rule and the near-miss distance;
+  `WikiFilename::parse_unindexed` splits a name with no index.
+- **`poman new deadline` and `poman check` work as the Target says**, both
+  with `--json`, through `poman::run_in`, which takes where it runs and its
+  terminal as arguments so the tests reach both. The fixtures, under
+  `crates/poman/tests/fixtures/`, hold a valid tree and a broken one, each
+  with its exact `poman check` output beside it.
+- **What llm-wiki ships says** that a deadline file carries poman's fields
+  only, is checked by `poman check` rather than lint, and is not listed one by
+  one in the index: the guidelines, the template `AGENTS.md` and the lint
+  prompt, shown in the init snapshots.
+- **No repository keeps deadline files yet.** The owner's test on riseon
+  follows the local release (`wiki/plans/poman-mcp-server.plan.md`).
+
+The state this plan was written from, at `301cb0c`, is in git history.
 
 ## Target
 
@@ -132,8 +126,8 @@ are ASCII digits with no sign.
   `2026-1-5` and `+2026-01-05` fail.
 - **Duration:** a whole number of working days, at least one, in digits with
   no leading zero, then a space and `days`: `10 days`. `+5 days`, `05 days`
-  and `0 days` fail. One day is written `1 day` or `1 days`, the owner's
-  choice 5.
+  and `0 days` fail. One day is written `1 day`, and `1 days` fails, the
+  owner's choice 5.
 - **Importance:** `low`, `medium` or `high`.
 - **Blocked by:** `none`, or paths from the repository root separated by
   commas, with or without a space after each comma. Each path is written as
@@ -212,6 +206,10 @@ are ASCII digits with no sign.
   failed, names line 1; a missing field names the title's line.
 - **Output:** the findings sorted by path, then line, then one summary line:
   files checked, errors, warnings.
+- **`--json`** prints one JSON object instead: `files_checked`, `errors`,
+  `warnings` and `findings` (each with `path`, `line`, `severity` and
+  `message`), the result PM3.1's `poman_check` tool returns
+  (`wiki/plans/poman-mcp-server.plan.md`); the exit codes do not change.
 
 ### Exit codes
 
@@ -255,6 +253,9 @@ Every code poman returns, which PM4's hook and CI read:
   branch it lands on.
 - **Another type name** is refused, listing the known types (one so far),
   with a near miss suggested.
+- **`--json`** prints `{"written": …, "landing_branch": …}`, or, for a
+  refusal, `{"error": {"code": …, "message": …}}`, the result PM3.1's
+  `poman_new_deadline` tool returns; the exit codes do not change.
 
 ### Where a repository sets its landing branch
 
@@ -349,32 +350,27 @@ no key, the branch is master
 - **The gates:** `just strict` runs every gate over both strict crates, the
   new type and both commands included.
 
-### The riseon proof
+### The owner's test on riseon
 
-The owner, 2026-10-07: PM3 is proved on riseon as well as on fixtures. riseon
-is private and this repository public, so nothing here names a riseon task,
-file or date.
+The owner, 2026-10-07: PM3 is proved on riseon as well as on fixtures, and no
+worker modifies the riseon repository ("You don't have the right to modify
+riseon project directly"). riseon is private and this repository public, so
+nothing here names a riseon task, file or date.
 
 1. **When:** once PM3's PR has had its blind review and fix round (the
-   owner's choice 6), so the owner sees the proof before passing it.
-2. **How poman gets there:** built locally from PM3's PR head in this
-   repository (`cargo build --release -p poman`); no release is made.
-3. **riseon names the exceptions first:** through riseon's own pull request,
-   before its first deadline file lands, its rules name the landing
-   exception, and the two exemptions are where the owner's choice 7 puts
-   them.
-4. **The tasks:** a worker in riseon writes the founding tasks with `poman
-   new deadline`, one file per task, blockers by path.
-5. **The check:** `poman check` in riseon reports no error, and any warning
-   is explained.
-6. **The landing:** the files are committed and pushed straight to riseon's
-   master, with no `poman.toml`, which proves the default branch; this closes
-   riseon issue #11.
+   owner's choice 6), so the owner tries it before passing it.
+2. **How poman gets there:** the owner runs `just local-release` from PM3's
+   PR head, which builds the release archives locally with cargo-dist (no
+   tag, nothing published) and installs llm-wiki and poman from them
+   (`wiki/plans/poman-mcp-server.plan.md`, "The local release and its
+   revert"); `just local-release-revert` puts back what was installed before.
+3. **The test:** the owner, in riseon, names the exceptions in riseon's own
+   rules, writes the founding tasks with `poman new deadline`, and runs
+   `poman check`; riseon issue #11 is the owner's to close.
 
-Recorded in PM3's PR: the poman commit used, how many files, `poman check`'s
-summary line, the riseon commit on master, and that #11 closed. A gap found
-in riseon (a value the tasks need, a message that misled) comes back to
-PM3's PR as a fix, or becomes a roadmap entry if the owner says so.
+A gap the owner finds there (a value the tasks need, a message that misled)
+comes back to PM3's PR as a fix, or becomes a roadmap entry if the owner says
+so.
 
 ## Phases
 
@@ -388,7 +384,7 @@ PM3's PR as a fix, or becomes a roadmap entry if the owner says so.
    snapshots and lint prompt it changes.
 5. **The pages and the review:** the pages under "Wiki Pages To Update When
    Done", the PR's evidence, the blind review and its fix round.
-6. **The riseon proof**, recorded in the PR.
+6. **The local release** for the owner's test on riseon.
 
 ## Done When
 
@@ -402,14 +398,14 @@ PM3's PR as a fix, or becomes a roadmap entry if the owner says so.
 - **llm-wiki unchanged but for the exemptions:** `just verify` passes, with
   no test or snapshot changed except where the text of choice 7 shows, each
   such change shown in the PR.
-- **riseon:** the founding tasks are on riseon's master, `poman check`
-  accepts them, and riseon issue #11 is closed.
+- **The owner's test:** `just local-release` and its revert work (proved
+  under a temporary `HOME`), so the owner can try poman on riseon.
 
 ### Evidence Recorded
 
 In the PR: `just strict`'s summary line and output; `poman check`'s output on
 the fixtures and on this repository; `poman new`'s files and refusals; `just
-verify`; the riseon proof as "The riseon proof" lists it. In this plan, once
+verify`; the local release run under a temporary `HOME`. In this plan, once
 it lands: "Where It Stands" brought up to date.
 
 ### Wiki Pages To Update When Done
@@ -434,8 +430,8 @@ rechecks this.
 
 ### What Closes This Plan
 
-The owner's PASS on the PR that meets "Done When", the riseon proof included,
-merged into `develop`.
+The owner's PASS on the PR that meets "Done When", after the owner's test on
+riseon, merged into `develop`.
 
 ## Open For The Owner
 
@@ -460,11 +456,12 @@ Each with the plan's recommendation first; the Target above follows it.
 5. **A duration of one day: `1 day`.** Every other number takes `days`, and
    `1 days` fails with the form expected. Not chosen: `days` always, which
    reads wrong; both, which gives two ways to write one value.
-6. **When the riseon proof runs: after the blind review's fix round, before
-   the owner's PASS.** The owner sees it before passing; a format change the
-   owner then asks for means rewriting riseon's files with `poman new` or by
-   hand and rechecking them. Not chosen: after the merge, which leaves PM3
-   merged with its proof outstanding.
+6. **When the test on riseon runs: after the blind review's fix round,
+   before the owner's PASS.** The owner tries it before passing; a format
+   change the owner then asks for means rewriting riseon's files with
+   `poman new` or by hand and rechecking them. Not chosen: after the merge,
+   which leaves PM3 merged with its proof outstanding. (The owner, 2026-10-07,
+   later: the owner runs this test, not a worker.)
 7. **Where the two exemptions live: in what llm-wiki ships**, as an
    exception for `wiki/deadlines/` in the guidelines' metadata and lint
    rules, the template `AGENTS.md`'s lint and conventions, and the lint
@@ -488,8 +485,8 @@ Each with the plan's recommendation first; the Target above follows it.
 - The pre-push hook, CI on the landing branch (PM4), and `poman push`
   refusing (PM6, proved by PM4).
 - poman checking the wiki's own types (PM9).
-- A release of poman: the riseon proof uses a local build.
-- Any file in the riseon repository now: this plan says how its proof runs.
+- A release of poman: the owner's test uses a local release.
+- Any file in the riseon repository: the owner tests there.
 - `templates/` and what `llm-wiki init` writes, beyond the exception of
   choice 7.
 - Deadline files in this repository.

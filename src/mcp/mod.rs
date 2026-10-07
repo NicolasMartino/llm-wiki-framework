@@ -1,9 +1,10 @@
 use std::fs;
-use std::io::{self, BufRead, Read, Write};
+use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::{Context, Result, bail};
+use llm_wiki_core::mcp::{INTERNAL_ERROR, RpcError, Server, tool_error, tool_result};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -18,8 +19,9 @@ use crate::search::commands::project_search_readiness;
 use crate::search::qmd_rs::QmdRsBackend;
 use crate::wiki_read::{WikiReadRequest, discover_current_project_root, read};
 
-const JSONRPC_VERSION: &str = "2.0";
-const PROTOCOL_VERSION: &str = "2025-06-18";
+/// JSON-RPC's code for a resource the server does not have.
+const RESOURCE_NOT_FOUND: i64 = -32002;
+
 fn server_instructions() -> String {
     format!(
         "Use {} to read wiki/index.md first for project knowledge tasks. Use {} for registered-project queries, then read cited wiki pages directly with {}. Use resources/list for canonical project guidance and prompts/list for optional operation prompts when the host supports MCP prompts.",
@@ -31,159 +33,77 @@ fn server_instructions() -> String {
 
 pub fn run(args: &McpArgs, _context: &CliContext) -> Result<()> {
     match &args.command {
-        McpCommand::Serve => serve(io::stdin().lock(), io::stdout().lock()),
-    }
-}
-
-/// Upper bound on a single newline-delimited JSON-RPC frame. `BufRead::lines`
-/// buffers an entire line with no cap, so a multi-GB line (or a no-newline
-/// stream) would grow the buffer until the process OOMs. We cap the buffered
-/// frame here; oversized frames get a JSON-RPC parse error and are skipped.
-const MAX_MESSAGE_BYTES: usize = 16 * 1024 * 1024;
-
-enum FrameRead {
-    Line(Vec<u8>),
-    TooLarge,
-    Eof,
-}
-
-/// Read one newline-delimited frame, capping the buffered bytes so a single
-/// unbounded line cannot exhaust memory. When a frame exceeds the cap without a
-/// newline, the remainder of the line is drained (discarded, never buffered) and
-/// `TooLarge` is returned so the caller can report a parse error and continue.
-fn read_capped_frame<R: BufRead>(reader: &mut R) -> io::Result<FrameRead> {
-    let mut buf = Vec::new();
-    // Read at most one byte past the cap so we can tell a full-cap line (with its
-    // newline) apart from a line that overflows the cap without one.
-    let read = reader
-        .by_ref()
-        .take(MAX_MESSAGE_BYTES as u64 + 1)
-        .read_until(b'\n', &mut buf)?;
-    if read == 0 {
-        return Ok(FrameRead::Eof);
-    }
-    if buf.len() > MAX_MESSAGE_BYTES && buf.last() != Some(&b'\n') {
-        drain_to_newline(reader)?;
-        return Ok(FrameRead::TooLarge);
-    }
-    Ok(FrameRead::Line(buf))
-}
-
-/// Discard bytes up to and including the next newline (or EOF) without buffering
-/// them, so an oversized frame does not keep growing memory.
-fn drain_to_newline<R: BufRead>(reader: &mut R) -> io::Result<()> {
-    loop {
-        let (found, used) = {
-            let available = reader.fill_buf()?;
-            if available.is_empty() {
-                return Ok(());
-            }
-            match available.iter().position(|&byte| byte == b'\n') {
-                Some(index) => (true, index + 1),
-                None => (false, available.len()),
-            }
-        };
-        reader.consume(used);
-        if found {
-            return Ok(());
+        McpCommand::Serve => {
+            llm_wiki_core::mcp::serve(io::stdin().lock(), io::stdout().lock(), &LlmWikiServer)?;
+            Ok(())
         }
     }
 }
 
-fn serve<R, W>(mut reader: R, mut writer: W) -> Result<()>
-where
-    R: BufRead,
-    W: Write,
-{
-    loop {
-        let buf = match read_capped_frame(&mut reader)? {
-            FrameRead::Eof => break,
-            FrameRead::TooLarge => {
-                let response = error_response(
-                    Value::Null,
-                    -32700,
-                    format!("parse error: message exceeds {MAX_MESSAGE_BYTES} byte limit"),
-                );
-                serde_json::to_writer(&mut writer, &response)?;
-                writer.write_all(b"\n")?;
-                writer.flush()?;
-                continue;
-            }
-            FrameRead::Line(buf) => buf,
-        };
+/// llm-wiki's server: its tools, resources and prompts over the transport and
+/// dispatch it shares with poman's server.
+struct LlmWikiServer;
 
-        // A stray non-UTF-8 byte on stdin must not tear down the whole session;
-        // skip the malformed frame and keep serving.
-        let line = match String::from_utf8(buf) {
-            Ok(line) => line,
-            Err(_) => continue,
-        };
-        if line.trim().is_empty() {
-            continue;
-        }
-
-        let response = match serde_json::from_str::<Value>(&line) {
-            Ok(request) => handle_request(request),
-            Err(error) => Some(error_response(
-                Value::Null,
-                -32700,
-                format!("parse error: {error}"),
-            )),
-        };
-
-        if let Some(response) = response {
-            serde_json::to_writer(&mut writer, &response)?;
-            writer.write_all(b"\n")?;
-            writer.flush()?;
-        }
+impl Server for LlmWikiServer {
+    fn name(&self) -> &str {
+        instance::mcp_server_name()
     }
 
-    Ok(())
-}
-
-fn handle_request(request: Value) -> Option<Value> {
-    let id = request.get("id").cloned().unwrap_or(Value::Null);
-    let method = match request.get("method").and_then(Value::as_str) {
-        Some(method) => method,
-        None => return Some(error_response(id, -32600, "missing method")),
-    };
-
-    // JSON-RPC notifications carry no `id` (conventionally `notifications/*`) and
-    // must never receive a reply — even for an otherwise-known method like
-    // `tools/list`. Guard before dispatching so no method arm can answer one.
-    if request.get("id").is_none() || method.starts_with("notifications/") {
-        return None;
+    fn version(&self) -> &str {
+        env!("CARGO_PKG_VERSION")
     }
 
-    let response = match method {
-        // The MCP spec requires a receiver to reply to `ping` with an empty result.
-        "ping" => ok_response(id, json!({})),
-        "initialize" => ok_response(id, initialize_result()),
-        "tools/list" => ok_response(id, tools_list_result()),
-        "tools/call" => handle_tool_call(id, request.get("params").cloned()),
-        "resources/list" => handle_resources_list(id),
-        "resources/read" => handle_resources_read(id, request.get("params").cloned()),
-        "prompts/list" => ok_response(id, prompts_list_result()),
-        "prompts/get" => handle_prompts_get(id, request.get("params").cloned()),
-        _ => error_response(id, -32601, format!("unknown method {method}")),
-    };
-    Some(response)
-}
+    fn instructions(&self) -> String {
+        server_instructions()
+    }
 
-fn initialize_result() -> Value {
-    json!({
-        "protocolVersion": PROTOCOL_VERSION,
-            "capabilities": {
-                "tools": {"listChanged": false},
-                "resources": {"subscribe": false, "listChanged": false},
-                "prompts": {"listChanged": false}
+    fn capabilities(&self) -> Value {
+        json!({
+            "tools": {"listChanged": false},
+            "resources": {"subscribe": false, "listChanged": false},
+            "prompts": {"listChanged": false}
+        })
+    }
+
+    fn tools(&self) -> Vec<Value> {
+        match tools_list_result() {
+            Value::Object(mut result) => match result.remove("tools") {
+                Some(Value::Array(tools)) => tools,
+                _ => Vec::new(),
             },
-        "serverInfo": {
-            "name": instance::mcp_server_name(),
-            "version": env!("CARGO_PKG_VERSION")
-        },
-        "instructions": server_instructions()
-    })
+            _ => Vec::new(),
+        }
+    }
+
+    fn call_tool(&self, name: &str, arguments: Option<&Value>) -> Result<Value, RpcError> {
+        let arguments = arguments.cloned();
+        match name {
+            name if name == instance::mcp_read_tool_name() => call_wiki_read(arguments),
+            name if name == instance::mcp_search_tool_name() => call_search(arguments),
+            name if name == instance::mcp_search_all_tool_name() => call_search_all(arguments),
+            name if name == instance::mcp_index_tool_name() => call_index(arguments),
+            name if name == instance::mcp_register_tool_name() => call_register(arguments),
+            name if name == instance::mcp_status_tool_name() => call_status(arguments),
+            // `tools/call` is a known method; an unknown tool name is an invalid
+            // parameter (-32602), not a missing method (-32601).
+            name => Err(RpcError::invalid_params(format!("unknown tool {name}"))),
+        }
+    }
+
+    fn other_method(
+        &self,
+        method: &str,
+        params: Option<&Value>,
+    ) -> Option<Result<Value, RpcError>> {
+        let params = params.cloned();
+        Some(match method {
+            "resources/list" => handle_resources_list(),
+            "resources/read" => handle_resources_read(params),
+            "prompts/list" => Ok(prompts_list_result()),
+            "prompts/get" => handle_prompts_get(params),
+            _ => return None,
+        })
+    }
 }
 
 fn tools_list_result() -> Value {
@@ -366,37 +286,30 @@ struct PromptGetParams {
     arguments: Value,
 }
 
-fn handle_prompts_get(id: Value, params: Option<Value>) -> Value {
-    let params = match params {
-        Some(params) => params,
-        None => return error_response(id, -32602, "missing prompt get params"),
-    };
-    let params: PromptGetParams = match serde_json::from_value(params) {
-        Ok(params) => params,
-        Err(error) => {
-            return error_response(id, -32602, format!("invalid prompt get params: {error}"));
-        }
-    };
+fn handle_prompts_get(params: Option<Value>) -> Result<Value, RpcError> {
+    let params = params.ok_or_else(|| RpcError::invalid_params("missing prompt get params"))?;
+    let params: PromptGetParams = serde_json::from_value(params)
+        .map_err(|error| RpcError::invalid_params(format!("invalid prompt get params: {error}")))?;
 
     let Some(text) = prompt_text(&params.name, &params.arguments) else {
-        return error_response(id, -32602, format!("unknown prompt {}", params.name));
+        return Err(RpcError::invalid_params(format!(
+            "unknown prompt {}",
+            params.name
+        )));
     };
 
-    ok_response(
-        id,
-        json!({
-            "description": prompt_description(&params.name),
-            "messages": [
-                {
-                    "role": "user",
-                    "content": {
-                        "type": "text",
-                        "text": text
-                    }
+    Ok(json!({
+        "description": prompt_description(&params.name),
+        "messages": [
+            {
+                "role": "user",
+                "content": {
+                    "type": "text",
+                    "text": text
                 }
-            ]
-        }),
-    )
+            }
+        ]
+    }))
 }
 
 fn prompt_description(name: &str) -> &'static str {
@@ -442,7 +355,7 @@ fn prompt_text(name: &str, arguments: &Value) -> Option<String> {
         "wiki_lint" => {
             let scope = prompt_arg(arguments, "scope").unwrap_or_else(|| "the wiki".to_string());
             format!(
-                "Lint {scope} for contradictions, stale statuses, orphan pages, missing cross-references, and bookkeeping drift.\n\nStart from `wiki/index.md` using `{}`. Use `{}` where useful, fix issues directly, and append `wiki/log.md`.",
+                "Lint {scope} for contradictions, stale statuses, orphan pages, missing cross-references, and bookkeeping drift.\n\nStart from `wiki/index.md` using `{}`. Use `{}` where useful, fix issues directly, and append `wiki/log.md`. Leave deadline files (`wiki/deadlines/<slug>.deadline.md`) to `poman check`: they carry poman's fields only, with no metadata block, and the index points to their folder, not to each file, so they are not orphans.",
                 instance::mcp_read_tool_name(),
                 instance::mcp_search_tool_name()
             )
@@ -467,41 +380,32 @@ fn prompt_text(name: &str, arguments: &Value) -> Option<String> {
     Some(text)
 }
 
-fn handle_resources_list(id: Value) -> Value {
-    match resource_list() {
-        Ok(resources) => ok_response(id, json!({ "resources": resources })),
-        Err(error) => error_response(id, -32603, error.to_string()),
-    }
+fn handle_resources_list() -> Result<Value, RpcError> {
+    resource_list()
+        .map(|resources| json!({ "resources": resources }))
+        .map_err(|error| RpcError::new(INTERNAL_ERROR, error.to_string()))
 }
 
-fn handle_resources_read(id: Value, params: Option<Value>) -> Value {
-    let params = match params {
-        Some(params) => params,
-        None => return error_response(id, -32602, "missing resource read params"),
-    };
-    let params = match serde_json::from_value::<ResourceReadParams>(params) {
-        Ok(params) => params,
-        Err(error) => {
-            return error_response(id, -32602, format!("invalid resource read params: {error}"));
-        }
-    };
+fn handle_resources_read(params: Option<Value>) -> Result<Value, RpcError> {
+    let params = params.ok_or_else(|| RpcError::invalid_params("missing resource read params"))?;
+    let params = serde_json::from_value::<ResourceReadParams>(params).map_err(|error| {
+        RpcError::invalid_params(format!("invalid resource read params: {error}"))
+    })?;
     // An unrecognized URI is a resource-not-found condition, not an internal
     // error: reply with the spec's -32002 code and echo the uri in `data`.
     let known_uri = resource_specs()
         .iter()
         .any(|spec| resource_uri(spec.path) == params.uri);
     if !known_uri {
-        return error_response_with_data(
-            id,
-            -32002,
-            format!("unknown llm-wiki resource uri {}", params.uri),
-            json!({ "uri": params.uri }),
-        );
+        return Err(RpcError {
+            code: RESOURCE_NOT_FOUND,
+            message: format!("unknown llm-wiki resource uri {}", params.uri),
+            data: Some(json!({ "uri": params.uri })),
+        });
     }
-    match read_resource(&params.uri) {
-        Ok(resource) => ok_response(id, json!({ "contents": [resource] })),
-        Err(error) => error_response(id, -32603, error.to_string()),
-    }
+    read_resource(&params.uri)
+        .map(|resource| json!({ "contents": [resource] }))
+        .map_err(|error| RpcError::new(INTERNAL_ERROR, error.to_string()))
 }
 
 #[derive(Debug, Deserialize)]
@@ -635,126 +539,77 @@ fn resource_uri(path: &str) -> String {
     format!("llm-wiki://project/{path}")
 }
 
-fn handle_tool_call(id: Value, params: Option<Value>) -> Value {
-    let params = match params {
-        Some(params) => params,
-        None => return error_response(id, -32602, "missing tool call params"),
-    };
-    let params = match serde_json::from_value::<ToolCallParams>(params) {
-        Ok(params) => params,
-        Err(error) => {
-            return error_response(id, -32602, format!("invalid tool call params: {error}"));
-        }
-    };
-
-    match params.name.as_str() {
-        name if name == instance::mcp_read_tool_name() => call_wiki_read(id, params.arguments),
-        name if name == instance::mcp_search_tool_name() => call_search(id, params.arguments),
-        name if name == instance::mcp_search_all_tool_name() => {
-            call_search_all(id, params.arguments)
-        }
-        name if name == instance::mcp_index_tool_name() => call_index(id, params.arguments),
-        name if name == instance::mcp_register_tool_name() => call_register(id, params.arguments),
-        name if name == instance::mcp_status_tool_name() => call_status(id, params.arguments),
-        // `tools/call` is a known method; an unknown tool name is an invalid
-        // parameter (-32602), not a missing method (-32601).
-        name => error_response(id, -32602, format!("unknown tool {name}")),
-    }
-}
-
-fn call_wiki_read(id: Value, arguments: Option<Value>) -> Value {
+fn call_wiki_read(arguments: Option<Value>) -> Result<Value, RpcError> {
     let arguments = arguments.unwrap_or_else(|| json!({}));
-    let request = match serde_json::from_value::<WikiReadRequest>(arguments) {
-        Ok(request) => request,
-        Err(error) => {
-            return error_response(
-                id,
-                -32602,
-                format!(
-                    "invalid {} arguments: {error}",
-                    instance::mcp_read_tool_name()
-                ),
-            );
-        }
-    };
+    let request = serde_json::from_value::<WikiReadRequest>(arguments).map_err(|error| {
+        RpcError::invalid_params(format!(
+            "invalid {} arguments: {error}",
+            instance::mcp_read_tool_name()
+        ))
+    })?;
     match read(request) {
         Ok(response) => {
             if let Some(content) = response.content.as_deref()
                 && let Some(error) =
                     read_content_integrity_error(content, &response.sha256, response.byte_len)
             {
-                return tool_error_response(id, error.to_string());
+                return Ok(tool_error(error.to_string()));
             }
-            tool_json_response(id, &response)
+            tool_json(&response)
         }
-        Err(error) => tool_error_response(id, error.to_string()),
+        Err(error) => Ok(tool_error(error.to_string())),
     }
 }
 
-fn call_status(id: Value, arguments: Option<Value>) -> Value {
+fn call_status(arguments: Option<Value>) -> Result<Value, RpcError> {
     let arguments = arguments.unwrap_or_else(|| json!({}));
-    let request = match serde_json::from_value::<StatusArgs>(arguments) {
-        Ok(request) => request,
-        Err(error) => {
-            return error_response(
-                id,
-                -32602,
-                format!(
-                    "invalid {} arguments: {error}",
-                    instance::mcp_status_tool_name()
-                ),
-            );
-        }
-    };
+    let request = serde_json::from_value::<StatusArgs>(arguments).map_err(|error| {
+        RpcError::invalid_params(format!(
+            "invalid {} arguments: {error}",
+            instance::mcp_status_tool_name()
+        ))
+    })?;
     match status_payload(request.project.as_deref()) {
-        Ok(response) => tool_json_response(id, &response),
-        Err(error) => tool_error_response(id, error.to_string()),
+        Ok(response) => tool_json(&response),
+        Err(error) => Ok(tool_error(error.to_string())),
     }
 }
 
-fn call_search(id: Value, arguments: Option<Value>) -> Value {
-    let args = match search_cli_args(arguments, false) {
-        Ok(args) => args,
-        Err(error) => return error_response(id, -32602, error.to_string()),
-    };
-    call_cli_json(id, args)
+fn call_search(arguments: Option<Value>) -> Result<Value, RpcError> {
+    let args = search_cli_args(arguments, false)
+        .map_err(|error| RpcError::invalid_params(error.to_string()))?;
+    call_cli_json(args)
 }
 
-fn call_search_all(id: Value, arguments: Option<Value>) -> Value {
-    let args = match search_cli_args(arguments, true) {
-        Ok(args) => args,
-        Err(error) => return error_response(id, -32602, error.to_string()),
-    };
-    call_cli_json(id, args)
+fn call_search_all(arguments: Option<Value>) -> Result<Value, RpcError> {
+    let args = search_cli_args(arguments, true)
+        .map_err(|error| RpcError::invalid_params(error.to_string()))?;
+    call_cli_json(args)
 }
 
-fn call_index(id: Value, arguments: Option<Value>) -> Value {
-    let args = match index_cli_args(arguments) {
-        Ok(args) => args,
-        Err(error) => return error_response(id, -32602, error.to_string()),
-    };
-    call_cli_text(id, args)
+fn call_index(arguments: Option<Value>) -> Result<Value, RpcError> {
+    let args =
+        index_cli_args(arguments).map_err(|error| RpcError::invalid_params(error.to_string()))?;
+    call_cli_text(args)
 }
 
-fn call_register(id: Value, arguments: Option<Value>) -> Value {
-    let args = match register_cli_args(arguments) {
-        Ok(args) => args,
-        Err(error) => return error_response(id, -32602, error.to_string()),
-    };
-    call_cli_text(id, args)
+fn call_register(arguments: Option<Value>) -> Result<Value, RpcError> {
+    let args = register_cli_args(arguments)
+        .map_err(|error| RpcError::invalid_params(error.to_string()))?;
+    call_cli_text(args)
 }
 
-fn call_cli_json(id: Value, args: Vec<String>) -> Value {
+fn call_cli_json(args: Vec<String>) -> Result<Value, RpcError> {
     match run_cli(args).and_then(|output| output.json()) {
-        Ok(value) => tool_json_response(id, &value),
-        Err(error) => tool_error_response(id, error.to_string()),
+        Ok(value) => tool_json(&value),
+        Err(error) => Ok(tool_error(error.to_string())),
     }
 }
 
-fn call_cli_text(id: Value, args: Vec<String>) -> Value {
+fn call_cli_text(args: Vec<String>) -> Result<Value, RpcError> {
     match run_cli(args) {
-        Ok(output) => tool_json_response(id, &output),
-        Err(error) => tool_error_response(id, error.to_string()),
+        Ok(output) => tool_json(&output),
+        Err(error) => Ok(tool_error(error.to_string())),
     }
 }
 
@@ -1067,79 +922,12 @@ fn project_status_payload(
     }))
 }
 
-fn tool_json_response<T: Serialize>(id: Value, payload: &T) -> Value {
-    let text = match serde_json::to_string(payload) {
-        Ok(text) => text,
-        Err(error) => {
-            return error_response(id, -32603, format!("serialize tool response: {error}"));
-        }
-    };
-
-    tool_text_response(id, text, false)
-}
-
-fn tool_error_response(id: Value, message: impl Into<String>) -> Value {
-    let text = json!({
-        "error": {
-            "message": message.into()
-        }
-    })
-    .to_string();
-
-    tool_text_response(id, text, true)
-}
-
-fn tool_text_response(id: Value, text: String, is_error: bool) -> Value {
-    ok_response(
-        id,
-        json!({
-            "content": [{"type": "text", "text": text}],
-            "isError": is_error
-        }),
-    )
-}
-
-#[derive(Debug, Deserialize)]
-struct ToolCallParams {
-    name: String,
-    #[serde(default)]
-    arguments: Option<Value>,
-}
-
-fn ok_response(id: Value, result: Value) -> Value {
-    json!({
-        "jsonrpc": JSONRPC_VERSION,
-        "id": id,
-        "result": result
-    })
-}
-
-fn error_response(id: Value, code: i64, message: impl Into<String>) -> Value {
-    json!({
-        "jsonrpc": JSONRPC_VERSION,
-        "id": id,
-        "error": {
-            "code": code,
-            "message": message.into()
-        }
-    })
-}
-
-fn error_response_with_data(
-    id: Value,
-    code: i64,
-    message: impl Into<String>,
-    data: Value,
-) -> Value {
-    json!({
-        "jsonrpc": JSONRPC_VERSION,
-        "id": id,
-        "error": {
-            "code": code,
-            "message": message.into(),
-            "data": data
-        }
-    })
+/// A tool's JSON result, or an internal error when the payload cannot be
+/// written as JSON.
+fn tool_json<T: Serialize>(payload: &T) -> Result<Value, RpcError> {
+    serde_json::to_string(payload)
+        .map(|text| tool_result(text, false))
+        .map_err(|error| RpcError::new(INTERNAL_ERROR, format!("serialize tool response: {error}")))
 }
 
 #[cfg(test)]
