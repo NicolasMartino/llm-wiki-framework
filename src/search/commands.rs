@@ -16,6 +16,7 @@ use crate::backup_policy::exclude_rebuildable_from_time_machine;
 use crate::cli::{
     CliContext, IndexAllArgs, IndexArgs, OutputFormat, SearchAllArgs, SearchArgs, SearchModeArg,
 };
+use crate::instance;
 use crate::manifest::Manifest;
 use crate::paths::Paths;
 use crate::registry::{self, ProjectRegistry, RegisteredProject};
@@ -105,6 +106,17 @@ fn index_registered_project(
     force: bool,
     context: &CliContext,
 ) -> Result<()> {
+    let indexed_files = build_project_index(paths, project, force, context)?;
+    println!("Indexed project: {} ({indexed_files} files)", project.id);
+    Ok(())
+}
+
+fn build_project_index(
+    paths: &Paths,
+    project: &RegisteredProject,
+    force: bool,
+    context: &CliContext,
+) -> Result<usize> {
     let store_path = paths.qmd_rs_store_path(&project.id);
     let project_index_dir = paths.project_index_dir(&project.id);
     let lock_path = project_index_dir.join("qmd-rs.lock");
@@ -158,11 +170,7 @@ fn index_registered_project(
     registry::record_index_success(&project.id, status.indexed_files, &project.wiki_root())?;
     context.diagnostic("registry metadata: recorded index success");
     update_semantic_index_metadata(paths, project, context)?;
-    println!(
-        "Indexed project: {} ({} files)",
-        project.id, status.indexed_files
-    );
-    Ok(())
+    Ok(status.indexed_files)
 }
 
 fn update_semantic_index_metadata(
@@ -530,6 +538,12 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
     if let Some(reason) = &resolution.fallback_reason {
         context.diagnostic(format!("fallback reason: {reason}"));
     }
+    let rebuild_skipped = match resolution.selected_mode {
+        RuntimeSearchMode::Lexical => {
+            rebuild_stale_word_match_index(&paths, &project, resolution.profile.as_ref(), context)
+        }
+        RuntimeSearchMode::Semantic | RuntimeSearchMode::Hybrid => None,
+    };
     let filters = SearchFilters {
         document_class: args.document_class.clone(),
         status: args.status.clone(),
@@ -677,10 +691,13 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
         result.project_id = project.id.clone();
         result.project_name = Some(project.name.clone());
     }
-    let warning = search
-        .warnings
-        .first()
-        .map(|warning| warning.message.as_str());
+    let mut warnings = search.warnings;
+    if let Some(reason) = rebuild_skipped.as_deref() {
+        for warning in &mut warnings {
+            warning.message = stale_warning_message(&project.id, Some(reason));
+        }
+    }
+    let warning = warnings.first().map(|warning| warning.message.as_str());
     let mut mode_metadata = SearchModeJson::from_resolution(&resolution, args.rerank);
     mode_metadata.zero_result_reason = no_result;
     mode_metadata.thresholds_source = search
@@ -691,13 +708,13 @@ pub fn search(args: &SearchArgs, context: &CliContext) -> Result<()> {
     }
 
     match args.format {
-        OutputFormat::Text => print_search_text(&search.warnings, &results),
+        OutputFormat::Text => print_search_text(&warnings, &results),
         OutputFormat::Json => print_search_json(
             &args.query,
             Some((&project.id, &project.name)),
             warning,
             Some(&search.status),
-            &[],
+            &warnings,
             &[],
             &results,
             mode_metadata,
@@ -3735,11 +3752,72 @@ fn cache_access_guidance(project: &RegisteredProject) -> String {
 fn stale_warning(project: &RegisteredProject, status: &BackendStatus) -> Option<SearchWarning> {
     matches!(status.state, BackendState::Stale).then(|| SearchWarning {
         project_id: project.id.clone(),
-        message: format!(
-            "search index stale for project {}; run `llm-wiki index --project {}`",
-            project.id, project.id
-        ),
+        message: stale_warning_message(&project.id, None),
     })
+}
+
+fn stale_warning_message(project_id: &str, rebuild_skipped: Option<&str>) -> String {
+    let not_rebuilt = rebuild_skipped
+        .map(|reason| format!(", not rebuilt: {reason}"))
+        .unwrap_or_default();
+    format!(
+        "search index stale for project {project_id}{not_rebuilt}; run `{} index --project {project_id}` (about a second for a word-match index) and search again",
+        instance::binary_stem()
+    )
+}
+
+/// Rebuilds a stale index before a lexical `search` when the project searches
+/// by word match only and has not turned the rebuild off. Returns why a stale
+/// index was left as it is, for the warning; search then answers from it, so a
+/// held lock or a read-only cache never fails the search.
+fn rebuild_stale_word_match_index(
+    paths: &Paths,
+    project: &RegisteredProject,
+    profile: Option<&SearchProfile>,
+    context: &CliContext,
+) -> Option<String> {
+    let word_match_only = profile.is_none_or(|profile| !profile.llm_search_enabled);
+    let rebuild_allowed = profile.is_none_or(|profile| profile.rebuild_stale_index != Some(false));
+    if !word_match_only || !rebuild_allowed {
+        return None;
+    }
+    let (store_path, _) = qmd_store_path_for_search(paths, &project.id);
+    let status = QmdRsBackend::new()
+        .status(&project.id, &store_path, &project.wiki_root())
+        .ok()?;
+    if !matches!(status.state, BackendState::Stale) {
+        return None;
+    }
+    context.diagnostic("stale index rebuild: started");
+    match build_project_index(paths, project, false, context) {
+        Ok(indexed_files) => {
+            context.diagnostic(format!(
+                "stale index rebuild: indexed {indexed_files} files"
+            ));
+            None
+        }
+        Err(error) => {
+            context.diagnostic(format!("stale index rebuild: failed: {error:#}"));
+            Some(rebuild_failure_reason(&error))
+        }
+    }
+}
+
+fn rebuild_failure_reason(error: &anyhow::Error) -> String {
+    for cause in error.chain() {
+        if let Some(fs::TryLockError::WouldBlock) = cause.downcast_ref::<fs::TryLockError>() {
+            return "another index build is running".to_string();
+        }
+        if let Some(io_error) = cause.downcast_ref::<std::io::Error>()
+            && matches!(
+                io_error.kind(),
+                std::io::ErrorKind::PermissionDenied | std::io::ErrorKind::ReadOnlyFilesystem
+            )
+        {
+            return "the search cache is read-only".to_string();
+        }
+    }
+    format!("the rebuild failed: {error}")
 }
 
 fn retry_search_delay() {
@@ -3904,6 +3982,7 @@ mod tests {
 
         let profile = SearchProfile {
             llm_search_enabled: true,
+            rebuild_stale_index: None,
             configured_at: String::new(),
             configured_by_version: String::new(),
             reason: None,
@@ -3996,6 +4075,7 @@ mod tests {
         // thresholds, so readiness fails. `auto` must degrade, not error.
         let profile = SearchProfile {
             llm_search_enabled: true,
+            rebuild_stale_index: None,
             configured_at: String::new(),
             configured_by_version: String::new(),
             reason: None,

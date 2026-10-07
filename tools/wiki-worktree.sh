@@ -7,8 +7,9 @@
 # registered"), so workers fall back to grepping the wiki.
 #
 # A worktree gets a word-match index only: it builds in about a second with
-# ~20 MB, where the main checkout's meaning-based index takes minutes and more
-# than 1 GB, which three workers starting at once cannot afford.
+# about 5 MB, where the main checkout's meaning-based index takes minutes and
+# more than 1 GB, which three workers starting at once cannot afford. Search
+# rebuilds that word-match index itself once pages change.
 #
 # `register` also forgets this repository's registrations whose worktree is
 # gone: a worktree removed without Orca's archive script leaves one behind.

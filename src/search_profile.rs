@@ -19,6 +19,9 @@ pub struct SearchConfig {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct SearchProfile {
     pub llm_search_enabled: bool,
+    /// Unset means on: a stale word-match index is rebuilt by `search`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rebuild_stale_index: Option<bool>,
     pub configured_at: String,
     pub configured_by_version: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -118,6 +121,7 @@ impl SearchProfile {
     fn disabled(configured_at: &str, reason: String) -> Self {
         Self {
             llm_search_enabled: false,
+            rebuild_stale_index: None,
             configured_at: configured_at.to_string(),
             configured_by_version: env!("CARGO_PKG_VERSION").to_string(),
             reason: Some(reason),
@@ -139,6 +143,7 @@ impl SearchProfile {
         let configured_at = timestamp();
         Self {
             llm_search_enabled: true,
+            rebuild_stale_index: None,
             configured_at,
             configured_by_version: env!("CARGO_PKG_VERSION").to_string(),
             reason: None,

@@ -675,6 +675,67 @@ fn mcp_register_index_and_search_round_trip() {
 }
 
 #[test]
+fn mcp_search_on_a_stale_index_carries_the_warning() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path());
+    install_without_llm_search(home.path());
+    let register = llm_wiki(home.path())
+        .args(["register", "--id", "fixture", "--name", "Fixture"])
+        .arg(&project)
+        .output()
+        .expect("register");
+    assert!(register.status.success());
+    let index = llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .output()
+        .expect("index");
+    assert!(index.status.success());
+    fs::write(
+        project.join("wiki/index.md"),
+        "# Wiki Index\n\nfreshly edited\n",
+    )
+    .expect("edit index");
+    // A held lock keeps search from rebuilding, so it answers stale.
+    let lock = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(
+            home.path()
+                .join(managed_home_dir_name())
+                .join("indexes/fixture/qmd-rs.lock"),
+        )
+        .expect("open index lock");
+    lock.try_lock().expect("hold index lock");
+
+    let responses = run_mcp_session(
+        home.path(),
+        &project,
+        &[json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+                "name": mcp_tool_name("llm_wiki_search"),
+                "arguments": {"query": "wiki index", "project": "fixture"}
+            }
+        })],
+    );
+
+    let search = tool_payload(&responses[0]);
+    let warnings = search["warnings"].as_array().expect("warnings array");
+    assert_eq!(warnings.len(), 1, "{search}");
+    let message = warnings[0]["message"].as_str().expect("warning message");
+    assert!(
+        message.contains(&format!(
+            "not rebuilt: another index build is running; run `{} index --project fixture`",
+            binary_stem()
+        )),
+        "{message}"
+    );
+}
+
+#[test]
 fn mcp_cli_tool_failure_returns_tool_error_result() {
     let home = TempDir::new().expect("home");
     let workspace = TempDir::new().expect("workspace");

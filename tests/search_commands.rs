@@ -1285,26 +1285,100 @@ fn stale_search_reports_warning_and_stale_result_freshness() {
     let workspace = TempDir::new().expect("workspace");
     let project = fixture_project(workspace.path(), "Fixture Project");
     register_project(home.path(), &project);
-
-    llm_wiki(home.path())
-        .args(["index", "--project", "fixture", "--force"])
-        .assert()
-        .success();
-
-    fs::write(
-        project.join("wiki/plans/new.plan.md"),
-        "# New Plan\n\n- Document Class: Plan\n- Status: Active\n\n## Work\nNew stale content.",
-    )
-    .expect("new plan");
+    write_project_search_profile(&project, false, Some(false));
+    index_fixture(home.path());
+    write_new_stale_page(&project);
 
     llm_wiki(home.path())
         .args(["search", "reciprocal rank", "--project", "fixture"])
         .assert()
         .success()
         .stdout(predicate::str::contains("Warning: search index stale"))
+        .stdout(predicate::str::contains("index --project fixture`"))
         .stdout(predicate::str::contains("freshness=stale"));
 
+    let json = search_fixture_json(home.path(), "reciprocal rank");
+    assert!(
+        json["warning"]
+            .as_str()
+            .is_some_and(|warning| warning.starts_with("search index stale"))
+    );
+    assert_stale_warning(&json, None);
+    assert_eq!(json["results"][0]["freshness"], "stale");
+}
+
+#[test]
+fn stale_word_match_search_rebuilds_and_finds_the_new_text() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+    index_fixture(home.path());
+    write_new_stale_page(&project);
+
+    let json = search_fixture_json(home.path(), "zzqmarker");
+    assert_eq!(json["backend_status"]["freshness"], "fresh");
+    assert!(json["warning"].is_null());
+    assert_eq!(json["warnings"], serde_json::json!([]));
+    assert_eq!(json["results"][0]["path"], "wiki/plans/new.plan.md");
+    assert_eq!(json["results"][0]["freshness"], "fresh");
+}
+
+#[test]
+fn stale_search_with_a_held_lock_answers_with_the_warning() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+    index_fixture(home.path());
+    write_new_stale_page(&project);
+
+    let lock = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(home.path().join(".llm_wiki/indexes/fixture/qmd-rs.lock"))
+        .expect("open index lock");
+    lock.try_lock().expect("hold index lock");
+
+    let json = search_fixture_json(home.path(), "reciprocal rank");
+    assert_stale_warning(&json, Some("another index build is running"));
+    assert_eq!(json["results"][0]["freshness"], "stale");
+
     llm_wiki(home.path())
+        .args(["search", "reciprocal rank", "--project", "fixture"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "not rebuilt: another index build is running",
+        ));
+}
+
+#[cfg(unix)]
+#[test]
+fn stale_search_with_a_read_only_cache_answers_with_the_warning() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+    index_fixture(home.path());
+    write_new_stale_page(&project);
+
+    let index_dir = home.path().join(".llm_wiki/indexes/fixture");
+    let mut entries = fs::read_dir(&index_dir)
+        .expect("index dir")
+        .map(|entry| entry.expect("index entry").path())
+        .collect::<Vec<_>>();
+    entries.push(index_dir.clone());
+    let set_mode = |path: &Path, mode: u32| {
+        fs::set_permissions(path, fs::Permissions::from_mode(mode)).expect("chmod")
+    };
+    for path in &entries {
+        set_mode(path, if path.is_dir() { 0o555 } else { 0o444 });
+    }
+
+    let output = llm_wiki(home.path())
         .args([
             "search",
             "reciprocal rank",
@@ -1313,11 +1387,191 @@ fn stale_search_reports_warning_and_stale_result_freshness() {
             "--format",
             "json",
         ])
+        .output()
+        .expect("search output");
+    for path in &entries {
+        set_mode(path, if path.is_dir() { 0o755 } else { 0o644 });
+    }
+
+    assert!(output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("search json");
+    assert_stale_warning(&json, Some("the search cache is read-only"));
+    assert_eq!(json["results"][0]["freshness"], "stale");
+}
+
+#[test]
+fn stale_search_never_rebuilds_a_project_with_llm_search_on() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+    index_fixture(home.path());
+    write_project_search_profile(&project, true, None);
+    write_new_stale_page(&project);
+
+    let output = llm_wiki(home.path())
+        .args([
+            "search",
+            "reciprocal rank",
+            "--project",
+            "fixture",
+            "--mode",
+            "lexical",
+            "--format",
+            "json",
+        ])
+        .output()
+        .expect("search output");
+    assert!(output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("search json");
+    assert_stale_warning(&json, None);
+    assert_fixture_index_stale(home.path());
+}
+
+#[test]
+fn search_all_warns_about_a_stale_word_match_index_and_leaves_it() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+    index_fixture(home.path());
+    write_new_stale_page(&project);
+
+    let output = llm_wiki(home.path())
+        .args(["search-all", "reciprocal rank", "--format", "json"])
+        .output()
+        .expect("search-all output");
+    assert!(output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout).expect("search-all json");
+    assert_stale_warning(&json, None);
+    assert_fixture_index_stale(home.path());
+}
+
+#[test]
+fn concurrent_stale_searches_all_answer() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path(), "Fixture Project");
+    register_project(home.path(), &project);
+    index_fixture(home.path());
+    write_new_stale_page(&project);
+
+    let children = (0..3)
+        .map(|_| {
+            StdCommand::new(support::llm_wiki_bin())
+                .env("HOME", home.path())
+                .env_remove("RUST_LOG")
+                .env_remove("XDG_CACHE_HOME")
+                .env_remove("XDG_DATA_HOME")
+                .args([
+                    "search",
+                    "zzqmarker",
+                    "--project",
+                    "fixture",
+                    "--format",
+                    "json",
+                ])
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped())
+                .spawn()
+                .expect("spawn search")
+        })
+        .collect::<Vec<_>>();
+    for child in children {
+        let output = child.wait_with_output().expect("search output");
+        assert!(
+            output.status.success(),
+            "search failed\nstderr:\n{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let json: Value = serde_json::from_slice(&output.stdout).expect("search json");
+        if json["backend_status"]["freshness"] == "fresh" {
+            assert_eq!(json["warnings"], serde_json::json!([]));
+        } else {
+            assert_stale_warning(&json, Some("another index build is running"));
+        }
+    }
+}
+
+fn index_fixture(home: &Path) {
+    llm_wiki(home)
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+}
+
+fn write_new_stale_page(project: &Path) {
+    fs::write(
+        project.join("wiki/plans/new.plan.md"),
+        "# New Plan\n\n- Document Class: Plan\n- Status: Active\n\n## Work\nNew stale content with zzqmarker.",
+    )
+    .expect("new plan");
+}
+
+fn write_project_search_profile(
+    project: &Path,
+    llm_search_enabled: bool,
+    rebuild_stale_index: Option<bool>,
+) {
+    let rebuild = rebuild_stale_index
+        .map(|value| format!("rebuild_stale_index = {value}\n"))
+        .unwrap_or_default();
+    fs::create_dir_all(project.join(".llm_wiki")).expect("project manifest dir");
+    fs::write(
+        project.join(".llm_wiki/search.toml"),
+        format!(
+            "schema_version = 1\nupdated_at = \"2026-10-07T00:00:00Z\"\n\n[project]\nllm_search_enabled = {llm_search_enabled}\n{rebuild}configured_at = \"2026-10-07T00:00:00Z\"\nconfigured_by_version = \"test\"\n"
+        ),
+    )
+    .expect("project search profile");
+}
+
+fn search_fixture_json(home: &Path, query: &str) -> Value {
+    let output = llm_wiki(home)
+        .args(["search", query, "--project", "fixture", "--format", "json"])
+        .output()
+        .expect("search output");
+    assert!(
+        output.status.success(),
+        "search failed\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    serde_json::from_slice(&output.stdout).expect("search json")
+}
+
+/// The stale warning sits in the `warnings` list, names the exact rebuild
+/// command for the project and, when search tried and could not rebuild, why.
+fn assert_stale_warning(json: &Value, rebuild_skipped: Option<&str>) {
+    let warnings = json["warnings"].as_array().expect("warnings array");
+    assert_eq!(warnings.len(), 1, "warnings: {warnings:?}");
+    assert_eq!(warnings[0]["project_id"], "fixture");
+    let message = warnings[0]["message"].as_str().expect("warning message");
+    assert!(message.starts_with("search index stale for project fixture"));
+    let binary = if option_env!("LLM_WIKI_COMPILED_INSTANCE") == Some("test") {
+        "llm-wiki-test"
+    } else {
+        "llm-wiki"
+    };
+    assert!(
+        message.contains(&format!(
+            "run `{binary} index --project fixture` (about a second for a word-match index) and search again"
+        )),
+        "{message}"
+    );
+    match rebuild_skipped {
+        Some(reason) => assert!(
+            message.contains(&format!("not rebuilt: {reason}")),
+            "{message}"
+        ),
+        None => assert!(!message.contains("not rebuilt"), "{message}"),
+    }
+}
+
+fn assert_fixture_index_stale(home: &Path) {
+    llm_wiki(home)
+        .args(["projects", "--format", "json"])
         .assert()
         .success()
-        .stdout(predicate::str::contains(
-            "\"warning\": \"search index stale",
-        ))
         .stdout(predicate::str::contains("\"freshness\": \"stale\""));
 }
 

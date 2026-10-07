@@ -5,8 +5,8 @@
 - Date: 2026-05-07
 - Category: Search infrastructure, framework tooling
 - Scope: Use qmd-rs as the D9 backend for `llm-wiki search` and `llm-wiki search-all`.
-- Sources: wiki/evals/search-backend-selection.eval.md, wiki/proposals/search-backend-selection.proposal.md, wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/references/qmd-rs-search-crate.reference.md
-- Related: wiki/proposals/search-backend-selection.proposal.md, wiki/proposals/project-registry-search-artifacts.proposal.md
+- Sources: wiki/evals/search-backend-selection.eval.md, wiki/proposals/search-backend-selection.proposal.md, wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/references/qmd-rs-search-crate.reference.md, issue #36
+- Related: wiki/proposals/search-backend-selection.proposal.md, wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/plans/search-stale-index-warning-and-rebuild.plan.md
 
 ## Choice
 
@@ -106,6 +106,28 @@ Validated read behavior:
   corruption
 - writer commands prove immutable readability before live promotion
 - adapter-owned SQL keeps accepted qmd-rs lexical query parity under tests
+
+## Stale Index Contract (P21)
+
+A stale index stays searchable, and `search` writes in one case: plan
+`wiki/plans/search-stale-index-warning-and-rebuild.plan.md`, issue #36.
+
+- When `search` selects lexical mode, the project searches by word match only
+  (`llm_search_enabled = false`, or no profile) and its index is stale,
+  `search` rebuilds the index first, the same build as `llm-wiki index`, then
+  answers fresh. A project turns this off with `rebuild_stale_index = false`
+  in the `[project]` table of its `.llm_wiki/search.toml`.
+- The build takes the project's index lock with `try_lock` and never waits.
+  A held lock, a read-only cache or any other failed build leaves the index as
+  it was, and `search` answers from it with the stale warning, naming the
+  reason ("another index build is running", "the search cache is
+  read-only"); the search itself still succeeds.
+- `search-all`, and a project with LLM search on, never rebuild: they warn.
+- The stale warning names the running binary's exact
+  `<binary> index --project <id>` command, says it takes about a second for a
+  word-match index, and sits in the JSON reply's `warnings` list (full and
+  compact) as well as its single `warning` string, so the MCP search tools
+  carry it too.
 
 ## Revisit When
 
