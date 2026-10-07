@@ -1,5 +1,21 @@
 # Wiki Log
 
+## [2026-10-07] merge | Compact search pages follow the limit and say when more exist
+
+Merged #61 (closes #29): a compact search page now holds up to the limit
+asked for, ten hits by default instead of three, and a new `has_more` field is
+true when more hits follow the page, kept or past the limit. The look-ahead
+that learns it is cut before fusion and rerank, so full replies, reranked
+searches and the search eval are unchanged. The contract is in the query
+skill's spec; both of the plan's choices (that spec, and the name `has_more`)
+were taken by the coordinator while the owner was away, for the owner's
+verdict to confirm. A Headroom probe on the Claude path found all ten hits
+whole; the Codex path is P25. P17 is Completed.
+
+Pages affected: `wiki/plans/compact-search-pages-follow-the-limit.plan.md`,
+`wiki/specs/wiki-query-skill.spec.md`, `wiki/roadmaps/framework-v1.roadmap.md`,
+`wiki/index.md`.
+
 ## [2026-10-07] merge | Five short plans, and poman is MCP-friendly
 
 Merged #59 (closes #57; part of #29, #36, #37, #49 and #5): plans for compact
