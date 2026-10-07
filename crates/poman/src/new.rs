@@ -263,7 +263,8 @@ fn ask(
         write!(terminal.output, "{question}: ")?;
         terminal.output.flush()?;
         let mut line = String::new();
-        if terminal.input.read_line(&mut line)? == 0 {
+        terminal.input.read_line(&mut line)?;
+        if line.is_empty() {
             return Err(Refusal::new(
                 REFUSED,
                 format!("no answer for {question}; nothing written"),

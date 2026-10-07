@@ -49,6 +49,20 @@ fn binary_name() -> &'static str {
 }
 
 /// The managed binary path the wired server should spawn, relative to `home`.
+fn poman_server_name() -> &'static str {
+    if is_test_instance() {
+        "poman-test"
+    } else {
+        "poman"
+    }
+}
+
+fn managed_poman(home: &Path) -> String {
+    home.join(format!("{}/bin/poman", managed_home_dir_name()))
+        .to_string_lossy()
+        .into_owned()
+}
+
 fn managed_binary(home: &Path) -> String {
     home.join(format!("{}/bin/{}", managed_home_dir_name(), binary_name()))
         .to_string_lossy()
@@ -96,6 +110,12 @@ fn register_wires_project_and_codex_mcp_config() {
         managed_binary(home.path())
     );
     assert_eq!(server["args"], serde_json::json!(["mcp", "serve"]));
+    let poman = &config["mcpServers"][poman_server_name()];
+    assert_eq!(
+        poman["command"].as_str().expect("poman command"),
+        managed_poman(home.path())
+    );
+    assert_eq!(poman["args"], serde_json::json!(["mcp"]));
 
     // The global Codex config is ensured idempotently by the same core.
     let codex = fs::read_to_string(home.path().join(".codex/config.toml")).expect("codex config");
@@ -111,6 +131,10 @@ fn register_wires_project_and_codex_mcp_config() {
             toml::Value::String("mcp".to_string()),
             toml::Value::String("serve".to_string())
         ]
+    );
+    assert_eq!(
+        parsed["mcp_servers"][poman_server_name()]["command"].as_str(),
+        Some(managed_poman(home.path()).as_str())
     );
 }
 
@@ -143,9 +167,11 @@ fn register_preserves_compact_already_wired_project_mcp_config_bytes() {
     let workspace = TempDir::new().expect("workspace");
     let project = fixture_project(workspace.path(), "fixture");
     let compact = format!(
-        r#"{{"mcpServers":{{"{name}":{{"type":"stdio","command":"{command}","args":["mcp","serve"],"env":{{}}}},"other":{{"command":"other-cmd"}}}},"custom":true}}"#,
+        r#"{{"mcpServers":{{"{name}":{{"type":"stdio","command":"{command}","args":["mcp","serve"],"env":{{}}}},"{poman}":{{"type":"stdio","command":"{poman_command}","args":["mcp"],"env":{{}}}},"other":{{"command":"other-cmd"}}}},"custom":true}}"#,
         name = mcp_server_name(),
-        command = managed_binary(home.path())
+        command = managed_binary(home.path()),
+        poman = poman_server_name(),
+        poman_command = managed_poman(home.path())
     );
     fs::write(project.join(".mcp.json"), &compact).expect("seed compact .mcp.json");
 

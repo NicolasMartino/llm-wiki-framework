@@ -302,3 +302,67 @@ args = ["serve"]
     );
     assert!(parsed["mcp_servers"].get(mcp_server_name()).is_none());
 }
+
+fn poman_server_name() -> &'static str {
+    if is_test_instance() {
+        "poman-test"
+    } else {
+        "poman"
+    }
+}
+
+#[test]
+fn install_registers_poman_beside_llm_wiki_and_uninstall_removes_it() {
+    let home = TempDir::new().expect("home");
+    llm_wiki(home.path())
+        .args(["install", "--skip-path-guidance", "--disable-llm-search"])
+        .assert()
+        .success();
+    let managed_poman = home
+        .path()
+        .join(format!("{}/bin/poman", managed_home_dir_name()));
+    assert!(
+        managed_poman.is_file(),
+        "install puts poman beside llm-wiki"
+    );
+
+    let codex_config_path = home.path().join(".codex/config.toml");
+    let parsed: toml::Value =
+        toml::from_str(&fs::read_to_string(&codex_config_path).expect("codex config"))
+            .expect("codex config toml");
+    let poman = &parsed["mcp_servers"][poman_server_name()];
+    assert_eq!(
+        poman["command"].as_str(),
+        Some(managed_poman.to_string_lossy().as_ref())
+    );
+    assert_eq!(
+        poman["args"].as_array().expect("poman args"),
+        &[toml::Value::String("mcp".to_string())]
+    );
+    assert!(parsed["mcp_servers"].get(mcp_server_name()).is_some());
+
+    let claude_config_path = home.path().join(format!(
+        "{}/mcp/claude-project.mcp.json",
+        managed_home_dir_name()
+    ));
+    let claude_config: Value =
+        serde_json::from_str(&fs::read_to_string(&claude_config_path).expect("claude config"))
+            .expect("claude config json");
+    assert_eq!(
+        claude_config["mcpServers"][poman_server_name()],
+        serde_json::json!({
+            "type": "stdio",
+            "command": managed_poman.to_string_lossy(),
+            "args": ["mcp"],
+            "env": {}
+        })
+    );
+
+    llm_wiki(home.path()).arg("uninstall").assert().success();
+    assert!(
+        !codex_config_path.exists(),
+        "the config held only our servers"
+    );
+    assert!(!claude_config_path.exists());
+    assert!(!managed_poman.exists());
+}

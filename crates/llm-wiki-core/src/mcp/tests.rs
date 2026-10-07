@@ -395,3 +395,18 @@ fn replies_carry_their_parts() {
     );
     assert_eq!(at(&failed, "/content/0/type"), "text");
 }
+
+#[test]
+fn the_limit_and_the_codes_are_json_rpc_s() {
+    assert_eq!(MAX_MESSAGE_BYTES, 16_777_216);
+    assert_eq!(
+        [
+            PARSE_ERROR,
+            INVALID_REQUEST,
+            METHOD_NOT_FOUND,
+            INVALID_PARAMS,
+            super::INTERNAL_ERROR
+        ],
+        [-32700, -32600, -32601, -32602, -32603]
+    );
+}

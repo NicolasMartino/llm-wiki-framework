@@ -1,7 +1,7 @@
 //! The `Blocked by` graph: each deadline file and the files it waits on, and
 //! the loops they form.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 /// Each file, from the repository root, and the files it waits on.
 pub type Graph = BTreeMap<String, Vec<String>>;
@@ -53,10 +53,8 @@ pub fn loops(graph: &Graph) -> Vec<Vec<String>> {
 #[must_use]
 pub fn loop_through(graph: &Graph, from: &str) -> Option<Vec<String>> {
     let mut came_from: BTreeMap<&str, &str> = BTreeMap::new();
-    let mut queue: Vec<&str> = vec![from];
-    let mut next = 0;
-    while let Some(&file) = queue.get(next) {
-        next += 1;
+    let mut queue: VecDeque<&str> = VecDeque::from([from]);
+    while let Some(file) = queue.pop_front() {
         for blocker in graph.get(file).into_iter().flatten() {
             if blocker == from {
                 let mut walk = vec![from.to_owned()];
@@ -71,7 +69,7 @@ pub fn loop_through(graph: &Graph, from: &str) -> Option<Vec<String>> {
             }
             if !came_from.contains_key(blocker.as_str()) {
                 came_from.insert(blocker, file);
-                queue.push(blocker);
+                queue.push_back(blocker);
             }
         }
     }

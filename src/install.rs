@@ -1760,15 +1760,19 @@ fn materialize_mcp_configs(
     // use for project onboarding, so the two paths cannot drift: the merge is
     // non-destructive, the pre-llm-wiki config is snapshotted once, and the
     // merged config is written atomically.
+    // poman's server is wired beside llm-wiki's in every config written here
+    // (wiki/decisions/poman-is-mcp-friendly.decision.md).
+    let servers = mcp_wiring::managed_servers(paths, managed_binary);
     let codex_path = paths.codex_config_toml();
-    mcp_wiring::ensure_codex_mcp_config(&codex_path, managed_binary, context)?;
+    mcp_wiring::ensure_codex_mcp_config(&codex_path, &servers, context)?;
     context.diagnostic(format!(
-        "MCP server startup is {}: hosts spawn `{}` on demand; no background daemon is installed",
+        "MCP server startup is {}: hosts spawn `{}` and `{} mcp` on demand; no background daemon is installed",
         mcp_config::SERVER_STARTUP,
-        mcp_config::server_start_command(managed_binary)
+        mcp_config::server_start_command(managed_binary),
+        paths.managed_poman().display()
     ));
 
-    let claude_contents = mcp_config::render_claude_project_mcp_config(managed_binary)?;
+    let claude_contents = mcp_config::render_claude_servers(&servers)?;
     let claude_path = paths.claude_project_mcp_config();
     // The staged Claude MCP config is manifest-owned and drift-tracked, and
     // uninstall hard-fails if it was edited. Mirror that safety here: install

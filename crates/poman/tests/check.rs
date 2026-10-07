@@ -114,8 +114,8 @@ fn json_gives_the_same_findings() -> Result {
     let (code, out, _) = check(repo.path(), &["--json"]);
     assert_eq!(code, poman::CHECK_FAILED);
     let report: Value = serde_json::from_str(&out)?;
-    assert_eq!(report.get("files_checked"), Some(&Value::from(22)));
-    assert_eq!(report.get("errors"), Some(&Value::from(37)));
+    assert_eq!(report.get("files_checked"), Some(&Value::from(23)));
+    assert_eq!(report.get("errors"), Some(&Value::from(42)));
     assert_eq!(report.get("warnings"), Some(&Value::from(6)));
     let findings = report
         .get("findings")

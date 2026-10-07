@@ -1,6 +1,6 @@
 use std::fs;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 use serde_json::{Map as JsonMap, Value as JsonValue, json};
@@ -11,6 +11,47 @@ use crate::instance;
 
 pub const SERVER_STARTUP: &str = "host-managed stdio";
 const SERVER_ARGS: [&str; 2] = ["mcp", "serve"];
+const POMAN_SERVER_ARGS: [&str; 1] = ["mcp"];
+
+/// One stdio server a host spawns: the name it is registered under, the
+/// binary, and the arguments that start its MCP server.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct McpServer {
+    pub name: &'static str,
+    pub binary: PathBuf,
+    pub args: &'static [&'static str],
+}
+
+impl McpServer {
+    /// llm-wiki's server: `<binary> mcp serve`, under the active instance's name.
+    pub fn llm_wiki(binary: &Path) -> Self {
+        Self {
+            name: instance::mcp_server_name(),
+            binary: binary.to_path_buf(),
+            args: &SERVER_ARGS,
+        }
+    }
+
+    /// poman's server: `<binary> mcp`, registered beside llm-wiki's. Under the
+    /// test instance it is `poman-test`, so a test install never replaces the
+    /// real registration in a host config both instances share.
+    pub fn poman(binary: &Path) -> Self {
+        Self {
+            name: poman_server_name(),
+            binary: binary.to_path_buf(),
+            args: &POMAN_SERVER_ARGS,
+        }
+    }
+}
+
+/// The name poman's server is registered under for the active instance.
+pub fn poman_server_name() -> &'static str {
+    if instance::is_test() {
+        "poman-test"
+    } else {
+        "poman"
+    }
+}
 
 pub fn server_start_command(binary: &Path) -> String {
     format!("{} {}", binary.display(), SERVER_ARGS.join(" "))
@@ -28,8 +69,14 @@ fn binary_command_str(binary: &Path) -> Result<&str> {
     })
 }
 
+#[cfg(test)]
 pub fn render_claude_project_mcp_config(binary: &Path) -> Result<String> {
     merge_claude_project_mcp_config(None, binary)
+}
+
+/// A fresh Claude `.mcp.json` wiring each of `servers`.
+pub fn render_claude_servers(servers: &[McpServer]) -> Result<String> {
+    merge_claude_servers(None, servers)
 }
 
 /// Merge the managed `llm-wiki[-test]` stdio server into a project-local Claude
@@ -49,26 +96,33 @@ pub fn render_claude_project_mcp_config(binary: &Path) -> Result<String> {
 ///
 /// With no existing content this returns exactly what a fresh render would, so
 /// `render_claude_project_mcp_config` is just `merge(None, ..)`.
+#[cfg(test)]
 pub fn merge_claude_project_mcp_config(existing: Option<&str>, binary: &Path) -> Result<String> {
-    let entry = claude_server_entry(binary)?;
+    merge_claude_servers(existing, &[McpServer::llm_wiki(binary)])
+}
+
+/// [`merge_claude_project_mcp_config`] for each of `servers`, in one merge.
+pub fn merge_claude_servers(existing: Option<&str>, servers: &[McpServer]) -> Result<String> {
     let mut root = parse_claude_project_config(existing)?;
-    let servers = root
+    let entries = root
         .entry("mcpServers")
         .or_insert_with(|| JsonValue::Object(JsonMap::new()));
-    let servers = servers
+    let entries = entries
         .as_object_mut()
         .context("Claude .mcp.json `mcpServers` must be a JSON object")?;
-    servers.insert(instance::mcp_server_name().to_string(), entry);
+    for server in servers {
+        entries.insert(server.name.to_string(), claude_server_entry(server)?);
+    }
     serde_json::to_string_pretty(&JsonValue::Object(root)).context("render Claude MCP config")
 }
 
-/// The managed stdio server block hosts spawn on demand: `<binary> mcp serve`.
-fn claude_server_entry(binary: &Path) -> Result<JsonValue> {
-    let command = binary_command_str(binary)?;
+/// The managed stdio server block hosts spawn on demand: `<binary> <args>`.
+fn claude_server_entry(server: &McpServer) -> Result<JsonValue> {
+    let command = binary_command_str(&server.binary)?;
     Ok(json!({
         "type": "stdio",
         "command": command,
-        "args": SERVER_ARGS,
+        "args": server.args,
         "env": {}
     }))
 }
@@ -102,22 +156,34 @@ pub enum ServerWiring {
 /// How a project-local Claude `.mcp.json` string wires the active managed server
 /// relative to `binary`. Used by `doctor`.
 pub fn claude_project_server_wiring(existing: &str, binary: &Path) -> Result<ServerWiring> {
+    claude_server_wiring(existing, &McpServer::llm_wiki(binary))
+}
+
+/// How a project-local Claude `.mcp.json` string wires `server`.
+pub fn claude_server_wiring(existing: &str, server: &McpServer) -> Result<ServerWiring> {
     let root = parse_claude_project_config(Some(existing))?;
-    let Some(server) = root
+    let Some(entry) = root
         .get("mcpServers")
         .and_then(JsonValue::as_object)
-        .and_then(|servers| servers.get(instance::mcp_server_name()))
+        .and_then(|entries| entries.get(server.name))
     else {
         return Ok(ServerWiring::Absent);
     };
-    Ok(if server == &claude_server_entry(binary)? {
+    Ok(if entry == &claude_server_entry(server)? {
         ServerWiring::Wired
     } else {
         ServerWiring::Mismatched
     })
 }
 
+#[cfg(test)]
 pub fn merge_codex_config(existing: Option<&str>, binary: &Path) -> Result<String> {
+    merge_codex_servers(existing, &[McpServer::llm_wiki(binary)])
+}
+
+/// [`merge_codex_config`] for each of `servers`: each server's block replaced
+/// or added, every other line kept.
+pub fn merge_codex_servers(existing: Option<&str>, servers: &[McpServer]) -> Result<String> {
     let existing = existing.unwrap_or_default();
     if !existing.trim().is_empty() {
         let value = toml::from_str::<Value>(existing).context("parse Codex config.toml")?;
@@ -137,13 +203,16 @@ pub fn merge_codex_config(existing: Option<&str>, binary: &Path) -> Result<Strin
         }
     }
 
-    let (mut merged, _) = remove_codex_mcp_server_text(existing);
-    if !merged.is_empty() && !merged.ends_with('\n') {
-        merged.push('\n');
-    }
-    merged.push_str(&render_codex_mcp_server_block(binary)?);
-    if !merged.ends_with('\n') {
-        merged.push('\n');
+    let names: Vec<&str> = servers.iter().map(|server| server.name).collect();
+    let (mut merged, _) = remove_codex_mcp_server_text(existing, &names);
+    for server in servers {
+        if !merged.is_empty() && !merged.ends_with('\n') {
+            merged.push('\n');
+        }
+        merged.push_str(&render_codex_mcp_server_block(server)?);
+        if !merged.ends_with('\n') {
+            merged.push('\n');
+        }
     }
     Ok(merged)
 }
@@ -175,26 +244,23 @@ pub fn write_codex_config_atomic(path: &Path, contents: &str) -> Result<()> {
     Ok(())
 }
 
-fn render_codex_mcp_server_block(binary: &Path) -> Result<String> {
-    let command = binary_command_str(binary)?;
-    let mut server = Map::new();
-    server.insert("command".to_string(), Value::String(command.to_string()));
-    server.insert(
+fn render_codex_mcp_server_block(server: &McpServer) -> Result<String> {
+    let command = binary_command_str(&server.binary)?;
+    let mut table = Map::new();
+    table.insert("command".to_string(), Value::String(command.to_string()));
+    table.insert(
         "args".to_string(),
         Value::Array(
-            SERVER_ARGS
+            server
+                .args
                 .iter()
                 .map(|arg| Value::String((*arg).to_string()))
                 .collect(),
         ),
     );
     let body =
-        toml::to_string_pretty(&Value::Table(server)).context("render Codex MCP server table")?;
-    Ok(format!(
-        "[mcp_servers.{}]\n{}",
-        instance::mcp_server_name(),
-        body
-    ))
+        toml::to_string_pretty(&Value::Table(table)).context("render Codex MCP server table")?;
+    Ok(format!("[mcp_servers.{}]\n{}", server.name, body))
 }
 
 /// How the global Codex `config.toml` string wires the active managed server
@@ -202,6 +268,11 @@ fn render_codex_mcp_server_block(binary: &Path) -> Result<String> {
 /// `command` against the managed binary so `doctor` surfaces a stale or
 /// wrong-instance Codex entry, not merely a missing one.
 pub fn codex_server_wiring(existing: &str, binary: &Path) -> Result<ServerWiring> {
+    codex_wiring_of(existing, &McpServer::llm_wiki(binary))
+}
+
+/// How the global Codex `config.toml` string wires `wanted`.
+pub fn codex_wiring_of(existing: &str, wanted: &McpServer) -> Result<ServerWiring> {
     if existing.trim().is_empty() {
         return Ok(ServerWiring::Absent);
     }
@@ -210,7 +281,7 @@ pub fn codex_server_wiring(existing: &str, binary: &Path) -> Result<ServerWiring
         .as_table()
         .and_then(|table| table.get("mcp_servers"))
         .and_then(Value::as_table)
-        .and_then(|servers| servers.get(instance::mcp_server_name()))
+        .and_then(|servers| servers.get(wanted.name))
         .and_then(Value::as_table)
     else {
         return Ok(ServerWiring::Absent);
@@ -219,16 +290,16 @@ pub fn codex_server_wiring(existing: &str, binary: &Path) -> Result<ServerWiring
     // check the args too, not just the command: a stale `args = ["status"]` would
     // otherwise read as wired even though Codex would never start the server.
     let command_ok =
-        server.get("command").and_then(Value::as_str) == Some(binary_command_str(binary)?);
+        server.get("command").and_then(Value::as_str) == Some(binary_command_str(&wanted.binary)?);
     let args_ok = server
         .get("args")
         .and_then(Value::as_array)
         .is_some_and(|args| {
-            args.len() == SERVER_ARGS.len()
+            args.len() == wanted.args.len()
                 && args
                     .iter()
-                    .zip(SERVER_ARGS)
-                    .all(|(value, expected)| value.as_str() == Some(expected))
+                    .zip(wanted.args)
+                    .all(|(value, expected)| value.as_str() == Some(*expected))
         });
     Ok(if command_ok && args_ok {
         ServerWiring::Wired
@@ -237,7 +308,14 @@ pub fn codex_server_wiring(existing: &str, binary: &Path) -> Result<ServerWiring
     })
 }
 
+#[cfg(test)]
 pub fn remove_codex_mcp_server(existing: &str) -> Result<Option<String>> {
+    remove_codex_servers(existing, &[instance::mcp_server_name()])
+}
+
+/// Removes each server named in `names` from a Codex `config.toml` string;
+/// `None` when it wires none of them.
+pub fn remove_codex_servers(existing: &str, names: &[&str]) -> Result<Option<String>> {
     let root: Value = toml::from_str(existing).context("parse Codex config.toml")?;
     let Some(root_table) = root.as_table() else {
         bail!("Codex config.toml root must be a table");
@@ -248,17 +326,20 @@ pub fn remove_codex_mcp_server(existing: &str) -> Result<Option<String>> {
     if !mcp_servers.is_table() {
         bail!("Codex config.toml mcp_servers must be a table");
     }
-    let (updated, removed) = remove_codex_mcp_server_text(existing);
+    let (updated, removed) = remove_codex_mcp_server_text(existing, names);
     Ok(removed.then_some(updated))
 }
 
-fn remove_codex_mcp_server_text(existing: &str) -> (String, bool) {
+fn remove_codex_mcp_server_text(existing: &str, names: &[&str]) -> (String, bool) {
     let mut updated = String::with_capacity(existing.len());
     let lines = existing.split_inclusive('\n').collect::<Vec<_>>();
     let mut removed = false;
     let mut index = 0;
     while index < lines.len() {
-        if is_active_codex_mcp_server_header(lines[index]) {
+        if names
+            .iter()
+            .any(|name| is_codex_mcp_server_header(lines[index], name))
+        {
             removed = true;
             index += 1;
             // The block body runs to the next table header (or EOF). Consume all of
@@ -351,10 +432,9 @@ fn strip_toml_trailing_comment(line: &str) -> &str {
     line
 }
 
-fn is_active_codex_mcp_server_header(line: &str) -> bool {
+fn is_codex_mcp_server_header(line: &str, name: &str) -> bool {
     let trimmed = strip_toml_trailing_comment(line).trim();
-    trimmed == format!("[mcp_servers.{}]", instance::mcp_server_name())
-        || trimmed == format!("[mcp_servers.\"{}\"]", instance::mcp_server_name())
+    trimmed == format!("[mcp_servers.{name}]") || trimmed == format!("[mcp_servers.\"{name}\"]")
 }
 
 fn is_toml_table_header(line: &str) -> bool {
@@ -511,7 +591,10 @@ mcp_servers = { other = { command = "other" } }
             "[mcp_servers.{}] # managed by installer",
             instance::mcp_server_name()
         );
-        assert!(is_active_codex_mcp_server_header(&line));
+        assert!(is_codex_mcp_server_header(
+            &line,
+            instance::mcp_server_name()
+        ));
     }
 
     #[test]
@@ -688,5 +771,85 @@ mcp_servers = { other = { command = "other" } }
         let servers = parsed["mcpServers"].as_object().expect("servers object");
         assert!(servers.contains_key(instance::mcp_server_name()));
         assert_eq!(servers.len(), 1);
+    }
+}
+
+#[cfg(test)]
+mod both_servers {
+    use super::*;
+
+    fn both() -> [McpServer; 2] {
+        [
+            McpServer::llm_wiki(Path::new("/home/u/.llm_wiki/bin/llm-wiki")),
+            McpServer::poman(Path::new("/home/u/.llm_wiki/bin/poman")),
+        ]
+    }
+
+    #[test]
+    fn poman_is_registered_under_its_own_name() {
+        let poman = McpServer::poman(Path::new("/bin/poman"));
+        assert_eq!(poman.name, poman_server_name());
+        assert_eq!(poman.args, ["mcp"]);
+        assert_ne!(poman.name, instance::mcp_server_name());
+    }
+
+    #[test]
+    fn claude_config_wires_both_servers_idempotently() {
+        let rendered = render_claude_servers(&both()).expect("render");
+        let parsed: JsonValue = serde_json::from_str(&rendered).expect("json");
+        assert_eq!(
+            parsed["mcpServers"][poman_server_name()]["args"],
+            json!(["mcp"])
+        );
+        assert_eq!(
+            parsed["mcpServers"][instance::mcp_server_name()]["args"],
+            json!(["mcp", "serve"])
+        );
+        let again = merge_claude_servers(Some(&rendered), &both()).expect("merge");
+        assert_eq!(again, rendered);
+        for server in both() {
+            assert_eq!(
+                claude_server_wiring(&rendered, &server).expect("wiring"),
+                ServerWiring::Wired
+            );
+        }
+    }
+
+    #[test]
+    fn codex_config_wires_both_servers_and_removes_both() {
+        let existing = "model = \"gpt-5\"\n\n[mcp_servers.other]\ncommand = \"other\"\n";
+        let merged = merge_codex_servers(Some(existing), &both()).expect("merge");
+        assert!(merged.starts_with(existing));
+        assert!(merged.contains(&format!("[mcp_servers.{}]", poman_server_name())));
+        assert!(merged.contains("args = [\"mcp\"]"));
+        for server in both() {
+            assert_eq!(
+                codex_wiring_of(&merged, &server).expect("wiring"),
+                ServerWiring::Wired
+            );
+        }
+        assert_eq!(
+            merge_codex_servers(Some(&merged), &both()).expect("again"),
+            merged
+        );
+        let names = [instance::mcp_server_name(), poman_server_name()];
+        let removed = remove_codex_servers(&merged, &names)
+            .expect("remove")
+            .expect("updated");
+        assert_eq!(removed, existing);
+        assert_eq!(remove_codex_servers(existing, &names).expect("none"), None);
+    }
+
+    #[test]
+    fn a_stale_poman_entry_is_mismatched() {
+        let stale = format!(
+            "[mcp_servers.{}]\ncommand = \"/old/poman\"\nargs = [\"mcp\"]\n",
+            poman_server_name()
+        );
+        let [_, poman] = both();
+        assert_eq!(
+            codex_wiring_of(&stale, &poman).expect("wiring"),
+            ServerWiring::Mismatched
+        );
     }
 }

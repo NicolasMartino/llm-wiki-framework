@@ -136,6 +136,12 @@ fn the_server_names_itself_and_lists_both_tools() -> Result {
         new.pointer("/inputSchema/required"),
         Some(&json!(["title"]))
     );
+    assert_eq!(
+        properties.get("blocked_by"),
+        Some(
+            &json!({"type": "string", "description": "The Blocked by field, written as the deadline type takes it."})
+        )
+    );
     let check = tools.first().ok_or("no first tool")?;
     assert_eq!(check.pointer("/inputSchema/properties"), Some(&json!({})));
     Ok(())

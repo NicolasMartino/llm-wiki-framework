@@ -2,6 +2,11 @@ poman.toml:1: error: `landing-branch` must be a branch name in quotes, as `landi
 poman.toml:2: error: `colour` is not a key poman knows; its one key is `landing-branch`
 wiki/deadlines/-rent.deadline.md:1: error: the slug `-rent` is not lowercase ASCII letters and digits in groups joined by single hyphens
 wiki/deadlines/Pay Rent, May.deadline.md:1: error: the slug `Pay Rent, May` is not lowercase ASCII letters and digits in groups joined by single hyphens
+wiki/deadlines/all-bare.deadline.md:1: error: `Duration` is missing
+wiki/deadlines/all-bare.deadline.md:1: error: `Importance` is missing
+wiki/deadlines/all-bare.deadline.md:1: error: `Blocked by` is missing
+wiki/deadlines/all-bare.deadline.md:3: error: `Status` is written with no `- ` in front; poman reads a field only as a `- Key: Value` line in the block under the title
+wiki/deadlines/all-bare.deadline.md:4: error: `Deadline` is written with no `- ` in front; poman reads a field only as a `- Key: Value` line in the block under the title
 wiki/deadlines/bad-values.deadline.md:3: error: `Status` is `todo`, not one of `Todo`, `Doing`, `Waiting` or `Done`
 wiki/deadlines/bad-values.deadline.md:4: error: `Deadline` is `2026-1-5`, not a date written YYYY-MM-DD that exists on the calendar, or `none`
 wiki/deadlines/bad-values.deadline.md:5: error: `Duration` is `+5 days`, not a whole number of working days, `1 day` or `<n> days`, with no sign and no leading zero
@@ -41,4 +46,4 @@ wiki/deadlines/v1.2.deadline.md:1: error: the filename has more than one . befor
 wiki/notes/x.dealine.md:1: warning: the type `dealine` is close to `deadline`; this file is not read as a deadline file
 wiki/plans/stray.deadline.md:1: error: a deadline file must sit directly in wiki/deadlines/
 wiki/x.deadlines.md:1: warning: the type `deadlines` is close to `deadline`; this file is not read as a deadline file
-deadline files checked: 22, errors: 37, warnings: 6
+deadline files checked: 23, errors: 42, warnings: 6

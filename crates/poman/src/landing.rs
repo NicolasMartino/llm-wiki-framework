@@ -10,6 +10,9 @@ use toml::de::{DeTable, DeValue};
 
 use crate::finding::Finding;
 
+#[cfg(test)]
+mod tests;
+
 /// The file, at the repository root.
 pub const FILE: &str = "poman.toml";
 
