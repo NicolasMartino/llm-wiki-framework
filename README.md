@@ -60,6 +60,12 @@ The full enabled command is the portable form for scripts. Shorter enabled
 commands are only valid when the current local model and license state no
 longer needs the omitted confirmation.
 
+Enabled LLM-search installs show model download and verification progress on
+stderr. Interactive terminals receive a live progress bar with transferred
+bytes, rate, percentage, and ETA. Redirected stderr receives bounded milestone
+lines instead, so automation logs show that large model transfers are moving
+without contaminating stdout.
+
 ## Create a Project
 
 ```bash

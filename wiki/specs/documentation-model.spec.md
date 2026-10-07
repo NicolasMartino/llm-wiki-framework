@@ -146,6 +146,10 @@ Required behavior:
 - Diagnostic facts come from the same state and decisions used by the command;
   formatters must not re-resolve paths or duplicate command logic.
 - `--verbose` does not alter success, failure, or exit-code semantics.
+- Long-running byte-oriented install operations provide unconditional progress
+  on stderr. TTY output is terminal-aware and redraws in place; non-TTY output
+  is bounded and append-only. Progress never contaminates normal or JSON
+  stdout and does not introduce new interactivity.
 - Tests for new CLI behavior include a nearby verbose assertion and protect
   stderr expectations from inherited `RUST_LOG`.
 

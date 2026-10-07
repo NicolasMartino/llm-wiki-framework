@@ -810,7 +810,7 @@ Proof:
 
 ### P7 - Install Model Download Progress
 
-Status: Draft
+Status: Active
 Promise: `llm-wiki install` with LLM search enabled reports progress on stderr
 while it hashes, downloads and verifies the model (a bar on a terminal, a line
 every 25 % otherwise), and leaves stdout and JSON output unchanged.

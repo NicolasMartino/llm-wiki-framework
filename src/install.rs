@@ -23,11 +23,12 @@ use crate::mcp_config;
 use crate::mcp_wiring;
 use crate::path_guidance;
 use crate::paths::{Paths, poman_binary_name};
+use crate::progress::ProgressReporter;
 use crate::search::runtime_probe::{self, RuntimeProbeStore};
 use crate::search_models::{
-    AcceptedLicenses, DEFAULT_PROFILE_ID, MaterializationOutcome, ModelArtifactClassification,
-    ModelArtifactRecord, ModelArtifacts, ProfileBundle, SearchModel, classify_model_artifact,
-    materialize_model, profile_by_id,
+    AcceptedLicenses, DEFAULT_PROFILE_ID, ModelArtifactClassification, ModelArtifactRecord,
+    ModelArtifacts, ProfileBundle, SearchModel, classify_model_artifact,
+    classify_model_artifact_with_progress, download_and_verify_model_with_progress, profile_by_id,
 };
 use crate::search_profile::{ExternalDependencies, SearchConfig, SearchProfile};
 
@@ -93,7 +94,9 @@ pub fn run(args: &InstallArgs, context: &CliContext) -> Result<()> {
         paths.search_runtime_probes().display()
     ));
     ensure_search_prompt_available(args)?;
-    let enabled_search_preflight = preflight_noninteractive_enabled_search(args, &paths, context)?;
+    let mut progress = ProgressReporter::stderr();
+    let enabled_search_preflight =
+        preflight_noninteractive_enabled_search(args, &paths, context, &mut progress)?;
     let current_exe = env::current_exe().context("failed to resolve current executable")?;
     context.diagnostic(format!("current executable: {}", current_exe.display()));
     let current_exe_bytes = fs::read(&current_exe).with_context(|| {
@@ -231,7 +234,13 @@ pub fn run(args: &InstallArgs, context: &CliContext) -> Result<()> {
             )
         })?;
     }
-    configure_search(args, &paths, context, enabled_search_preflight)?;
+    configure_search(
+        args,
+        &paths,
+        context,
+        enabled_search_preflight,
+        &mut progress,
+    )?;
     if !args.skip_path_guidance {
         path_guidance::print_guidance(&paths);
     }
@@ -252,6 +261,7 @@ fn configure_search(
     paths: &Paths,
     context: &CliContext,
     enabled_search_preflight: Option<EnabledSearchPreflight>,
+    progress: &mut ProgressReporter,
 ) -> Result<()> {
     context.diagnostic("search configuration action: start");
     if args.disable_llm_search {
@@ -271,13 +281,13 @@ fn configure_search(
                 "search configuration: --configure-search redundant beside explicit enabled posture",
             );
         }
-        return configure_enabled_search(args, paths, context, enabled_search_preflight);
+        return configure_enabled_search(args, paths, context, enabled_search_preflight, progress);
     }
 
     let posture = current_search_posture(paths, context);
     let selected = prompt_search_posture(posture)?;
     if selected == SearchInstallPosture::SemanticHybrid {
-        return configure_enabled_search(args, paths, context, None);
+        return configure_enabled_search(args, paths, context, None, progress);
     }
     configure_disabled_search(paths, context)
 }
@@ -303,13 +313,14 @@ fn preflight_noninteractive_enabled_search(
     args: &InstallArgs,
     paths: &Paths,
     context: &CliContext,
+    progress: &mut ProgressReporter,
 ) -> Result<Option<EnabledSearchPreflight>> {
     if !args.enable_llm_search {
         return Ok(None);
     }
 
     context.diagnostic("search non-interactive preflight: start");
-    let preflight = build_enabled_search_preflight(args, paths, context)?;
+    let preflight = build_enabled_search_preflight(args, paths, context, progress)?;
     validate_noninteractive_enabled_search(args, &preflight.install_plan, context)?;
     context.diagnostic("search non-interactive preflight: accepted");
     Ok(Some(preflight))
@@ -319,6 +330,7 @@ fn build_enabled_search_preflight(
     args: &InstallArgs,
     paths: &Paths,
     context: &CliContext,
+    progress: &mut ProgressReporter,
 ) -> Result<EnabledSearchPreflight> {
     let profile_id = args
         .profile
@@ -342,14 +354,31 @@ fn build_enabled_search_preflight(
     context.diagnostic(format!("search profile models: {}", models.len()));
 
     let accepted_licenses = AcceptedLicenses::read(&paths.accepted_licenses())?;
-    let classifications = models
-        .iter()
-        .copied()
-        .map(|model| {
-            classify_model_artifact(model, profile, &paths.managed_model_root())
-                .map(|classification| (model, classification))
-        })
-        .collect::<Result<Vec<_>>>()?;
+    let total_models = models.len();
+    let mut classifications = Vec::with_capacity(total_models);
+    for (offset, model) in models.iter().copied().enumerate() {
+        let model_path = model.managed_path(&paths.managed_model_root());
+        let classification = if model_path.exists() {
+            let mut operation = progress.begin(
+                "verify",
+                model.id,
+                offset + 1,
+                total_models,
+                model.expected_size_bytes,
+            );
+            let classification = classify_model_artifact_with_progress(
+                model,
+                profile,
+                &paths.managed_model_root(),
+                Some(&mut operation),
+            )?;
+            operation.finish();
+            classification
+        } else {
+            classify_model_artifact(model, profile, &paths.managed_model_root())?
+        };
+        classifications.push((model, classification));
+    }
     diagnose_model_classifications(&classifications, context);
     let install_plan = plan_enabled_search_install(
         &models,
@@ -546,6 +575,7 @@ fn configure_enabled_search(
     paths: &Paths,
     context: &CliContext,
     preflight: Option<EnabledSearchPreflight>,
+    progress: &mut ProgressReporter,
 ) -> Result<()> {
     let EnabledSearchPreflight {
         profile,
@@ -553,7 +583,7 @@ fn configure_enabled_search(
         install_plan,
     } = match preflight {
         Some(preflight) => preflight,
-        None => build_enabled_search_preflight(args, paths, context)?,
+        None => build_enabled_search_preflight(args, paths, context, progress)?,
     };
 
     println!("LLM search profile: {}", profile.display_name);
@@ -686,7 +716,8 @@ fn configure_enabled_search(
     exclude_rebuildable_from_time_machine(&paths.managed_index_root(), context);
 
     let mut artifact_records = Vec::new();
-    for action in install_plan.actions {
+    let total_models = install_plan.actions.len();
+    for (offset, action) in install_plan.actions.into_iter().enumerate() {
         match action {
             PlannedModelAction::Reuse { record, .. } => {
                 artifact_records.push(*record);
@@ -701,17 +732,20 @@ fn configure_enabled_search(
                     model.id,
                     model.managed_path(&paths.managed_model_root()).display()
                 ));
-                let materialized =
-                    materialize_model(model, profile, &paths.managed_model_root(), args.force)?;
+                let record = download_and_verify_model_with_progress(
+                    model,
+                    profile,
+                    &model.managed_path(&paths.managed_model_root()),
+                    offset + 1,
+                    total_models,
+                    progress,
+                    context,
+                )?;
                 context.diagnostic(format!(
-                    "search model materialization outcome: {} -> {}",
-                    model.id,
-                    match materialized.outcome {
-                        MaterializationOutcome::Reused => "reused",
-                        MaterializationOutcome::Downloaded => "downloaded",
-                    }
+                    "search model materialization outcome: {} -> downloaded",
+                    model.id
                 ));
-                artifact_records.push(materialized.record);
+                artifact_records.push(record);
             }
         }
     }
@@ -1949,6 +1983,7 @@ mod tests {
     };
     use crate::cli::{InstallArgs, InstallSearchProfileArg};
     use crate::paths::Paths;
+    use crate::progress::ProgressReporter;
     use crate::search_models::{
         ADAPTER_SCHEMA_VERSION, AcceptedLicenses, BALANCED_PROFILE, EMBEDDING_GEMMA_300M,
         ModelArtifactClassification, ModelArtifactRecord, QMD_QUERY_EXPANSION_17B, QMD_RS_VERSION,
@@ -2281,11 +2316,13 @@ mod tests {
         let paths = fixture_paths(temp.path());
         let _guard = EnvVarGuard::set("LLM_WIKI_TEST_GGUF_RUNTIME_PROBE", "pass");
 
+        let mut progress = ProgressReporter::hidden();
         configure_enabled_search(
             &install_args(true, true, false),
             &paths,
             context(),
             Some(reuse_preflight()),
+            &mut progress,
         )
         .expect("enabled search");
 
@@ -2321,11 +2358,13 @@ mod tests {
             .expect("existing search config");
         let _guard = EnvVarGuard::set("LLM_WIKI_TEST_GGUF_RUNTIME_PROBE", "fail:embedding");
 
+        let mut progress = ProgressReporter::hidden();
         let error = configure_enabled_search(
             &install_args(true, true, false),
             &paths,
             context(),
             Some(reuse_preflight()),
+            &mut progress,
         )
         .expect_err("runtime probe should fail");
 
