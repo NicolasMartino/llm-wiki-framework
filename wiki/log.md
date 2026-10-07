@@ -1,5 +1,23 @@
 # Wiki Log
 
+## [2026-10-07] merge | The search eval runs in a temporary home
+
+Merged #67 (closes #49): `just search-eval` runs the hand-run
+natural-language search eval in a temporary home that reads the real model
+files in place, with nothing registered on the machine, and stops with one
+line when the models are missing or meaning-based search is off; a quick test
+of those stops runs in `just verify`. Its first runs, with the real managed
+home unchanged by checksum: lexical search 18 of 26 on `develop` and 22 of 26
+once the ranking fix merged, meaning-based, hybrid and auto unchanged at 23;
+"hybrid and auto beat lexical" holds by one case, and the eval fails its
+meaning-based floor before reaching it, which is P26. Both of the plan's
+choices were taken by the coordinator while the owner was away. P23 is
+Completed; a test that wrote into the machine's real registry is P30.
+
+Pages affected: `wiki/plans/search-eval-in-a-temporary-home.plan.md`,
+`wiki/evals/natural-language-search.eval.md`,
+`wiki/roadmaps/framework-v1.roadmap.md`, `wiki/index.md`.
+
 ## [2026-10-07] merge | Lexical search weights titles and file names, and falls back to phrases
 
 Merged #58 (closes #25): lexical ranking weights a page's file path and title

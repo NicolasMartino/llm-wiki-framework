@@ -1239,3 +1239,49 @@ Proof:
 - no page of the way of working tells the coordinator to open a log PR, except
   as history, and the landing steps describe the bookkeeping commit and both
   moments
+
+### P26 - The Search Eval's Cases And Floors Fit Today's Wiki
+
+Status: Draft
+Promise: The hand-run natural-language search eval passes on `develop` again,
+its cases and floors written for the wiki as it is now, so a failing run means
+search got worse.
+Depends On: P23
+Execution Plan: Not created yet
+
+Included:
+- what P23's first runs found (PR #67, 2026-10-07): meaning-based search
+  scores 23 of 30 against a floor of 24 on `develop` before and after the
+  ranking fix, and the no-match sentinels C10, H9, H11 and H20 now return
+  results, since the wiki has more than doubled since the eval's last runs
+- rechecking each case's expected pages and each floor against today's wiki,
+  through `just search-eval`
+
+Excluded:
+- changing how search ranks, unless a case shows a real regression
+
+Proof:
+- `just search-eval` passes on `develop`, the "hybrid and auto beat lexical"
+  assertion included, and the eval page records the run
+
+### P30 - Tests Stay Out Of The Machine's Project Registry
+
+Status: Draft
+Promise: No test changes the llm-wiki registry of the machine that runs it.
+Depends On: None
+Execution Plan: Not needed (a test-only fix; issue #68)
+
+Included:
+- the leak found on 2026-10-07: `init()` in `tests/guidelines_types.rs` sets
+  `HOME` but leaves `XDG_DATA_HOME`, so on a machine that exports it each call
+  writes a `fixture-project-N` entry into the real `projects.json`; CI does not
+  see it
+- one isolating command builder for every test that spawns `llm-wiki`, and a
+  check that fails when a test bypasses it
+
+Excluded:
+- removing entries already written, which is the machine owner's to do
+
+Proof:
+- the whole suite run with `XDG_DATA_HOME` pointing at a scratch folder leaves
+  that folder's registry unchanged
