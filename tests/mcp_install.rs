@@ -366,3 +366,71 @@ fn install_registers_poman_beside_llm_wiki_and_uninstall_removes_it() {
     assert!(!claude_config_path.exists());
     assert!(!managed_poman.exists());
 }
+
+fn staged_claude_config(home: &Path) -> std::path::PathBuf {
+    home.join(format!(
+        "{}/mcp/claude-project.mcp.json",
+        managed_home_dir_name()
+    ))
+}
+
+fn install_output(home: &Path) -> String {
+    let output = llm_wiki(home)
+        .args(["install", "--skip-path-guidance", "--disable-llm-search"])
+        .output()
+        .expect("install");
+    assert!(output.status.success(), "{output:?}");
+    String::from_utf8_lossy(&output.stdout).into_owned()
+}
+
+/// An install made before poman's server was registered staged a config
+/// holding llm-wiki's entry alone, and recorded its hash in the manifest.
+#[test]
+fn upgrading_an_unedited_staged_config_does_not_warn() {
+    use sha2::{Digest, Sha256};
+    let home = TempDir::new().expect("home");
+    install_output(home.path());
+    let staged = staged_claude_config(home.path());
+    let mut older: Value =
+        serde_json::from_str(&fs::read_to_string(&staged).expect("staged")).expect("json");
+    older["mcpServers"]
+        .as_object_mut()
+        .expect("servers")
+        .remove(poman_server_name());
+    let older = serde_json::to_string_pretty(&older).expect("render");
+    fs::write(&staged, &older).expect("write older staged config");
+    let manifest_path = home
+        .path()
+        .join(format!("{}/manifest.json", managed_home_dir_name()));
+    let mut manifest: Value =
+        serde_json::from_str(&fs::read_to_string(&manifest_path).expect("manifest"))
+            .expect("manifest json");
+    let hash = format!("{:x}", Sha256::digest(older.as_bytes()));
+    for asset in manifest["assets"].as_array_mut().expect("assets") {
+        if asset["path"].as_str() == staged.to_str() {
+            asset["hash"] = Value::String(hash.clone());
+        }
+    }
+    fs::write(
+        &manifest_path,
+        serde_json::to_string_pretty(&manifest).expect("manifest render"),
+    )
+    .expect("write manifest");
+
+    let out = install_output(home.path());
+    assert!(!out.contains("overwriting edited staged"), "{out}");
+    let staged_now: Value =
+        serde_json::from_str(&fs::read_to_string(&staged).expect("staged")).expect("json");
+    assert!(staged_now["mcpServers"][poman_server_name()].is_object());
+}
+
+#[test]
+fn an_edited_staged_config_still_warns() {
+    let home = TempDir::new().expect("home");
+    install_output(home.path());
+    let staged = staged_claude_config(home.path());
+    let edited = fs::read_to_string(&staged).expect("staged") + "\n";
+    fs::write(&staged, edited).expect("edit staged config");
+    let out = install_output(home.path());
+    assert!(out.contains("Warning: overwriting edited staged"), "{out}");
+}

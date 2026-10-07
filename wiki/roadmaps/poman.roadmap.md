@@ -118,7 +118,7 @@ Proof:
 
 ### PM3 - The Deadline Type
 
-Status: Active
+Status: Completed (develop)
 Promise: `poman new deadline` writes a deadline file and `poman check` holds
 every deadline file to its type, with each message naming the file and line.
 Depends On: PM2
@@ -160,7 +160,7 @@ Proof:
 
 ### PM3.1 - poman's MCP Server
 
-Status: Active
+Status: Completed (develop)
 Promise: `poman mcp` serves poman's commands as MCP tools with the same
 behaviour and a JSON result, `llm-wiki install` registers it beside
 llm-wiki's server, and the MCP plumbing both servers use lives in

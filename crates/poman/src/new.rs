@@ -7,8 +7,9 @@ use std::io::{self, BufRead, Write};
 use std::path::Path;
 
 use llm_wiki_core::names::{SLUG_RULE, is_slug, slug_from_title, title};
+use llm_wiki_core::page::Page;
 use llm_wiki_core::types::FieldDefinition;
-use llm_wiki_core::types::format::{ValueFormat, paths};
+use llm_wiki_core::types::format::paths;
 use llm_wiki_core::types::poman::DEADLINE;
 
 use crate::check::is_deadline_file;
@@ -17,7 +18,7 @@ use crate::finding::Finding;
 use crate::graph::{Graph, loop_through};
 use crate::landing::{FILE, landing_branch};
 use crate::repo::root_from;
-use crate::{CANNOT_WORK, OUTPUT_FAILED, REFUSED};
+use crate::{CANNOT_WORK, FIELD_FLAGS, OUTPUT_FAILED, REFUSED};
 
 /// What `poman new deadline` was given.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -78,7 +79,27 @@ pub struct Terminal<'io> {
 /// The flag that gives the field `key`: `--blocked-by` for `Blocked by`.
 #[must_use]
 pub fn flag(key: &str) -> String {
-    format!("--{}", key.to_ascii_lowercase().replace(' ', "-"))
+    let long = FIELD_FLAGS
+        .iter()
+        .find(|(field, _)| *field == key)
+        .map_or(key, |(_, long)| long);
+    format!("--{long}")
+}
+
+/// Why `value` cannot be written as `field`: a form its format refuses, or a
+/// value `poman check`'s reader would not read back as written, such as one
+/// starting with `**`, which it reads as bold.
+fn value_problem(field: &FieldDefinition, value: &str) -> Option<String> {
+    if !field.format.accepts(value) {
+        return Some(format!("is not {}", field.format.expected()));
+    }
+    let probe = format!("# Probe\n\n- {}: {value}\n", field.key);
+    let page = Page::read(&probe);
+    match page.bullet_block().fields() {
+        [read] if read.value() == value => None,
+        [read] => Some(format!("would be read back as `{}`", read.value())),
+        _ => Some("would be read as a field written in bold, which poman check refuses".to_owned()),
+    }
 }
 
 /// Writes the deadline `request` asks for, in the repository holding `dir`,
@@ -168,13 +189,9 @@ fn check_given(request: &Request) -> Result<(), Refusal> {
     }
     for field in DEADLINE.fields {
         if let Some(value) = request.values.get(field.key)
-            && !field.format.accepts(value)
+            && let Some(problem) = value_problem(field, value)
         {
-            problems.push(format!(
-                "{} `{value}` is not {}",
-                flag(field.key),
-                field.format.expected()
-            ));
+            problems.push(format!("{} `{value}` {problem}", flag(field.key)));
         }
     }
     if problems.is_empty() {
@@ -227,7 +244,7 @@ fn ask_missing(request: &mut Request, terminal: Option<&mut Terminal<'_>>) -> Re
             if field.key == "Status" && answer.is_empty() {
                 Ok(first_status.to_owned())
             } else {
-                accepted(format, answer)
+                accepted(field, answer)
             }
         })?;
         request.values.insert(field.key, answer);
@@ -249,12 +266,11 @@ fn slug_answer(answer: &str) -> Result<String, String> {
     }
 }
 
-fn accepted(format: ValueFormat, answer: &str) -> Result<String, String> {
-    if format.accepts(answer) {
-        Ok(answer.to_owned())
-    } else {
-        Err(format!("`{answer}` is not {}", format.expected()))
-    }
+fn accepted(field: &FieldDefinition, answer: &str) -> Result<String, String> {
+    value_problem(field, answer).map_or_else(
+        || Ok(answer.to_owned()),
+        |problem| Err(format!("`{answer}` {problem}")),
+    )
 }
 
 /// Asks `question` until `check` takes the answer, saying why each answer it

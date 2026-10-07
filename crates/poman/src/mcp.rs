@@ -41,9 +41,18 @@ impl PomanServer {
     }
 }
 
-/// A tool argument's name: `blocked_by` for `Blocked by`.
-fn argument(key: &str) -> String {
-    key.to_ascii_lowercase().replace(' ', "_")
+/// A tool argument's name, from its flag: `blocked_by` for `blocked-by`.
+fn argument(long: &str) -> String {
+    long.replace('-', "_")
+}
+
+/// The flag a tool argument gives: `blocked-by` for `blocked_by`, `slug` for
+/// `slug`.
+fn flag_of(name: &str) -> String {
+    FIELD_FLAGS
+        .iter()
+        .find(|(_, long)| argument(long) == name)
+        .map_or_else(|| name.to_owned(), |(_, long)| (*long).to_owned())
 }
 
 fn string_property(description: &str) -> Value {
@@ -110,9 +119,9 @@ impl Server for PomanServer {
             "title".to_owned(),
             string_property("The deadline's title, on one line."),
         );
-        for (key, _) in FIELD_FLAGS {
+        for (key, long) in FIELD_FLAGS {
             properties.insert(
-                argument(key),
+                argument(long),
                 string_property(&format!(
                     "The {key} field, written as the deadline type takes it."
                 )),
@@ -173,7 +182,7 @@ impl Server for PomanServer {
             }
             NEW_DEADLINE_TOOL => {
                 let mut known: Vec<String> =
-                    FIELD_FLAGS.iter().map(|(key, _)| argument(key)).collect();
+                    FIELD_FLAGS.iter().map(|(_, long)| argument(long)).collect();
                 known.extend(["title".to_owned(), "slug".to_owned()]);
                 let given = strings(name, arguments, &known)?;
                 let mut args = vec![
@@ -187,7 +196,7 @@ impl Server for PomanServer {
                     if argument == "title" {
                         title = Some(value);
                     } else {
-                        args.push(format!("--{}={value}", argument.replace('_', "-")));
+                        args.push(format!("--{}={value}", flag_of(argument)));
                     }
                 }
                 if let Some(title) = title {

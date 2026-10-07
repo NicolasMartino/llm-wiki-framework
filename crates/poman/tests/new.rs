@@ -331,6 +331,16 @@ fn each_refusal_writes_nothing_and_says_why() -> Result {
             "poman: --status `todo` is not one of `Todo`, `Doing`, `Waiting` or `Done`\n--deadline `2026-1-5` is not a date written YYYY-MM-DD that exists on the calendar, or `none`\n--duration `+5 days` is not a whole number of working days, `1 day` or `<n> days`, with no sign and no leading zero\n--track `` is not text on one line, not empty\n",
         ),
         (
+            with(&["Rent", "--who", "**Ann**", "--track", "**Company"]),
+            4,
+            "poman: --track `**Company` would be read back as `Company`\n--who `**Ann**` would be read as a field written in bold, which poman check refuses\n",
+        ),
+        (
+            with(&["Rent", "--who", " Ann"]),
+            4,
+            "poman: --who ` Ann` would be read back as `Ann`\n",
+        ),
+        (
             vec!["new", "deadlin", "Rent"],
             4,
             "poman: `deadlin` is not a type poman knows; it knows `deadline`; did you mean `deadline`?\n",

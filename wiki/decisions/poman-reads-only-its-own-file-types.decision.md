@@ -11,7 +11,7 @@
     poman, checking by suffix only, near-miss warnings, fields in the bullet
     block, free content, and reference fields as repository paths
   - `wiki/plans/poman-deadline-type.plan.md`, approved with #56 (its choices
-    1, 2, 7 and 8), and the PR that built it (#60)
+    1, 2, 7 and 8), and the PR that built it (#62)
 - Related:
   - `wiki/decisions/poman-lives-in-this-workspace.decision.md`: the types are
     defined once, in the shared crate

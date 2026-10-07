@@ -1,8 +1,7 @@
 # Plan: poman's MCP Server
 
 - Document Class: Plan
-- Status: Active
-- Branch: `NicolasMartino/pm3-build-60`
+- Status: Completed (develop)
 - Date: 2026-10-07
 - Category: poman development
 - Scope: Carry out PM3.1 of the poman roadmap: `poman mcp` serving PM3's

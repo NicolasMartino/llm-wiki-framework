@@ -1,8 +1,7 @@
 # Plan: The Deadline Type
 
 - Document Class: Plan
-- Status: Active
-- Branch: `NicolasMartino/pm3-build-60`
+- Status: Completed (develop)
 - Date: 2026-10-07
 - Category: poman development
 - Scope: Carry out PM3 of the poman roadmap: the deadline type defined in

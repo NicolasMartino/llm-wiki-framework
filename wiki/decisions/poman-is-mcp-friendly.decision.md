@@ -15,7 +15,7 @@
   - `src/mcp/mod.rs`, `src/mcp_config.rs`, `src/mcp_wiring.rs`,
     `src/instance.rs` and `crates/llm-wiki-core/Cargo.toml` at `cad8988`, read
     for this decision
-  - `wiki/plans/poman-mcp-server.plan.md` and the PR that built it (#60): the
+  - `wiki/plans/poman-mcp-server.plan.md` and the PR that built it (#62): the
     recheck of what moved and the open points answered
 - Related:
   - `wiki/decisions/poman-syncs-a-tracker-the-way-git-syncs-a-remote.decision.md`:

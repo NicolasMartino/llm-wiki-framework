@@ -124,17 +124,19 @@ fn a_command_whose_output_cannot_be_written_fails_the_run() {
     );
 }
 
-/// A writer that takes `writes` writes, then refuses every one after.
+/// A writer that takes `lines` whole lines, then refuses every write after,
+/// however many writes each line takes.
 struct FailAfter {
-    writes: usize,
+    lines: usize,
 }
 
 impl Write for FailAfter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        if self.writes == 0 {
+        if self.lines == 0 {
             return Err(io::Error::from(io::ErrorKind::BrokenPipe));
         }
-        self.writes -= 1;
+        let ended = String::from_utf8_lossy(buf).matches('\n').count();
+        self.lines = self.lines.saturating_sub(ended);
         Ok(buf.len())
     }
 
@@ -147,8 +149,10 @@ impl Write for FailAfter {
 fn a_check_whose_lines_cannot_all_be_written_fails_the_run() -> io::Result<()> {
     let repo = tempfile::TempDir::new()?;
     std::fs::create_dir(repo.path().join(".git"))?;
-    for writes in [0, 1] {
-        let mut out = FailAfter { writes };
+    // The first line is the note that there is no wiki/ folder, the second the
+    // summary: each one's write fails in turn.
+    for lines in [0, 1] {
+        let mut out = FailAfter { lines };
         let mut err = Vec::new();
         let code = run_in(
             ["poman", "check"],
@@ -158,7 +162,7 @@ fn a_check_whose_lines_cannot_all_be_written_fails_the_run() -> io::Result<()> {
             &mut out,
             &mut err,
         );
-        assert_eq!(code, OUTPUT_FAILED, "{writes}");
+        assert_eq!(code, OUTPUT_FAILED, "{lines}");
     }
     Ok(())
 }
@@ -178,7 +182,7 @@ fn a_terminal_that_cannot_be_written_to_fails_the_run() -> io::Result<()> {
         &mut ClosedPipe,
     );
     assert_eq!(code, OUTPUT_FAILED);
-    let mut err = FailAfter { writes: 1 };
+    let mut err = FailAfter { lines: 0 };
     let mut input = io::Cursor::new("Rent\n");
     let code = run_in(
         ["poman", "new", "deadline", "--json"],

@@ -45,38 +45,54 @@ fn run(dir: &std::path::Path, args: &[String]) -> (u8, String) {
 /// A title, then each flag and its value.
 type Deadline = (String, Vec<(&'static str, String)>);
 
-/// Valid values for every field.
-fn valid_deadline() -> impl proptest::strategy::Strategy<Value = Deadline> {
+/// Any one-line text, the kind a person or a tool may pass for any value,
+/// often starting or ending with what the page reader treats specially: `**`,
+/// read as bold, or a space, trimmed.
+const ANY_LINE: &str = "(\\*\\*| )?[^\r\n]{0,24}(\\*\\*)?";
+
+/// Values for every field: mostly valid, else any one-line text.
+fn any_deadline() -> impl proptest::strategy::Strategy<Value = Deadline> {
     use proptest::prelude::{Just, Strategy, prop_oneof};
     use proptest::sample::select;
     let date = (1000_u32..=9999, 1_u32..=12, 1_u32..=28)
         .prop_map(|(year, month, day)| format!("{year}-{month:02}-{day:02}"));
-    let deadline = prop_oneof![Just("none".to_owned()), date];
-    let duration = (1_u32..=999).prop_map(|days| {
-        if days == 1 {
+    let deadline = prop_oneof![2 => Just("none".to_owned()), 2 => date, 1 => ANY_LINE];
+    let duration = prop_oneof![
+        3 => (1_u32..=999).prop_map(|days| if days == 1 {
             "1 day".to_owned()
         } else {
             format!("{days} days")
-        }
-    });
-    let optional = proptest::option::of("[A-Za-z][A-Za-z ]{0,10}[A-Za-z]");
+        }),
+        1 => ANY_LINE,
+    ];
+    let status = prop_oneof![
+        3 => select(&["Todo", "Doing", "Waiting", "Done"][..]).prop_map(str::to_owned),
+        1 => ANY_LINE,
+    ];
+    let importance = prop_oneof![
+        3 => select(&["low", "medium", "high"][..]).prop_map(str::to_owned),
+        1 => ANY_LINE,
+    ];
+    let blocked_by = prop_oneof![4 => Just("none".to_owned()), 1 => ANY_LINE];
+    let optional = proptest::option::of(ANY_LINE);
     (
-        "[A-Z][a-z]{0,8}( [A-Z0-9][a-z]{0,8}){0,3}",
-        select(&["Todo", "Doing", "Waiting", "Done"][..]),
+        prop_oneof!["[A-Z][a-z]{0,8}( [A-Z0-9][a-z]{0,8}){0,3}", ANY_LINE],
+        status,
         deadline,
         duration,
-        select(&["low", "medium", "high"][..]),
+        importance,
+        blocked_by,
         optional.clone(),
         optional,
     )
         .prop_map(
-            |(title, status, deadline, duration, importance, track, who)| {
+            |(title, status, deadline, duration, importance, blocked_by, track, who)| {
                 let mut flags = vec![
-                    ("--status", status.to_owned()),
+                    ("--status", status),
                     ("--deadline", deadline),
                     ("--duration", duration),
-                    ("--importance", importance.to_owned()),
-                    ("--blocked-by", "none".to_owned()),
+                    ("--importance", importance),
+                    ("--blocked-by", blocked_by),
                 ];
                 flags.extend(track.map(|track| ("--track", track)));
                 flags.extend(who.map(|who| ("--who", who)));
@@ -85,24 +101,52 @@ fn valid_deadline() -> impl proptest::strategy::Strategy<Value = Deadline> {
         )
 }
 
+/// Whatever it is given, `poman new` either writes a file `poman check`
+/// accepts, whose title and values read back as given, or refuses and writes
+/// nothing.
 #[test]
-fn any_deadline_written_from_valid_values_passes_the_check() -> Result<(), TestError<Deadline>> {
-    TestRunner::default().run(&valid_deadline(), |(title, flags)| {
+fn any_deadline_poman_new_writes_passes_the_check() -> Result<(), TestError<Deadline>> {
+    TestRunner::default().run(&any_deadline(), |(title, flags)| {
         let repo = repo()
             .map_err(|error| proptest::test_runner::TestCaseError::fail(error.to_string()))?;
-        let mut args = vec!["new".to_owned(), "deadline".to_owned(), title];
+        let mut args = vec![
+            "new".to_owned(),
+            "deadline".to_owned(),
+            "--slug=a-deadline".to_owned(),
+        ];
         for (flag, value) in flags {
             args.push(format!("{flag}={value}"));
         }
+        args.extend(["--".to_owned(), title]);
+        let given = args.clone();
         let (code, out) = run(repo.path(), &args);
-        prop_assert_eq!(code, poman::SUCCESS, "{}", out);
-        let (code, out) = run(repo.path(), &["check".to_owned()]);
-        prop_assert_eq!(code, poman::SUCCESS, "{}", out);
-        prop_assert!(
-            out.ends_with("deadline files checked: 1, errors: 0, warnings: 0\n"),
-            "{}",
-            out
-        );
+        if code == poman::SUCCESS {
+            let text =
+                std::fs::read_to_string(repo.path().join("wiki/deadlines/a-deadline.deadline.md"))
+                    .map_err(|error| {
+                        proptest::test_runner::TestCaseError::fail(error.to_string())
+                    })?;
+            let page = llm_wiki_core::page::Page::read(&text);
+            let title = given.last().map(|title| title.trim());
+            prop_assert_eq!(page.title().map(llm_wiki_core::page::Title::text), title);
+            for field in page.bullet_block().fields() {
+                let flag = format!("--{}=", field.key().to_ascii_lowercase().replace(' ', "-"));
+                let value = given.iter().find_map(|arg| arg.strip_prefix(&flag));
+                if field.key() != "Blocked by" {
+                    prop_assert_eq!(Some(field.value()), value);
+                }
+            }
+            let (code, out) = run(repo.path(), &["check".to_owned()]);
+            prop_assert_eq!(code, poman::SUCCESS, "{}", out);
+            prop_assert!(
+                out.ends_with("deadline files checked: 1, errors: 0, warnings: 0\n"),
+                "{}",
+                out
+            );
+        } else {
+            prop_assert_eq!(code, poman::REFUSED, "{}", out);
+            prop_assert!(!repo.path().join("wiki").exists());
+        }
         Ok(())
     })
 }
