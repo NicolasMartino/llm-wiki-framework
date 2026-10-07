@@ -33,6 +33,8 @@
     riseon repository as well as on fixtures
   - The owner, 2026-10-07: "You don't have the right to modify riseon
     project directly"; the owner tests poman on riseon after a local release
+  - The owner, 2026-10-07: PM3 and PM3.1 are built in one PR, so PM3's
+    commands give the JSON output PM3.1's tools return
   - riseon issue #11, "Company: Write the founding tasks as deadline files"
 - Related:
   - `wiki/plans/poman-shared-page-reader-and-types.plan.md`: PM2, the reader
@@ -205,6 +207,10 @@ are ASCII digits with no sign.
   failed, names line 1; a missing field names the title's line.
 - **Output:** the findings sorted by path, then line, then one summary line:
   files checked, errors, warnings.
+- **`--json`** prints one JSON object instead: `files_checked`, `errors`,
+  `warnings` and `findings` (each with `path`, `line`, `severity` and
+  `message`), the result PM3.1's `poman_check` tool returns
+  (`wiki/plans/poman-mcp-server.plan.md`); the exit codes do not change.
 
 ### Exit codes
 
@@ -248,6 +254,9 @@ Every code poman returns, which PM4's hook and CI read:
   branch it lands on.
 - **Another type name** is refused, listing the known types (one so far),
   with a near miss suggested.
+- **`--json`** prints `{"written": …, "landing_branch": …}`, or, for a
+  refusal, `{"error": {"code": …, "message": …}}`, the result PM3.1's
+  `poman_new_deadline` tool returns; the exit codes do not change.
 
 ### Where a repository sets its landing branch
 
