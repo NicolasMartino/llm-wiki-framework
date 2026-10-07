@@ -2,7 +2,6 @@
 
 - Document Class: Plan
 - Status: Active
-- Branch: `NicolasMartino/needle-53`
 - Date: 2026-10-06
 - Category: Project init, MCP prompts, way of working
 - Scope: Carry out P19 of the framework roadmap, as the accepted proposal
