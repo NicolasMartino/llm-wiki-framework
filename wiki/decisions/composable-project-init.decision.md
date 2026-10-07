@@ -5,7 +5,7 @@
 - Date: 2026-05-07
 - Category: Tooling, project scaffolding, init UX
 - Scope: `llm-wiki init` becomes a composable generator. A chosen blueprint plus a selected set of opt-in packs renders a tailored canonical `AGENTS.md` and `project_guidelines.md` through a compile-time template engine; a per-project `.llm_wiki/` folder records the choices.
-- Sources: wiki/proposals/blueprint-pack-init.proposal.md, templates/base/project_guidelines.md, templates/base/agents.md, templates/packs/, src/init/{blueprints,packs,compose,manifest,answers,template,scaffold,command}.rs
+- Sources: wiki/proposals/blueprint-pack-init.proposal.md, templates/base/project_guidelines.md, templates/base/agents.md, templates/packs/, src/init/{blueprints,packs,compose,manifest,answers,template,scaffold,command,managed_block,collision}.rs, wiki/plans/operations-setup-in-llm-wiki.plan.md (phase 1), the owner's decision of 2026-10-06 on the block init owns, issue #53
 - Related: wiki/proposals/blueprint-pack-init.proposal.md, wiki/proposals/skills-template-engine.proposal.md, wiki/specs/documentation-model.spec.md, wiki/specs/wiki-init-skill.spec.md, wiki/decisions/llm-wiki-binary-distribution.decision.md
 
 ## Choice
@@ -25,8 +25,10 @@ Packs and blueprints are Rust enums with accessor methods, not TOML manifests. T
 Fresh `init` is a scaffold operation. Rerunning `init` on a project with
 `.llm_wiki/init.toml` is an edit operation over the recorded setup answers: the
 interactive flow preselects current values, can create newly selected pack
-folders, refreshes framework-owned root schema files, and preserves live wiki
-bookkeeping (`wiki/index.md` and `wiki/log.md`). A future `upgrade` command is
+folders, refreshes only the marked block init owns in each root schema file
+(`AGENTS.md`, `CLAUDE.md`, `project_guidelines.md`) and leaves the text outside
+it to the project, and preserves live wiki bookkeeping (`wiki/index.md` and
+`wiki/log.md`). A future `upgrade` command is
 still anticipated for richer migrations; the per-project `.llm_wiki/init.toml`
 is the durable answer record that keeps that future command buildable without
 archaeology.
@@ -110,6 +112,37 @@ current composition before overwrite. When drift exists, init preserves orphan
 content on disk, appends structured evidence to `wiki/log.md`, and refreshes a
 minimal generated `## Schema Drift` section in `wiki/index.md` while preserving
 existing catalog entries.
+
+On 2026-10-07, the rerun rule narrowed to a block init owns in each root
+schema file, as the owner decided on 2026-10-06 ("a needle, a part of the
+agents.md file that is dedicated to llm wiki", for `AGENTS.md`, `CLAUDE.md` and
+`project_guidelines.md`) and phase 1 of
+`wiki/plans/operations-setup-in-llm-wiki.plan.md` built:
+
+- Each file holds one block between `<!-- llm-wiki:managed:start -->` and
+  `<!-- llm-wiki:managed:end -->`; everything init renders for the file,
+  pack fragments included, goes inside it, after a first line saying so. A
+  rerun replaces the text between the markers and leaves every byte before
+  and after them as it was.
+- Init reads the three files, checks their markers and renders each block
+  before it writes anything; broken markers (a begin without an end, an end
+  before a begin, two blocks) refuse the run, naming the file and the line,
+  and leave the project as it was.
+- `.llm_wiki/init.toml` records the SHA-256 of each block under
+  `[managed_blocks]` (`agents`, `claude`, `guidelines`); a manifest without
+  the table still reads. A block that no longer matches its hash was edited:
+  init saves it under `.llm_wiki/saved-blocks/`, named by the date and time
+  with a counter when taken and never overwritten, replaces it, and warns
+  with the edited lines the new block does not hold. A block that matches is
+  refreshed without a word, even when the templates changed.
+- A file without markers is migrated once: if it equals the render from the
+  previously recorded answers (the guidelines' `- Date:` line left out on
+  both sides) it becomes the block alone; otherwise init writes the block at
+  the top, then a dated "Kept From Before The llm-wiki Block" heading, then
+  the old file unchanged, and warns naming the file.
+- Init writes into the AGENTS file that exists, `AGENTS.md` or `AGENTS.MD`,
+  and `CLAUDE.md`'s block names it. The fresh-init collision guard also
+  refuses a folder holding `AGENTS.MD`.
 
 ## What Would Cause This Decision To Be Revisited
 

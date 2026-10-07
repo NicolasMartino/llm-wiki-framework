@@ -23,7 +23,10 @@ const CORE_INDEX: &[DocumentType] = &[
     SPEC, DECISION, ROADMAP, REFERENCE, PROPOSAL, PLAN, CHECKLIST,
 ];
 
-const CLAUDE_REDIRECT: &str = "See @AGENTS.md.\n";
+/// CLAUDE.md's one line, naming the AGENTS file the project has.
+pub(super) fn claude_redirect(agents_file: &str) -> String {
+    format!("See @{agents_file}.\n")
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RenderPlan {
@@ -89,7 +92,7 @@ pub fn compose(plan: &RenderPlan) -> Result<InitOutput> {
         },
         InitFile {
             path: "CLAUDE.md".to_string(),
-            contents: CLAUDE_REDIRECT.to_string(),
+            contents: claude_redirect("AGENTS.md"),
         },
         InitFile {
             path: "wiki/index.md".to_string(),

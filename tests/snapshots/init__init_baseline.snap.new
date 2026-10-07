@@ -1,5 +1,6 @@
 ---
 source: tests/init.rs
+assertion_line: 65
 expression: snapshot
 ---
 # files
@@ -107,36 +108,6 @@ Contents:
 
 The index must fit in a single context window. If it grows beyond ~50,000
 tokens, split into a root index with per-type sub-indexes.
-
-### qmd-rs Search
-
-Search is the default retrieval pass, not only a large-wiki fallback. When the
-host exposes the LLM Wiki MCP server, the `llm_wiki_search` MCP tool (and
-`llm_wiki_search_all` across projects) is the primary query surface; the shell
-`llm-wiki search --mode auto --format json` command is the fallback when no MCP
-server is configured. The binary indexes wiki markdown into qmd-rs-backed stores
-under host-local cache state. Markdown remains canonical, and all search results
-still point back to wiki pages that must be read directly (via `llm_wiki_read`
-when the MCP server is available).
-
-Setup (once per project, from the shell):
-
-```bash
-llm-wiki register .
-llm-wiki index
-```
-
-Navigation strategy:
-1. Read `wiki/index.md` first for orientation
-2. Query with the `llm_wiki_search` MCP tool (shell `llm-wiki search --mode auto
-   --format json "<question>"` when no MCP server is configured)
-3. Inspect mode, readiness, fallback, zero-result, and per-result metadata
-4. Read and cite the returned wiki pages directly (via `llm_wiki_read`)
-5. If search is unavailable, stale, or unhelpful, continue from index-based
-   navigation
-
-Refresh the search index after ingest or lint with `llm-wiki index --force` (or
-the `llm_wiki_index` MCP tool).
 
 ### log.md
 
@@ -320,35 +291,6 @@ Superseded, rejected, or no-longer-useful historical documents move to
 `wiki/archive/` and are removed from the active index. Completed plans,
 roadmaps, checklists, and accepted proposals may remain in the active index
 while they are current evidence, reusable procedures, or important context.
-
-## Pack Document Types
-
-| Document type | Filename suffix | Folder |
-| --- | --- | --- |
-| Literature Note | `literature-note.md` | `wiki/literature` |
-| Hypothesis | `hypothesis.md` | `wiki/hypotheses` |
-
-## Pack Status Vocabulary
-
-| Document class | Statuses |
-| --- | --- |
-| Hypotheses | `Proposed`, `Testing`, `Supported`, `Rejected`, `Superseded` |
-
-## Research Pack Additions
-
-Research projects add literature notes, hypotheses, citation conventions, and
-lab-notebook-style evidence capture. Hypothesis statuses include `Proposed`,
-`Testing`, `Supported`, `Rejected`, and `Superseded`.
-
-## qmd-rs Scale Pack Additions
-
-After reading `wiki/index.md`, query workflows should search every project
-query. When the host exposes the LLM Wiki MCP server, use the `llm_wiki_search`
-MCP tool (and `llm_wiki_search_all` for cross-project retrieval); fall back to
-shell `llm-wiki search --mode auto --format json` and `llm-wiki search-all` when
-no MCP server is configured. Both are backed by qmd-rs stores managed by the
-llm-wiki binary. Search is a discovery layer over `wiki/`; it does not replace
-source citations, typed documents, or index maintenance.
 
 ## Read-Only Access Contract For `wiki/` And `raw/`
 
@@ -672,28 +614,6 @@ Periodically or on request:
 - Archived documents go to `wiki/archive/`.
 - `wiki/log.md` uses format: `## [YYYY-MM-DD] operation | subject`.
 
-## Pack Document Types
-
-| Document type | Filename suffix | Folder |
-| --- | --- | --- |
-| Literature Note | `literature-note.md` | `wiki/literature` |
-| Hypothesis | `hypothesis.md` | `wiki/hypotheses` |
-
-## Research Pack
-
-- Use `wiki/literature/` for literature notes and `wiki/hypotheses/` for testable claims.
-- Store papers and external notes under `raw/papers/`.
-- Separate sourced evidence from interpretation, synthesis, and open questions.
-
-## qmd-rs Scale Pack
-
-- Search with the `llm_wiki_search` MCP tool (and `llm_wiki_search_all` across
-  projects) when `wiki/index.md` no longer surfaces the needed page. Only fall
-  back to the `llm-wiki search "<query>"` shell command when the MCP server is
-  not configured.
-- Re-run `llm-wiki index --force` after ingest or lint when search results may be stale.
-- Treat qmd-rs-backed search as navigation support; answers still cite wiki pages.
-
 <!-- llm-wiki:managed:end -->
 
 # CLAUDE.md
@@ -707,19 +627,13 @@ See @AGENTS.md.
 framework_version = "[version]"
 project_name = "Fixture Project"
 project_description = "A fixture project."
-blueprint = "research"
-packs = [
-    "research",
-    "qmd-rs-scale",
-]
+blueprint = "generic"
+packs = []
 resolved_folders = [
     "raw",
-    "raw/papers",
     "wiki/archive",
     "wiki/checklists",
     "wiki/decisions",
-    "wiki/hypotheses",
-    "wiki/literature",
     "wiki/plans",
     "wiki/proposals",
     "wiki/references",
@@ -728,7 +642,7 @@ resolved_folders = [
 ]
 
 [managed_blocks]
-agents = "e7fc08aa541e36a33826b2399a1524e8731361612742f2a1b33992944ca0e74f"
+agents = "10107bd869f05319d92437e5329f2a93e5812bde30c218e6d517bbd3f7e8de38"
 claude = "6a274cf199dc16b9b65e04283d77441c70a080e01f03edc3fda56bcc67a9eae3"
 guidelines = "[sha256]"
 
@@ -764,14 +678,6 @@ Updated: [date]
 (none yet)
 
 ## Checklists
-
-(none yet)
-
-## Literature
-
-(none yet)
-
-## Hypotheses
 
 (none yet)
 

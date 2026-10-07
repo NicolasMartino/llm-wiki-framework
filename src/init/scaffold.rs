@@ -9,8 +9,9 @@ use chrono::Utc;
 use crate::init::answers::Answers;
 use crate::init::blueprints::Blueprint;
 use crate::init::collision::refuse_framework_collision;
-use crate::init::compose::{RenderPlan, compose, resolve_folders};
-use crate::init::manifest::InitManifest;
+use crate::init::compose::{InitOutput, RenderPlan, compose, resolve_folders};
+use crate::init::managed_block::{RootSchemaWrites, is_root_schema_file};
+use crate::init::manifest::{InitManifest, ManagedBlocks};
 use crate::init::packs::Pack;
 use crate::init::runtime::RuntimeManifest;
 use crate::init::sources::{copy_initial_sources, validate_initial_sources};
@@ -38,9 +39,18 @@ pub(super) fn create_project(
         refuse_framework_collision(path)?;
     }
     validate_initial_sources(initial_sources)?;
-    fs::create_dir_all(path).with_context(|| format!("failed to create {}", path.display()))?;
 
     let output = compose(plan)?;
+    let previous_output = previous_manifest.as_ref().and_then(previous_render);
+    let recorded_blocks = previous_manifest
+        .as_ref()
+        .map(|manifest| manifest.managed_blocks.clone())
+        .unwrap_or_default();
+    // Everything that can refuse the run happens above this line, before the
+    // first write.
+    let root_schema =
+        RootSchemaWrites::plan(path, &output, previous_output.as_ref(), &recorded_blocks)?;
+    fs::create_dir_all(path).with_context(|| format!("failed to create {}", path.display()))?;
 
     // Commit `.llm_wiki/init.toml` BEFORE the project files. If a later scaffold
     // step fails, the tool-owned `.llm_wiki/` marker is already present, so a
@@ -51,6 +61,7 @@ pub(super) fn create_project(
         answers,
         output.resolved_packs.clone(),
         output.folders.clone(),
+        root_schema.hashes().clone(),
         mode,
     )?;
 
@@ -59,7 +70,11 @@ pub(super) fn create_project(
             .with_context(|| format!("failed to create {}", path.join(folder).display()))?;
     }
 
+    root_schema.apply(path)?;
     for file in &output.files {
+        if is_root_schema_file(&file.path) {
+            continue;
+        }
         if mode == InitMode::Rerun && preserves_project_knowledge(&file.path) {
             let target = path.join(&file.path);
             if target.exists() {
@@ -117,6 +132,18 @@ fn read_previous_manifest(path: &Path) -> Option<InitManifest> {
     }
 }
 
+/// What init rendered from the answers recorded before this run, for the
+/// migration of files written before init owned a block in them.
+fn previous_render(manifest: &InitManifest) -> Option<InitOutput> {
+    compose(&RenderPlan {
+        name: manifest.project_name.clone()?,
+        description: manifest.project_description.clone()?,
+        blueprint: manifest.blueprint,
+        packs: Some(manifest.packs.clone()),
+    })
+    .ok()
+}
+
 fn preserves_project_knowledge(path: &str) -> bool {
     matches!(path, "wiki/index.md" | "wiki/log.md")
 }
@@ -126,6 +153,7 @@ fn write_manifest(
     answers: &Answers,
     packs: Vec<Pack>,
     resolved_folders: Vec<String>,
+    managed_blocks: ManagedBlocks,
     mode: InitMode,
 ) -> Result<()> {
     let manifest_dir = path.join(".llm_wiki");
@@ -137,6 +165,7 @@ fn write_manifest(
         answers.blueprint,
         packs,
         resolved_folders,
+        managed_blocks,
     )
     .to_toml()?;
     fs::write(manifest_dir.join("init.toml"), manifest).with_context(|| {

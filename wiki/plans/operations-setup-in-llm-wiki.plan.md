@@ -63,6 +63,17 @@ what it writes for itself:
 
 Whoever does the work rechecks each point against the commit they start from.
 
+**Phase 1 (issue #53, 2026-10-07)** changed the first, second, fourth and
+fifth points below: the three root schema files are now written as one block
+between `<!-- llm-wiki:managed:start -->` and `<!-- llm-wiki:managed:end -->`
+(`src/init/managed_block.rs`), a rerun replaces only the block, `init.toml`
+records each block's hash under `[managed_blocks]`, init writes into
+`AGENTS.MD` when that is the file the project has, and the collision guard
+refuses `AGENTS.MD`. The rules are in
+`wiki/specs/wiki-init-skill.spec.md`, "Rerun Behavior", and the tests in
+`tests/init.rs` (`init_rerun_keeps_text_outside_each_block_byte_for_byte` and
+the tests after it). The points below describe `0c9a240`, before it.
+
 - **What init writes.** Init composes five files: `project_guidelines.md`,
   `AGENTS.md` (the base template with each selected pack's fragment),
   `CLAUDE.md` (one line, `See @AGENTS.md.`), `wiki/index.md` and
