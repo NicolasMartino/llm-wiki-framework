@@ -1,0 +1,44 @@
+poman.toml:1: error: `landing-branch` must be a branch name in quotes, as `landing-branch = "develop"`
+poman.toml:2: error: `colour` is not a key poman knows; its one key is `landing-branch`
+wiki/deadlines/-rent.deadline.md:1: error: the slug `-rent` is not lowercase ASCII letters and digits in groups joined by single hyphens
+wiki/deadlines/Pay Rent, May.deadline.md:1: error: the slug `Pay Rent, May` is not lowercase ASCII letters and digits in groups joined by single hyphens
+wiki/deadlines/bad-values.deadline.md:3: error: `Status` is `todo`, not one of `Todo`, `Doing`, `Waiting` or `Done`
+wiki/deadlines/bad-values.deadline.md:4: error: `Deadline` is `2026-1-5`, not a date written YYYY-MM-DD that exists on the calendar, or `none`
+wiki/deadlines/bad-values.deadline.md:5: error: `Duration` is `+5 days`, not a whole number of working days, `1 day` or `<n> days`, with no sign and no leading zero
+wiki/deadlines/bad-values.deadline.md:6: error: `Importance` is `urgent`, not one of `low`, `medium` or `high`
+wiki/deadlines/bad-values.deadline.md:7: error: `Blocked by` is `./wiki/deadlines/ok.deadline.md`, not `none`, or paths from the repository root separated by commas, each with no leading `./` or `/` and no `..`
+wiki/deadlines/below/nested.deadline.md:1: error: a deadline file must sit directly in wiki/deadlines/
+wiki/deadlines/byte-order-mark.deadline.md:1: error: starts with a byte-order mark; save it without one
+wiki/deadlines/front-matter.deadline.md:2: error: `status` is written in front matter; poman reads a field only as a `- Key: Value` line in the block under the title
+wiki/deadlines/front-matter.deadline.md:4: error: `Owner` is written before the title; poman reads a field only as a `- Key: Value` line in the block under the title
+wiki/deadlines/loop-a.deadline.md:7: error: `Blocked by` forms a loop: wiki/deadlines/loop-a.deadline.md:7, wiki/deadlines/loop-b.deadline.md:7, wiki/deadlines/loop-c.deadline.md:7 wait on one another
+wiki/deadlines/missing-field.deadline.md:1: error: `Duration` is missing
+wiki/deadlines/more-bad-values.deadline.md:4: error: `Deadline` is `+2026-01-05`, not a date written YYYY-MM-DD that exists on the calendar, or `none`
+wiki/deadlines/more-bad-values.deadline.md:5: error: `Duration` is `05 days`, not a whole number of working days, `1 day` or `<n> days`, with no sign and no leading zero
+wiki/deadlines/more-bad-values.deadline.md:8: error: `Track` is empty, not text on one line, not empty
+wiki/deadlines/near-keys.deadline.md:1: error: `Deadline` is missing
+wiki/deadlines/near-keys.deadline.md:1: error: `Blocked by` is missing
+wiki/deadlines/near-keys.deadline.md:4: warning: `Dedline` is not a field; it is close to `Deadline`, and its value is not read as `Deadline`
+wiki/deadlines/near-keys.deadline.md:7: warning: `Blocked By` is not a field; it is close to `Blocked by`, and its value is not read as `Blocked by`
+wiki/deadlines/near-keys.deadline.md:8: warning: `Trak` is not a field; it is close to `Track`, and its value is not read as `Track`
+wiki/deadlines/no-title.deadline.md:1: error: has no title; its first line must be `# <title>`
+wiki/deadlines/one-days.deadline.md:4: error: `Deadline` is `2026-02-30`, not a date written YYYY-MM-DD that exists on the calendar, or `none`
+wiki/deadlines/one-days.deadline.md:5: error: `Duration` is `1 days`, not a whole number of working days, `1 day` or `<n> days`, with no sign and no leading zero
+wiki/deadlines/other-forms.deadline.md:4: error: `Deadline` is written with no `- ` in front; poman reads a field only as a `- Key: Value` line in the block under the title
+wiki/deadlines/other-forms.deadline.md:5: error: `Duration` is written in bold; poman reads a field only as a `- Key: Value` line in the block under the title
+wiki/deadlines/other-forms.deadline.md:6: error: `Importance` is written as a `* ` list item; poman reads a field only as a `- Key: Value` line in the block under the title
+wiki/deadlines/prose-first.deadline.md:3: error: this line sits between the title and the field block, so no field below it is read; the `- Key: Value` lines must come right under the title, blank lines apart
+wiki/deadlines/readme.md:1: warning: this Markdown file in wiki/deadlines/ does not end in .deadline.md, so it is not read
+wiki/deadlines/references.deadline.md:7: error: `Blocked by` names `wiki/deadlines/nowhere.deadline.md`, which does not exist
+wiki/deadlines/references.deadline.md:7: error: `Blocked by` names `wiki/index.md`, which is not a deadline file in wiki/deadlines/
+wiki/deadlines/references.deadline.md:7: error: `Blocked by` names this file itself
+wiki/deadlines/references.deadline.md:7: error: `Blocked by` lists `wiki/deadlines/ok.deadline.md` twice
+wiki/deadlines/references.deadline.md:7: error: `Blocked by` names `wiki/plans/stray.deadline.md`, which is not a deadline file in wiki/deadlines/
+wiki/deadlines/twice.deadline.md:8: error: `Status` is written twice; it is first at line 3
+wiki/deadlines/unknown-key.deadline.md:3: error: `Document Class` is not a field of a deadline file; its fields are `Status`, `Deadline`, `Duration`, `Importance`, `Blocked by`, `Track` and `Who`
+wiki/deadlines/unknown-key.deadline.md:9: error: `Team` is not a field of a deadline file; its fields are `Status`, `Deadline`, `Duration`, `Importance`, `Blocked by`, `Track` and `Who`
+wiki/deadlines/v1.2.deadline.md:1: error: the filename has more than one . before .md
+wiki/notes/x.dealine.md:1: warning: the type `dealine` is close to `deadline`; this file is not read as a deadline file
+wiki/plans/stray.deadline.md:1: error: a deadline file must sit directly in wiki/deadlines/
+wiki/x.deadlines.md:1: warning: the type `deadlines` is close to `deadline`; this file is not read as a deadline file
+deadline files checked: 22, errors: 37, warnings: 6
