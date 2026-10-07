@@ -13,6 +13,9 @@
     deliverables, and the answers recorded in the decision pages below
   - The owner's answer, 2026-10-06, recorded here in PM5: `poman tree` and
     `poman list` are their own deliverable, after the deadline commands
+  - The owner's decision, 2026-10-07, on the poman track (#19), recorded
+    here in PM3's Proof: PM3 is proved on the riseon repository as well as
+    on fixtures
 - Related:
   - `wiki/roadmaps/framework-v1.roadmap.md`, P5, which wrote this roadmap
   - `wiki/decisions/poman-lives-in-this-workspace.decision.md`
@@ -116,7 +119,7 @@ Status: Draft
 Promise: `poman new deadline` writes a deadline file and `poman check` holds
 every deadline file to its type, with each message naming the file and line.
 Depends On: PM2
-Execution Plan: Not created yet
+Execution Plan: `wiki/plans/poman-deadline-type.plan.md`
 
 Included:
 - the deadline type of `deadline-files-hold-one-deadline-each.decision.md`,
@@ -141,6 +144,10 @@ Proof:
 - `poman new` writes a file that `poman check` accepts
 - `poman check` fails on each broken field and reference, warns on near
   misses, and ignores every other Markdown file
+- on the riseon repository (the owner, 2026-10-07): its founding tasks are
+  written with a locally built poman's `poman new deadline`, `poman check`
+  accepts them, and they land on riseon's master, which closes riseon issue
+  #11
 
 ---
 

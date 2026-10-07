@@ -1,5 +1,18 @@
 # Wiki Log
 
+## [2026-10-07] merge | The plan for poman's deadline type
+
+Merged #56 (closes #54): the plan for PM3 has `poman new deadline` write a
+deadline file and `poman check` hold every deadline file to its type, with
+each message naming the file and line: one slug rule in the type for both
+commands, the value formats, the reference checks, near-miss warnings, and
+where a repository sets its landing branch. Its proof runs on fixtures and on
+the riseon repository, whose founding tasks are written with poman (the
+owner's decision of 2026-10-07). The owner settles its eight choices.
+
+Pages affected: `wiki/plans/poman-deadline-type.plan.md`,
+`wiki/roadmaps/poman.roadmap.md`, `wiki/index.md`.
+
 ## [2026-10-07] merge | poman's shared page reader and document types
 
 Merged #48 (closes #46): the page reader moves into `llm-wiki-core` under the
