@@ -115,7 +115,7 @@ Proof:
 
 ### PM3 - The Deadline Type
 
-Status: Draft
+Status: Active
 Promise: `poman new deadline` writes a deadline file and `poman check` holds
 every deadline file to its type, with each message naming the file and line.
 Depends On: PM2
