@@ -628,17 +628,8 @@ fn download_and_verify_model(
     downloader: impl Fn(SearchModel, &Path) -> Result<()>,
 ) -> Result<MaterializedModel> {
     downloader(model, path)?;
-    let observed = sha256_file(path)?;
-    if observed != model.expected_sha256 {
-        bail!(
-            "downloaded model artifact hash mismatch for {}; expected {}, observed {}",
-            model.id,
-            model.expected_sha256,
-            observed
-        );
-    }
     Ok(MaterializedModel {
-        record: artifact_record(model, profile, path.to_path_buf(), observed)?,
+        record: verify_downloaded_model(model, profile, path, None)?,
         outcome: MaterializationOutcome::Downloaded,
     })
 }
@@ -660,8 +651,18 @@ pub fn download_and_verify_model_with_progress(
         total_models,
         model.expected_size_bytes,
     );
-    let observed = sha256_file_with_progress(path, Some(&mut verify))?;
+    let record = verify_downloaded_model(model, profile, path, Some(&mut verify))?;
     verify.finish();
+    Ok(record)
+}
+
+fn verify_downloaded_model(
+    model: SearchModel,
+    profile: ProfileBundle,
+    path: &Path,
+    progress: Option<&mut ProgressOperation>,
+) -> Result<ModelArtifactRecord> {
+    let observed = sha256_file_with_progress(path, progress)?;
     if observed != model.expected_sha256 {
         bail!(
             "downloaded model artifact hash mismatch for {}; expected {}, observed {}",
@@ -736,21 +737,24 @@ fn download_model_with_progress(
             },
             |bytes| progress.advance(bytes),
         );
-        match result {
+        let err = match result {
             Ok(()) => {
                 progress.finish();
                 return Ok(());
             }
-            Err(err) if attempt < MAX_ATTEMPTS => {
-                eprintln!(
-                    "warning: model download attempt {attempt}/{MAX_ATTEMPTS} for {} failed: {err:#}; retrying from zero",
-                    model.id
-                );
-                std::thread::sleep(Duration::from_secs(u64::from(attempt)));
-                attempt += 1;
-            }
-            Err(err) => return Err(err),
+            Err(err) => err,
+        };
+        // A bar left drawing would share its line with the warning below.
+        progress.abandon();
+        if attempt >= MAX_ATTEMPTS {
+            return Err(err);
         }
+        eprintln!(
+            "warning: model download attempt {attempt}/{MAX_ATTEMPTS} for {} failed: {err:#}; retrying from zero",
+            model.id
+        );
+        std::thread::sleep(Duration::from_secs(u64::from(attempt)));
+        attempt += 1;
     }
 }
 

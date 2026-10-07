@@ -97,6 +97,16 @@ impl ProgressOperation {
         }
     }
 
+    /// Ends the operation without a done line, for a step that failed.
+    pub fn abandon(self) {
+        match self {
+            Self::Terminal(bar) => bar.abandon(),
+            Self::Lines(_) => {}
+            #[cfg(test)]
+            Self::Hidden => {}
+        }
+    }
+
     pub fn finish(self) {
         match self {
             Self::Terminal(bar) => bar.finish(),
