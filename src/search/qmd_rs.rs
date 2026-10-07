@@ -16,18 +16,78 @@ use crate::search::adapter::{
     MatchSpan, Score, SearchBackend, SearchFilters, SearchMode, SearchResult,
 };
 use crate::search::index_text::mask_search_ignored_spans;
-use crate::search::sanitize::{query_terms, sanitize_fts_query};
+use crate::search::sanitize::{fts_phrase_fallback_query, query_terms, sanitize_fts_query};
 
 const BACKEND_NAME: &str = "qmd-rs";
 const COLLECTION_FALLBACK: &str = "project";
 const SCHEMA_VERSION: u32 = 2;
 
+// BM25 weights for the FTS columns, in the table's order: filepath, title,
+// body. BM25 gives a word in more than half the pages almost no weight, so a
+// page searched by its own title or file name sank among pages that only
+// mention those words; weighting the columns that name a page puts it first.
+// 10, 10, 1 was measured on issue #7; 20, 20, 1 ranked the same.
+const BM25_FILEPATH_WEIGHT: f64 = 10.0;
+const BM25_TITLE_WEIGHT: f64 = 10.0;
+const BM25_BODY_WEIGHT: f64 = 1.0;
+
 #[derive(Clone, Debug, Default)]
 pub struct QmdRsBackend;
+
+/// A lexical search's results, and how many of the last ones came from the
+/// phrase fallback rather than the all-words query.
+#[derive(Debug)]
+pub struct LexicalSearch {
+    pub results: Vec<SearchResult>,
+    pub fallback_pages: usize,
+}
 
 impl QmdRsBackend {
     pub fn new() -> Self {
         Self
+    }
+
+    /// `search_project`, then, when the all-words query leaves fewer than
+    /// `limit` results, the query's names searched as phrases joined by OR,
+    /// adding the pages it finds after the all-words results. Its pages hold
+    /// only some of the query and their scores come from another query.
+    pub fn search_project_with_phrase_fallback(
+        &self,
+        project_id: &str,
+        store_path: &Path,
+        wiki_root: &Path,
+        query: &str,
+        filters: &SearchFilters,
+        limit: usize,
+    ) -> Result<LexicalSearch> {
+        let mut results =
+            self.search_project(project_id, store_path, wiki_root, query, filters, limit)?;
+        let all_words_pages = results.len();
+        if all_words_pages < limit
+            && let Some(phrase_query) = fts_phrase_fallback_query(query)
+        {
+            let fallback = search_fts(
+                project_id,
+                store_path,
+                wiki_root,
+                &phrase_query,
+                query,
+                filters,
+                limit + all_words_pages,
+            )?;
+            for result in fallback {
+                if results.len() == limit {
+                    break;
+                }
+                if !results.iter().any(|kept| kept.path == result.path) {
+                    results.push(result);
+                }
+            }
+        }
+        Ok(LexicalSearch {
+            fallback_pages: results.len() - all_words_pages,
+            results,
+        })
     }
 }
 
@@ -112,75 +172,9 @@ impl SearchBackend for QmdRsBackend {
         if sanitized.is_empty() {
             return Ok(Vec::new());
         }
-
-        let status = status_for_store(project_id, store_path, wiki_root, StatusPurpose::LiveRead)?;
-        if !matches!(status.state, BackendState::Ready | BackendState::Stale) {
-            return Err(BackendAccessError::new(status).into());
-        }
-        let freshness = freshness_for_status(&status);
-        let terms = query_terms(query);
-        let filter_active = filters.is_active();
-
-        // A fixed overfetch window can silently drop class/status matches that rank
-        // below it. When a filter is active, grow the fetch window and re-query
-        // until we have `limit` post-filter results or the store is exhausted
-        // (fewer raw rows than requested). Cap growth to avoid unbounded loops.
-        const MAX_WINDOW: usize = 100_000;
-        let mut window = limit.saturating_mul(4).max(20);
-        let mut results = Vec::new();
-        loop {
-            let raw_results =
-                immutable_search_fts(store_path, project_id, &sanitized, window, &status)?;
-            let raw_len = raw_results.len();
-            results.clear();
-
-            for raw in raw_results {
-                let metadata = Page::read(&raw.body).wiki_view();
-                let document_class = metadata.document_class().map(ToString::to_string);
-                let doc_status = metadata.status().map(ToString::to_string);
-                if !filters.matches(document_class.as_deref(), doc_status.as_deref()) {
-                    continue;
-                }
-
-                let match_span = find_match_span(&raw.body, &terms);
-                let snippet = match_span.map(|span| snippet(&raw.body, span));
-                results.push(SearchResult {
-                    project_id: raw.collection.clone(),
-                    project_name: None,
-                    path: PathBuf::from(&raw.path),
-                    title: metadata
-                        .title()
-                        .filter(|value| !value.is_empty())
-                        .map_or(raw.title, ToString::to_string),
-                    document_class,
-                    status: doc_status,
-                    score: Score(raw.score),
-                    snippet,
-                    match_span,
-                    backend: BACKEND_NAME.to_string(),
-                    mode: SearchMode::Fts,
-                    freshness,
-                    lexical_rank: None,
-                    lexical_score: None,
-                    semantic_rank: None,
-                    semantic_score: None,
-                });
-
-                if results.len() == limit {
-                    break;
-                }
-            }
-
-            // Stop when we have enough, when no filter can drop rows, when the store
-            // is exhausted (fewer rows returned than requested), or when capped.
-            if results.len() >= limit || !filter_active || raw_len < window || window >= MAX_WINDOW
-            {
-                break;
-            }
-            window = window.saturating_mul(2).min(MAX_WINDOW);
-        }
-
-        Ok(results)
+        search_fts(
+            project_id, store_path, wiki_root, &sanitized, query, filters, limit,
+        )
     }
 
     fn status(
@@ -663,6 +657,85 @@ fn classify_mismatch_after_metadata_reread(
     }
 }
 
+/// Runs one FTS5 query and keeps up to `limit` results that pass the filters.
+/// `query` is the user's query, whose words place each result's snippet.
+fn search_fts(
+    project_id: &str,
+    store_path: &Path,
+    wiki_root: &Path,
+    fts_query: &str,
+    query: &str,
+    filters: &SearchFilters,
+    limit: usize,
+) -> Result<Vec<SearchResult>> {
+    let status = status_for_store(project_id, store_path, wiki_root, StatusPurpose::LiveRead)?;
+    if !matches!(status.state, BackendState::Ready | BackendState::Stale) {
+        return Err(BackendAccessError::new(status).into());
+    }
+    let freshness = freshness_for_status(&status);
+    let terms = query_terms(query);
+    let filter_active = filters.is_active();
+
+    // A fixed overfetch window can silently drop class/status matches that rank
+    // below it. When a filter is active, grow the fetch window and re-query
+    // until we have `limit` post-filter results or the store is exhausted
+    // (fewer raw rows than requested). Cap growth to avoid unbounded loops.
+    const MAX_WINDOW: usize = 100_000;
+    let mut window = limit.saturating_mul(4).max(20);
+    let mut results = Vec::new();
+    loop {
+        let raw_results = immutable_search_fts(store_path, project_id, fts_query, window, &status)?;
+        let raw_len = raw_results.len();
+        results.clear();
+
+        for raw in raw_results {
+            let metadata = Page::read(&raw.body).wiki_view();
+            let document_class = metadata.document_class().map(ToString::to_string);
+            let doc_status = metadata.status().map(ToString::to_string);
+            if !filters.matches(document_class.as_deref(), doc_status.as_deref()) {
+                continue;
+            }
+
+            let match_span = find_match_span(&raw.body, &terms);
+            let snippet = match_span.map(|span| snippet(&raw.body, span));
+            results.push(SearchResult {
+                project_id: raw.collection.clone(),
+                project_name: None,
+                path: PathBuf::from(&raw.path),
+                title: metadata
+                    .title()
+                    .filter(|value| !value.is_empty())
+                    .map_or(raw.title, ToString::to_string),
+                document_class,
+                status: doc_status,
+                score: Score(raw.score),
+                snippet,
+                match_span,
+                backend: BACKEND_NAME.to_string(),
+                mode: SearchMode::Fts,
+                freshness,
+                lexical_rank: None,
+                lexical_score: None,
+                semantic_rank: None,
+                semantic_score: None,
+            });
+
+            if results.len() == limit {
+                break;
+            }
+        }
+
+        // Stop when we have enough, when no filter can drop rows, when the store
+        // is exhausted (fewer rows returned than requested), or when capped.
+        if results.len() >= limit || !filter_active || raw_len < window || window >= MAX_WINDOW {
+            break;
+        }
+        window = window.saturating_mul(2).min(MAX_WINDOW);
+    }
+
+    Ok(results)
+}
+
 fn immutable_search_fts(
     store_path: &Path,
     project_id: &str,
@@ -692,7 +765,7 @@ fn immutable_search_fts(
                 d.collection,
                 d.path,
                 d.title,
-                bm25(documents_fts) as score,
+                bm25(documents_fts, ?4, ?5, ?6) as score,
                 c.doc
             FROM documents_fts fts
             JOIN documents d ON d.id = fts.rowid
@@ -711,16 +784,26 @@ fn immutable_search_fts(
             )
         })?;
     let rows = stmt
-        .query_map(params![query, collection, limit as i64], |row| {
-            let score: f64 = row.get(3)?;
-            Ok(ImmutableFtsRow {
-                collection: row.get(0)?,
-                path: row.get(1)?,
-                title: row.get(2)?,
-                score: -score,
-                body: row.get(4)?,
-            })
-        })
+        .query_map(
+            params![
+                query,
+                collection,
+                limit as i64,
+                BM25_FILEPATH_WEIGHT,
+                BM25_TITLE_WEIGHT,
+                BM25_BODY_WEIGHT
+            ],
+            |row| {
+                let score: f64 = row.get(3)?;
+                Ok(ImmutableFtsRow {
+                    collection: row.get(0)?,
+                    path: row.get(1)?,
+                    title: row.get(2)?,
+                    score: -score,
+                    body: row.get(4)?,
+                })
+            },
+        )
         .with_context(|| format!("run immutable qmd-rs FTS query {}", store_path.display()))?
         .collect::<std::result::Result<Vec<_>, _>>()
         .with_context(|| format!("read immutable qmd-rs FTS rows {}", store_path.display()))?;
@@ -1027,10 +1110,10 @@ mod tests {
     };
     use crate::search::adapter::{
         BackendAccessError, BackendOpenMode, BackendState, Freshness, IndexOptions, SearchBackend,
-        SearchFilters, SearchMode,
+        SearchFilters, SearchMode, SearchResult,
     };
     use std::fs;
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
 
     #[test]
     fn indexes_searches_filters_and_reports_staleness() {
@@ -1630,14 +1713,7 @@ Visible calibration evidence.",
 
     #[test]
     fn fixed_eval_queries_keep_expected_targets_in_top_two() {
-        // A frozen copy, so the test fails when search gets worse, not when the live wiki grows.
-        let wiki = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/search-eval/wiki");
-        let temp = tempfile::TempDir::new().expect("tempdir");
-        let store = temp.path().join("qmd-rs.sqlite");
-        let backend = QmdRsBackend::new();
-        backend
-            .index_project("fixture", &wiki, &store, &IndexOptions { force: true })
-            .expect("index");
+        let (_temp, wiki, store, backend) = indexed_search_eval_wiki();
 
         let cases: &[(&str, &[&str])] = &[
             (
@@ -1715,5 +1791,193 @@ Visible calibration evidence.",
                 "{query}: expected one of {expected:?} in top two, got {paths:?}",
             );
         }
+    }
+
+    // A frozen copy, so these tests fail when search gets worse, not when the live wiki grows.
+    fn indexed_search_eval_wiki() -> (tempfile::TempDir, PathBuf, PathBuf, QmdRsBackend) {
+        let wiki = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/search-eval/wiki");
+        let temp = tempfile::TempDir::new().expect("tempdir");
+        let store = temp.path().join("qmd-rs.sqlite");
+        let backend = QmdRsBackend::new();
+        backend
+            .index_project("fixture", &wiki, &store, &IndexOptions { force: true })
+            .expect("index");
+        (temp, wiki, store, backend)
+    }
+
+    fn paths(results: &[SearchResult]) -> Vec<String> {
+        results
+            .iter()
+            .map(|result| result.path.to_string_lossy().to_string())
+            .collect()
+    }
+
+    #[test]
+    fn a_page_comes_first_for_its_own_title_when_its_words_are_common() {
+        let (_temp, wiki, store, backend) = indexed_search_eval_wiki();
+        let indexed = backend
+            .status("fixture", &store, &wiki)
+            .expect("status")
+            .indexed_files;
+        for word in ["operation", "manager"] {
+            let holding = backend
+                .search_project(
+                    "fixture",
+                    &store,
+                    &wiki,
+                    word,
+                    &SearchFilters::default(),
+                    indexed,
+                )
+                .expect("search")
+                .len();
+            assert!(
+                holding * 2 > indexed,
+                "{word} is in {holding} of {indexed} pages; the test needs it in more than half"
+            );
+        }
+
+        let results = backend
+            .search_project(
+                "fixture",
+                &store,
+                &wiki,
+                "operation manager",
+                &SearchFilters::default(),
+                10,
+            )
+            .expect("search");
+
+        assert_eq!(
+            paths(&results).first().map(String::as_str),
+            Some("wiki/checklists/operation-manager.checklist.md"),
+            "got {:?}",
+            paths(&results)
+        );
+    }
+
+    const FOUR_PLAN_NAMES: &str = "headroom-mcp-merge-readiness-repair \
+        macos-installed-binary-codesign-repair headroom-passthrough-launcher headroom-wrap-command";
+    const FOUR_PLANS: [&str; 4] = [
+        "wiki/plans/headroom-mcp-merge-readiness-repair.plan.md",
+        "wiki/plans/macos-installed-binary-codesign-repair.plan.md",
+        "wiki/plans/headroom-passthrough-launcher.plan.md",
+        "wiki/plans/headroom-wrap-command.plan.md",
+    ];
+
+    #[test]
+    fn plan_names_searched_together_return_the_plans() {
+        let (_temp, wiki, store, backend) = indexed_search_eval_wiki();
+
+        let search = backend
+            .search_project_with_phrase_fallback(
+                "fixture",
+                &store,
+                &wiki,
+                FOUR_PLAN_NAMES,
+                &SearchFilters::default(),
+                10,
+            )
+            .expect("search");
+        let found = paths(&search.results);
+        let plans_found = FOUR_PLANS
+            .iter()
+            .filter(|plan| found.iter().any(|path| path == *plan))
+            .count();
+        assert!(
+            plans_found >= 3,
+            "{plans_found} of the four plans in the top 10: {found:?}"
+        );
+        // Only the index, the log, the setup plan and the roadmap hold all twelve words.
+        assert_eq!(search.fallback_pages, found.len() - 4, "{found:?}");
+    }
+
+    #[test]
+    fn plan_names_searched_together_with_the_plan_filter_return_all_four() {
+        let (_temp, wiki, store, backend) = indexed_search_eval_wiki();
+        let plans_only = SearchFilters {
+            document_class: Some("plan".to_string()),
+            status: None,
+        };
+
+        let search = backend
+            .search_project_with_phrase_fallback(
+                "fixture",
+                &store,
+                &wiki,
+                FOUR_PLAN_NAMES,
+                &plans_only,
+                5,
+            )
+            .expect("search");
+        let found = paths(&search.results);
+
+        // The setup plan names all four, so it holds every word and comes first.
+        assert_eq!(
+            found.first().map(String::as_str),
+            Some("wiki/plans/development-workflow-setup.plan.md"),
+            "{found:?}"
+        );
+        for plan in FOUR_PLANS {
+            assert!(
+                found.iter().any(|path| path == plan),
+                "{plan} not in the top five: {found:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_phrase_fallback_keeps_the_all_words_results_first() {
+        let (_temp, wiki, store, backend) = indexed_search_eval_wiki();
+        let query = "three phase ingest extraction drafting bookkeeping";
+        let all_words = backend
+            .search_project(
+                "fixture",
+                &store,
+                &wiki,
+                query,
+                &SearchFilters::default(),
+                20,
+            )
+            .expect("search");
+        assert!(all_words.len() < 20, "the query needs the fallback to run");
+
+        let search = backend
+            .search_project_with_phrase_fallback(
+                "fixture",
+                &store,
+                &wiki,
+                query,
+                &SearchFilters::default(),
+                20,
+            )
+            .expect("search");
+        let found = paths(&search.results);
+
+        assert_eq!(found.len(), 20);
+        assert_eq!(found[..all_words.len()], paths(&all_words)[..]);
+        assert_eq!(search.fallback_pages, 20 - all_words.len());
+        let mut unique = found.clone();
+        unique.sort();
+        unique.dedup();
+        assert_eq!(unique.len(), found.len(), "a page repeated: {found:?}");
+    }
+
+    #[test]
+    fn the_phrase_fallback_does_not_run_for_a_single_name() {
+        let (_temp, wiki, store, backend) = indexed_search_eval_wiki();
+
+        let search = backend
+            .search_project_with_phrase_fallback(
+                "fixture",
+                &store,
+                &wiki,
+                "headroom-wrap-command",
+                &SearchFilters::default(),
+                1000,
+            )
+            .expect("search");
+
+        assert_eq!(search.fallback_pages, 0);
     }
 }

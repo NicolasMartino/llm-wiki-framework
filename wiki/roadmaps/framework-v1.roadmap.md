@@ -1000,7 +1000,7 @@ Proof:
 
 ### P16 - Lexical Search Weights Titles And File Names, And Falls Back To Phrases
 
-Status: Draft
+Status: Active
 Promise: A lexical search for a page's own title or file name finds that page
 at the top, and a query whose words no single page holds all of still returns
 the pages that hold its phrases.
