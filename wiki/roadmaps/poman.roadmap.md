@@ -116,7 +116,7 @@ Status: Draft
 Promise: `poman new deadline` writes a deadline file and `poman check` holds
 every deadline file to its type, with each message naming the file and line.
 Depends On: PM2
-Execution Plan: Not created yet
+Execution Plan: `wiki/plans/poman-deadline-type.plan.md`
 
 Included:
 - the deadline type of `deadline-files-hold-one-deadline-each.decision.md`,
@@ -141,6 +141,10 @@ Proof:
 - `poman new` writes a file that `poman check` accepts
 - `poman check` fails on each broken field and reference, warns on near
   misses, and ignores every other Markdown file
+- on the riseon repository (the owner, 2026-10-07): its founding tasks are
+  written with a locally built poman's `poman new deadline`, `poman check`
+  accepts them, and they land on riseon's master, which closes riseon issue
+  #11
 
 ---
 
