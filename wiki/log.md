@@ -11,9 +11,10 @@ its type, each message naming the file and the line; both answer in JSON with
 and `llm-wiki install` registers poman's server beside llm-wiki's, which
 uninstall removes. `just local-release` builds the release archives locally,
 saves the current install and installs from them; `just
-local-release-revert` restores the saved state. PM3's proof on riseon is the
-owner's own test after a local release. doctor's check of poman's wiring is
-PM3.2.
+local-release-revert` restores the saved state, refusing and naming each file
+changed since the release unless `--overwrite` is given, which copies those
+files aside first. PM3's proof on riseon is the owner's own test after a local
+release. doctor's check of poman's wiring is PM3.2.
 
 Pages affected: `wiki/plans/poman-deadline-type.plan.md`,
 `wiki/plans/poman-mcp-server.plan.md`, `wiki/roadmaps/poman.roadmap.md`,
