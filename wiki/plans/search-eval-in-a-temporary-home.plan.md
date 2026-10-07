@@ -103,6 +103,43 @@ and the checkout's own files, are the same afterwards as before.
 - The eval page names the recipe.
 - The fast check passes on the PR into `develop`.
 
+## Runs (2026-10-07)
+
+All on one machine where `llm-wiki-framework-semantic-search` was not
+registered, before and after each run.
+
+- **No managed models:** `HOME=<an empty folder> just search-eval` stopped
+  before building anything, exit 1, with: "search-eval needs the managed search
+  models: run `llm-wiki install --configure-search` first
+  (<that folder>/.llm_wiki/manifest.json is missing)".
+- **First runs:** register refused a root without an
+  orientation file, then every search stopped with "llm-wiki install is
+  required before search"; the recipe now copies `AGENTS.MD` and the install
+  manifest (the Target above).
+- **On `develop` (`c6e4995` plus this branch's recipe):** `just search-eval`
+  registered the copy in the temporary home, indexed 135 files, and ran all
+  30 cases in about 11 minutes (22 minutes with the index). The eval ran to
+  its end and failed one floor: semantic 23 of 30 against a floor of 24. Per
+  mode, passes over judged cases: lexical 18/26, semantic 23/29, hybrid 23/30,
+  auto 23/30. The no-match sentinels C10, H9, H11 and H20 return results in
+  meaning-based modes; C5 misses in every mode (lexical included), C8 in hybrid and auto, and
+  H12 in the meaning-based modes. Hybrid and
+  auto beat lexical, 23 to 18.
+- **On PR #58's head (`d8eab20`, the ranking fix, not merged):** the same
+  script, run from a separate checkout, gave lexical 22/26 and the other modes
+  exactly as on `develop`. The test stops at the same semantic floor before
+  reaching its last assertion, that hybrid and auto beat lexical; from the
+  report's counts that assertion holds there by one case, 23 to 22.
+- **Left as it was, by checksum:** every file of the real managed home
+  outside `indexes/` (the two model files, `models/artifacts.toml`, the
+  manifest, licenses, search settings, probes, binary, MCP template, backup),
+  the real cache (absent), and the checkout's `.llm_wiki/search.toml` and
+  `.mcp.json` (absent) were the same before and after both runs. The real
+  registry and `indexes/` changed only by other worktrees and other test runs
+  on the machine registering their own projects during the runs (Orca's
+  worktree setup, and test fixtures named `fixture-project-<n>`); neither ever
+  held `llm-wiki-framework-semantic-search`.
+
 ## The Two Choices
 
 Taken by the coordinator on 2026-10-07 while the owner was away, both as this
