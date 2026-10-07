@@ -1,7 +1,8 @@
 # Plan: Working build-skills Recipes
 
 - Document Class: Plan
-- Status: Draft
+- Status: Active
+- Branch: `NicolasMartino/build-skills-5`
 - Date: 2026-10-07
 - Category: Tooling
 - Scope: Carry out P8 of the framework roadmap: `just build-skills` and `just
@@ -63,6 +64,10 @@ longer has.
   `develop`.
 
 ## Open For The Owner
+
+The coordinator took both recommendations on 2026-10-07 while the owner was
+away; the owner's verdict on the PR that closes issue #5 confirms them or
+sends the work back.
 
 1. **Remove the recipes, not repair them.** Repairing them would mean
    bringing back a skill renderer the MCP-first move retired; nothing in this

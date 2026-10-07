@@ -830,7 +830,7 @@ Proof:
 
 ### P8 - Working build-skills Recipes
 
-Status: Draft
+Status: Active
 Promise: `just build-skills` and `just build-skills-to <out>` do what their
 names say, or are gone, instead of failing with "unrecognized subcommand
 'build'".
