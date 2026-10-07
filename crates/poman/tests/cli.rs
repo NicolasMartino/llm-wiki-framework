@@ -71,3 +71,20 @@ fn the_binary_checks_and_writes_where_it_runs() -> Result<(), Box<dyn std::error
     );
     Ok(())
 }
+
+#[test]
+fn no_command_prints_the_help() {
+    let mut out = Vec::new();
+    let mut err = Vec::new();
+    let code = poman::run_in(
+        ["poman"],
+        std::path::Path::new("/"),
+        &mut std::io::empty(),
+        false,
+        &mut out,
+        &mut err,
+    );
+    assert_eq!(code, poman::SUCCESS);
+    assert!(String::from_utf8_lossy(&out).contains("Usage: poman"));
+    assert_eq!(err, Vec::<u8>::new());
+}

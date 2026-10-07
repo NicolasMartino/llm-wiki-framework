@@ -55,10 +55,10 @@ pub fn check(root: &Path) -> Report {
     report.has_wiki = wiki.is_dir();
     let mut read = Vec::new();
     if report.has_wiki {
-        let canonical_root = fs::canonicalize(root).unwrap_or_else(|_| root.to_path_buf());
+        let canonical_root = fs::canonicalize(root).ok();
         walk(
             root,
-            &canonical_root,
+            canonical_root.as_deref(),
             &wiki,
             &mut read,
             &mut report.findings,
@@ -79,7 +79,7 @@ fn suffix() -> String {
 
 fn walk(
     root: &Path,
-    canonical_root: &Path,
+    canonical_root: Option<&Path>,
     folder: &Path,
     read: &mut Vec<Read>,
     findings: &mut Vec<Finding>,
@@ -117,16 +117,16 @@ fn walk(
 /// folder never walked, and a warning for one skipped whose name says it is
 /// a deadline file.
 fn follow_link(
-    canonical_root: &Path,
+    canonical_root: Option<&Path>,
     entry: &Path,
     path: &str,
     read: &mut Vec<Read>,
     findings: &mut Vec<Finding>,
 ) {
     let target = fs::canonicalize(entry).ok();
-    let inside = target
-        .as_deref()
-        .filter(|target| target.starts_with(canonical_root) && target.is_file());
+    let inside = target.as_deref().filter(|target| {
+        canonical_root.is_some_and(|root| target.starts_with(root)) && target.is_file()
+    });
     if inside.is_some() {
         file(entry, path, read, findings);
     } else if path.ends_with(&suffix()) {

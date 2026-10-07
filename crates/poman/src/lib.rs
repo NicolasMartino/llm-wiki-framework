@@ -140,6 +140,20 @@ where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
+    let args: Vec<OsString> = args.into_iter().map(Into::into).collect();
+    run_args(args, dir, input, terminal, out, err)
+}
+
+// Not generic, so one compiled copy serves every caller and the coverage gate
+// sees each of its lines run in one place.
+fn run_args(
+    args: Vec<OsString>,
+    dir: &Path,
+    input: &mut dyn BufRead,
+    terminal: bool,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> u8 {
     let written = match command().try_get_matches_from(args) {
         Ok(matches) => match matches.subcommand() {
             Some(("check", options)) => run_check(dir, options.get_flag("json"), out, err),
@@ -216,17 +230,16 @@ fn run_check(dir: &Path, json: bool, out: &mut dyn Write, err: &mut dyn Write) -
             writeln!(out, "{finding}")?;
         }
         if !report.has_wiki {
-            writeln!(
-                out,
+            let note = format!(
                 "no {}/ folder here, so no deadline file to check",
                 repo::WIKI
-            )?;
+            );
+            writeln!(out, "{note}")?;
         }
-        writeln!(
-            out,
-            "deadline files checked: {}, errors: {errors}, warnings: {warnings}",
-            report.files_checked
-        )?;
+        let checked = report.files_checked;
+        let summary =
+            format!("deadline files checked: {checked}, errors: {errors}, warnings: {warnings}");
+        writeln!(out, "{summary}")?;
     }
     Ok(if errors == 0 { SUCCESS } else { CHECK_FAILED })
 }

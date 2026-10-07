@@ -122,11 +122,7 @@ pub fn new_deadline(
     let slug = match (request.slug.take(), slug_from_title(&title)) {
         (Some(slug), _) | (None, Some(slug)) => slug,
         (None, None) => match terminal.as_mut() {
-            Some(terminal) => ask(terminal, "Slug", |answer| {
-                is_slug(answer)
-                    .then(|| answer.to_owned())
-                    .ok_or_else(|| format!("the slug `{answer}` is not {SLUG_RULE}"))
-            })?,
+            Some(terminal) => ask(terminal, "Slug", slug_answer)?,
             None => {
                 return Err(Refusal::new(
                     REFUSED,
@@ -213,12 +209,7 @@ fn ask_missing(request: &mut Request, terminal: Option<&mut Terminal<'_>>) -> Re
         ));
     };
     if request.title.is_none() {
-        let answer = ask(terminal, "Title", |answer| {
-            title(answer)
-                .map(str::to_owned)
-                .map_err(|error| error.reason().to_owned())
-        })?;
-        request.title = Some(answer);
+        request.title = Some(ask(terminal, "Title", title_answer)?);
     }
     for field in fields {
         let format = field.format;
@@ -242,6 +233,20 @@ fn ask_missing(request: &mut Request, terminal: Option<&mut Terminal<'_>>) -> Re
         request.values.insert(field.key, answer);
     }
     Ok(())
+}
+
+fn title_answer(answer: &str) -> Result<String, String> {
+    title(answer)
+        .map(str::to_owned)
+        .map_err(|error| error.reason().to_owned())
+}
+
+fn slug_answer(answer: &str) -> Result<String, String> {
+    if is_slug(answer) {
+        Ok(answer.to_owned())
+    } else {
+        Err(format!("the slug `{answer}` is not {SLUG_RULE}"))
+    }
 }
 
 fn accepted(format: ValueFormat, answer: &str) -> Result<String, String> {
