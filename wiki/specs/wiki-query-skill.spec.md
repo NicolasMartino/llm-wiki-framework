@@ -5,8 +5,8 @@
 - Date: 2026-05-08
 - Category: Tooling
 - Scope: Query the project wiki and answer with citations.
-- Sources: .claude/skills/wiki-query/SKILL.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/decisions/wiki-query-search-first.decision.md
-- Related: wiki/specs/documentation-model.spec.md, wiki/specs/wiki-ingest-skill.spec.md, wiki/evals/natural-language-search.eval.md
+- Sources: Issue #29, .claude/skills/wiki-query/SKILL.md, wiki/decisions/llm-wiki-binary-distribution.decision.md, wiki/decisions/semantic-hybrid-search-mode.decision.md, wiki/decisions/wiki-query-search-first.decision.md
+- Related: wiki/plans/compact-search-pages-follow-the-limit.plan.md, wiki/specs/documentation-model.spec.md, wiki/specs/wiki-ingest-skill.spec.md, wiki/evals/natural-language-search.eval.md
 
 ## Contract
 
@@ -41,6 +41,28 @@ explicit cross-project navigation supplement, it must inspect the JSON
 lexical fallback, and mixed readiness do not get mistaken for corpus-wide
 absence.
 
+## Compact Search Pages
+
+With `compact` set, `llm_wiki_search` and `llm_wiki_search_all` (and
+`--compact` on the CLI) reply with one page of the hits the search kept:
+
+- `limit` (default 10) is the most hits the search keeps; `result_count`
+  counts them.
+- `page_size` is the most results one reply carries. Unset, it is `limit`, so
+  a compact search with `limit` 12 returns 12 results when 12 pages match.
+- `offset` (default 0) is where the page starts among the kept hits.
+- `next_offset` is present when kept hits follow this page: pass it as
+  `offset` for the next one.
+- `has_more` is `true` when more hits follow this page, whether kept or past
+  `limit`, and `false` otherwise. A reply with `has_more` true and no
+  `next_offset` ends the kept hits: ask again with a higher `limit` for the
+  rest.
+
+To learn `has_more`, the search asks for one hit past `limit` and drops it;
+the hits it keeps, and the pool a reranker orders, are the same as without it.
+A hybrid search also lets each branch bring in one hit past its window, and
+fuses that wider window only to learn whether a hit past `limit` survives.
+
 ## Skill Source
 
 Authored source: `.claude/skills/wiki-query/SKILL.md`, a repo-local Claude Code
@@ -56,4 +78,12 @@ Invocation:
 
 - The `llm_wiki_search` / `llm_wiki_search_all` MCP tools return the readiness,
   fallback, and zero-result metadata the skill inspects.
+- `tests/search_commands.rs` proves the compact paging contract
+  (`compact_search_page_follows_the_limit_and_says_when_more_match`, its two
+  search-all twins,
+  `compact_search_with_phrase_fallback_pages_follows_the_limit_and_says_when_more_match`,
+  `compact_semantic_search_says_when_more_match_than_the_limit`,
+  `compact_hybrid_rerank_keeps_the_limit_hits_and_says_when_more_match` and
+  `compact_hybrid_says_when_more_match_from_a_limit_of_twenty`), and
+  `tests/mcp.rs` the tools' schemas (`mcp_search_tools_describe_compact_paging`).
 - `wiki/evals/natural-language-search.eval.md` measures the underlying search.

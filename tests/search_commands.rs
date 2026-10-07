@@ -1052,6 +1052,254 @@ fn compact_search_json_returns_essential_paged_hits() {
 }
 
 #[test]
+fn compact_search_page_follows_the_limit_and_says_when_more_match() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let over = fixture_project_with_matching_pages(workspace.path(), "Over", 13);
+    let exact = fixture_project_with_matching_pages(workspace.path(), "Exact", 12);
+    register_project_with_id(home.path(), &over, "over");
+    register_project_with_id(home.path(), &exact, "exact");
+    llm_wiki(home.path())
+        .args(["index-all", "--force"])
+        .assert()
+        .success();
+
+    let more = compact_search(home.path(), &["--project", "over", "--limit", "12"]);
+    assert_eq!(more["result_count"], 12);
+    assert_eq!(more["page_size"], 12);
+    assert_eq!(more["results"].as_array().expect("results").len(), 12);
+    assert_eq!(more["has_more"], true);
+    assert!(more["next_offset"].is_null());
+
+    let all = compact_search(home.path(), &["--project", "exact", "--limit", "12"]);
+    assert_eq!(all["result_count"], 12);
+    assert_eq!(all["results"].as_array().expect("results").len(), 12);
+    assert_eq!(all["has_more"], false);
+    assert!(all["next_offset"].is_null());
+
+    let paged = compact_search(
+        home.path(),
+        &["--project", "exact", "--limit", "12", "--page-size", "3"],
+    );
+    assert_eq!(paged["result_count"], 12);
+    assert_eq!(paged["results"].as_array().expect("results").len(), 3);
+    assert_eq!(paged["has_more"], true);
+    assert_eq!(paged["next_offset"], 3);
+}
+
+#[test]
+fn compact_search_all_page_follows_the_limit_and_says_when_more_match() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let alpha = fixture_project_with_matching_pages(workspace.path(), "Alpha", 7);
+    let beta = fixture_project_with_matching_pages(workspace.path(), "Beta", 5);
+    register_project_with_id(home.path(), &alpha, "alpha");
+    register_project_with_id(home.path(), &beta, "beta");
+    llm_wiki(home.path())
+        .args(["index-all", "--force"])
+        .assert()
+        .success();
+
+    let all = compact_search_all(home.path(), &["--limit", "12"]);
+    assert_eq!(all["result_count"], 12);
+    assert_eq!(all["results"].as_array().expect("results").len(), 12);
+    assert_eq!(all["has_more"], false);
+    assert!(all["next_offset"].is_null());
+
+    let paged = compact_search_all(home.path(), &["--limit", "12", "--page-size", "3"]);
+    assert_eq!(paged["result_count"], 12);
+    assert_eq!(paged["results"].as_array().expect("results").len(), 3);
+    assert_eq!(paged["has_more"], true);
+    assert_eq!(paged["next_offset"], 3);
+
+    let gamma = fixture_project_with_matching_pages(workspace.path(), "Gamma", 1);
+    register_project_with_id(home.path(), &gamma, "gamma");
+    llm_wiki(home.path())
+        .args(["index", "--project", "gamma", "--force"])
+        .assert()
+        .success();
+
+    let more = compact_search_all(home.path(), &["--limit", "12"]);
+    assert_eq!(more["result_count"], 12);
+    assert_eq!(more["page_size"], 12);
+    assert_eq!(more["results"].as_array().expect("results").len(), 12);
+    assert_eq!(more["has_more"], true);
+    assert!(more["next_offset"].is_null());
+}
+
+#[test]
+fn compact_search_all_says_when_one_project_has_more_than_the_limit() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let solo = fixture_project_with_matching_pages(workspace.path(), "Solo", 21);
+    register_project_with_id(home.path(), &solo, "solo");
+    llm_wiki(home.path())
+        .args(["index-all", "--force"])
+        .assert()
+        .success();
+
+    let more = compact_search_all(home.path(), &["--limit", "20"]);
+    assert_eq!(more["result_count"], 20);
+    assert_eq!(more["results"].as_array().expect("results").len(), 20);
+    assert_eq!(more["has_more"], true);
+    assert!(more["next_offset"].is_null());
+}
+
+#[test]
+fn compact_hybrid_rerank_keeps_the_limit_hits_and_says_when_more_match() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project_with_matching_pages(workspace.path(), "Hybrid", 13);
+    register_project(home.path(), &project);
+    write_enabled_search_profile_with_fake_artifacts(home.path());
+    write_search_thresholds(home.path());
+    add_fake_reranker(home.path());
+    llm_wiki(home.path())
+        .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let hybrid = |extra: &[&str]| {
+        let mut command = llm_wiki(home.path());
+        command
+            .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+            .env("LLM_WIKI_TEST_QUERY_EXPANSION", "deterministic")
+            .env("LLM_WIKI_TEST_RERANK", "deterministic");
+        let args = [&["--project", "fixture", "--mode", "hybrid"], extra].concat();
+        run_compact_with(command, "search", &args)
+    };
+    let paths = |json: &Value| {
+        json["results"]
+            .as_array()
+            .expect("results")
+            .iter()
+            .map(|hit| hit["path"].as_str().expect("path").to_string())
+            .collect::<Vec<_>>()
+    };
+
+    let fused = hybrid(&["--limit", "3"]);
+    assert_eq!(fused["selected_mode"], "hybrid");
+    assert_eq!(fused["has_more"], true);
+    let fused = paths(&fused);
+    assert_eq!(fused.len(), 3);
+    assert_eq!(paths(&hybrid(&["--limit", "4"]))[..3], fused[..]);
+
+    // The test reranker reverses its pool: a pool of the first 3 fused hits
+    // comes back as those 3 reversed, a wider pool would let the 4th in.
+    let reranked = hybrid(&["--limit", "3", "--rerank"]);
+    assert_eq!(reranked["has_more"], true);
+    let mut expected = fused.clone();
+    expected.reverse();
+    assert_eq!(paths(&reranked), expected);
+}
+
+#[test]
+fn compact_semantic_search_says_when_more_match_than_the_limit() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project_with_matching_pages(workspace.path(), "Semantic", 13);
+    register_project(home.path(), &project);
+    write_enabled_search_profile_with_fake_artifacts(home.path());
+    write_search_thresholds(home.path());
+    llm_wiki(home.path())
+        .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let semantic = |limit: &str| {
+        let mut command = llm_wiki(home.path());
+        command.env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic");
+        let args = [
+            "--project",
+            "fixture",
+            "--mode",
+            "semantic",
+            "--limit",
+            limit,
+        ];
+        run_compact_with(command, "search", &args)
+    };
+
+    let more = semantic("12");
+    assert_eq!(more["selected_mode"], "semantic");
+    assert_eq!(more["results"].as_array().expect("results").len(), 12);
+    assert_eq!(more["has_more"], true);
+
+    let all = semantic("13");
+    assert_eq!(all["results"].as_array().expect("results").len(), 13);
+    assert_eq!(all["has_more"], false);
+}
+
+#[test]
+fn compact_hybrid_says_when_more_match_from_a_limit_of_twenty() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project_with_matching_pages(workspace.path(), "Hybrid", 25);
+    register_project(home.path(), &project);
+    write_enabled_search_profile_with_fake_artifacts(home.path());
+    write_search_thresholds(home.path());
+    llm_wiki(home.path())
+        .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+
+    let search = |mode: &str, limit: &str| {
+        let mut command = llm_wiki(home.path());
+        command
+            .env("LLM_WIKI_TEST_EMBEDDINGS", "deterministic")
+            .env("LLM_WIKI_TEST_QUERY_EXPANSION", "deterministic");
+        let args = ["--project", "fixture", "--mode", mode, "--limit", limit];
+        run_compact_with(command, "search", &args)
+    };
+
+    for mode in ["hybrid", "auto"] {
+        let more = search(mode, "20");
+        assert_eq!(more["selected_mode"], "hybrid", "{mode}");
+        assert_eq!(more["results"].as_array().expect("results").len(), 20);
+        assert_eq!(more["has_more"], true, "{mode}");
+
+        let all = search(mode, "25");
+        assert_eq!(all["results"].as_array().expect("results").len(), 25);
+        assert_eq!(all["has_more"], false, "{mode}");
+    }
+}
+
+fn compact_search(home: &Path, extra: &[&str]) -> Value {
+    run_compact(home, "search", extra)
+}
+
+fn compact_search_all(home: &Path, extra: &[&str]) -> Value {
+    run_compact(home, "search-all", extra)
+}
+
+fn run_compact(home: &Path, command: &str, extra: &[&str]) -> Value {
+    run_compact_with(llm_wiki(home), command, extra)
+}
+
+fn run_compact_with(mut base: Command, command: &str, extra: &[&str]) -> Value {
+    let output = base
+        .args([
+            command,
+            "zephyrine lantern",
+            "--format",
+            "json",
+            "--compact",
+        ])
+        .args(extra)
+        .output()
+        .expect("compact search output");
+    assert!(
+        output.status.success(),
+        "{command} failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    serde_json::from_slice(&output.stdout).expect("compact search json")
+}
+
+#[test]
 fn compact_search_all_json_pages_fused_hits_and_reports_projects() {
     let home = TempDir::new().expect("home");
     let workspace = TempDir::new().expect("workspace");
@@ -1791,6 +2039,84 @@ fn search_json_carries_the_phrase_fallback_line_beside_a_stale_index_warning() {
             "compact={compact}: {warnings:?}"
         );
     }
+}
+
+#[test]
+fn compact_search_with_phrase_fallback_pages_follows_the_limit_and_says_when_more_match() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = phrase_fallback_project(workspace.path(), 3);
+    register_project(home.path(), &project);
+    llm_wiki(home.path())
+        .args(["index", "--project", "fixture", "--force"])
+        .assert()
+        .success();
+    let compact = |command: &str, limit: &str| -> Value {
+        let mut base = llm_wiki(home.path());
+        base.arg(command);
+        if command == "search" {
+            base.args(["--project", "fixture"]);
+        }
+        let output = base
+            .args([
+                "--mode",
+                "lexical",
+                "--limit",
+                limit,
+                "--format",
+                "json",
+                "--compact",
+                "--",
+                "alpha-beta gamma-delta",
+            ])
+            .output()
+            .expect("compact search output");
+        assert!(output.status.success());
+        serde_json::from_slice(&output.stdout).expect("compact search json")
+    };
+    let fallback_lines = |json: &Value| -> Vec<String> {
+        json_warnings(json)
+            .into_iter()
+            .filter(|message| message.contains("phrase search"))
+            .collect()
+    };
+
+    // The all-words pages fill the limit: the look-ahead finds a fallback
+    // page past it, which the reply neither carries nor reports.
+    let exact = compact("search", "3");
+    assert_eq!(exact["results"].as_array().expect("results").len(), 3);
+    assert_eq!(exact["has_more"], true);
+    assert!(fallback_lines(&exact).is_empty(), "{exact}");
+
+    // The look-ahead's fallback page is cut, and the line counts only the
+    // fallback page kept.
+    let one_kept = compact("search", "4");
+    assert_eq!(one_kept["results"].as_array().expect("results").len(), 4);
+    assert_eq!(one_kept["has_more"], true);
+    let lines = fallback_lines(&one_kept);
+    assert_eq!(lines.len(), 1, "{lines:?}");
+    assert!(lines[0].contains("the last 1 result(s)"), "{}", lines[0]);
+
+    let every_page = compact("search", "6");
+    assert_eq!(every_page["results"].as_array().expect("results").len(), 6);
+    assert_eq!(every_page["has_more"], false);
+    let lines = fallback_lines(&every_page);
+    assert_eq!(lines.len(), 1, "{lines:?}");
+    assert!(lines[0].contains("the last 3 result(s)"), "{}", lines[0]);
+
+    let all_one_kept = compact("search-all", "4");
+    assert_eq!(
+        all_one_kept["results"].as_array().expect("results").len(),
+        4
+    );
+    assert_eq!(all_one_kept["has_more"], true);
+    let lines = fallback_lines(&all_one_kept);
+    assert_eq!(lines.len(), 1, "{lines:?}");
+    assert!(
+        lines[0].contains("1 result(s) from project fixture"),
+        "{}",
+        lines[0]
+    );
 }
 
 #[test]
@@ -2616,6 +2942,64 @@ verified_at = "2026-05-11T00:00:00Z"
     }
 }
 
+fn add_fake_reranker(home: &Path) {
+    let managed = home.join(".llm_wiki");
+    let reranker_path =
+        managed.join("models/qwen3-reranker-0.6b-q8_0/qwen3-reranker-0.6b-q8_0.gguf");
+    fs::create_dir_all(reranker_path.parent().expect("reranker parent")).expect("reranker dir");
+    fs::write(&reranker_path, "fake reranker").expect("reranker file");
+    let profile = fs::read_to_string(managed.join("search.toml")).expect("search profile");
+    fs::write(
+        managed.join("search.toml"),
+        profile.replace(
+            "query_expansion_model = \"qmd-query-expansion-1.7b-q4_k_m\"\n",
+            "query_expansion_model = \"qmd-query-expansion-1.7b-q4_k_m\"\nreranker_model = \"qwen3-reranker-0.6b-q8_0\"\n",
+        ),
+    )
+    .expect("search profile with reranker");
+    append(
+        &managed.join("models/artifacts.toml"),
+        &format!(
+            r#"
+[[artifacts]]
+model_id = "qwen3-reranker-0.6b-q8_0"
+role = "reranker"
+profile = "balanced"
+repository = "ggml-org/Qwen3-Reranker-0.6B-Q8_0-GGUF"
+revision = "a02f48bb4f057028298c21fa033da2b30d7742d5"
+file = "qwen3-reranker-0.6b-q8_0.gguf"
+download_url = "https://example.invalid/reranker.gguf"
+path = "{}"
+expected_sha256 = "22c9979ce4fbcdc5acdc310c6641c32797eff1aa980b8f7a2db8a8ea23429a48"
+observed_sha256 = "22c9979ce4fbcdc5acdc310c6641c32797eff1aa980b8f7a2db8a8ea23429a48"
+size_bytes = 1
+license = "apache-2.0"
+dimensions = 0
+qmd_rs_version = "0.3.2"
+adapter_schema_version = 1
+verified_at = "2026-05-11T00:00:00Z"
+"#,
+            reranker_path.display()
+        ),
+    );
+    append(
+        &managed.join("accepted-licenses.toml"),
+        r#"
+[[licenses]]
+model_id = "qwen3-reranker-0.6b-q8_0"
+license = "apache-2.0"
+accepted_at = "2026-05-11T00:00:00Z"
+accepted_by_version = "0.1.1"
+"#,
+    );
+}
+
+fn append(path: &Path, text: &str) {
+    let mut contents = fs::read_to_string(path).expect("read file to extend");
+    contents.push_str(text);
+    fs::write(path, contents).expect("extend file");
+}
+
 fn write_search_licenses(home: &Path) {
     fs::write(
         home.join(".llm_wiki/accepted-licenses.toml"),
@@ -2721,6 +3105,24 @@ fn fixture_project(root: &Path, name: &str) -> PathBuf {
         "Search Decision",
         "Reciprocal rank fusion keeps search-all result ordering deterministic.",
     )
+}
+
+fn fixture_project_with_matching_pages(root: &Path, name: &str, pages: usize) -> PathBuf {
+    let project = root.join(name);
+    fs::create_dir_all(project.join("wiki/decisions")).expect("wiki");
+    fs::write(project.join("wiki/index.md"), "# Index\n").expect("index");
+    fs::write(project.join("wiki/log.md"), "# Log\n").expect("log");
+    fs::write(project.join("AGENTS.md"), "# Agents\n").expect("agents");
+    for page in 0..pages {
+        fs::write(
+            project.join(format!("wiki/decisions/{name}-{page}.decision.md")),
+            format!(
+                "# {name} Decision {page}\n\n- Document Class: Decision\n- Status: Accepted\n- Date: 2026-10-07\n- Category: Search\n- Scope: Test\n- Sources: raw/test.md\n\n## Decision\nThe zephyrine lantern appears in page {page} of {name}.\n"
+            ),
+        )
+        .expect("decision");
+    }
+    project.canonicalize().expect("canonical")
 }
 
 fn fixture_project_with_decision(root: &Path, name: &str, title: &str, body: &str) -> PathBuf {
