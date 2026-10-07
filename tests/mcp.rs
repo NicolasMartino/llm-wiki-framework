@@ -739,14 +739,25 @@ fn mcp_search_on_a_stale_index_carries_the_warning() {
     );
 
     let search = tool_payload(&responses[0]);
-    let warnings = search["warnings"].as_array().expect("warnings array");
-    assert_eq!(warnings.len(), 1, "{search}");
+    let messages = search["warnings"]
+        .as_array()
+        .expect("warnings array")
+        .iter()
+        .map(|warning| warning["message"].as_str().expect("message"))
+        .collect::<Vec<_>>();
+    // Only `wiki/index.md` holds both words, so the phrase fallback's line
+    // follows the stale warning.
     assert_eq!(
-        warnings[0]["message"],
-        format!(
-            "search index stale for project fixture; run `{} index --project fixture` (about a second for a word-match index) and search again",
-            binary_stem()
-        )
+        messages,
+        [
+            format!(
+                "search index stale for project fixture; run `{} index --project fixture` (about a second for a word-match index) and search again",
+                binary_stem()
+            )
+            .as_str(),
+            "too few pages hold every word of the query; the last 1 result(s) hold only some of its names and are scored by a separate phrase search",
+        ],
+        "{search}"
     );
 }
 
