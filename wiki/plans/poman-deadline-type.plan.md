@@ -55,35 +55,25 @@ the same definition. And the owner can try it on a real repository: a local
 release puts this poman on the owner's machine, where the owner writes
 riseon's founding tasks with it.
 
-## Where It Stands (2026-10-07, at `301cb0c`)
+## Where It Stands (2026-10-07, after PM3)
 
-- **poman does nothing yet:** `crates/poman/src/lib.rs` builds a clap command
-  with no subcommand; `run` prints the help or the version. The crate depends
-  on clap only, not yet on `llm-wiki-core`.
-- **The reader is ready** (PM2): `Page::bullet_block` gives the `- Key:
-  Value` fields just after the title, each with its line; `elsewhere()` gives
-  every field found in another block (front matter, before the title, a page
-  with no title) or form (bare, bold, `* `), with its line;
-  `byte_order_mark()` says whether the page starts with one.
-- **The type shape has no value formats:** `DocumentType` holds a name,
-  plural, suffix, folder, whether it is indexed, its fields and its statuses;
-  `FieldDefinition` holds a key and whether it is required. llm-wiki's nine
-  types are the `types::llm_wiki` set; poman has no type yet.
-- **The filename splitter accepts `deadline`** (`tests/filenames.rs` in the
-  shared crate). It reads leading digits and a hyphen as an index for every
-  type, so `2026-taxes.deadline.md` splits as index `2026` and slug `taxes`.
-- **llm-wiki's search reads every Markdown file under `wiki/`**
-  (`collect_markdown` in `src/search/qmd_rs.rs`), so a deadline page is
-  searchable today, read by the wiki view as a page with a title and a
-  `Status` and no `Document Class`.
-- **The orphan check is the agent's lint, not code**: the guidelines'
-  "Lint", item 3, and the lint prompt in `src/mcp/mod.rs`. No llm-wiki
-  command fails on a page missing from `wiki/index.md` or missing its
-  metadata fields.
-- **`toml` and `chrono` are already workspace dependencies**, which
-  llm-wiki uses; the strict crates take neither.
-- **No repository keeps deadline files yet.** riseon's issue #11 waits on
-  PM3; riseon's main branch is master.
+- **The type is defined once, in `llm-wiki-core`:** `types::poman::DEADLINE`
+  with its fields, each with its value format (`types::format::ValueFormat`);
+  `names` holds the slug rule, the title rule and the near-miss distance;
+  `WikiFilename::parse_unindexed` splits a name with no index.
+- **`poman new deadline` and `poman check` work as the Target says**, both
+  with `--json`, through `poman::run_in`, which takes where it runs and its
+  terminal as arguments so the tests reach both. The fixtures, under
+  `crates/poman/tests/fixtures/`, hold a valid tree and a broken one, each
+  with its exact `poman check` output beside it.
+- **What llm-wiki ships says** that a deadline file carries poman's fields
+  only, is checked by `poman check` rather than lint, and is not listed one by
+  one in the index: the guidelines, the template `AGENTS.md` and the lint
+  prompt, shown in the init snapshots.
+- **No repository keeps deadline files yet.** The owner's test on riseon
+  follows the local release (`wiki/plans/poman-mcp-server.plan.md`).
+
+The state this plan was written from, at `301cb0c`, is in git history.
 
 ## Target
 
@@ -135,8 +125,8 @@ are ASCII digits with no sign.
   `2026-1-5` and `+2026-01-05` fail.
 - **Duration:** a whole number of working days, at least one, in digits with
   no leading zero, then a space and `days`: `10 days`. `+5 days`, `05 days`
-  and `0 days` fail. One day is written `1 day` or `1 days`, the owner's
-  choice 5.
+  and `0 days` fail. One day is written `1 day`, and `1 days` fails, the
+  owner's choice 5.
 - **Importance:** `low`, `medium` or `high`.
 - **Blocked by:** `none`, or paths from the repository root separated by
   commas, with or without a space after each comma. Each path is written as

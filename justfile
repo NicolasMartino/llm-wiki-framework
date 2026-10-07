@@ -146,6 +146,18 @@ init path name type="web" scale="small" description="One sentence description.":
 release-guard:
     test -z "${LLM_WIKI_INSTANCE:-}" || { echo "refusing release command with LLM_WIKI_INSTANCE=${LLM_WIKI_INSTANCE}"; exit 1; }
 
+# The owner's local release: builds this checkout's release archives with
+# cargo-dist (no tag, nothing published), saves what is installed now under
+# ~/.llm_wiki/local-release/, and installs llm-wiki and poman from the archives,
+# registering both MCP servers. Flags go to `llm-wiki install`. See
+# tools/local-release.sh.
+local-release *args: release-guard
+    tools/local-release.sh install {{args}}
+
+# Puts back exactly what the newest `just local-release` saved.
+local-release-revert: release-guard
+    tools/local-release.sh revert
+
 release-plan: release-guard
     dist plan
 

@@ -44,23 +44,20 @@ report failures one way, because that code is written once, in the shared
 crate, under the strictest gates. One `llm-wiki install` puts both binaries in
 place and registers both servers, and `uninstall` takes both away.
 
-## Where It Stands (2026-10-07, at `51f2116`)
+## Where It Stands (2026-10-07, after PM3.1)
 
-- **llm-wiki's server is one module**, `src/mcp/mod.rs`: the capped stdio
-  frame reader, the JSON-RPC replies, the dispatch of `initialize`,
-  `tools/list`, `tools/call`, `resources/*` and `prompts/*`, its tools, and
-  `run_cli`, which runs llm-wiki's own binary for a tool and bounds its error
-  output.
-- **Host wiring is written for llm-wiki's name alone:** `src/mcp_config.rs`
-  renders and merges the Claude `.mcp.json` and the Codex `config.toml` entry
-  for `instance::mcp_server_name()`, `mcp serve`; `src/mcp_wiring.rs` writes
-  them. `install` writes the Codex config (`~/.codex/config.toml`) and a staged
-  Claude config in the managed home; `init` and `register` merge the project's
-  own `.mcp.json`, which is what Claude Code reads.
-- **`install` already copies poman** from beside itself and refuses without
-  it; `uninstall` removes it.
-- **poman has no command yet**; PM3 adds `poman new deadline` and
-  `poman check`.
+- **`llm_wiki_core::mcp`** holds the stdio transport, the JSON-RPC envelope
+  and the shared dispatch; llm-wiki's server (`src/mcp/mod.rs`) and poman's
+  (`crates/poman/src/mcp.rs`) each implement its `Server` trait.
+- **`poman mcp` serves `poman_check` and `poman_new_deadline`**, each running
+  its command with `--json` through `poman::run_in`, never as a terminal.
+- **`src/mcp_config.rs` renders any server's entry** (`McpServer`), and
+  `install`, `init`, `register` and `uninstall` handle llm-wiki's and poman's
+  together.
+- **`just local-release` and `just local-release-revert`** run
+  `tools/local-release.sh`, proved under a temporary `HOME`.
+
+The state this plan was written from, at `51f2116`, is in git history.
 
 ## Target
 
@@ -220,7 +217,8 @@ and its revert run there.
 `crates/llm-wiki-core` (the `mcp` module, its tests, its manifest), `crates/poman`
 (the `mcp` subcommand and `--json`), `src/mcp/mod.rs`, `src/mcp_config.rs`,
 `src/mcp_wiring.rs`, `src/install.rs`, `src/uninstall.rs`, their tests, the
-lock file, the `justfile` and `README.md`.
+lock file, the `justfile`, `tools/local-release.sh` (the coordinator's yes,
+2026-10-07) and `README.md`.
 
 ### What Closes This Plan
 

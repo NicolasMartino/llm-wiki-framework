@@ -30,13 +30,14 @@ llm-wiki install
 
 `llm-wiki install` copies or verifies the runtime binary at
 `~/.llm_wiki/bin/llm-wiki` and the `poman` beside it at `~/.llm_wiki/bin/poman`,
-merges the active instance into Codex MCP config, and writes a staged Claude
-project `.mcp.json` under the managed home. It takes `poman` from the folder
-its own binary runs from, and only one of its own version; with none there, it
-keeps a `poman` it installed before, and otherwise refuses and says how to get
-one. Hosts
-spawn `llm-wiki mcp serve` over stdio on demand; no background daemon is
-installed. The installer no longer renders generated runtime skills.
+merges both MCP servers, llm-wiki's and poman's, into the Codex MCP config, and
+writes a staged Claude project `.mcp.json` holding both under the managed home;
+`init` and `register` add both to a project's own `.mcp.json`. It takes `poman`
+from the folder its own binary runs from, and only one of its own version; with
+none there, it keeps a `poman` it installed before, and otherwise refuses and
+says how to get one. Hosts spawn `llm-wiki mcp serve` and `poman mcp` over
+stdio on demand; no background daemon is installed. The installer no longer
+renders generated runtime skills.
 
 On upgrade from a pre-MCP install, unchanged manifest-owned generated skills
 under `~/.claude/skills/` and `~/.codex/skills/` are removed. User-edited
@@ -59,6 +60,24 @@ llm-wiki install --non-interactive --enable-llm-search --profile balanced --conf
 The full enabled command is the portable form for scripts. Shorter enabled
 commands are only valid when the current local model and license state no
 longer needs the omitted confirmation.
+
+### A local release, and going back
+
+To try this checkout as a release before one is published, build its release
+archives and install from them, then go back to what was installed before:
+
+```bash
+just local-release          # flags after it go to `llm-wiki install`
+just local-release-revert
+```
+
+`just local-release` builds the archives with cargo-dist for this machine (no
+tag, nothing published), saves what is installed now in a dated folder under
+`~/.llm_wiki/local-release/`, and runs the archives' `llm-wiki install`.
+`just local-release-revert` puts back exactly the newest saved state: the
+managed binaries, the manifest and every file it lists, and the Codex config. A
+project's `.mcp.json` that `llm-wiki register` changes afterwards is not part
+of it.
 
 ## Create a Project
 
@@ -109,6 +128,13 @@ CLI subcommands cover install and local operations.
 The MCP server exposes these tools: `llm_wiki_read`, `llm_wiki_search`,
 `llm_wiki_search_all`, `llm_wiki_index`, `llm_wiki_register`, and
 `llm_wiki_status`. Run `llm-wiki --help` for the full surface.
+
+`poman`, the project manager, keeps a repository's deadlines as files under
+`wiki/deadlines/`: `poman new deadline "<title>"` writes one, and `poman check`
+checks every one and `poman.toml`, each message naming the file and the line.
+Both take `--json`. `poman mcp` serves them as the MCP tools `poman_check` and
+`poman_new_deadline`, registered as the server `poman`; `poman_new_deadline`
+writes a file and names it. Run `poman --help` for the rest.
 
 ## Headroom
 

@@ -132,12 +132,14 @@ Included:
   warnings included
 - the reference checks: each path exists, is a deadline file, is not the page
   itself, and no loop forms
-- whether a deadline file also carries the wiki's metadata fields, and whether
-  it is listed in `wiki/index.md` or exempt from the orphan check (open)
+- a deadline file carries poman's fields only, not the wiki's metadata
+  fields, and is not listed one by one in `wiki/index.md`, whose orphan check
+  passes over `wiki/deadlines/`; what llm-wiki ships says so (decided with
+  PM3's plan, the owner's choices 1, 2 and 7)
 - the landing branch, master by default and settable, as
   `deadline-files-hold-one-deadline-each.decision.md`, "How the files land",
-  sets it (the owner's decisions, 2026-10-06); where and how a repository
-  sets it is open, and PM3's plan decides it
+  sets it (the owner's decisions, 2026-10-06); a repository sets it in a
+  committed `poman.toml` (PM3's plan, the owner's choice 3)
 - a JSON output for `poman new deadline` and `poman check`, the result
   PM3.1's tools return (the owner, 2026-10-07: PM3 and PM3.1 are built in
   one PR)
@@ -150,10 +152,9 @@ Proof:
 - `poman new` writes a file that `poman check` accepts
 - `poman check` fails on each broken field and reference, warns on near
   misses, and ignores every other Markdown file
-- on the riseon repository (the owner, 2026-10-07): its founding tasks are
-  written with a locally built poman's `poman new deadline`, `poman check`
-  accepts them, and they land on riseon's master, which closes riseon issue
-  #11
+- on the riseon repository (the owner, 2026-10-07): the owner's own test,
+  after the blind review's fix round, with poman installed by `just
+  local-release`; no worker touches that repository (the owner, 2026-10-07)
 
 ---
 
