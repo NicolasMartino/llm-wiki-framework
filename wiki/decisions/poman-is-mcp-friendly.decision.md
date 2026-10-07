@@ -128,8 +128,8 @@ poman's tools, schemas and instructions live in the poman crate.
 - The shared code is held to the strictest gates when it moves, as the page
   reader was in PM2, ahead of PM8's ratchet for the rest of llm-wiki.
 - Open, for PM3.1's plan: whether poman needs a test instance with its own
-  server and tool names, as llm-wiki has; and where hosts are wired for poman (install's
-  configurations only, or `init` and `register` as well); whether
+  server and tool names, as llm-wiki has; and where hosts are wired for poman
+  (install's configurations only, or `init` and `register` as well); whether
   uninstall removes poman's server registration with llm-wiki's.
 
 ## What Would Revisit This

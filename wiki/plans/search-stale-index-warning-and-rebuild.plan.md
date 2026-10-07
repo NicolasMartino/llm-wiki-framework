@@ -71,9 +71,9 @@ never turns that search into a failure.
   `warnings` list carries it, in the full and the compact reply, beside the
   `warning` string, which stays for current readers. The text names the
   project's exact `<binary> index --project <id>` command, `<binary>` being the
-  running binary (`llm-wiki`, or `llm-wiki-test` for the test build), and says it takes
-  about a second for a word-match index. The MCP reply shows the same, since
-  it is the CLI's JSON.
+  running binary (`llm-wiki`, or `llm-wiki-test` for the test build), and says
+  it takes about a second for a word-match index. The MCP reply shows the same,
+  since it is the CLI's JSON.
 - **A small index rebuilds itself**: when the index is stale, the project's
   search is word-match only, the lock is free and the cache writable, search
   rebuilds the index first, then answers from it, fresh, with no stale
@@ -104,11 +104,11 @@ never turns that search into a failure.
 
 ## Open For The Owner
 
-1. **The opt-out: a setting in the project's `.llm_wiki/search.toml`**,
-   beside `llm_search_enabled`, on by default for word-match projects. Not chosen: an
-   environment variable, which a host or worker cannot see in the project's
-   own record; no opt-out, which leaves search writing in a place someone may
-   want read-only.
+1. **The opt-out: a setting in the project's `.llm_wiki/search.toml`**, beside
+   `llm_search_enabled`, on by default for word-match projects. Not chosen: an
+   environment variable, which a host or worker cannot see in the project's own
+   record; no opt-out, which leaves search writing in a place someone may want
+   read-only.
 2. **Many workers editing at once.** Each stale search would race for the
    lock; a loser falls back to the warning, so nothing fails, but some
    answers come from the old index. Recommended: accept it, and add one test
