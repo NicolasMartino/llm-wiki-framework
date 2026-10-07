@@ -1183,7 +1183,7 @@ Proof:
 
 ### P24 - Each PR Carries Its Own Log Entry And Backlog Lines
 
-Status: Active
+Status: Completed (develop)
 Promise: Each PR into `develop` carries its own log entry and any waiting
 backlog roadmap entries in one bookkeeping commit, which the coordinator adds
 just before the PR goes ready, or just after the owner's PASS when it touches
