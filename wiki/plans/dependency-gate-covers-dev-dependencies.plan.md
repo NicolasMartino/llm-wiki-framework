@@ -1,7 +1,8 @@
 # Plan: The Dependency Gate Covers Dev-Dependencies
 
 - Document Class: Plan
-- Status: Draft
+- Status: Active
+- Branch: `NicolasMartino/deny-37`
 - Date: 2026-10-07
 - Category: Tooling, strict gates
 - Scope: Carry out P22 of the framework roadmap: show that the strict gates'

@@ -1164,7 +1164,7 @@ Proof:
 
 ### P22 - The Dependency Gate Covers Dev-Dependencies
 
-Status: Draft
+Status: Active
 Promise: The strict gates' dependency check (`cargo deny`) covers the strict
 crates' dev-dependencies too, so a banned or duplicated crate pulled in only by
 tests cannot slip past it.
