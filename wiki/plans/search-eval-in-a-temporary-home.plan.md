@@ -73,12 +73,15 @@ and the checkout's own files, are the same afterwards as before.
 - **One recipe**, `just search-eval` (choice 2), that:
   - makes a temporary home and points `HOME` and the XDG variables into it;
   - gives that home the managed models and the accepted licenses from the
-    real one, without writing to the real one (linked, choice 1),
-    and fails with one plain line naming `llm-wiki install` when the real
-    home has none;
+    real one, without writing to the real one (linked, choice 1), and a copy
+    of its install manifest, without which search stops with "llm-wiki
+    install is required before search" (found by the first run); and fails
+    with one plain line naming `llm-wiki install` when the real home has
+    none;
   - makes the eval project's own root inside the temporary directory: a copy
-    of the checkout's `wiki/`, with its own `.llm_wiki/search.toml` turning
-    meaning-based search on, never the checkout itself;
+    of the checkout's `wiki/` and `AGENTS.MD` (register wants an orientation
+    file), with its own `.llm_wiki/search.toml` turning meaning-based
+    search on, never the checkout itself;
   - registers that root under `llm-wiki-framework-semantic-search` with
     `--no-mcp`, and indexes it;
   - runs the ignored eval test, which writes its report under `target/` as

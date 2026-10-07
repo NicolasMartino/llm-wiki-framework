@@ -106,6 +106,12 @@ fast-check: fmt clippy-strict audit-legacy branch-status-test
 
 verify-full: verify-coverage udeps
 
+# The hand-run search eval, in a temporary home with the managed models linked
+# from the real one; nothing on the machine needs registering, and nothing in
+# its llm-wiki setup changes. See tools/search-eval.sh.
+search-eval:
+    bash tools/search-eval.sh
+
 post-install:
     cargo test --test post_install
 

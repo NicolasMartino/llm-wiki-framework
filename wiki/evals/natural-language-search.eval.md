@@ -222,6 +222,26 @@ work:
 Semantic/hybrid implementation should extend this surface; it should not add a
 second diagnostics system.
 
+<!-- llm-wiki-search-ignore-start -->
+
+## How To Run
+
+Run `just search-eval` (`tools/search-eval.sh`, from
+`wiki/plans/search-eval-in-a-temporary-home.plan.md`). It needs the managed
+search models in the real managed home (`llm-wiki install
+--configure-search`) and nothing registered: it makes a temporary home, links
+the models into it file by file, copies the accepted licenses and search
+settings, registers a copy of this checkout's `wiki/` there as
+`llm-wiki-framework-semantic-search` (with `--no-mcp` and meaning-based search
+on), indexes it, runs the ignored
+`cargo test --test natural_language_search_eval -- --ignored --nocapture`, and
+removes the temporary home. The report lands in `target/evals/` as before. The
+machine's registry, managed home and cache, and the checkout's `.mcp.json` and
+`.llm_wiki/`, are left as they were. The `cargo run -- index` and
+`cargo test` commands in the runs below assume a project registered by hand.
+
+<!-- llm-wiki-search-ignore-end -->
+
 ## Observed Runs
 
 ### 2026-05-11 Seeded Local GGUF Run
