@@ -1,5 +1,21 @@
 # Wiki Log
 
+## [2026-10-07] merge | Five short plans, and poman is MCP-friendly
+
+Merged #59 (closes #57; part of #29, #36, #37, #49 and #5): plans for compact
+search pages that follow the limit, a stale-index warning that names its
+command and rebuilds a small index, the dependency gate (recast once a probe
+showed `cargo deny check` already rejects a banned dev-dependency), the search
+eval in a temporary home, and removing the dead `build-skills` recipes. The
+owner decided on 2026-10-07 that poman is MCP-friendly: every command is also
+an MCP tool with the same behaviour and a JSON result, served by `poman mcp`
+and registered by `llm-wiki install`; PM3.1 holds it, built with PM3 in one PR
+(#60). P15 and P20 are Completed.
+
+Pages affected: `wiki/decisions/poman-is-mcp-friendly.decision.md`, five new
+plans under `wiki/plans/`, `wiki/roadmaps/framework-v1.roadmap.md`,
+`wiki/roadmaps/poman.roadmap.md`, `wiki/index.md`.
+
 ## [2026-10-07] merge | The root schema files get one block that init owns
 
 Merged #55 (closes #53), phase 1 of the plan for shipping the operations setup:
