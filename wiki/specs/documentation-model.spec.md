@@ -101,6 +101,19 @@ Validated search behavior:
   matching scoped threshold record; it is not a gate hybrid waits on.
 - Explicit `semantic` and `hybrid` modes fail closed on missing readiness unless
   the caller uses `--allow-lexical-fallback`.
+- Lexical ranking weights a match in a page's file path or title ten times a
+  match in its body, so a page searched by its own title or file name comes
+  first even when its words are in most pages.
+- A lexical search first asks for pages holding every word of the query. When
+  that finds fewer than `limit` pages, it searches again with each name of the
+  query kept as a phrase (a name ends at whitespace, a comma, a semicolon, a
+  quote or a backtick; hyphens, slashes and dots inside it join its words), the
+  phrases joined by OR, and adds the new pages after the all-words ones. The
+  reply's warnings, in text and in JSON, then say in one line how many results
+  hold only some of the query; `search-all` places every project's fallback
+  pages after every project's all-words pages, and one line per project, naming
+  it, counts only its fallback pages among the results shown. Hybrid's lexical
+  branch never takes this fallback.
 - Hybrid is the promoted natural-language path; semantic-only mode is
   diagnostic and not the promotion surface.
 - Thresholds are scoped by project/corpus, profile, embedding artifact,
