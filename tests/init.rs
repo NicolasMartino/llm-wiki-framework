@@ -59,6 +59,8 @@ fn init_profiles_match_snapshots() {
         insta::with_settings!({filters => vec![
             (r"\d{4}-\d{2}-\d{2}", "[date]"),
             (r#"framework_version = "\d+\.\d+\.\d+""#, r#"framework_version = "[version]""#),
+            // The guidelines' block holds the render date, so its hash changes daily.
+            (r#"guidelines = "[0-9a-f]{64}""#, r#"guidelines = "[sha256]""#),
         ]}, {
             insta::assert_snapshot!(format!("init_{name}"), snapshot);
         });
@@ -1074,4 +1076,513 @@ fn init_recovers_from_partial_scaffold_missing_init_toml() {
         project.path().join(".llm_wiki/init.toml").is_file(),
         "re-run should recover the init manifest"
     );
+}
+
+const BLOCK_START: &str = "<!-- llm-wiki:managed:start -->";
+const BLOCK_END: &str = "<!-- llm-wiki:managed:end -->";
+const ROOT_SCHEMA_FILES: [&str; 3] = ["project_guidelines.md", "AGENTS.md", "CLAUDE.md"];
+
+fn init_in(home: &Path, project: &Path, packs: &[&str]) -> assert_cmd::assert::Assert {
+    llm_wiki(home)
+        .arg("init")
+        .arg(project)
+        .args([
+            "--no-register",
+            "--no-mcp",
+            "--non-interactive",
+            "--name",
+            "Fixture Project",
+            "--description",
+            "A fixture project.",
+            "--blueprint",
+            "generic",
+        ])
+        .args(packs.iter().flat_map(|pack| ["--pack", *pack]))
+        .assert()
+}
+
+fn read(project: &Path, file: &str) -> String {
+    fs::read_to_string(project.join(file)).unwrap_or_else(|_| panic!("read {file}"))
+}
+
+fn stderr_of(assert: &assert_cmd::assert::Assert) -> String {
+    String::from_utf8_lossy(&assert.get_output().stderr).into_owned()
+}
+
+/// The text between a file's markers.
+fn block_of(text: &str) -> &str {
+    let start = text.find(BLOCK_START).expect("begin marker") + BLOCK_START.len() + 1;
+    let end = text.find(BLOCK_END).expect("end marker");
+    &text[start..end]
+}
+
+/// What init rendered for a file before it owned a block in it: the block
+/// without its first line, the notice, and the blank line after it.
+fn render_without_block(text: &str) -> String {
+    block_of(text)
+        .splitn(3, '\n')
+        .nth(2)
+        .expect("render")
+        .to_string()
+}
+
+fn remove_recorded_hashes(project: &Path) {
+    let mut manifest = read_init_manifest(project);
+    manifest
+        .as_table_mut()
+        .expect("table")
+        .remove("managed_blocks")
+        .expect("managed_blocks recorded");
+    fs::write(
+        project.join(".llm_wiki/init.toml"),
+        toml::to_string(&manifest).expect("toml"),
+    )
+    .expect("manifest");
+}
+
+fn saved_copies(project: &Path) -> Vec<PathBuf> {
+    let mut copies = fs::read_dir(project.join(".llm_wiki/saved-blocks"))
+        .map(|entries| {
+            entries
+                .map(|entry| entry.expect("entry").path())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    copies.sort();
+    copies
+}
+
+/// Every folder and file under the project, with each file's bytes.
+fn tree(project: &Path) -> Vec<(PathBuf, Option<Vec<u8>>)> {
+    fn walk(root: &Path, path: &Path, entries: &mut Vec<(PathBuf, Option<Vec<u8>>)>) {
+        for entry in fs::read_dir(path).expect("read_dir") {
+            let path = entry.expect("entry").path();
+            let rel = path.strip_prefix(root).expect("rel").to_path_buf();
+            if path.is_dir() {
+                entries.push((rel, None));
+                walk(root, &path, entries);
+            } else {
+                entries.push((rel, Some(fs::read(&path).expect("bytes"))));
+            }
+        }
+    }
+    let mut entries = Vec::new();
+    walk(project, project, &mut entries);
+    entries.sort();
+    entries
+}
+
+#[test]
+fn init_writes_each_root_schema_file_as_its_block_and_records_its_hash() {
+    let project = TempDir::new().expect("project");
+    let home = TempDir::new().expect("home");
+    init_in(home.path(), project.path(), &[]).success();
+
+    for file in ROOT_SCHEMA_FILES {
+        let text = read(project.path(), file);
+        assert!(text.starts_with(&format!("{BLOCK_START}\n<!-- llm-wiki init rewrites")));
+        assert!(text.ends_with(&format!("{BLOCK_END}\n")), "{file}");
+    }
+    assert!(block_of(&read(project.path(), "CLAUDE.md")).ends_with("See @AGENTS.md.\n"));
+    let manifest = read_init_manifest(project.path());
+    for key in ["agents", "claude", "guidelines"] {
+        let hash = manifest["managed_blocks"][key].as_str().expect("hash");
+        assert_eq!(hash.len(), 64, "{key}");
+    }
+}
+
+#[test]
+fn init_rerun_keeps_text_outside_each_block_byte_for_byte() {
+    let project = TempDir::new().expect("project");
+    let home = TempDir::new().expect("home");
+    init_in(home.path(), project.path(), &[]).success();
+
+    let above = "# Project notes\r\n\r\nWritten by the project, CRLF lines.\r\n\r\n";
+    let below = "\r\n## Below the block\r\n\r\nNo final newline here.";
+    for file in ROOT_SCHEMA_FILES {
+        let text = read(project.path(), file);
+        fs::write(project.path().join(file), format!("{above}{text}{below}")).expect("write");
+    }
+    let agents_block = block_of(&read(project.path(), "AGENTS.md")).to_string();
+
+    let same = init_in(home.path(), project.path(), &[]).success();
+    assert!(
+        !stderr_of(&same).contains("Warning"),
+        "{}",
+        stderr_of(&same)
+    );
+    let adding_a_pack = init_in(home.path(), project.path(), &["api"]).success();
+    assert!(!stderr_of(&adding_a_pack).contains("Warning"));
+
+    for file in ROOT_SCHEMA_FILES {
+        let text = read(project.path(), file);
+        assert!(
+            text.starts_with(&format!("{above}{BLOCK_START}\n")),
+            "{file}"
+        );
+        assert!(text.ends_with(&format!("{BLOCK_END}\n{below}")), "{file}");
+    }
+    assert_ne!(block_of(&read(project.path(), "AGENTS.md")), agents_block);
+    assert!(project.path().join("wiki/apis").is_dir());
+    assert!(saved_copies(project.path()).is_empty());
+}
+
+#[test]
+fn init_rerun_turns_an_unmarked_file_equal_to_the_previous_render_into_the_block_alone() {
+    let project = TempDir::new().expect("project");
+    let home = TempDir::new().expect("home");
+    init_in(home.path(), project.path(), &[]).success();
+    let fresh: Vec<String> = ROOT_SCHEMA_FILES
+        .iter()
+        .map(|file| read(project.path(), file))
+        .collect();
+
+    // The files as a release before the block wrote them, the guidelines on
+    // an earlier date, and a manifest with no hashes.
+    for (file, text) in ROOT_SCHEMA_FILES.iter().zip(&fresh) {
+        let mut old = render_without_block(text);
+        if *file == "project_guidelines.md" {
+            let date_line = old
+                .lines()
+                .find(|line| line.starts_with("- Date: "))
+                .expect("date line")
+                .to_string();
+            old = old.replace(&date_line, "- Date: 2025-01-02");
+        }
+        assert!(!old.contains(BLOCK_START));
+        fs::write(project.path().join(file), old).expect("write");
+    }
+    remove_recorded_hashes(project.path());
+
+    // The rerun adds a pack, so the files match the previous answers' render,
+    // not this run's.
+    let rerun = init_in(home.path(), project.path(), &["api"]).success();
+    assert!(
+        !stderr_of(&rerun).contains("Warning"),
+        "{}",
+        stderr_of(&rerun)
+    );
+    assert_eq!(read(project.path(), "CLAUDE.md"), fresh[2]);
+    for file in ["project_guidelines.md", "AGENTS.md"] {
+        let text = read(project.path(), file);
+        assert!(text.starts_with(&format!("{BLOCK_START}\n")), "{file}");
+        assert!(text.ends_with(&format!("{BLOCK_END}\n")), "{file}");
+        assert!(!text.contains("Kept From Before"), "{file}");
+        assert!(block_of(&text).contains("Pack Document Types"), "{file}");
+    }
+    assert!(saved_copies(project.path()).is_empty());
+    assert!(read_init_manifest(project.path())["managed_blocks"]["agents"].is_str());
+}
+
+#[test]
+fn init_rerun_compares_a_block_with_no_recorded_hash_to_the_previous_render() {
+    let project = TempDir::new().expect("project");
+    let home = TempDir::new().expect("home");
+    init_in(home.path(), project.path(), &[]).success();
+    let fresh_agents = read(project.path(), "AGENTS.md");
+    let added = "A rule added inside the block.";
+    let edited_claude = read(project.path(), "CLAUDE.md")
+        .replace("See @AGENTS.md.\n", &format!("See @AGENTS.md.\n{added}\n"));
+    fs::write(project.path().join("CLAUDE.md"), &edited_claude).expect("claude");
+    remove_recorded_hashes(project.path());
+
+    let rerun = init_in(home.path(), project.path(), &["api"]).success();
+    let stderr = stderr_of(&rerun);
+
+    // The unedited AGENTS block is refreshed with the pack, without a word.
+    assert!(!stderr.contains("AGENTS.md"), "{stderr}");
+    let agents = read(project.path(), "AGENTS.md");
+    assert_ne!(agents, fresh_agents);
+    assert!(block_of(&agents).contains("Pack Document Types"));
+    // The edited CLAUDE block is saved, replaced and warned about.
+    let copies = saved_copies(project.path());
+    assert_eq!(copies.len(), 1, "{copies:?}");
+    assert_eq!(
+        fs::read_to_string(&copies[0]).expect("copy"),
+        block_of(&edited_claude)
+    );
+    assert!(
+        stderr.contains("the llm-wiki block in CLAUDE.md was edited"),
+        "{stderr}"
+    );
+    assert!(stderr.contains(&format!("  {added}")), "{stderr}");
+    assert!(!read(project.path(), "CLAUDE.md").contains(added));
+}
+
+#[cfg(unix)]
+#[test]
+fn init_rerun_writes_one_block_when_claude_md_links_to_the_agents_file() {
+    let project = TempDir::new().expect("project");
+    let home = TempDir::new().expect("home");
+    init_in(home.path(), project.path(), &[]).success();
+    let agents = format!(
+        "{}\n## Our Own Section\n",
+        read(project.path(), "AGENTS.md")
+    );
+    fs::write(project.path().join("AGENTS.md"), &agents).expect("agents");
+    fs::remove_file(project.path().join("CLAUDE.md")).expect("remove");
+    std::os::unix::fs::symlink("AGENTS.md", project.path().join("CLAUDE.md")).expect("link");
+
+    for _ in 0..2 {
+        let rerun = init_in(home.path(), project.path(), &[]).success();
+        assert!(
+            !stderr_of(&rerun).contains("Warning"),
+            "{}",
+            stderr_of(&rerun)
+        );
+        assert!(
+            String::from_utf8_lossy(&rerun.get_output().stdout)
+                .contains("CLAUDE.md links to AGENTS.md")
+        );
+        assert_eq!(read(project.path(), "AGENTS.md"), agents);
+        assert!(project.path().join("CLAUDE.md").is_symlink());
+        assert!(saved_copies(project.path()).is_empty());
+    }
+}
+
+#[test]
+fn init_rerun_writes_an_empty_root_file_as_a_missing_one() {
+    let project = TempDir::new().expect("project");
+    let home = TempDir::new().expect("home");
+    init_in(home.path(), project.path(), &[]).success();
+    let fresh = read(project.path(), "CLAUDE.md");
+    fs::write(project.path().join("CLAUDE.md"), "").expect("truncate");
+
+    let rerun = init_in(home.path(), project.path(), &[]).success();
+    assert!(
+        !stderr_of(&rerun).contains("Warning"),
+        "{}",
+        stderr_of(&rerun)
+    );
+    assert_eq!(read(project.path(), "CLAUDE.md"), fresh);
+}
+
+#[test]
+fn init_refuses_a_fresh_folder_with_only_an_agents_file() {
+    for name in ["AGENTS.md", "AGENTS.MD"] {
+        let project = TempDir::new().expect("project");
+        let home = TempDir::new().expect("home");
+        fs::write(project.path().join(name), "# Our agents\n").expect("agents");
+
+        let refused = init_in(home.path(), project.path(), &[]).failure();
+        let stderr = stderr_of(&refused);
+        assert!(stderr.contains("framework artifacts"), "{name}: {stderr}");
+        assert!(stderr.contains(name), "{name}: {stderr}");
+        assert_eq!(read(project.path(), name), "# Our agents\n");
+        assert!(!project.path().join(".llm_wiki").exists(), "{name}");
+    }
+}
+
+#[test]
+fn init_rerun_keeps_an_edited_unmarked_file_below_the_block_and_warns() {
+    let project = TempDir::new().expect("project");
+    let home = TempDir::new().expect("home");
+    init_in(home.path(), project.path(), &[]).success();
+
+    let agents = format!(
+        "{}\n## How Work Runs\n\nThe project's own rules.\n",
+        render_without_block(&read(project.path(), "AGENTS.md"))
+    );
+    let claude = "See @AGENTS.md.\n\nA Claude-only note.\n";
+    let guidelines = render_without_block(&read(project.path(), "project_guidelines.md"));
+    fs::write(project.path().join("AGENTS.md"), &agents).expect("agents");
+    fs::write(project.path().join("CLAUDE.md"), claude).expect("claude");
+    fs::write(project.path().join("project_guidelines.md"), &guidelines).expect("guidelines");
+    remove_recorded_hashes(project.path());
+
+    let rerun = init_in(home.path(), project.path(), &[]).success();
+    let stderr = stderr_of(&rerun);
+    assert!(
+        stderr.contains("Warning: AGENTS.md had no llm-wiki block"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("Warning: CLAUDE.md had no llm-wiki block"),
+        "{stderr}"
+    );
+    assert!(!stderr.contains("project_guidelines.md"), "{stderr}");
+
+    for (file, old) in [("AGENTS.md", agents.as_str()), ("CLAUDE.md", claude)] {
+        let text = read(project.path(), file);
+        assert!(text.starts_with(BLOCK_START), "{file}");
+        let kept = text
+            .find("\n## Kept From Before The llm-wiki Block (")
+            .expect("heading");
+        assert!(text[kept..].ends_with(&format!(")\n\n{old}")), "{file}");
+    }
+    assert!(!read(project.path(), "project_guidelines.md").contains("Kept From Before"));
+
+    // The second rerun is silent and changes nothing.
+    let before = tree(project.path());
+    let second = init_in(home.path(), project.path(), &[]).success();
+    assert!(
+        !stderr_of(&second).contains("Warning"),
+        "{}",
+        stderr_of(&second)
+    );
+    for file in ROOT_SCHEMA_FILES {
+        let path = PathBuf::from(file);
+        let entry = |tree: &[(PathBuf, Option<Vec<u8>>)]| {
+            tree.iter().find(|(rel, _)| rel == &path).cloned()
+        };
+        assert_eq!(entry(&before), entry(&tree(project.path())), "{file}");
+    }
+}
+
+#[test]
+fn init_rerun_saves_and_replaces_an_edited_block_with_a_warning() {
+    let project = TempDir::new().expect("project");
+    let home = TempDir::new().expect("home");
+    init_in(home.path(), project.path(), &[]).success();
+    let fresh = read(project.path(), "AGENTS.md");
+
+    for round in 1..=2 {
+        let added = format!("A rule added inside the block, round {round}.");
+        let edited = fresh.replace("## Agent Role\n", &format!("## Agent Role\n\n{added}\n"));
+        assert_ne!(edited, fresh);
+        fs::write(project.path().join("AGENTS.md"), &edited).expect("edit");
+
+        let rerun = init_in(home.path(), project.path(), &[]).success();
+        let stderr = stderr_of(&rerun);
+        let copies = saved_copies(project.path());
+        assert_eq!(copies.len(), round, "{copies:?}");
+        let copy = copies
+            .iter()
+            .find(|copy| fs::read_to_string(copy).expect("copy").contains(&added))
+            .expect("a copy holds the edited text");
+        assert_eq!(fs::read_to_string(copy).expect("copy"), block_of(&edited));
+        let copy_name = copy
+            .file_name()
+            .expect("name")
+            .to_string_lossy()
+            .into_owned();
+        assert!(copy_name.starts_with("AGENTS-"), "{copy_name}");
+        assert!(
+            stderr.contains("the llm-wiki block in AGENTS.md was edited"),
+            "{stderr}"
+        );
+        assert!(
+            stderr.contains(&format!(".llm_wiki/saved-blocks/{copy_name}")),
+            "{stderr}"
+        );
+        assert!(stderr.contains(&format!("  {added}")), "{stderr}");
+        assert_eq!(read(project.path(), "AGENTS.md"), fresh);
+    }
+}
+
+#[test]
+fn init_rerun_refreshes_an_unedited_block_after_a_template_change_silently() {
+    use sha2::{Digest, Sha256};
+
+    let project = TempDir::new().expect("project");
+    let home = TempDir::new().expect("home");
+    init_in(home.path(), project.path(), &[]).success();
+    let fresh = read(project.path(), "AGENTS.md");
+
+    // The block as an older template rendered it, with the hash init recorded.
+    let old_inner = "<!-- an older notice -->\n\n# AGENTS.md - An Older Template\n";
+    fs::write(
+        project.path().join("AGENTS.md"),
+        format!("Above.\n{BLOCK_START}\n{old_inner}{BLOCK_END}\nBelow.\n"),
+    )
+    .expect("agents");
+    let mut manifest = read_init_manifest(project.path());
+    manifest["managed_blocks"]["agents"] =
+        toml::Value::String(format!("{:x}", Sha256::digest(old_inner.as_bytes())));
+    fs::write(
+        project.path().join(".llm_wiki/init.toml"),
+        toml::to_string(&manifest).expect("toml"),
+    )
+    .expect("manifest");
+
+    let rerun = init_in(home.path(), project.path(), &[]).success();
+    assert!(
+        !stderr_of(&rerun).contains("Warning"),
+        "{}",
+        stderr_of(&rerun)
+    );
+    assert_eq!(
+        read(project.path(), "AGENTS.md"),
+        format!("Above.\n{fresh}Below.\n")
+    );
+    assert!(saved_copies(project.path()).is_empty());
+}
+
+#[test]
+fn init_refuses_broken_markers_before_writing_anything() {
+    let cases = [
+        ("AGENTS.md", "begin without end"),
+        ("CLAUDE.md", "end before begin"),
+        ("project_guidelines.md", "two blocks"),
+    ];
+    for (file, case) in cases {
+        let project = TempDir::new().expect("project");
+        let home = TempDir::new().expect("home");
+        init_in(home.path(), project.path(), &[]).success();
+        let text = read(project.path(), file);
+        let (broken, line) = match case {
+            "begin without end" => (format!("one\ntwo\n{BLOCK_START}\nno end\n"), 3),
+            "end before begin" => (format!("{BLOCK_END}\n{text}"), 1),
+            _ => {
+                let lines = text.lines().count();
+                (format!("{text}\n{text}"), lines + 2)
+            }
+        };
+        fs::write(project.path().join(file), &broken).expect("break");
+        let before = tree(project.path());
+
+        // A run that adds a pack would write folders, the manifest and the
+        // schema-drift audit if it got that far.
+        let refused = init_in(home.path(), project.path(), &["api"]).failure();
+        let stderr = stderr_of(&refused);
+        assert!(
+            stderr.contains(&format!("{file} line {line}:")),
+            "{case}: {stderr}"
+        );
+        assert!(stderr.contains("Nothing was written"), "{case}: {stderr}");
+        assert_eq!(tree(project.path()), before, "{case}");
+        assert!(!project.path().join("wiki/apis").exists(), "{case}");
+    }
+}
+
+#[test]
+fn init_rerun_writes_the_block_into_an_existing_upper_case_agents_file() {
+    let project = TempDir::new().expect("project");
+    let home = TempDir::new().expect("home");
+    init_in(home.path(), project.path(), &[]).success();
+    let agents = read(project.path(), "AGENTS.md");
+    fs::rename(
+        project.path().join("AGENTS.md"),
+        project.path().join("AGENTS.MD"),
+    )
+    .expect("rename");
+    fs::write(
+        project.path().join("AGENTS.MD"),
+        format!("{agents}\n## The Project's Own Rules\n"),
+    )
+    .expect("agents");
+
+    let rerun = init_in(home.path(), project.path(), &["api"]).success();
+    assert!(
+        !stderr_of(&rerun).contains("Warning"),
+        "{}",
+        stderr_of(&rerun)
+    );
+
+    let names: Vec<String> = fs::read_dir(project.path())
+        .expect("read_dir")
+        .map(|entry| {
+            entry
+                .expect("entry")
+                .file_name()
+                .to_string_lossy()
+                .into_owned()
+        })
+        .filter(|name| name.eq_ignore_ascii_case("agents.md"))
+        .collect();
+    assert_eq!(names, vec!["AGENTS.MD"]);
+    let upper = read(project.path(), "AGENTS.MD");
+    assert!(upper.ends_with(&format!("{BLOCK_END}\n\n## The Project's Own Rules\n")));
+    assert!(block_of(&upper).contains("Pack Document Types"));
+    assert!(block_of(&read(project.path(), "CLAUDE.md")).ends_with("See @AGENTS.MD.\n"));
 }

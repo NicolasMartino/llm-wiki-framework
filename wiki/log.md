@@ -1,5 +1,56 @@
 # Wiki Log
 
+## [2026-10-07] merge | Five short plans, and poman is MCP-friendly
+
+Merged #59 (closes #57; part of #29, #36, #37, #49 and #5): plans for compact
+search pages that follow the limit, a stale-index warning that names its
+command and rebuilds a small index, the dependency gate (recast once a probe
+showed `cargo deny check` already rejects a banned dev-dependency), the search
+eval in a temporary home, and removing the dead `build-skills` recipes. The
+owner decided on 2026-10-07 that poman is MCP-friendly: every command is also
+an MCP tool with the same behaviour and a JSON result, served by `poman mcp`
+and registered by `llm-wiki install`; PM3.1 holds it, built with PM3 in one PR
+(#60). P15 and P20 are Completed.
+
+Pages affected: `wiki/decisions/poman-is-mcp-friendly.decision.md`, five new
+plans under `wiki/plans/`, `wiki/roadmaps/framework-v1.roadmap.md`,
+`wiki/roadmaps/poman.roadmap.md`, `wiki/index.md`.
+
+## [2026-10-07] merge | The root schema files get one block that init owns
+
+Merged #55 (closes #53), phase 1 of the plan for shipping the operations setup:
+`AGENTS.md` (or `AGENTS.MD`), `CLAUDE.md` and `project_guidelines.md` each
+get one marked `llm-wiki:managed` block that init writes and refreshes, and
+a rerun leaves everything outside it as it was (the owner's "needle",
+2026-10-06). Init checks every file's markers and renders each block before
+writing anything, saves and warns about edits made inside a block, migrates an
+unmarked file once, records each block's hash in `.llm_wiki/init.toml`, and
+its collision guard also refuses `AGENTS.MD`. The plan stays Active for the
+pack, the prompt and the resource.
+
+Pages affected: `wiki/decisions/composable-project-init.decision.md`,
+`wiki/specs/wiki-init-skill.spec.md`,
+`wiki/plans/operations-setup-in-llm-wiki.plan.md`, `wiki/index.md`.
+
+## [2026-10-07] merge | Each PR carries its own log entry and backlog lines
+
+Merged #52 (closes #51): the owner decided on 2026-10-07 that each PR into
+`develop` carries its own log entry and any waiting backlog roadmap entries in
+one bookkeeping commit, added by the coordinator just before the PR goes ready
+or just after the owner's PASS, the latter only when it touches nothing but
+`wiki/log.md` and added roadmap lines, with the merge pinned to the new head.
+Log PRs stop, and roadmap entries are no longer committed straight to
+`develop`. The rule covers two PRs waiting at once, gates and CI around the
+bookkeeping commit, and a fix round after a rejecting verdict. P24 is
+Completed.
+
+Pages affected: `AGENTS.MD`, `wiki/checklists/operation-manager.checklist.md`,
+`wiki/checklists/worker-briefs.checklist.md`,
+`wiki/decisions/the-pull-request-is-the-review-surface.decision.md`,
+`wiki/decisions/work-in-flight-is-a-pushed-branch.decision.md`,
+`wiki/roadmaps/framework-v1.roadmap.md`.
+
+
 ## [2026-10-07] merge | The plan for poman's deadline type
 
 Merged #56 (closes #54): the plan for PM3 has `poman new deadline` write a
@@ -12,6 +63,7 @@ owner's decision of 2026-10-07). The owner settles its eight choices.
 
 Pages affected: `wiki/plans/poman-deadline-type.plan.md`,
 `wiki/roadmaps/poman.roadmap.md`, `wiki/index.md`.
+
 
 ## [2026-10-07] merge | poman's shared page reader and document types
 

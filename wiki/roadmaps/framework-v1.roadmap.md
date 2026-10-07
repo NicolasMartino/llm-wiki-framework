@@ -835,7 +835,7 @@ Promise: `just build-skills` and `just build-skills-to <out>` do what their
 names say, or are gone, instead of failing with "unrecognized subcommand
 'build'".
 Depends On: None
-Execution Plan: Not created yet (a short plan comes before its worker)
+Execution Plan: `wiki/plans/build-skills-recipes.plan.md`
 
 Included:
 - the two justfile recipes, which call `cargo run -- build`, a subcommand the
@@ -977,12 +977,12 @@ Proof:
 
 ### P15 - Compact Search Honours Its Limit
 
-Status: Active
+Status: Completed (develop)
 Promise: `llm_wiki_search` with `compact` set returns as many results as its
 `limit` asks for, or says plainly how to get the rest, instead of a first page
 of three that reads as the limit being ignored.
 Depends On: None
-Execution Plan: Not created yet (an investigation first; any fix gets its plan)
+Execution Plan: Not needed (an investigation first; any fix gets its own plan)
 
 Included:
 - the case met on 2026-10-06: `compact=true` with `limit=12` returned a page
@@ -1028,8 +1028,8 @@ Status: Draft
 Promise: `llm_wiki_search` in compact mode returns as many results as its
 `limit` asks for by default, and says plainly when more exist.
 Depends On: P15
-Execution Plan: Not created yet (a short plan comes before its worker; the
-plan's PR also marks P15 Completed, its answer having landed)
+Execution Plan: `wiki/plans/compact-search-pages-follow-the-limit.plan.md`
+(its PR marked P15 Completed, the answer on #24 having landed)
 
 Included:
 - the fix the investigation of P15 named (issue #24, comment of 2026-10-06):
@@ -1050,7 +1050,7 @@ Status: Completed (develop)
 Promise: A plan's status changes in the PR that does its work: the worker sets
 it Active with its Branch line in its first push and Completed before the PR
 leaves draft, and the merge makes it true. The coordinator commits no status,
-the log PR carries only the log, and `just branch-status` reads each branch's
+the log PR carries only the log (log PRs replaced by P24 on 2026-10-07), and `just branch-status` reads each branch's
 plans from its own `origin/<branch>`.
 Depends On: None
 Execution Plan: Not needed (the rules change is wiki-only; the recipe change is
@@ -1083,8 +1083,8 @@ named by the owner on 2026-10-06) holds the kit's files, and an
 it as a slash command (`/mcp__llm-wiki__operations_setup`) next to the wiki
 prompts.
 Depends On: P18
-Execution Plan: `wiki/plans/operations-setup-in-llm-wiki.plan.md` (Draft, for
-the owner to approve), from the accepted proposal
+Execution Plan: `wiki/plans/operations-setup-in-llm-wiki.plan.md` (Active),
+from the accepted proposal
 `wiki/proposals/operations-setup-in-llm-wiki.proposal.md`
 
 Included:
@@ -1117,7 +1117,7 @@ Proof:
 
 ### P20 - Search After Edits In A Worktree
 
-Status: Draft
+Status: Completed (develop)
 Promise: A worker that edits wiki pages in its worktree and then searches gets
 answers from the pages as they are, or a plain instruction it can follow,
 instead of results from the index built when the worktree was made.
@@ -1145,8 +1145,8 @@ Promise: After pages change, search says plainly, in the CLI and in the MCP
 reply, that its index is stale and the exact command that rebuilds it, and a
 small word-match index rebuilds itself before answering when that is safe.
 Depends On: P20
-Execution Plan: Not created yet (a short plan comes before its worker; the
-plan's PR also marks P20 Completed, its answer having landed)
+Execution Plan: `wiki/plans/search-stale-index-warning-and-rebuild.plan.md`
+(its PR marked P20 Completed, the answer on #34 having landed)
 
 Included:
 - the fix the investigation of P20 named (issue #34, comment of 2026-10-06):
@@ -1169,7 +1169,7 @@ Promise: The strict gates' dependency check (`cargo deny`) covers the strict
 crates' dev-dependencies too, so a banned or duplicated crate pulled in only by
 tests cannot slip past it.
 Depends On: PM1 (poman roadmap)
-Execution Plan: Not created yet (a short plan comes before its worker)
+Execution Plan: `wiki/plans/dependency-gate-covers-dev-dependencies.plan.md`
 
 Included:
 - the leftover the blind review of PR #28 named (2026-10-06): cargo-deny 0.20.2
@@ -1188,7 +1188,7 @@ Promise: The hand-run search eval runs on any machine through one `just`
 recipe that registers and indexes its project in a temporary home, without
 touching the machine's real llm-wiki registry.
 Depends On: None
-Execution Plan: Not created yet (a short plan comes before its worker)
+Execution Plan: `wiki/plans/search-eval-in-a-temporary-home.plan.md`
 
 Included:
 - the gap met in poman's PM1 and PM2 (2026-10-06 and 2026-10-07): the ignored
@@ -1203,3 +1203,32 @@ Excluded:
 Proof:
 - the recipe runs the eval with that project unregistered on the machine, and
   the real registry is unchanged afterwards
+
+### P24 - Each PR Carries Its Own Log Entry And Backlog Lines
+
+Status: Completed (develop)
+Promise: Each PR into `develop` carries its own log entry and any waiting
+backlog roadmap entries in one bookkeeping commit, which the coordinator adds
+just before the PR goes ready, or just after the owner's PASS when it touches
+only `wiki/log.md` and roadmap entries. Log PRs stop, and no roadmap entry is
+committed straight to `develop`.
+Depends On: P18
+Execution Plan: Not needed (the rules change is wiki-only, with the operations
+skills)
+
+Included:
+- the owner's decision of 2026-10-07: "just before the merge you add a commit
+  with the backlog and all the llm wiki logs", and "it's ok just after the pass
+  only if it touches logs/backlog and no code"
+- AGENTS.MD, the operation manager checklist, the worker briefs checklist, the
+  review-surface and work-in-flight decisions, the operations skills and the
+  workers' base texts (issue #51)
+
+Excluded:
+- `wiki/log.md` entries and past records, which stay as written
+- the blind review and the owner's verdict rules themselves
+
+Proof:
+- no page of the way of working tells the coordinator to open a log PR, except
+  as history, and the landing steps describe the bookkeeping commit and both
+  moments
