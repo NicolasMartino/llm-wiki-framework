@@ -24,7 +24,7 @@
     `src/search/semantic.rs`, `src/search/index_text.rs`,
     `src/init/compose.rs`, `src/init/packs.rs`, `crates/llm-wiki-core/`,
     `tools/strict-gates.sh` and `templates/base/project_guidelines.md` at
-    `92187d3`, the state "Where It Stands" summarises
+    `92187d3`, the state this plan was written from, kept in git history
   - riseon issue #11: the founding tasks to be written as deadline files once
     PM3 lands
   - The owner's answers of 2026-10-07 to the plan's three choices, each as
@@ -35,9 +35,9 @@
   - `wiki/decisions/deadline-files-hold-one-deadline-each.decision.md`: the
     first poman type, PM3's, which this plan makes room for
   - `wiki/plans/operations-setup-in-llm-wiki.plan.md`, P19 of
-    `wiki/roadmaps/framework-v1.roadmap.md`: on PR #41's branch until that
-    PR merges, not on `develop` at `92187d3`. It also changes what init
-    writes; "Where This Meets The Operations Setup" below
+    `wiki/roadmaps/framework-v1.roadmap.md`: the plan is on `develop` (PR #41
+    merged as `878f862`), its work is not. It also changes what init writes;
+    "Where This Meets The Operations Setup" below
 
 ## What This Proves
 
@@ -101,7 +101,9 @@ as approved with PR #45.
 - **The guidelines are checked against them:** `tests/guidelines_types.rs`
   runs `llm-wiki init` without and with the ML pack and compares each section
   that names the types with the definitions, both ways (the owner's choice
-  2). Its folder rule takes `model-cards/` as a literal and checks it, with
+  2), and two other rendered copies: with the ML pack, "ML Pack Additions"'
+  sentence listing the Eval statuses, in order, and in both, `AGENTS.md`'s
+  "Document types" line. Its folder rule takes `model-cards/` as a literal and checks it, with
   the rest, against the folders init made, since a test under `tests/` cannot
   call into the binary's pack table. A status changed in a definition, and a
   type left out, each made it fail.
@@ -293,7 +295,11 @@ makes ready:
   can name the file and the line;
 - the fields found outside the bullet block, with their lines and forms, so
   `poman check` can refuse front matter, bold keys and `* ` list items by
-  name;
+  name. A value counts as bold only when its opening `**` closes later on
+  the line, so `- Paths: **/*.md` stays in the bullet block. A key is not
+  always a clean name: a `* ` marker in front of bold asterisks leaves them
+  in it (`* **Status:** Todo` reads `**Status`, as search reads it), so a
+  message about such a line names its line, not only its key;
 - a page that starts with a byte-order mark, reported by the bullet-block
   view (`BulletBlock::byte_order_mark`): the reader reads it as search
   always has, so front matter or a title on its first line is not found, and
@@ -311,8 +317,8 @@ release, belongs to PM3's proof, not to PM2.
 
 ### Where This Meets The Operations Setup
 
-P19 (`wiki/plans/operations-setup-in-llm-wiki.plan.md`, on PR #41's branch
-until that PR merges) also changes what init writes: it puts everything init
+P19 (`wiki/plans/operations-setup-in-llm-wiki.plan.md`, on `develop` since
+PR #41 merged as `878f862`; its work is not) also changes what init writes: it puts everything init
 renders in `AGENTS.md`, `CLAUDE.md` and `project_guidelines.md` inside a
 managed block, and adds a pack. Where the two meet, for whoever lands second
 to recheck:
