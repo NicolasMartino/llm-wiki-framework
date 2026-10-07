@@ -1,6 +1,6 @@
 [package]
 name = "llm-wiki-core"
-description = "The page reader and file types shared by llm-wiki and poman."
+description = "The page reader, file types and MCP plumbing shared by llm-wiki and poman."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -11,6 +11,7 @@ keywords = ["llm-wiki", "wiki", "markdown"]
 categories = ["parser-implementations"]
 
 [dependencies]
+serde_json.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

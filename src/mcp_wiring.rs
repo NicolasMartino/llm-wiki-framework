@@ -4,7 +4,7 @@
 //! the thin orchestrator that performs the filesystem side effects (backups,
 //! atomic writes, directory creation) and reports what changed, so the two
 //! project-scoped commands and the global installer cannot drift in how they
-//! wire the `llm-wiki[-test]` server.
+//! wire the `llm-wiki[-test]` server and poman's beside it.
 
 use std::fs;
 use std::io::{self, Write};
@@ -15,7 +15,7 @@ use anyhow::{Context, Result};
 use crate::cli::CliContext;
 use crate::instance;
 use crate::mcp_config;
-use crate::mcp_config::ServerWiring;
+use crate::mcp_config::{McpServer, ServerWiring};
 use crate::paths::Paths;
 
 /// What happened to a single host config while ensuring it wires the server.
@@ -56,19 +56,30 @@ pub struct WireSummary {
     pub codex: WireOutcome,
 }
 
+/// The servers every host is wired with: llm-wiki's, from `binary`, and
+/// poman's, from the managed poman beside it.
+pub fn managed_servers(paths: &Paths, binary: &Path) -> [McpServer; 2] {
+    [
+        McpServer::llm_wiki(binary),
+        McpServer::poman(&paths.managed_poman()),
+    ]
+}
+
 /// Wire a concrete project for both hosts: merge the project-local Claude
 /// `.mcp.json` and ensure the global Codex config, non-destructively and
-/// idempotently. `binary` is the managed binary the hosts will spawn.
+/// idempotently. `binary` is the managed binary the hosts will spawn; poman's
+/// server is wired beside it.
 pub fn wire_project_mcp(
     project_root: &Path,
     paths: &Paths,
     binary: &Path,
     context: &CliContext,
 ) -> Result<WireSummary> {
+    let servers = managed_servers(paths, binary);
     let claude_path = project_root.join(".mcp.json");
-    let claude = ensure_claude_project_mcp_config(&claude_path, binary, context)?;
+    let claude = ensure_claude_project_mcp_config(&claude_path, &servers, context)?;
     let codex_path = paths.codex_config_toml();
-    let codex = ensure_codex_mcp_config(&codex_path, binary, context)?;
+    let codex = ensure_codex_mcp_config(&codex_path, &servers, context)?;
     Ok(WireSummary {
         claude_path,
         claude,
@@ -77,20 +88,24 @@ pub fn wire_project_mcp(
     })
 }
 
-/// Ensure a project-local Claude `.mcp.json` wires the managed server. Other
+/// Ensure a project-local Claude `.mcp.json` wires the managed servers. Other
 /// servers and root keys are preserved; a no-op when already correct.
 pub fn ensure_claude_project_mcp_config(
     mcp_json_path: &Path,
-    binary: &Path,
+    servers: &[McpServer],
     context: &CliContext,
 ) -> Result<WireOutcome> {
     let existing = read_optional(mcp_json_path)?;
-    if let Some(contents) = existing.as_deref()
-        && mcp_config::claude_project_server_wiring(contents, binary)? == ServerWiring::Wired
-    {
-        return Ok(WireOutcome::AlreadyCurrent);
+    if let Some(contents) = existing.as_deref() {
+        let mut all_wired = true;
+        for server in servers {
+            all_wired &= mcp_config::claude_server_wiring(contents, server)? == ServerWiring::Wired;
+        }
+        if all_wired {
+            return Ok(WireOutcome::AlreadyCurrent);
+        }
     }
-    let merged = mcp_config::merge_claude_project_mcp_config(existing.as_deref(), binary)?;
+    let merged = mcp_config::merge_claude_servers(existing.as_deref(), servers)?;
     let changed = existing.as_deref() != Some(merged.as_str());
     if changed {
         write_atomic(mcp_json_path, &merged)?;
@@ -102,17 +117,17 @@ pub fn ensure_claude_project_mcp_config(
     Ok(WireOutcome::resolve(existing.is_some(), changed))
 }
 
-/// Ensure the global Codex `config.toml` wires the managed server. The config is
-/// user-owned, so the pre-llm-wiki contents are snapshotted once to a
+/// Ensure the global Codex `config.toml` wires the managed servers. The config
+/// is user-owned, so the pre-llm-wiki contents are snapshotted once to a
 /// `.llm-wiki-backup` sibling before the first merge and the merged config is
 /// written atomically. A no-op when already correct.
 pub fn ensure_codex_mcp_config(
     codex_path: &Path,
-    binary: &Path,
+    servers: &[McpServer],
     context: &CliContext,
 ) -> Result<WireOutcome> {
     let existing = read_optional(codex_path)?;
-    let merged = mcp_config::merge_codex_config(existing.as_deref(), binary)?;
+    let merged = mcp_config::merge_codex_servers(existing.as_deref(), servers)?;
     let changed = existing.as_deref() != Some(merged.as_str());
     if !changed {
         return Ok(WireOutcome::AlreadyCurrent);
@@ -209,6 +224,13 @@ mod tests {
         CliContext::new(false)
     }
 
+    fn servers() -> [McpServer; 2] {
+        [
+            McpServer::llm_wiki(Path::new("/tmp/llm-wiki")),
+            McpServer::poman(Path::new("/tmp/poman")),
+        ]
+    }
+
     #[test]
     fn wire_project_creates_then_is_idempotent() {
         let project = tempfile::TempDir::new().expect("project");
@@ -221,6 +243,18 @@ mod tests {
         assert_eq!(first.codex, WireOutcome::Created);
         assert!(first.claude_path.exists());
         assert!(first.codex_path.exists());
+        let claude: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&first.claude_path).expect("claude"))
+                .expect("json");
+        assert_eq!(
+            claude["mcpServers"][mcp_config::poman_server_name()]["command"].as_str(),
+            paths.managed_poman().to_str()
+        );
+        let codex = fs::read_to_string(&first.codex_path).expect("codex");
+        assert!(codex.contains(&format!(
+            "[mcp_servers.{}]",
+            mcp_config::poman_server_name()
+        )));
 
         let before = fs::read_to_string(&first.claude_path).expect("claude");
         let second = wire_project_mcp(project.path(), &paths, binary, &context()).expect("second");
@@ -244,8 +278,7 @@ mod tests {
         .expect("seed");
 
         let outcome =
-            ensure_claude_project_mcp_config(&mcp_json, Path::new("/tmp/llm-wiki"), &context())
-                .expect("wire");
+            ensure_claude_project_mcp_config(&mcp_json, &servers(), &context()).expect("wire");
         assert_eq!(outcome, WireOutcome::Updated);
         let parsed: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&mcp_json).expect("read")).expect("json");
@@ -254,6 +287,7 @@ mod tests {
             Some("other")
         );
         assert!(parsed["mcpServers"][instance::mcp_server_name()].is_object());
+        assert!(parsed["mcpServers"][mcp_config::poman_server_name()].is_object());
     }
 
     #[test]
@@ -261,14 +295,14 @@ mod tests {
         let project = tempfile::TempDir::new().expect("project");
         let mcp_json = project.path().join(".mcp.json");
         let compact = format!(
-            r#"{{"mcpServers":{{"{name}":{{"type":"stdio","command":"/tmp/llm-wiki","args":["mcp","serve"],"env":{{}}}},"other":{{"command":"other"}}}},"custom":true}}"#,
-            name = instance::mcp_server_name()
+            r#"{{"mcpServers":{{"{name}":{{"type":"stdio","command":"/tmp/llm-wiki","args":["mcp","serve"],"env":{{}}}},"{poman}":{{"type":"stdio","command":"/tmp/poman","args":["mcp"],"env":{{}}}},"other":{{"command":"other"}}}},"custom":true}}"#,
+            name = instance::mcp_server_name(),
+            poman = mcp_config::poman_server_name()
         );
         fs::write(&mcp_json, &compact).expect("seed compact .mcp.json");
 
         let outcome =
-            ensure_claude_project_mcp_config(&mcp_json, Path::new("/tmp/llm-wiki"), &context())
-                .expect("wire");
+            ensure_claude_project_mcp_config(&mcp_json, &servers(), &context()).expect("wire");
 
         assert_eq!(outcome, WireOutcome::AlreadyCurrent);
         assert_eq!(
@@ -285,8 +319,7 @@ mod tests {
         fs::create_dir_all(codex_path.parent().unwrap()).expect("codex dir");
         fs::write(&codex_path, "model = \"gpt-5\"\n").expect("seed");
 
-        ensure_codex_mcp_config(&codex_path, Path::new("/tmp/llm-wiki"), &context())
-            .expect("first");
+        ensure_codex_mcp_config(&codex_path, &servers(), &context()).expect("first");
         let backup = codex_config_backup_path(&codex_path);
         assert_eq!(
             fs::read_to_string(&backup).expect("backup"),
@@ -295,8 +328,8 @@ mod tests {
         );
 
         // A second wiring against a new binary must not overwrite the snapshot.
-        ensure_codex_mcp_config(&codex_path, Path::new("/new/llm-wiki"), &context())
-            .expect("second");
+        let moved = [McpServer::llm_wiki(Path::new("/new/llm-wiki"))];
+        ensure_codex_mcp_config(&codex_path, &moved, &context()).expect("second");
         assert_eq!(
             fs::read_to_string(&backup).expect("backup"),
             "model = \"gpt-5\"\n",

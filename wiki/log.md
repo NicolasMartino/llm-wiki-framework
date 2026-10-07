@@ -18,6 +18,29 @@ Pages affected: `wiki/plans/search-eval-in-a-temporary-home.plan.md`,
 `wiki/evals/natural-language-search.eval.md`,
 `wiki/roadmaps/framework-v1.roadmap.md`, `wiki/index.md`.
 
+## [2026-10-07] merge | poman writes and checks deadline files, and serves them over MCP
+
+Merged #62 (closes #60): PM3 and PM3.1 built in one PR, as the owner decided
+on 2026-10-07. `poman new deadline` writes a deadline file and refuses any
+value `poman check` would refuse; `poman check` holds every deadline file to
+its type, each message naming the file and the line; both answer in JSON with
+`--json`. `poman mcp` serves them as the `poman_new_deadline` and
+`poman_check` tools over the stdio plumbing now shared in `llm-wiki-core`,
+and `llm-wiki install` registers poman's server beside llm-wiki's, which
+uninstall removes. `just local-release` builds the release archives locally,
+saves the current install and installs from them; `just
+local-release-revert` restores the saved state, refusing and naming each file
+changed since the release unless `--overwrite` is given, which copies those
+files aside first. PM3's proof on riseon is the owner's own test after a local
+release. doctor's check of poman's wiring is PM3.2.
+
+Pages affected: `wiki/plans/poman-deadline-type.plan.md`,
+`wiki/plans/poman-mcp-server.plan.md`, `wiki/roadmaps/poman.roadmap.md`,
+`wiki/decisions/poman-is-mcp-friendly.decision.md`,
+`wiki/decisions/poman-reads-only-its-own-file-types.decision.md`,
+`wiki/decisions/deadline-files-hold-one-deadline-each.decision.md`,
+`wiki/index.md`.
+
 ## [2026-10-07] merge | Lexical search weights titles and file names, and falls back to phrases
 
 Merged #58 (closes #25): lexical ranking weights a page's file path and title
@@ -35,6 +58,7 @@ here.
 Pages affected: `wiki/plans/search-ranking-weights-and-phrase-fallback.plan.md`,
 `wiki/specs/documentation-model.spec.md`,
 `wiki/decisions/search-backend-selection.decision.md`,
+`wiki/roadmaps/framework-v1.roadmap.md`, `wiki/index.md`.
 
 ## [2026-10-07] merge | The dead build-skills recipes are gone
 
@@ -65,6 +89,7 @@ Pages affected: `wiki/plans/dependency-gate-covers-dev-dependencies.plan.md`,
 `wiki/plans/poman-workspace-and-strict-gates.plan.md`,
 
 `wiki/roadmaps/framework-v1.roadmap.md`, `wiki/index.md`.
+
 
 ## [2026-10-07] merge | Five short plans, and poman is MCP-friendly
 
