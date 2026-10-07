@@ -111,9 +111,15 @@ Init owns the text between the markers and the project owns the rest:
   block, then a dated `## Kept From Before The llm-wiki Block` heading, then
   the old file unchanged, and warns that the kept text may repeat the block.
 - Init writes into the AGENTS file that exists, `AGENTS.md` or `AGENTS.MD`,
-  and never a second one beside it; `CLAUDE.md`'s block names that file. When registration is enabled, rerun init updates the
-existing registry entry matched by canonical project root rather than creating
-a duplicate; the existing project id remains stable.
+  and never a second one beside it; `CLAUDE.md`'s block names that file.
+- A root schema file that is a link to another, such as `CLAUDE.md` linked to
+  `AGENTS.md`, is left alone: init writes the block into the file it links to
+  and says so.
+- An empty root schema file is written as a missing one.
+
+When registration is enabled, rerun init updates the existing registry entry
+matched by canonical project root rather than creating a duplicate; the
+existing project id remains stable.
 
 When a rerun changes the resolved pack set, or when the same resolved pack set
 now resolves to a different folder composition than the previous manifest

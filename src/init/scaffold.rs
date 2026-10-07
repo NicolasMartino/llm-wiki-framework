@@ -10,7 +10,7 @@ use crate::init::answers::Answers;
 use crate::init::blueprints::Blueprint;
 use crate::init::collision::refuse_framework_collision;
 use crate::init::compose::{InitOutput, RenderPlan, compose, resolve_folders};
-use crate::init::managed_block::{RootSchemaWrites, is_root_schema_file};
+use crate::init::managed_block::{RootSchemaWrites, folder_names, is_root_schema_file};
 use crate::init::manifest::{InitManifest, ManagedBlocks};
 use crate::init::packs::Pack;
 use crate::init::runtime::RuntimeManifest;
@@ -35,8 +35,9 @@ pub(super) fn create_project(
         InitMode::Fresh => None,
         InitMode::Rerun => read_previous_manifest(path),
     };
+    let names = folder_names(path);
     if mode == InitMode::Fresh {
-        refuse_framework_collision(path)?;
+        refuse_framework_collision(path, &names)?;
     }
     validate_initial_sources(initial_sources)?;
 
@@ -48,8 +49,13 @@ pub(super) fn create_project(
         .unwrap_or_default();
     // Everything that can refuse the run happens above this line, before the
     // first write.
-    let root_schema =
-        RootSchemaWrites::plan(path, &output, previous_output.as_ref(), &recorded_blocks)?;
+    let root_schema = RootSchemaWrites::plan(
+        path,
+        &names,
+        &output,
+        previous_output.as_ref(),
+        &recorded_blocks,
+    )?;
     fs::create_dir_all(path).with_context(|| format!("failed to create {}", path.display()))?;
 
     // Commit `.llm_wiki/init.toml` BEFORE the project files. If a later scaffold

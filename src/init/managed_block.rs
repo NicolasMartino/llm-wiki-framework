@@ -7,7 +7,7 @@ use anyhow::{Context, Result, bail};
 use chrono::Utc;
 use sha2::{Digest, Sha256};
 
-use super::compose::{InitOutput, claude_redirect};
+use super::compose::InitOutput;
 use super::manifest::ManagedBlocks;
 
 const START_MARKER: &str = "<!-- llm-wiki:managed:start -->";
@@ -52,21 +52,31 @@ pub(super) fn is_root_schema_file(path: &str) -> bool {
         .any(|file| file.composed_path() == path)
 }
 
-/// The project's AGENTS file as spelled on disk. Read from the folder listing
-/// rather than `exists()`, which a case-insensitive file system answers for
-/// either spelling.
-pub(super) fn agents_file_name(project: &Path) -> &'static str {
-    let names: BTreeSet<String> = fs::read_dir(project)
+/// The names in the project's folder as spelled on disk. `exists()` cannot
+/// tell `AGENTS.md` from `AGENTS.MD` on a case-insensitive file system; the
+/// listing can.
+pub(super) fn folder_names(project: &Path) -> BTreeSet<String> {
+    fs::read_dir(project)
         .into_iter()
         .flatten()
         .flatten()
         .map(|entry| entry.file_name().to_string_lossy().into_owned())
-        .collect();
+        .collect()
+}
+
+/// The project's AGENTS file: `AGENTS.MD` when that spelling is the one on
+/// disk, `AGENTS.md` otherwise.
+pub(super) fn agents_file_name(names: &BTreeSet<String>) -> &'static str {
     if !names.contains("AGENTS.md") && names.contains("AGENTS.MD") {
         "AGENTS.MD"
     } else {
         "AGENTS.md"
     }
+}
+
+/// CLAUDE.md's one line, naming the AGENTS file the project has.
+fn claude_redirect(agents_file: &str) -> String {
+    format!("See @{agents_file}.\n")
 }
 
 /// What init will write into the root schema files, worked out before
@@ -78,6 +88,10 @@ pub(super) struct RootSchemaWrites {
 
 struct PlannedFile {
     name: &'static str,
+    /// Set when this file is a link to an earlier root schema file, whose
+    /// block is the one written; writing this one too would put its block
+    /// over the other's through the link.
+    linked_to: Option<&'static str>,
     contents: String,
     changed: bool,
     edited_block: Option<EditedBlock>,
@@ -95,15 +109,31 @@ impl RootSchemaWrites {
     /// compare against it.
     pub(super) fn plan(
         project: &Path,
+        names: &BTreeSet<String>,
         output: &InitOutput,
         previous: Option<&InitOutput>,
         recorded: &ManagedBlocks,
     ) -> Result<Self> {
-        let agents_file = agents_file_name(project);
+        let agents_file = agents_file_name(names);
         let mut files = Vec::new();
         let mut hashes = ManagedBlocks::default();
+        let mut written: Vec<(PathBuf, &'static str)> = Vec::new();
         for root in RootFile::ALL {
             let name = root.file_name(agents_file);
+            let canonical = fs::canonicalize(project.join(name)).ok();
+            let linked_to = canonical.as_ref().and_then(|canonical| {
+                written
+                    .iter()
+                    .find(|(path, _)| path == canonical)
+                    .map(|(_, other)| *other)
+            });
+            if let Some(other) = linked_to {
+                files.push(PlannedFile::linked(name, other));
+                continue;
+            }
+            if let Some(canonical) = canonical {
+                written.push((canonical, name));
+            }
             let body = render(root, output, agents_file)?;
             let previous_body = previous
                 .map(|previous| render(root, previous, agents_file))
@@ -129,6 +159,13 @@ impl RootSchemaWrites {
 
     pub(super) fn apply(&self, project: &Path) -> Result<()> {
         for file in &self.files {
+            if let Some(other) = file.linked_to {
+                println!(
+                    "{} links to {other}; init wrote the llm-wiki block into {other} only.",
+                    file.name
+                );
+                continue;
+            }
             let target = project.join(file.name);
             if let Some(edited) = &file.edited_block {
                 let copy = save_edited_block(project, file.name, &edited.text)?;
@@ -148,6 +185,19 @@ impl RootSchemaWrites {
             }
         }
         Ok(())
+    }
+}
+
+impl PlannedFile {
+    fn linked(name: &'static str, other: &'static str) -> Self {
+        Self {
+            name,
+            linked_to: Some(other),
+            contents: String::new(),
+            changed: false,
+            edited_block: None,
+            kept_unmarked: false,
+        }
     }
 }
 
@@ -198,9 +248,12 @@ fn plan_file(
     existing: Option<&str>,
 ) -> Result<PlannedFile> {
     let inner = block_inner(body);
+    // An empty file has no text of the project's to keep.
+    let existing = existing.filter(|text| !text.trim_matches(is_blank).is_empty());
     let Some(existing) = existing else {
         return Ok(PlannedFile {
             name,
+            linked_to: None,
             contents: wrap(&inner, "\n"),
             changed: true,
             edited_block: None,
@@ -222,6 +275,7 @@ fn plan_file(
         };
         return Ok(PlannedFile {
             name,
+            linked_to: None,
             changed: contents != existing,
             contents,
             edited_block: None,
@@ -247,6 +301,7 @@ fn plan_file(
     );
     Ok(PlannedFile {
         name,
+        linked_to: None,
         changed: contents != existing,
         contents,
         edited_block,
@@ -273,7 +328,13 @@ fn hash(inner: &str) -> String {
 }
 
 fn normalize(text: &str) -> String {
-    text.replace("\r\n", "\n")
+    text.trim_start_matches(BOM).replace("\r\n", "\n")
+}
+
+const BOM: char = '\u{feff}';
+
+fn is_blank(c: char) -> bool {
+    c.is_whitespace() || c == BOM
 }
 
 /// The guidelines carry the date of their render, which differs between any
@@ -349,7 +410,9 @@ fn find_block(contents: &str) -> Result<Option<BlockBounds>, MarkerError> {
     let mut offset = 0;
     for (index, line) in contents.split_inclusive('\n').enumerate() {
         let number = index + 1;
-        let marker = line.trim();
+        // A byte-order mark before a marker is part of the text above it.
+        let lead = line.len() - line.trim_start_matches(BOM).len();
+        let marker = line[lead..].trim();
         if marker == START_MARKER {
             if let Some((_, _, begin_line)) = open {
                 return Err(MarkerError {
@@ -367,7 +430,7 @@ fn find_block(contents: &str) -> Result<Option<BlockBounds>, MarkerError> {
                     ),
                 });
             }
-            open = Some((offset, offset + line.len(), number));
+            open = Some((offset + lead, offset + line.len(), number));
         } else if marker == END_MARKER {
             let Some((start, inner_start, begin_line)) = open.take() else {
                 let problem = match found {
@@ -503,6 +566,15 @@ mod tests {
 
         let nested = format!("{START_MARKER}\n{START_MARKER}\n{END_MARKER}\n");
         assert_eq!(find_block(&nested).unwrap_err().line, 2);
+    }
+
+    #[test]
+    fn a_byte_order_mark_before_the_begin_marker_stays_above_the_block() {
+        let contents = format!("{BOM}{}", block("inside\n"));
+        let bounds = find_block(&contents).unwrap().unwrap();
+
+        assert_eq!(&contents[..bounds.start], "\u{feff}");
+        assert_eq!(&contents[bounds.inner_start..bounds.inner_end], "inside\n");
     }
 
     #[test]

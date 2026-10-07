@@ -1254,16 +1254,123 @@ fn init_rerun_turns_an_unmarked_file_equal_to_the_previous_render_into_the_block
     }
     remove_recorded_hashes(project.path());
 
+    // The rerun adds a pack, so the files match the previous answers' render,
+    // not this run's.
+    let rerun = init_in(home.path(), project.path(), &["api"]).success();
+    assert!(
+        !stderr_of(&rerun).contains("Warning"),
+        "{}",
+        stderr_of(&rerun)
+    );
+    assert_eq!(read(project.path(), "CLAUDE.md"), fresh[2]);
+    for file in ["project_guidelines.md", "AGENTS.md"] {
+        let text = read(project.path(), file);
+        assert!(text.starts_with(&format!("{BLOCK_START}\n")), "{file}");
+        assert!(text.ends_with(&format!("{BLOCK_END}\n")), "{file}");
+        assert!(!text.contains("Kept From Before"), "{file}");
+        assert!(block_of(&text).contains("Pack Document Types"), "{file}");
+    }
+    assert!(saved_copies(project.path()).is_empty());
+    assert!(read_init_manifest(project.path())["managed_blocks"]["agents"].is_str());
+}
+
+#[test]
+fn init_rerun_compares_a_block_with_no_recorded_hash_to_the_previous_render() {
+    let project = TempDir::new().expect("project");
+    let home = TempDir::new().expect("home");
+    init_in(home.path(), project.path(), &[]).success();
+    let fresh_agents = read(project.path(), "AGENTS.md");
+    let added = "A rule added inside the block.";
+    let edited_claude = read(project.path(), "CLAUDE.md")
+        .replace("See @AGENTS.md.\n", &format!("See @AGENTS.md.\n{added}\n"));
+    fs::write(project.path().join("CLAUDE.md"), &edited_claude).expect("claude");
+    remove_recorded_hashes(project.path());
+
+    let rerun = init_in(home.path(), project.path(), &["api"]).success();
+    let stderr = stderr_of(&rerun);
+
+    // The unedited AGENTS block is refreshed with the pack, without a word.
+    assert!(!stderr.contains("AGENTS.md"), "{stderr}");
+    let agents = read(project.path(), "AGENTS.md");
+    assert_ne!(agents, fresh_agents);
+    assert!(block_of(&agents).contains("Pack Document Types"));
+    // The edited CLAUDE block is saved, replaced and warned about.
+    let copies = saved_copies(project.path());
+    assert_eq!(copies.len(), 1, "{copies:?}");
+    assert_eq!(
+        fs::read_to_string(&copies[0]).expect("copy"),
+        block_of(&edited_claude)
+    );
+    assert!(
+        stderr.contains("the llm-wiki block in CLAUDE.md was edited"),
+        "{stderr}"
+    );
+    assert!(stderr.contains(&format!("  {added}")), "{stderr}");
+    assert!(!read(project.path(), "CLAUDE.md").contains(added));
+}
+
+#[cfg(unix)]
+#[test]
+fn init_rerun_writes_one_block_when_claude_md_links_to_the_agents_file() {
+    let project = TempDir::new().expect("project");
+    let home = TempDir::new().expect("home");
+    init_in(home.path(), project.path(), &[]).success();
+    let agents = format!(
+        "{}\n## Our Own Section\n",
+        read(project.path(), "AGENTS.md")
+    );
+    fs::write(project.path().join("AGENTS.md"), &agents).expect("agents");
+    fs::remove_file(project.path().join("CLAUDE.md")).expect("remove");
+    std::os::unix::fs::symlink("AGENTS.md", project.path().join("CLAUDE.md")).expect("link");
+
+    for _ in 0..2 {
+        let rerun = init_in(home.path(), project.path(), &[]).success();
+        assert!(
+            !stderr_of(&rerun).contains("Warning"),
+            "{}",
+            stderr_of(&rerun)
+        );
+        assert!(
+            String::from_utf8_lossy(&rerun.get_output().stdout)
+                .contains("CLAUDE.md links to AGENTS.md")
+        );
+        assert_eq!(read(project.path(), "AGENTS.md"), agents);
+        assert!(project.path().join("CLAUDE.md").is_symlink());
+        assert!(saved_copies(project.path()).is_empty());
+    }
+}
+
+#[test]
+fn init_rerun_writes_an_empty_root_file_as_a_missing_one() {
+    let project = TempDir::new().expect("project");
+    let home = TempDir::new().expect("home");
+    init_in(home.path(), project.path(), &[]).success();
+    let fresh = read(project.path(), "CLAUDE.md");
+    fs::write(project.path().join("CLAUDE.md"), "").expect("truncate");
+
     let rerun = init_in(home.path(), project.path(), &[]).success();
     assert!(
         !stderr_of(&rerun).contains("Warning"),
         "{}",
         stderr_of(&rerun)
     );
-    for (file, text) in ROOT_SCHEMA_FILES.iter().zip(&fresh) {
-        assert_eq!(&read(project.path(), file), text, "{file}");
+    assert_eq!(read(project.path(), "CLAUDE.md"), fresh);
+}
+
+#[test]
+fn init_refuses_a_fresh_folder_with_only_an_agents_file() {
+    for name in ["AGENTS.md", "AGENTS.MD"] {
+        let project = TempDir::new().expect("project");
+        let home = TempDir::new().expect("home");
+        fs::write(project.path().join(name), "# Our agents\n").expect("agents");
+
+        let refused = init_in(home.path(), project.path(), &[]).failure();
+        let stderr = stderr_of(&refused);
+        assert!(stderr.contains("framework artifacts"), "{name}: {stderr}");
+        assert!(stderr.contains(name), "{name}: {stderr}");
+        assert_eq!(read(project.path(), name), "# Our agents\n");
+        assert!(!project.path().join(".llm_wiki").exists(), "{name}");
     }
-    assert!(read_init_manifest(project.path())["managed_blocks"]["agents"].is_str());
 }
 
 #[test]
@@ -1478,21 +1585,4 @@ fn init_rerun_writes_the_block_into_an_existing_upper_case_agents_file() {
     assert!(upper.ends_with(&format!("{BLOCK_END}\n\n## The Project's Own Rules\n")));
     assert!(block_of(&upper).contains("Pack Document Types"));
     assert!(block_of(&read(project.path(), "CLAUDE.md")).ends_with("See @AGENTS.MD.\n"));
-}
-
-#[test]
-fn init_refuses_a_fresh_folder_with_only_an_upper_case_agents_file() {
-    let project = TempDir::new().expect("project");
-    let home = TempDir::new().expect("home");
-    fs::write(project.path().join("AGENTS.MD"), "# Our agents\n").expect("agents");
-
-    let refused = init_in(home.path(), project.path(), &[]).failure();
-    let stderr = stderr_of(&refused);
-    assert!(stderr.contains("framework artifacts"), "{stderr}");
-    assert!(stderr.contains("AGENTS.MD"), "{stderr}");
-    assert_eq!(
-        fs::read_to_string(project.path().join("AGENTS.MD")).expect("agents"),
-        "# Our agents\n"
-    );
-    assert!(!project.path().join(".llm_wiki").exists());
 }
