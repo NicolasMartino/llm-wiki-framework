@@ -16,6 +16,7 @@ whole; the Codex path is P25. P17 is Completed.
 
 Pages affected: `wiki/plans/compact-search-pages-follow-the-limit.plan.md`,
 `wiki/specs/wiki-query-skill.spec.md`, `wiki/roadmaps/framework-v1.roadmap.md`,
+`wiki/index.md`.
 
 ## [2026-10-07] merge | poman writes and checks deadline files, and serves them over MCP
 
