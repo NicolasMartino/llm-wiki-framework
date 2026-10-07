@@ -5,7 +5,7 @@
 - Date: 2026-05-07
 - Category: Search infrastructure, framework tooling
 - Scope: Use qmd-rs as the D9 backend for `llm-wiki search` and `llm-wiki search-all`.
-- Sources: wiki/evals/search-backend-selection.eval.md, wiki/proposals/search-backend-selection.proposal.md, wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/references/qmd-rs-search-crate.reference.md, issue #36
+- Sources: wiki/evals/search-backend-selection.eval.md, issue #25, wiki/proposals/search-backend-selection.proposal.md, wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/references/qmd-rs-search-crate.reference.md, issue #36
 - Related: wiki/proposals/search-backend-selection.proposal.md, wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/plans/search-stale-index-warning-and-rebuild.plan.md
 
 ## Choice
@@ -106,6 +106,11 @@ Validated read behavior:
   corruption
 - writer commands prove immutable readability before live promotion
 - adapter-owned SQL keeps accepted qmd-rs lexical query parity under tests
+  (2026-10-07, issue #25: no longer. The adapter's lexical query weights the
+  file path and title columns 10 to the body's 1, where qmd-rs ranks with a
+  plain `bm25()`, and adds a phrase fallback qmd-rs does not have; the
+  adapter owns lexical ranking, as
+  `wiki/plans/search-ranking-weights-and-phrase-fallback.plan.md` records.)
 
 ## Stale Index Contract (P21)
 
@@ -133,6 +138,11 @@ A stale index stays searchable, and `search` writes in one case: plan
   `<binary> index --project <id>` command, which takes about a second for a
   word-match index and, for a project with LLM search on, rebuilds the
   meaning-based index too, which can take minutes.
+- The stale warning comes before the phrase fallback's line (issue #25) in
+  the `warnings` list and the text reply, each whole. The rebuild runs before
+  the search, so the page, `has_more` and the fallback's count are those of
+  the fresh index; a search that answers from a stale index computes them the
+  same way from it.
 
 ## Revisit When
 

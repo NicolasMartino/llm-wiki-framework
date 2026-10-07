@@ -83,7 +83,7 @@ verify-coverage: fmt coverage checks
 
 # The gates `verify` and `verify-coverage` share; one list, so they cannot
 # drift apart.
-checks: test-tools clippy-strict audit-legacy branch-status-test
+checks: test-tools clippy-strict audit-legacy branch-status-test local-release-test
 
 # The integration test files that take longest; they run in `just verify` and
 # the full CI, not in `just fast-check`.
@@ -116,12 +116,6 @@ build-bin:
 run *args:
     cargo run --bin llm-wiki -- {{args}}
 
-build-skills:
-    cargo run --bin llm-wiki -- build --out .
-
-build-skills-to out:
-    cargo run --bin llm-wiki -- build --out "{{out}}"
-
 # Install takes poman from beside llm-wiki, so both are built first.
 install:
     cargo build --bin poman
@@ -145,6 +139,20 @@ init path name type="web" scale="small" description="One sentence description.":
 
 release-guard:
     test -z "${LLM_WIKI_INSTANCE:-}" || { echo "refusing release command with LLM_WIKI_INSTANCE=${LLM_WIKI_INSTANCE}"; exit 1; }
+
+# The owner's local release: builds this checkout's release archives with
+# cargo-dist (no tag, nothing published), saves what is installed now under
+# ~/.llm_wiki/local-release/, and installs llm-wiki and poman from the archives,
+# registering both MCP servers. Flags go to `llm-wiki install`. See
+# tools/local-release.sh.
+local-release *args: release-guard
+    tools/local-release.sh install {{args}}
+
+# Puts back exactly what the newest `just local-release` saved, but refuses
+# while a file changed after the release; `--overwrite` keeps a copy of each
+# and reverts anyway.
+local-release-revert *args: release-guard
+    tools/local-release.sh revert {{args}}
 
 release-plan: release-guard
     dist plan
@@ -221,6 +229,11 @@ git-summary:
 # `just branch-status` against a scratch origin; `just verify` runs it.
 branch-status-test:
     bash tools/branch-status-test.sh
+
+# The local release's save and revert under a temporary HOME; `just verify`
+# runs it.
+local-release-test:
+    bash tools/local-release-test.sh
 
 # The commit on develop where statuses moved into PRs (#32, 2026-10-06). A plan
 # that already named its branch there keeps the line until its own PR completes

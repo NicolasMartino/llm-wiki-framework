@@ -4,13 +4,17 @@
 use std::error::Error;
 use std::fmt;
 
+use format::ValueFormat;
+
+pub mod format;
 pub mod llm_wiki;
+pub mod poman;
 #[cfg(test)]
 mod tests;
 
 /// A file type: how its pages are named, where they live, and what they
-/// carry. llm-wiki's types are in [`llm_wiki`]; poman's are kept apart, so
-/// each tool checks only its own.
+/// carry. llm-wiki's types are in [`llm_wiki`]; poman's, in [`poman`], are
+/// kept apart, so each tool checks only its own.
 ///
 /// ```
 /// use llm_wiki_core::types::WikiFilename;
@@ -50,25 +54,58 @@ pub struct FieldDefinition {
     pub key: &'static str,
     /// Whether every page of the type must carry it.
     pub required: bool,
+    /// The form its value must take.
+    pub format: ValueFormat,
 }
 
 impl FieldDefinition {
-    /// A field every page of the type must carry.
+    /// A field every page of the type must carry, its value free text.
     #[must_use]
     pub const fn required(key: &'static str) -> Self {
         Self {
             key,
             required: true,
+            format: ValueFormat::FreeText,
         }
     }
 
-    /// A field a page of the type may carry.
+    /// A field a page of the type may carry, its value free text.
     #[must_use]
     pub const fn optional(key: &'static str) -> Self {
         Self {
             key,
             required: false,
+            format: ValueFormat::FreeText,
         }
+    }
+
+    /// The same field, its value held to `format`.
+    ///
+    /// ```
+    /// use llm_wiki_core::types::FieldDefinition;
+    /// use llm_wiki_core::types::format::ValueFormat;
+    ///
+    /// let who = FieldDefinition::optional("Who").with_format(ValueFormat::NonEmpty);
+    /// assert!(!who.format.accepts(""));
+    /// ```
+    #[must_use]
+    pub const fn with_format(self, format: ValueFormat) -> Self {
+        Self { format, ..self }
+    }
+}
+
+impl DocumentType {
+    /// The field whose key is `key`, if the type has one.
+    ///
+    /// ```
+    /// use llm_wiki_core::types::poman::DEADLINE;
+    ///
+    /// assert_eq!(DEADLINE.field("Who").map(|field| field.required), Some(false));
+    /// assert_eq!(DEADLINE.field("Team"), None);
+    /// ```
+    #[must_use]
+    pub fn field(&self, key: &str) -> Option<&'static FieldDefinition> {
+        self.fields.iter().find(|field| field.key == key)
     }
 }
 
@@ -135,6 +172,29 @@ impl WikiFilename {
     ///
     /// Returns the [`FilenameError`] naming the first rule the name breaks.
     pub fn parse(filename: &str) -> Result<Self, FilenameError> {
+        Self::split(filename, true)
+    }
+
+    /// Splits the filename of a type that takes no index: the whole name
+    /// before the type is the slug, so `2026-taxes.deadline.md` is the slug
+    /// `2026-taxes`.
+    ///
+    /// ```
+    /// use llm_wiki_core::types::WikiFilename;
+    ///
+    /// let name = WikiFilename::parse_unindexed("2026-taxes.deadline.md")?;
+    /// assert_eq!((name.index(), name.slug()), (None, "2026-taxes"));
+    /// # Ok::<(), llm_wiki_core::types::FilenameError>(())
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns the [`FilenameError`] naming the first rule the name breaks.
+    pub fn parse_unindexed(filename: &str) -> Result<Self, FilenameError> {
+        Self::split(filename, false)
+    }
+
+    fn split(filename: &str, indexed: bool) -> Result<Self, FilenameError> {
         if filename.contains(['/', '\\']) {
             return Err(FilenameError::HasPathSeparator);
         }
@@ -150,7 +210,7 @@ impl WikiFilename {
         }
         let (index, slug) = match name.split_once('-') {
             Some((index, slug))
-                if !index.is_empty() && index.chars().all(|c| c.is_ascii_digit()) =>
+                if indexed && !index.is_empty() && index.chars().all(|c| c.is_ascii_digit()) =>
             {
                 (Some(index.to_owned()), slug)
             }

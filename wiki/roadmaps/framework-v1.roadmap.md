@@ -830,7 +830,7 @@ Proof:
 
 ### P8 - Working build-skills Recipes
 
-Status: Draft
+Status: Completed (develop)
 Promise: `just build-skills` and `just build-skills-to <out>` do what their
 names say, or are gone, instead of failing with "unrecognized subcommand
 'build'".
@@ -844,7 +844,7 @@ Included:
 
 Proof:
 - each recipe runs and produces its output, or it no longer exists and no page
-  names it
+  tells anyone to run it (pages that record the failure as history stay)
 
 ### P9 - Search Ranks A Page's Own Title Low
 
@@ -1000,7 +1000,7 @@ Proof:
 
 ### P16 - Lexical Search Weights Titles And File Names, And Falls Back To Phrases
 
-Status: Draft
+Status: Completed (develop)
 Promise: A lexical search for a page's own title or file name finds that page
 at the top, and a query whose words no single page holds all of still returns
 the pages that hold its phrases.
@@ -1024,7 +1024,7 @@ Proof:
 
 ### P17 - Compact Search Pages Follow The Limit
 
-Status: Draft
+Status: Completed (develop)
 Promise: `llm_wiki_search` in compact mode returns as many results as its
 `limit` asks for by default, and says plainly when more exist.
 Depends On: P15
@@ -1164,16 +1164,23 @@ Proof:
 
 ### P22 - The Dependency Gate Covers Dev-Dependencies
 
-Status: Draft
-Promise: The strict gates' dependency check (`cargo deny`) covers the strict
-crates' dev-dependencies too, so a banned or duplicated crate pulled in only by
-tests cannot slip past it.
+Status: Completed (develop)
+Promise: The strict gates' dependency check (`cargo deny check`) covers the
+strict crates' dev-dependencies in all its checks, so a banned, duplicated,
+unlicensed or advised-against crate pulled in only by tests cannot slip past
+it, each shown by a recorded slip, and the gate says so. The one exception is
+`getrandom` 0.3.4, let through beside 0.4.2 because both come from inside
+proptest.
 Depends On: PM1 (poman roadmap)
 Execution Plan: `wiki/plans/dependency-gate-covers-dev-dependencies.plan.md`
 
 Included:
-- the leftover the blind review of PR #28 named (2026-10-06): cargo-deny 0.20.2
-  skips dev-dependencies, so the deny gate is partial
+- the leftover the blind review of PR #28 named (2026-10-06), read from `cargo
+  deny list`, which does not show dev-dependencies. `cargo deny check`, which
+  the gate runs, does walk them for bans, advisories and sources (PR #59's
+  review), but not for duplicates or licences unless `deny.toml` turns on
+  `multiple-versions-include-dev` and `include-dev` (PR #64's review); both
+  keys, the one duplicate they show, and a slip recorded for each check
 
 Excluded:
 - llm-wiki's own modules (PM8)
@@ -1232,3 +1239,27 @@ Proof:
 - no page of the way of working tells the coordinator to open a log PR, except
   as history, and the landing steps describe the bookkeeping commit and both
   moments
+
+### P25 - Compact Search's Default Page Checked On The Codex Path
+
+Status: Draft
+Promise: The default compact search page (10 hits since P17) is known to
+arrive whole through Headroom on the Codex path too, or is made smaller there.
+Depends On: P17
+Execution Plan: Not created yet (one probe first; a fix, if needed, gets its
+plan)
+
+Included:
+- the gap left by P17's Headroom check (2026-10-07, PR #61): one read-only
+  probe through `llm-wiki headroom -- wrap claude` found all 10 hits whole, but
+  the Codex (OpenAI Responses) path, where the earlier field tests saw
+  compression, needs a nested agent run and was not covered
+- the same probe on the Codex path, nothing registered and no proxy setting
+  touched, its result written in the compact paging plan's "Headroom Check"
+
+Excluded:
+- the compact envelope's fields, and the default page size, unless the probe
+  shows hits lost
+
+Proof:
+- the Codex-path probe's result recorded, and any loss fixed or filed

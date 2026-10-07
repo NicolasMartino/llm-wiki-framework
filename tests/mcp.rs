@@ -469,6 +469,12 @@ fn mcp_prompts_list_and_get_operation_guidance() {
                     "arguments": {"query": "what changed?"}
                 }
             }),
+            json!({
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "prompts/get",
+                "params": {"name": "wiki_lint"}
+            }),
         ],
     );
 
@@ -496,6 +502,20 @@ fn mcp_prompts_list_and_get_operation_guidance() {
     assert!(text.contains("wiki/index.md"));
     assert!(text.contains(mcp_tool_name("llm_wiki_search")));
     assert!(text.contains(mcp_tool_name("llm_wiki_read")));
+
+    // Choice 7 of the poman deadline type: lint leaves deadline files to poman.
+    let lint = responses
+        .iter()
+        .find(|response| response["id"] == 3)
+        .expect("wiki_lint prompts/get response");
+    let text = lint["result"]["messages"][0]["content"]["text"]
+        .as_str()
+        .expect("text");
+    assert!(text.contains(
+        "Leave deadline files (`wiki/deadlines/<slug>.deadline.md`) to `poman check`: \
+         they carry poman's fields only, with no metadata block, and the index points \
+         to their folder, not to each file, so they are not orphans."
+    ));
 }
 
 #[test]
@@ -973,6 +993,67 @@ fn mcp_wiki_read_rejects_symlink_escape() {
 }
 
 #[test]
+fn mcp_search_tools_describe_compact_paging() {
+    let home = TempDir::new().expect("home");
+    let workspace = TempDir::new().expect("workspace");
+    let project = fixture_project(workspace.path());
+    let responses = run_mcp_session(
+        home.path(),
+        &project,
+        &[
+            json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-06-18",
+                    "capabilities": {},
+                    "clientInfo": {"name": "llm-wiki-test", "version": "0.0.0"}
+                }
+            }),
+            json!({"jsonrpc": "2.0", "id": 2, "method": "tools/list"}),
+        ],
+    );
+
+    let tools = responses
+        .iter()
+        .find(|response| response["id"] == 2)
+        .expect("tools/list response");
+    let tools = tools["result"]["tools"].as_array().expect("tools array");
+    for name in [
+        mcp_tool_name("llm_wiki_search"),
+        mcp_tool_name("llm_wiki_search_all"),
+    ] {
+        let tool = tools
+            .iter()
+            .find(|tool| tool["name"] == name)
+            .unwrap_or_else(|| panic!("missing tool {name}"));
+        let description = tool["description"].as_str().expect("tool description");
+        for field in ["next_offset", "has_more"] {
+            assert!(
+                description.contains(field),
+                "{name} description does not mention {field}: {description}"
+            );
+        }
+        let properties = &tool["inputSchema"]["properties"];
+        for field in ["limit", "page_size", "offset"] {
+            assert!(
+                properties[field]["description"].is_string(),
+                "{name} {field} has no description"
+            );
+        }
+        assert_eq!(properties["limit"]["default"], 10, "{name} limit default");
+        let page_size = properties["page_size"]["description"]
+            .as_str()
+            .expect("page_size description");
+        assert!(
+            page_size.contains("limit"),
+            "{name} page_size description does not give its default: {page_size}"
+        );
+    }
+}
+
+#[test]
 fn mcp_search_accepts_compact_pagination_args() {
     let home = TempDir::new().expect("home");
     let workspace = TempDir::new().expect("workspace");
@@ -1038,6 +1119,7 @@ fn mcp_search_accepts_compact_pagination_args() {
     assert_eq!(payload["page_size"], 1);
     assert_eq!(payload["offset"], 0);
     assert!(payload["next_offset"].is_null());
+    assert_eq!(payload["has_more"], false);
     let results = payload["results"].as_array().expect("results");
     assert_eq!(results.len(), 1);
     assert_eq!(results[0]["path"], "wiki/index.md");

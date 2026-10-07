@@ -1383,6 +1383,7 @@ name = "llm-wiki-core"
 version = "0.2.15"
 dependencies = [
  "proptest",
+ "serde_json",
 ]
 
 [[package]]
@@ -1576,7 +1577,11 @@ name = "poman"
 version = "0.2.15"
 dependencies = [
  "clap",
+ "llm-wiki-core",
  "proptest",
+ "serde_json",
+ "tempfile",
+ "toml",
 ]
 
 [[package]]

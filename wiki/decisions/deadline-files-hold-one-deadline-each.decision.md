@@ -64,9 +64,10 @@ For example:
 - Blocked by: wiki/deadlines/choose-the-registrar.deadline.md
 ```
 
-The example shows poman's fields only; whether the wiki's own metadata fields
-join them is open (`poman-reads-only-its-own-file-types.decision.md`,
-"Consequences").
+The example shows poman's fields only, and a deadline file carries no others:
+not the wiki's metadata fields (`poman-reads-only-its-own-file-types.decision.md`,
+"Consequences"). One day of work is written `1 day`, any other number `<n>
+days`.
 
 ### should-start
 
@@ -104,6 +105,9 @@ join them is open (`poman-reads-only-its-own-file-types.decision.md`,
 - **Deadline files land straight on the repository's main branch**: no pull
   request, no blind review, no log entry; Git history is their log (the
   owner's decisions, 2026-10-06).
+  - A repository sets it in `poman.toml` at its root, committed, with one
+    key: `landing-branch = "develop"`; with no file or no key it is master
+    (PM3, the owner's choice 3).
   - The branch is master by default and can be set to another, such as
     `develop` in this repository. Each repository is independent and sets its
     own.

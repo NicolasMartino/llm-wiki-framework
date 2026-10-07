@@ -191,7 +191,8 @@ The agent scans for:
 
 1. contradictions between pages
 2. stale claims (status or facts that no longer match reality)
-3. orphan pages with no inbound links from index or other pages
+3. orphan pages with no inbound links from index or other pages, deadline
+   files excepted (see "Deadline files" below)
 4. missing cross-references between related pages
 5. specs that reference unvalidated claims
 6. proposals or plans with outdated status
@@ -323,6 +324,12 @@ Optional fields:
 2. `Supersedes` / `Superseded By`
 3. `Related` (links to other wiki pages)
 4. `Promotion Target` (what spec or decision to update after validation)
+
+Deadline files: a deadline file (`wiki/deadlines/<slug>.deadline.md`) is
+poman's, not the wiki's. It carries poman's fields only, with no metadata
+block; `poman check` checks it, and lint leaves it to `poman check` rather
+than fixing it; and it is not listed one by one in `wiki/index.md`, where one
+line points to the folder, so the orphan check passes over it.
 
 ## Status Vocabulary
 
@@ -704,7 +711,7 @@ Periodically or on request:
 
 1. Scan for contradictions between pages.
 2. Find stale statuses or outdated claims.
-3. Identify orphan pages not linked from index.
+3. Identify orphan pages not linked from index, deadline files excepted.
 4. Check for missing cross-references.
 5. Fix issues directly.
 6. Log all changes in `wiki/log.md`.
@@ -717,6 +724,9 @@ Periodically or on request:
 - Use the type by role, not convenience. See `project_guidelines.md`.
 - Every wiki page has a metadata block: Document Class, Status, Date,
   Category, Scope, Sources, and Related when useful.
+- Deadline files (`wiki/deadlines/<slug>.deadline.md`) are poman's: they carry
+  poman's fields only, `poman check` checks them rather than lint, and the
+  index points to their folder, not to each file.
 - Filenames: `[slug].type.md` or `[index]-[slug].type.md`.
 - Archived documents go to `wiki/archive/`.
 - `wiki/log.md` uses format: `## [YYYY-MM-DD] operation | subject`.
@@ -781,7 +791,7 @@ resolved_folders = [
 ]
 
 [managed_blocks]
-agents = "2e4c957a955a0e5744d6d2bf6913f9a2aa9055d284591abc9e7582ec7066527e"
+agents = "4ed5bd6f915f4434de7d021356d1fb9d99549bf740be78408ccc2801e1ac436b"
 claude = "6a274cf199dc16b9b65e04283d77441c70a080e01f03edc3fda56bcc67a9eae3"
 guidelines = "[sha256]"
 

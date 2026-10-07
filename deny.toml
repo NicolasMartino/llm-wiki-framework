@@ -1,5 +1,7 @@
 # cargo-deny's configuration for the strict crates (tools/strict-gates.sh runs it
 # over each one's own dependency graph; llm-wiki's joins with the ratchet, PM8).
+# Dev-dependencies are checked like the rest: advisories, bans and sources walk
+# them anyway; the duplicate and licence checks need the include-dev keys below.
 
 [graph]
 targets = [
@@ -17,9 +19,14 @@ yanked = "deny"
 version = 2
 allow = ["MIT", "Apache-2.0", "Unicode-3.0"]
 confidence-threshold = 0.9
+include-dev = true
 
 [bans]
 multiple-versions = "deny"
+multiple-versions-include-dev = true
+# proptest (a dev-dependency of both strict crates) brings two getrandoms: 0.3
+# through rand 0.9, 0.4 through tempfile. Only the older one is let through.
+skip = [{ crate = "getrandom@0.3.4", reason = "proptest's rand 0.9 needs it while its tempfile takes 0.4" }]
 wildcards = "deny"
 
 [sources]
