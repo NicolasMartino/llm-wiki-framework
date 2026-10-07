@@ -1,8 +1,7 @@
 # Plan: Install Model Download Progress
 
 - Document Class: Plan
-- Status: Active
-- Branch: `NicolasMartino/progress-4`
+- Status: Completed (develop)
 - Date: 2026-08-14
 - Category: Install UX, model materialization, operational diagnostics
 - Scope: Replace the three silent long-running stalls in enabled-LLM-search
@@ -222,8 +221,20 @@ template key; only the bounded non-TTY milestone policy is otherwise
 project-owned. Progress selection is created before enabled-search preflight,
 so reuse hashing is visible. Download and replacement actions consume the
 preflight decision directly rather than classifying and hashing the same
-existing artifact again, and the injected-downloader test seam shares the
-production post-download check.
+existing artifact again.
+
+The injected-downloader seam changed shape, against constraint 5's letter but
+not its purpose: `materialize_model_with_downloader` had become a test-only
+copy of decisions `plan_enabled_search_install` now makes (and its own tests
+cover), so it is gone, with the reuse and hash-mismatch tests that drove it.
+Production's `download_and_verify_model` takes the downloader instead, so the
+wrong-bytes test, a replace test and a retry test now drive the same path
+install runs, with a recorded line output and no timing dependence. A
+debug-build hook, `LLM_WIKI_TEST_MODEL_SOURCE`, streams a local file in place
+of the network, so an install test covers the download and verify progress and
+the verbose gate (the `search model materialization` diagnostic once, the
+`Content-Length` disagreement once). The success-path `materialization
+outcome` diagnostic needs real model bytes, so only a real install reaches it.
 
 ## Outcome
 

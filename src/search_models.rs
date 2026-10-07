@@ -15,6 +15,10 @@ const ACCEPTED_LICENSES_SCHEMA_VERSION: u32 = 1;
 const MODEL_ARTIFACTS_SCHEMA_VERSION: u32 = 1;
 const SEARCH_THRESHOLDS_SCHEMA_VERSION: u32 = 1;
 const SEARCH_THRESHOLDS_STORE_SCHEMA_VERSION: u32 = 2;
+/// Names a local file the debug binary streams in place of the network, so
+/// install tests can drive a download without one.
+#[cfg(debug_assertions)]
+const TEST_MODEL_SOURCE_ENV: &str = "LLM_WIKI_TEST_MODEL_SOURCE";
 pub const DEFAULT_PROFILE_ID: &str = "balanced";
 pub const QMD_RS_VERSION: &str = "0.3.2";
 pub const ADAPTER_SCHEMA_VERSION: u32 = 1;
@@ -118,20 +122,6 @@ pub enum ModelArtifactClassification {
         path: PathBuf,
         observed_sha256: String,
     },
-}
-
-#[cfg(test)]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct MaterializedModel {
-    pub record: ModelArtifactRecord,
-    pub outcome: MaterializationOutcome,
-}
-
-#[cfg(test)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum MaterializationOutcome {
-    Reused,
-    Downloaded,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -591,69 +581,63 @@ pub fn classify_model_artifact_with_progress(
     })
 }
 
-#[cfg(test)]
-fn materialize_model_with_downloader(
-    model: SearchModel,
-    profile: ProfileBundle,
-    model_root: &Path,
-    force: bool,
-    downloader: impl Fn(SearchModel, &Path) -> Result<()>,
-) -> Result<MaterializedModel> {
-    match classify_model_artifact(model, profile, model_root)? {
-        ModelArtifactClassification::Verified { record } => Ok(MaterializedModel {
-            record: *record,
-            outcome: MaterializationOutcome::Reused,
-        }),
-        ModelArtifactClassification::Missing { path } => {
-            download_and_verify_model(model, profile, &path, downloader)
-        }
-        ModelArtifactClassification::HashMismatch { path, .. } => {
-            if !force {
-                bail!(
-                    "model artifact hash mismatch for {}; rerun `llm-wiki install --configure-search --force` to replace {}",
-                    model.id,
-                    path.display()
-                );
-            }
-            download_and_verify_model(model, profile, &path, downloader)
-        }
-    }
-}
-
-#[cfg(test)]
-fn download_and_verify_model(
+/// Downloads `model` to `path` through `download_once`, retrying from zero up to
+/// three times, then checks its hash; progress for both steps goes to
+/// `reporter`. Production passes [`network_download`]; tests pass a fake.
+pub fn download_and_verify_model(
     model: SearchModel,
     profile: ProfileBundle,
     path: &Path,
-    downloader: impl Fn(SearchModel, &Path) -> Result<()>,
-) -> Result<MaterializedModel> {
-    downloader(model, path)?;
-    Ok(MaterializedModel {
-        record: verify_downloaded_model(model, profile, path, None)?,
-        outcome: MaterializationOutcome::Downloaded,
-    })
-}
-
-pub fn download_and_verify_model_with_progress(
-    model: SearchModel,
-    profile: ProfileBundle,
-    path: &Path,
-    model_index: usize,
-    total_models: usize,
-    reporter: &mut ProgressReporter,
-    context: &CliContext,
+    position: ModelPosition,
+    reporter: &ProgressReporter,
+    mut download_once: impl FnMut(SearchModel, &Path, &mut ProgressOperation) -> Result<()>,
 ) -> Result<ModelArtifactRecord> {
-    download_model_with_progress(model, path, model_index, total_models, reporter, context)?;
+    const MAX_ATTEMPTS: u32 = 3;
+    let mut attempt = 1;
+    loop {
+        let mut progress = reporter.begin(
+            "download",
+            model.id,
+            position.index,
+            position.total,
+            model.expected_size_bytes,
+        );
+        let err = match download_once(model, path, &mut progress) {
+            Ok(()) => {
+                progress.finish();
+                break;
+            }
+            Err(err) => err,
+        };
+        // Ends a terminal bar before the warning, so the two do not share a line.
+        drop(progress);
+        if attempt >= MAX_ATTEMPTS {
+            return Err(err);
+        }
+        eprintln!(
+            "warning: model download attempt {attempt}/{MAX_ATTEMPTS} for {} failed: {err:#}; retrying from zero",
+            model.id
+        );
+        std::thread::sleep(Duration::from_secs(u64::from(attempt)));
+        attempt += 1;
+    }
     let mut verify = reporter.begin(
         "verify",
         model.id,
-        model_index,
-        total_models,
+        position.index,
+        position.total,
         model.expected_size_bytes,
     );
     let record = verify_downloaded_model(model, profile, path, Some(&mut verify))?;
     verify.finish();
     Ok(record)
+}
+
+/// Where a model stands in the install's list, shown as `[index/total]`.
+#[derive(Clone, Copy, Debug)]
+pub struct ModelPosition {
+    pub index: usize,
+    pub total: usize,
 }
 
 fn verify_downloaded_model(
@@ -704,65 +688,19 @@ fn artifact_record(
     })
 }
 
-fn download_model_with_progress(
-    model: SearchModel,
-    destination: &Path,
-    model_index: usize,
-    total_models: usize,
-    reporter: &mut ProgressReporter,
+/// The downloader install uses: one attempt over HTTP, streamed to a temp file
+/// beside `destination` and renamed into place once complete.
+pub fn network_download(
     context: &CliContext,
-) -> Result<()> {
-    const MAX_ATTEMPTS: u32 = 3;
-    let mut attempt = 1;
-    loop {
-        let mut progress = reporter.begin(
-            "download",
-            model.id,
-            model_index,
-            total_models,
-            model.expected_size_bytes,
-        );
-        let result = download_model_once(
-            model,
-            destination,
-            |content_length| {
-                if let Some(content_length) = content_length
-                    && content_length != model.expected_size_bytes
-                {
-                    context.diagnostic(format!(
-                        "search model content length mismatch: {} expected {} bytes, server reported {} bytes",
-                        model.id, model.expected_size_bytes, content_length
-                    ));
-                }
-            },
-            |bytes| progress.advance(bytes),
-        );
-        let err = match result {
-            Ok(()) => {
-                progress.finish();
-                return Ok(());
-            }
-            Err(err) => err,
-        };
-        // A bar left drawing would share its line with the warning below.
-        progress.abandon();
-        if attempt >= MAX_ATTEMPTS {
-            return Err(err);
-        }
-        eprintln!(
-            "warning: model download attempt {attempt}/{MAX_ATTEMPTS} for {} failed: {err:#}; retrying from zero",
-            model.id
-        );
-        std::thread::sleep(Duration::from_secs(u64::from(attempt)));
-        attempt += 1;
-    }
+) -> impl FnMut(SearchModel, &Path, &mut ProgressOperation) -> Result<()> + '_ {
+    move |model, destination, progress| download_model_once(model, destination, context, progress)
 }
 
 fn download_model_once(
     model: SearchModel,
     destination: &Path,
-    content_length_observer: impl FnOnce(Option<u64>),
-    progress_observer: impl FnMut(u64),
+    context: &CliContext,
+    progress: &mut ProgressOperation,
 ) -> Result<()> {
     let parent = destination.parent().with_context(|| {
         format!(
@@ -773,11 +711,36 @@ fn download_model_once(
     fs::create_dir_all(parent)
         .with_context(|| format!("failed to create model artifact dir {}", parent.display()))?;
 
+    let (mut source, content_length) = open_model_source(model)?;
+    if let Some(message) = content_length_mismatch(model, content_length) {
+        context.diagnostic(message);
+    }
+
+    let mut temp = tempfile::NamedTempFile::new_in(parent)
+        .with_context(|| format!("create temp model artifact in {}", parent.display()))?;
+    copy_model_stream(&mut source, &mut temp, model.id, |bytes| {
+        progress.advance(bytes)
+    })?;
+    temp.persist(destination)
+        .map_err(|err| err.error)
+        .with_context(|| format!("persist model artifact {}", destination.display()))?;
+    Ok(())
+}
+
+fn open_model_source(model: SearchModel) -> Result<(Box<dyn Read>, Option<u64>)> {
+    #[cfg(debug_assertions)]
+    if let Some(source) = std::env::var_os(TEST_MODEL_SOURCE_ENV) {
+        let file = fs::File::open(&source)
+            .with_context(|| format!("open test model source {}", source.display()))?;
+        let length = file.metadata()?.len();
+        return Ok((Box::new(file), Some(length)));
+    }
+
     let client = reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(3600))
         .build()
         .context("build model download client")?;
-    let mut response = client
+    let response = client
         .get(model.download_url())
         .send()
         .with_context(|| format!("download {}", model.download_url()))?;
@@ -788,15 +751,20 @@ fn download_model_once(
             response.status()
         );
     }
-    content_length_observer(response.content_length());
+    let content_length = response.content_length();
+    Ok((Box::new(response), content_length))
+}
 
-    let mut temp = tempfile::NamedTempFile::new_in(parent)
-        .with_context(|| format!("create temp model artifact in {}", parent.display()))?;
-    copy_model_stream(&mut response, &mut temp, model.id, progress_observer)?;
-    temp.persist(destination)
-        .map_err(|err| err.error)
-        .with_context(|| format!("persist model artifact {}", destination.display()))?;
-    Ok(())
+/// The catalog size stays the progress total; a server that disagrees is only
+/// worth a `-v` line, since the hash check decides.
+fn content_length_mismatch(model: SearchModel, content_length: Option<u64>) -> Option<String> {
+    let content_length = content_length?;
+    (content_length != model.expected_size_bytes).then(|| {
+        format!(
+            "search model content length mismatch: {} expected {} bytes, server reported {} bytes",
+            model.id, model.expected_size_bytes, content_length
+        )
+    })
 }
 
 fn copy_model_stream(
@@ -850,17 +818,18 @@ fn sha256_file_with_progress(
 
 #[cfg(test)]
 mod tests {
-    use std::cell::Cell;
     use std::fs;
+    use std::path::Path;
 
     use tempfile::TempDir;
 
     use super::{
-        AcceptedLicenses, DEFAULT_PROFILE_ID, EMBEDDING_GEMMA_300M, MaterializationOutcome,
-        ModelArtifactClassification, ModelRole, ProfileBundle, QMD_QUERY_EXPANSION_17B,
-        SearchModel, SearchThresholdStore, SearchThresholds, classify_model_artifact,
-        copy_model_stream, materialize_model_with_downloader, profile_by_id,
+        AcceptedLicenses, DEFAULT_PROFILE_ID, EMBEDDING_GEMMA_300M, ModelArtifactClassification,
+        ModelPosition, ModelRole, ProfileBundle, QMD_QUERY_EXPANSION_17B, SearchModel,
+        SearchThresholdStore, SearchThresholds, classify_model_artifact, content_length_mismatch,
+        copy_model_stream, download_and_verify_model, profile_by_id,
     };
+    use crate::progress::{ProgressOperation, ProgressReporter};
 
     #[test]
     fn model_stream_reports_every_written_chunk() {
@@ -973,89 +942,148 @@ mod tests {
         );
     }
 
-    #[test]
-    fn materialize_reuses_verified_model_without_downloader() {
-        let temp = TempDir::new().expect("tempdir");
-        write_fixture_model(temp.path(), FIXTURE_MODEL_BYTES);
-        let downloader_called = Cell::new(false);
+    fn fixture_position() -> ModelPosition {
+        ModelPosition { index: 1, total: 1 }
+    }
 
-        let materialized = materialize_model_with_downloader(
-            FIXTURE_MODEL,
-            FIXTURE_PROFILE,
-            temp.path(),
-            false,
-            |_, _| {
-                downloader_called.set(true);
-                Ok(())
-            },
-        )
-        .expect("materialized");
+    fn fake_download(
+        bytes: &'static [u8],
+    ) -> impl FnMut(SearchModel, &Path, &mut ProgressOperation) -> anyhow::Result<()> {
+        move |_, destination, progress| {
+            fs::create_dir_all(destination.parent().expect("destination parent"))
+                .expect("destination parent");
+            fs::write(destination, bytes).expect("fake download");
+            progress.advance(bytes.len() as u64);
+            Ok(())
+        }
+    }
 
-        assert_eq!(materialized.outcome, MaterializationOutcome::Reused);
-        assert_eq!(materialized.record.model_id, FIXTURE_MODEL.id);
-        assert!(!downloader_called.get());
+    /// Drops the rate, ETA and elapsed time, which depend on the clock.
+    fn without_timings(lines: &[String]) -> Vec<String> {
+        lines
+            .iter()
+            .map(|line| {
+                if let Some((head, _)) = line.split_once(" eta ") {
+                    let tokens = head.split(' ').collect::<Vec<_>>();
+                    tokens[..tokens.len() - 2].join(" ")
+                } else {
+                    line.split(" in ").next().expect("line").to_string()
+                }
+            })
+            .collect()
     }
 
     #[test]
-    fn materialize_rejects_hash_mismatch_without_force() {
+    fn download_and_verify_reports_both_steps_and_replaces_a_mismatched_file() {
         let temp = TempDir::new().expect("tempdir");
+        let path = FIXTURE_MODEL.managed_path(temp.path());
         write_fixture_model(temp.path(), BAD_MODEL_BYTES);
+        let (reporter, lines) = ProgressReporter::recorded();
 
-        let error = materialize_model_with_downloader(
+        let record = download_and_verify_model(
             FIXTURE_MODEL,
             FIXTURE_PROFILE,
-            temp.path(),
-            false,
-            |_, _| panic!("downloader should not run"),
+            &path,
+            fixture_position(),
+            &reporter,
+            fake_download(FIXTURE_MODEL_BYTES),
         )
-        .expect_err("mismatch should fail");
+        .expect("download and verify");
 
-        assert!(format!("{error:#}").contains("model artifact hash mismatch"));
+        assert_eq!(record.observed_sha256, FIXTURE_MODEL.expected_sha256);
+        assert_eq!(fs::read(&path).expect("model bytes"), FIXTURE_MODEL_BYTES);
+        let mut expected = Vec::new();
+        for phase in ["download", "verify"] {
+            expected.push(format!("[1/1] fixture-model-q8 {phase} start 13 B"));
+            for percent in [25, 50, 75, 100] {
+                expected.push(format!(
+                    "[1/1] fixture-model-q8 {phase} {percent}% 13 B / 13 B"
+                ));
+            }
+            expected.push(format!("[1/1] fixture-model-q8 {phase} done 13 B"));
+        }
+        assert_eq!(without_timings(&lines.borrow()), expected);
     }
 
     #[test]
-    fn materialize_rejects_downloader_that_writes_wrong_bytes() {
+    fn download_and_verify_rejects_a_download_with_the_wrong_bytes() {
         let temp = TempDir::new().expect("tempdir");
+        let (reporter, lines) = ProgressReporter::recorded();
 
-        let error = materialize_model_with_downloader(
+        let error = download_and_verify_model(
             FIXTURE_MODEL,
             FIXTURE_PROFILE,
-            temp.path(),
-            false,
-            |_, destination| {
-                fs::create_dir_all(destination.parent().expect("destination parent"))
-                    .expect("destination parent");
-                fs::write(destination, BAD_MODEL_BYTES).expect("bad download");
-                Ok(())
-            },
+            &FIXTURE_MODEL.managed_path(temp.path()),
+            fixture_position(),
+            &reporter,
+            fake_download(BAD_MODEL_BYTES),
         )
         .expect_err("bad download hash should fail");
 
         assert!(format!("{error:#}").contains("downloaded model artifact hash mismatch"));
+        let lines = without_timings(&lines.borrow());
+        assert!(lines.contains(&"[1/1] fixture-model-q8 verify start 13 B".to_string()));
+        assert!(!lines.iter().any(|line| line.contains("verify done")));
     }
 
     #[test]
-    fn materialize_force_replaces_hash_mismatch_only() {
+    fn download_and_verify_restarts_progress_for_a_retried_attempt() {
         let temp = TempDir::new().expect("tempdir");
-        let path = FIXTURE_MODEL.managed_path(temp.path());
-        write_fixture_model(temp.path(), BAD_MODEL_BYTES);
+        let (reporter, lines) = ProgressReporter::recorded();
+        let mut succeed = fake_download(FIXTURE_MODEL_BYTES);
+        let mut attempts = 0;
 
-        let materialized = materialize_model_with_downloader(
+        download_and_verify_model(
             FIXTURE_MODEL,
             FIXTURE_PROFILE,
-            temp.path(),
-            true,
-            |_, destination| {
-                fs::write(destination, FIXTURE_MODEL_BYTES).expect("replacement");
-                Ok(())
+            &FIXTURE_MODEL.managed_path(temp.path()),
+            fixture_position(),
+            &reporter,
+            |model, destination, progress| {
+                attempts += 1;
+                if attempts == 1 {
+                    progress.advance(5);
+                    anyhow::bail!("connection reset");
+                }
+                succeed(model, destination, progress)
             },
         )
-        .expect("materialized");
+        .expect("second attempt succeeds");
 
-        assert_eq!(materialized.outcome, MaterializationOutcome::Downloaded);
+        let lines = without_timings(&lines.borrow());
+        let downloads = lines
+            .iter()
+            .filter(|line| line.contains(" download "))
+            .collect::<Vec<_>>();
         assert_eq!(
-            fs::read(path).expect("model bytes"),
-            FIXTURE_MODEL_BYTES.to_vec()
+            downloads.first().map(|line| line.as_str()),
+            Some("[1/1] fixture-model-q8 download start 13 B")
+        );
+        assert_eq!(
+            downloads
+                .iter()
+                .filter(|line| line.ends_with("download start 13 B"))
+                .count(),
+            2
+        );
+        assert_eq!(
+            downloads
+                .iter()
+                .filter(|line| line.contains("download done"))
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn content_length_mismatch_is_reported_only_when_the_server_disagrees() {
+        assert_eq!(content_length_mismatch(FIXTURE_MODEL, None), None);
+        assert_eq!(content_length_mismatch(FIXTURE_MODEL, Some(13)), None);
+        assert_eq!(
+            content_length_mismatch(FIXTURE_MODEL, Some(20)).as_deref(),
+            Some(
+                "search model content length mismatch: fixture-model-q8 expected 13 bytes, server reported 20 bytes"
+            )
         );
     }
 

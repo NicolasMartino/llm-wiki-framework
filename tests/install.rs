@@ -264,13 +264,70 @@ fn enabled_install_reports_existing_model_hashing_as_bounded_stderr_lines() {
         "{stderr}"
     );
     assert!(!stderr.contains("\x1b[") && !stderr.contains('\r'));
-    assert!(!stdout.contains("verify"), "{stdout}");
+    assert!(
+        !stdout.lines().any(|line| line.starts_with("[1/2]")),
+        "{stdout}"
+    );
     assert_eq!(
         stderr
             .matches("search artifact classification: embeddinggemma-300m-q8_0 hash-mismatch")
             .count(),
         1,
         "{stderr}"
+    );
+}
+
+#[test]
+fn verbose_enabled_install_reports_download_and_verify_progress_once() {
+    let home = TempDir::new().expect("home");
+    let source = home.path().join("wrong-model.gguf");
+    fs::write(&source, vec![0_u8; 1000]).expect("model source");
+
+    let output = llm_wiki(home.path())
+        .env("LLM_WIKI_TEST_MODEL_SOURCE", &source)
+        .args([
+            "--verbose",
+            "install",
+            "--non-interactive",
+            "--enable-llm-search",
+            "--profile",
+            "balanced",
+            "--confirm-model-downloads",
+            "--accept-profile-licenses",
+        ])
+        .output()
+        .expect("run install");
+    assert!(!output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("utf8 stdout");
+    let stderr = String::from_utf8(output.stderr).expect("utf8 stderr");
+
+    let progress = stderr
+        .lines()
+        .filter(|line| line.starts_with('['))
+        .map(|line| line.split(" in ").next().expect("line"))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        progress,
+        [
+            "[1/2] embeddinggemma-300m-q8_0 download start 318.1 MiB",
+            "[1/2] embeddinggemma-300m-q8_0 download done 1000 B",
+            "[1/2] embeddinggemma-300m-q8_0 verify start 318.1 MiB",
+        ],
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("downloaded model artifact hash mismatch for embeddinggemma-300m-q8_0")
+    );
+    for diagnostic in [
+        "search model materialization: embeddinggemma-300m-q8_0 -> ",
+        "search model content length mismatch: embeddinggemma-300m-q8_0 expected 333590944 bytes, server reported 1000 bytes",
+    ] {
+        assert_eq!(stderr.matches(diagnostic).count(), 1, "{stderr}");
+    }
+    assert!(!stderr.contains("\x1b[") && !stderr.contains('\r'));
+    assert!(
+        !stdout.lines().any(|line| line.starts_with("[1/2]")),
+        "{stdout}"
     );
 }
 

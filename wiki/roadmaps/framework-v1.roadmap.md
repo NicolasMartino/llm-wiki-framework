@@ -810,13 +810,12 @@ Proof:
 
 ### P7 - Install Model Download Progress
 
-Status: Active
+Status: Completed (develop)
 Promise: `llm-wiki install` with LLM search enabled reports progress on stderr
 while it hashes, downloads and verifies the model (a bar on a terminal, a line
 every 25 % otherwise), and leaves stdout and JSON output unchanged.
 Depends On: None
-Execution Plan: wiki/plans/install-download-progress.plan.md (on the branch
-`impl/install-download-progress`, pushed 2026-10-06, until its PR merges)
+Execution Plan: wiki/plans/install-download-progress.plan.md
 
 Included:
 - the plan's scope, already written on the branch

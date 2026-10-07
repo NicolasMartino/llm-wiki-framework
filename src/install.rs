@@ -27,8 +27,9 @@ use crate::progress::ProgressReporter;
 use crate::search::runtime_probe::{self, RuntimeProbeStore};
 use crate::search_models::{
     AcceptedLicenses, DEFAULT_PROFILE_ID, ModelArtifactClassification, ModelArtifactRecord,
-    ModelArtifacts, ProfileBundle, SearchModel, classify_model_artifact,
-    classify_model_artifact_with_progress, download_and_verify_model_with_progress, profile_by_id,
+    ModelArtifacts, ModelPosition, ProfileBundle, SearchModel, classify_model_artifact,
+    classify_model_artifact_with_progress, download_and_verify_model, network_download,
+    profile_by_id,
 };
 use crate::search_profile::{ExternalDependencies, SearchConfig, SearchProfile};
 
@@ -94,9 +95,9 @@ pub fn run(args: &InstallArgs, context: &CliContext) -> Result<()> {
         paths.search_runtime_probes().display()
     ));
     ensure_search_prompt_available(args)?;
-    let mut progress = ProgressReporter::stderr();
+    let progress = ProgressReporter::stderr();
     let enabled_search_preflight =
-        preflight_noninteractive_enabled_search(args, &paths, context, &mut progress)?;
+        preflight_noninteractive_enabled_search(args, &paths, context, &progress)?;
     let current_exe = env::current_exe().context("failed to resolve current executable")?;
     context.diagnostic(format!("current executable: {}", current_exe.display()));
     let current_exe_bytes = fs::read(&current_exe).with_context(|| {
@@ -234,13 +235,7 @@ pub fn run(args: &InstallArgs, context: &CliContext) -> Result<()> {
             )
         })?;
     }
-    configure_search(
-        args,
-        &paths,
-        context,
-        enabled_search_preflight,
-        &mut progress,
-    )?;
+    configure_search(args, &paths, context, enabled_search_preflight, &progress)?;
     if !args.skip_path_guidance {
         path_guidance::print_guidance(&paths);
     }
@@ -261,7 +256,7 @@ fn configure_search(
     paths: &Paths,
     context: &CliContext,
     enabled_search_preflight: Option<EnabledSearchPreflight>,
-    progress: &mut ProgressReporter,
+    progress: &ProgressReporter,
 ) -> Result<()> {
     context.diagnostic("search configuration action: start");
     if args.disable_llm_search {
@@ -313,7 +308,7 @@ fn preflight_noninteractive_enabled_search(
     args: &InstallArgs,
     paths: &Paths,
     context: &CliContext,
-    progress: &mut ProgressReporter,
+    progress: &ProgressReporter,
 ) -> Result<Option<EnabledSearchPreflight>> {
     if !args.enable_llm_search {
         return Ok(None);
@@ -330,7 +325,7 @@ fn build_enabled_search_preflight(
     args: &InstallArgs,
     paths: &Paths,
     context: &CliContext,
-    progress: &mut ProgressReporter,
+    progress: &ProgressReporter,
 ) -> Result<EnabledSearchPreflight> {
     let profile_id = args
         .profile
@@ -575,7 +570,7 @@ fn configure_enabled_search(
     paths: &Paths,
     context: &CliContext,
     preflight: Option<EnabledSearchPreflight>,
-    progress: &mut ProgressReporter,
+    progress: &ProgressReporter,
 ) -> Result<()> {
     let EnabledSearchPreflight {
         profile,
@@ -732,14 +727,16 @@ fn configure_enabled_search(
                     model.id,
                     model.managed_path(&paths.managed_model_root()).display()
                 ));
-                let record = download_and_verify_model_with_progress(
+                let record = download_and_verify_model(
                     model,
                     profile,
                     &model.managed_path(&paths.managed_model_root()),
-                    offset + 1,
-                    total_models,
+                    ModelPosition {
+                        index: offset + 1,
+                        total: total_models,
+                    },
                     progress,
-                    context,
+                    network_download(context),
                 )?;
                 context.diagnostic(format!(
                     "search model materialization outcome: {} -> downloaded",
@@ -2316,13 +2313,13 @@ mod tests {
         let paths = fixture_paths(temp.path());
         let _guard = EnvVarGuard::set("LLM_WIKI_TEST_GGUF_RUNTIME_PROBE", "pass");
 
-        let mut progress = ProgressReporter::hidden();
+        let progress = ProgressReporter::hidden();
         configure_enabled_search(
             &install_args(true, true, false),
             &paths,
             context(),
             Some(reuse_preflight()),
-            &mut progress,
+            &progress,
         )
         .expect("enabled search");
 
@@ -2358,13 +2355,13 @@ mod tests {
             .expect("existing search config");
         let _guard = EnvVarGuard::set("LLM_WIKI_TEST_GGUF_RUNTIME_PROBE", "fail:embedding");
 
-        let mut progress = ProgressReporter::hidden();
+        let progress = ProgressReporter::hidden();
         let error = configure_enabled_search(
             &install_args(true, true, false),
             &paths,
             context(),
             Some(reuse_preflight()),
-            &mut progress,
+            &progress,
         )
         .expect_err("runtime probe should fail");
 

@@ -1,8 +1,12 @@
+#[cfg(test)]
+use std::cell::RefCell;
 use std::fmt;
 use std::io::{self, IsTerminal};
+#[cfg(test)]
+use std::rc::Rc;
 use std::time::{Duration, Instant};
 
-use indicatif::{ProgressBar, ProgressDrawTarget, ProgressState, ProgressStyle};
+use indicatif::{ProgressBar, ProgressDrawTarget, ProgressFinish, ProgressState, ProgressStyle};
 
 const TTY_REFRESH_HZ: u8 = 10;
 
@@ -12,9 +16,26 @@ pub struct ProgressReporter {
 
 enum ProgressOutput {
     Terminal,
-    Lines,
+    Lines(LineSink),
     #[cfg(test)]
     Hidden,
+}
+
+#[derive(Clone)]
+enum LineSink {
+    Stderr,
+    #[cfg(test)]
+    Recorded(Rc<RefCell<Vec<String>>>),
+}
+
+impl LineSink {
+    fn emit(&self, line: String) {
+        match self {
+            Self::Stderr => eprintln!("{line}"),
+            #[cfg(test)]
+            Self::Recorded(lines) => lines.borrow_mut().push(line),
+        }
+    }
 }
 
 impl ProgressReporter {
@@ -23,7 +44,7 @@ impl ProgressReporter {
             output: if io::stderr().is_terminal() {
                 ProgressOutput::Terminal
             } else {
-                ProgressOutput::Lines
+                ProgressOutput::Lines(LineSink::Stderr)
             },
         }
     }
@@ -35,8 +56,18 @@ impl ProgressReporter {
         }
     }
 
+    /// The line form, with every line kept for the test to read.
+    #[cfg(test)]
+    pub fn recorded() -> (Self, Rc<RefCell<Vec<String>>>) {
+        let lines = Rc::new(RefCell::new(Vec::new()));
+        let reporter = Self {
+            output: ProgressOutput::Lines(LineSink::Recorded(Rc::clone(&lines))),
+        };
+        (reporter, lines)
+    }
+
     pub fn begin(
-        &mut self,
+        &self,
         phase: &'static str,
         label: &str,
         index: usize,
@@ -44,7 +75,7 @@ impl ProgressReporter {
         total_bytes: u64,
     ) -> ProgressOperation {
         let prefix = format!("[{index}/{total_models}] {label}");
-        match self.output {
+        match &self.output {
             ProgressOutput::Terminal => {
                 let style = ProgressStyle::with_template(
                     "{prefix} {msg:<8} {percent:>3}%  {bytes} / {total_bytes}  {bytes_per_sec:>10}  eta {floored_eta}",
@@ -55,7 +86,10 @@ impl ProgressReporter {
                 });
                 // Style, prefix and message go on before the draw target, so the
                 // first frame drawn already names the step.
+                // Abandon, not the default, so a step that ends short or fails
+                // keeps the bytes it really reached instead of jumping to 100 %.
                 let bar = ProgressBar::hidden()
+                    .with_finish(ProgressFinish::Abandon)
                     .with_style(style)
                     .with_prefix(prefix)
                     .with_message(phase);
@@ -63,9 +97,13 @@ impl ProgressReporter {
                 bar.set_draw_target(ProgressDrawTarget::stderr_with_hz(TTY_REFRESH_HZ));
                 ProgressOperation::Terminal(bar)
             }
-            ProgressOutput::Lines => {
-                eprintln!("{prefix} {phase} start {}", format_bytes(total_bytes));
+            ProgressOutput::Lines(sink) => {
+                sink.emit(format!(
+                    "{prefix} {phase} start {}",
+                    format_bytes(total_bytes)
+                ));
                 ProgressOperation::Lines(LineProgress {
+                    sink: sink.clone(),
                     prefix,
                     phase,
                     total_bytes,
@@ -93,7 +131,7 @@ impl ProgressOperation {
             Self::Terminal(bar) => bar.inc(bytes_delta),
             Self::Lines(lines) => {
                 for line in lines.advance_lines(bytes_delta) {
-                    eprintln!("{line}");
+                    lines.sink.emit(line);
                 }
             }
             #[cfg(test)]
@@ -101,20 +139,13 @@ impl ProgressOperation {
         }
     }
 
-    /// Ends the operation without a done line, for a step that failed.
-    pub fn abandon(self) {
-        match self {
-            Self::Terminal(bar) => bar.abandon(),
-            Self::Lines(_) => {}
-            #[cfg(test)]
-            Self::Hidden => {}
-        }
-    }
-
     pub fn finish(self) {
         match self {
-            Self::Terminal(bar) => bar.finish(),
-            Self::Lines(lines) => eprintln!("{}", lines.finish_line()),
+            Self::Terminal(bar) => bar.abandon(),
+            Self::Lines(lines) => {
+                let sink = lines.sink.clone();
+                sink.emit(lines.finish_line());
+            }
             #[cfg(test)]
             Self::Hidden => {}
         }
@@ -122,6 +153,7 @@ impl ProgressOperation {
 }
 
 pub struct LineProgress {
+    sink: LineSink,
     prefix: String,
     phase: &'static str,
     total_bytes: u64,
@@ -279,7 +311,7 @@ mod tests {
 
     #[test]
     fn hidden_reporter_is_a_no_op() {
-        let mut reporter = ProgressReporter::hidden();
+        let reporter = ProgressReporter::hidden();
         let mut operation = reporter.begin("verify", "fixture", 1, 1, 100);
         operation.advance(100);
         operation.finish();
@@ -288,6 +320,7 @@ mod tests {
     #[test]
     fn non_tty_output_is_bounded_and_contains_no_terminal_controls() {
         let mut progress = LineProgress {
+            sink: LineSink::Stderr,
             prefix: "[1/1] fixture".to_string(),
             phase: "download",
             total_bytes: 100,
