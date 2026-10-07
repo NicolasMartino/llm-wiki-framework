@@ -26,11 +26,53 @@ missing() {
   echo "search-eval needs the managed search models with meaning-based search on: run \`llm-wiki install --configure-search\` first ($1)" >&2
   exit 1
 }
+command -v python3 >/dev/null 2>&1 || {
+  echo "search-eval needs python3 (3.11 or newer) on PATH, to read search.toml" >&2
+  exit 1
+}
 for file in manifest.json models/artifacts.toml accepted-licenses.toml search.toml; do
   [ -f "$real/$file" ] || missing "$real/$file is missing"
 done
-awk '/^\[/ { section = $0 } section == "[project_default]" && $0 == "llm_search_enabled = true" { on = 1 } END { exit !on }' "$real/search.toml" \
-  || missing "$real/search.toml has meaning-based search off"
+# Read as TOML, so a hand-edited file says the same here as it does to
+# llm-wiki: `check` prints why search is off, `project` prints the home's
+# default settings as a project file.
+settings() { # check|project <search.toml>
+  python3 - "$@" <<'PY'
+import json, re, sys
+try:
+    import tomllib
+except ImportError:
+    sys.exit("search-eval needs python3 3.11 or newer, to read search.toml")
+mode, path = sys.argv[1:]
+try:
+    with open(path, "rb") as f:
+        home = tomllib.load(f)
+except tomllib.TOMLDecodeError as error:
+    print(f"{path} is not valid TOML: {error}")
+    sys.exit(1)
+default = home.get("project_default")
+if mode == "check":
+    if not isinstance(default, dict) or default.get("llm_search_enabled") is not True:
+        print(f"{path} has meaning-based search off")
+        sys.exit(1)
+    sys.exit(0)
+def value(v):
+    if isinstance(v, (bool, int, float, str)):
+        return json.dumps(v)
+    sys.exit(f"search-eval cannot copy the value {v!r} from {path}")
+for key in ("schema_version", "updated_at"):
+    if key in home:
+        print(f"{key} = {value(home[key])}")
+print("\n[project]")
+for key, v in default.items():
+    name = key if re.fullmatch(r"[A-Za-z0-9_-]+", key) else json.dumps(key)
+    print(f"{name} = {value(v)}")
+PY
+}
+if ! why=$(settings check "$real/search.toml"); then
+  [ -n "$why" ] || exit 1
+  missing "$why"
+fi
 
 # The build and the eval must not take the test instance's names and folders.
 unset LLM_WIKI_INSTANCE
@@ -61,9 +103,7 @@ root=$tmp/project
 mkdir -p "$root/.llm_wiki"
 cp -R "$repo/wiki" "$root/wiki"
 cp "$repo/AGENTS.MD" "$root/AGENTS.MD"
-awk '/^\[/ { keep = ($0 == "[project]" || $0 == "[project_default]") } keep || /^(schema_version|updated_at) /' "$managed/search.toml" \
-  | sed -e 's/^\[project_default\]$/[project]/' \
-  > "$root/.llm_wiki/search.toml"
+settings project "$managed/search.toml" > "$root/.llm_wiki/search.toml"
 
 export HOME=$home
 export XDG_CACHE_HOME=$home/.cache

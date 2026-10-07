@@ -229,7 +229,8 @@ second diagnostics system.
 Run `just search-eval` (`tools/search-eval.sh`, from
 `wiki/plans/search-eval-in-a-temporary-home.plan.md`). It needs the managed
 search models in the real managed home, with meaning-based search on (`llm-wiki
-install --configure-search`), and nothing registered: it makes a temporary
+install --configure-search`), and `python3` 3.11 or newer, which reads the
+home's `search.toml` as TOML; nothing needs registering: it makes a temporary
 home, copies the real home's model records, install manifest, accepted
 licenses and search settings into it, registers a copy of this checkout's
 `wiki/` and `AGENTS.MD` there as `llm-wiki-framework-semantic-search` (with
@@ -834,7 +835,8 @@ judged cases:
   assertion).
 - The no-match sentinels C10, H9, H11 and H20 now return results in semantic,
   hybrid and auto; C5 misses in every meaning-based mode (and in lexical on
-  `develop`), C8 in hybrid and auto, H12 in the meaning-based modes. The wiki has more than doubled since the 61-file runs
-  above; Next Actions 1 and 3 apply.
+  `develop`), C8 in hybrid and auto, H12 in the meaning-based modes. The wiki
+  has more than doubled since the 61-file runs above; Next Actions 1 and 3
+  apply.
 
 <!-- llm-wiki-search-ignore-end -->

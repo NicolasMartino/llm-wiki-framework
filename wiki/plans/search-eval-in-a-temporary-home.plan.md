@@ -79,7 +79,10 @@ and the checkout's own files, are the same afterwards as before.
     index and search read those files where they are (choice 1);
   - stops before building anything, with one plain line naming `llm-wiki
     install --configure-search`, when the real home lacks one of those
-    records or has meaning-based search off in its default settings;
+    records or has meaning-based search off in its default settings, reading
+    `search.toml` as TOML (with `python3` 3.11 or newer), so any spelling
+    llm-wiki reads the same way says the same here (the second blind review
+    of PR #67, finding 1);
   - makes the eval project's own root inside the temporary directory: a copy
     of the checkout's `wiki/` and `AGENTS.MD` (register wants an orientation
     file), with the home's default search settings as its own
