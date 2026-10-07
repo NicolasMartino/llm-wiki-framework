@@ -5,7 +5,7 @@
 - Date: 2026-05-07
 - Category: Search infrastructure, framework tooling
 - Scope: Use qmd-rs as the D9 backend for `llm-wiki search` and `llm-wiki search-all`.
-- Sources: wiki/evals/search-backend-selection.eval.md, wiki/proposals/search-backend-selection.proposal.md, wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/references/qmd-rs-search-crate.reference.md
+- Sources: wiki/evals/search-backend-selection.eval.md, issue #25, wiki/proposals/search-backend-selection.proposal.md, wiki/proposals/project-registry-search-artifacts.proposal.md, wiki/references/qmd-rs-search-crate.reference.md
 - Related: wiki/proposals/search-backend-selection.proposal.md, wiki/proposals/project-registry-search-artifacts.proposal.md
 
 ## Choice
@@ -106,6 +106,11 @@ Validated read behavior:
   corruption
 - writer commands prove immutable readability before live promotion
 - adapter-owned SQL keeps accepted qmd-rs lexical query parity under tests
+  (2026-10-07, issue #25: no longer. The adapter's lexical query weights the
+  file path and title columns 10 to the body's 1, where qmd-rs ranks with a
+  plain `bm25()`, and adds a phrase fallback qmd-rs does not have; the
+  adapter owns lexical ranking, as
+  `wiki/plans/search-ranking-weights-and-phrase-fallback.plan.md` records.)
 
 ## Revisit When
 

@@ -16,6 +16,54 @@ Pages affected: `wiki/plans/compact-search-pages-follow-the-limit.plan.md`,
 `wiki/specs/wiki-query-skill.spec.md`, `wiki/roadmaps/framework-v1.roadmap.md`,
 `wiki/index.md`.
 
+## [2026-10-07] merge | Lexical search weights titles and file names, and falls back to phrases
+
+Merged #58 (closes #25): lexical ranking weights a page's file path and title
+ten to one over its body, so "operation manager" puts the "Operation Manager"
+checklist first instead of sixth; when the all-words query finds fewer pages
+than asked, lexical search alone runs a phrase-OR fallback, adds those pages
+after the all-words ones and says so in one warning line, which the JSON reply
+and `search-all` now carry correctly. The four plan names return three of the
+four plans in the top ten, and all four in the top five with the plan filter
+(the owner's bar of 2026-10-07); the lexical eval replay rose from 18 to 22 of
+26. P16 is Completed. The ignored natural-language eval's "hybrid and auto beat
+lexical" assertion may break on its next manual run; it could not be measured
+here.
+
+Pages affected: `wiki/plans/search-ranking-weights-and-phrase-fallback.plan.md`,
+`wiki/specs/documentation-model.spec.md`,
+`wiki/decisions/search-backend-selection.decision.md`,
+
+## [2026-10-07] merge | The dead build-skills recipes are gone
+
+Merged #65 (closes #5): `just build-skills` and `just build-skills-to` failed
+with "unrecognized subcommand 'build'" since the skill renderer was retired in
+the MCP-first move, and nothing in the repository or its CI called them; both
+recipes are removed rather than repaired, and the pages that record the
+failure stay as history. Both of the plan's choices were taken by the
+coordinator while the owner was away. P8 is Completed.
+
+Pages affected: `wiki/plans/build-skills-recipes.plan.md`,
+`wiki/roadmaps/framework-v1.roadmap.md`, `wiki/index.md`.
+
+## [2026-10-07] merge | The dependency gate covers dev-dependencies
+
+Merged #64 (closes #37): `cargo deny check` already rejected a banned crate
+and an unknown source brought in only by a dev-dependency, but a duplicate
+version and a disallowed licence got through, since cargo-deny leaves
+dev-dependencies out of those two checks by default (two versions of
+getrandom, both from inside proptest, were already in the tree). `deny.toml`
+now turns both on, with one skip pinned to getrandom 0.3.4 and its reason, so
+all four checks reject a slip in a dev-dependency; seven probes are recorded
+in the plan. P22's roadmap text and PM1's plan, which said cargo-deny skipped
+dev-dependencies altogether, are corrected. The plan's one choice was taken
+by the coordinator while the owner was away. P22 is Completed.
+
+Pages affected: `wiki/plans/dependency-gate-covers-dev-dependencies.plan.md`,
+`wiki/plans/poman-workspace-and-strict-gates.plan.md`,
+
+`wiki/roadmaps/framework-v1.roadmap.md`, `wiki/index.md`.
+
 ## [2026-10-07] merge | Five short plans, and poman is MCP-friendly
 
 Merged #59 (closes #57; part of #29, #36, #37, #49 and #5): plans for compact
