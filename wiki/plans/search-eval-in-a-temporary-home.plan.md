@@ -72,22 +72,29 @@ and the checkout's own files, are the same afterwards as before.
 
 - **One recipe**, `just search-eval` (choice 2), that:
   - makes a temporary home and points `HOME` and the XDG variables into it;
-  - gives that home the managed models and the accepted licenses from the
-    real one, without writing to the real one (linked, choice 1), and a copy
-    of its install manifest, without which search stops with "llm-wiki
-    install is required before search" (found by the first run); and fails
-    with one plain line naming `llm-wiki install` when the real home has
-    none;
+  - gives that home copies of the real one's small records: the model
+    records (`models/artifacts.toml`), the accepted licenses, the search
+    settings, and the install manifest, without which search stops with
+    "llm-wiki install is required before search" (found by the first run).
+    The model records name the real home's model files by absolute path, so
+    index and search read those files where they are (choice 1);
+  - stops before building anything, with one plain line naming `llm-wiki
+    install --configure-search`, when the real home lacks one of those
+    records or has meaning-based search off in its default settings;
   - makes the eval project's own root inside the temporary directory: a copy
     of the checkout's `wiki/` and `AGENTS.MD` (register wants an orientation
-    file), with its own `.llm_wiki/search.toml` turning meaning-based
-    search on, never the checkout itself;
+    file), with the home's default search settings as its own
+    `.llm_wiki/search.toml`, never the checkout itself;
   - registers that root under `llm-wiki-framework-semantic-search` with
     `--no-mcp`, and indexes it;
   - runs the ignored eval test, which writes its report under `target/` as
     today;
   - removes the temporary home on the way out, success or failure.
 - **The eval page** names the recipe where it says how to run the eval.
+- **A quick test of the recipe's stops** (`tools/search-eval-test.sh`, in
+  `just verify` and the fast check), since nothing else runs the script: a
+  later edit to its checks would otherwise go unseen until someone ran the
+  20-minute eval. Asked by the blind review of PR #67, finding 6.
 
 ## Done When
 
@@ -146,14 +153,18 @@ Taken by the coordinator on 2026-10-07 while the owner was away, both as this
 plan recommended, to be confirmed by the owner's verdict on the PR that does
 the work:
 
-1. **The models: linked from the real managed home**, with the accepted
-   licenses and search settings copied. No download and no copy; search and
-   index only read the models folder (to be rechecked by whoever does the
-   work), and the before-and-after checksums of the Done When prove nothing
-   was written there. Not chosen: copying them (1.6 GB on the machine this
-   plan was written on, at every run), or downloading them into the
-   temporary home (slow, needs the network, and the eval would measure
-   another copy).
+1. **The models: read in place from the real managed home**, never copied
+   or downloaded, with the model records, accepted licenses and search
+   settings copied, and the before-and-after checksums of the Done When
+   proving nothing was written there. Recommended and taken as "linked from
+   the real managed home"; the work found the links unneeded: index and
+   search reach a model only through the absolute path in its record
+   (`src/search/commands.rs`, `src/search/semantic.rs`), and only install and
+   uninstall look at the models folder itself, so the copied records already
+   point at the real files, read-only. Found by the blind review of PR #67,
+   finding 1. Not chosen: copying them (1.6 GB on the machine this plan was
+   written on, at every run), or downloading them into the temporary home
+   (slow, needs the network, and the eval would measure another copy).
 2. **The recipe's name: `just search-eval`.** Not chosen: `just eval`, which
    reads as if it ran `llm-wiki eval`, a different command.
 

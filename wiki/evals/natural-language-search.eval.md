@@ -228,18 +228,19 @@ second diagnostics system.
 
 Run `just search-eval` (`tools/search-eval.sh`, from
 `wiki/plans/search-eval-in-a-temporary-home.plan.md`). It needs the managed
-search models in the real managed home (`llm-wiki install
---configure-search`) and nothing registered: it makes a temporary home, links
-the models into it file by file, copies the install manifest, accepted
-licenses and search settings, registers a copy of this checkout's `wiki/` and
-`AGENTS.MD` there as `llm-wiki-framework-semantic-search` (with `--no-mcp` and
-meaning-based search on), indexes it, runs the ignored `cargo test --test
+search models in the real managed home, with meaning-based search on (`llm-wiki
+install --configure-search`), and nothing registered: it makes a temporary
+home, copies the real home's model records, install manifest, accepted
+licenses and search settings into it, registers a copy of this checkout's
+`wiki/` and `AGENTS.MD` there as `llm-wiki-framework-semantic-search` (with
+`--no-mcp`), indexes it, runs the ignored `cargo test --test
 natural_language_search_eval -- --ignored --nocapture`, and removes the
-temporary home. The report lands in `target/evals/` as before. The machine's
-registry, managed home and cache, and the checkout's `.mcp.json` and
-`.llm_wiki/`, are left as they were. A run takes about 20 minutes, half of it
-indexing. The `cargo run -- index` and `cargo test` commands in the runs below
-assume a project registered by hand.
+temporary home. The model records name the real home's model files, which are
+read where they are, never copied. The report lands in `target/evals/` as
+before. The machine's registry, managed home and cache, and the checkout's
+`.mcp.json` and `.llm_wiki/`, are left as they were. A run takes about 20
+minutes, half of it indexing. The `cargo run -- index` and `cargo test`
+commands in the runs below assume a project registered by hand.
 
 <!-- llm-wiki-search-ignore-end -->
 
