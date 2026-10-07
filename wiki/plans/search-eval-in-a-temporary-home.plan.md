@@ -1,8 +1,7 @@
 # Plan: The Search Eval Runs In A Temporary Home
 
 - Document Class: Plan
-- Status: Active
-- Branch: `NicolasMartino/eval-49`
+- Status: Completed (develop)
 - Date: 2026-10-07
 - Category: Tooling, search eval
 - Scope: Carry out P23 of the framework roadmap: one `just` recipe sets up a
@@ -137,15 +136,38 @@ registered, before and after each run.
   exactly as on `develop`. The test stops at the same semantic floor before
   reaching its last assertion, that hybrid and auto beat lexical; from the
   report's counts that assertion holds there by one case, 23 to 22.
-- **Left as it was, by checksum:** every file of the real managed home
-  outside `indexes/` (the two model files, `models/artifacts.toml`, the
-  manifest, licenses, search settings, probes, binary, MCP template, backup),
-  the real cache (absent), and the checkout's `.llm_wiki/search.toml` and
-  `.mcp.json` (absent) were the same before and after both runs. The real
-  registry and `indexes/` changed only by other worktrees and other test runs
-  on the machine registering their own projects during the runs (Orca's
-  worktree setup, and test fixtures named `fixture-project-<n>`); neither ever
-  held `llm-wiki-framework-semantic-search`.
+- **After the review's fix round (`69caab3`, the models read in place):** the
+  same counts as the first `develop` run, mode by mode and case by case, in
+  22 minutes. The first two runs had linked the model files into the
+  temporary home; nothing read the links (choice 1).
+- **Left as it was, by checksum:** the listing below, taken before and after
+  each of the three runs, was the same each time (SHA-256, first 16 digits;
+  `~` is the real home):
+
+  | SHA-256 | File |
+  | --- | --- |
+  | `604c329a31518187` | `~/.llm_wiki/accepted-licenses.toml` |
+  | `7997e9302aeacbed` | `~/.llm_wiki/backups/install-<date>/backup-manifest.json` |
+  | `771179514816456a` | `~/.llm_wiki/bin/llm-wiki` |
+  | `d734d4fd09c6dfd7` | `~/.llm_wiki/external-dependencies.toml` |
+  | `104e6fd062656736` | `~/.llm_wiki/manifest.json` |
+  | `185e4d52094b24ac` | `~/.llm_wiki/mcp/claude-project.mcp.json` |
+  | `48fa8eaf6e0bcad0` | `~/.llm_wiki/models/artifacts.toml` |
+  | `b5ce9d77a3fc4b3b` | `~/.llm_wiki/models/embeddinggemma-300m-q8_0/embeddinggemma-300M-Q8_0.gguf` |
+  | `000dfb1c06efa6a0` | `~/.llm_wiki/models/qmd-query-expansion-1.7b-q4_k_m/qmd-query-expansion-1.7B-q4_k_m.gguf` |
+  | `3cad88be795df555` | `~/.llm_wiki/search-runtime-probes.toml` |
+  | `3de702d89dbfe39e` | `~/.llm_wiki/search.toml` |
+  | `95f74ae45ed9e8b3` | the checkout's `.llm_wiki/search.toml` |
+  | absent | the real cache, `~/.cache/llm-wiki` |
+  | absent | the checkout's `.mcp.json` |
+
+  The real registry and the managed home's `indexes/` are the machine's
+  shared state, so they were listed by project id and folder name instead:
+  around the third run, 91 ids before and 99 after, 14 index folders before
+  and 12 after, all the difference being other worktrees made and removed
+  by Orca meanwhile and test fixtures named `fixture-project-<n>` registered
+  by other test runs on the machine. Neither ever held
+  `llm-wiki-framework-semantic-search`, before, during or after any run.
 
 ## The Two Choices
 
