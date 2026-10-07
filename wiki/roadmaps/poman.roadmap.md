@@ -13,6 +13,9 @@
     deliverables, and the answers recorded in the decision pages below
   - The owner's answer, 2026-10-06, recorded here in PM5: `poman tree` and
     `poman list` are their own deliverable, after the deadline commands
+  - The owner's decision, 2026-10-07, on the poman track (#19), recorded
+    here in PM3's Proof: PM3 is proved on the riseon repository as well as
+    on fixtures
 - Related:
   - `wiki/roadmaps/framework-v1.roadmap.md`, P5, which wrote this roadmap
   - `wiki/decisions/poman-lives-in-this-workspace.decision.md`
