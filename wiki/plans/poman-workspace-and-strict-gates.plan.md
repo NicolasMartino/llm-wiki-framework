@@ -167,6 +167,10 @@ is run is a first sketch; whoever does the work rechecks each tool's flags.
   - `cargo deny check` (advisories, licences, bans with one version of each
     crate, sources) over the two new crates' dependency graph only: llm-wiki's
     own graph comes in with the ratchet (PM8);
+  - since 2026-10-07 (PR #64, P22) the check covers the dev-dependencies too,
+    with one exception: `getrandom` 0.3.4 is let through beside 0.4.2, both
+    coming from inside proptest
+    (`wiki/plans/dependency-gate-covers-dev-dependencies.plan.md`);
   - unused dependencies with `cargo udeps` on the dated nightly above, over
     the two crates.
 - **The gate script:**

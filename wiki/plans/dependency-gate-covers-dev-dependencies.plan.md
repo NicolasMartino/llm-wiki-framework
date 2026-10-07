@@ -20,13 +20,17 @@
     1 and 2: the duplicate check leaves dev-dependencies out unless `[bans]`
     sets `multiple-versions-include-dev`, and the licence check unless
     `[licenses]` sets `include-dev`
+  - The second blind review of PR #64 (2026-10-07), finding 1: the `getrandom`
+    skip is an exception to the strict-gates decision's "one version of each
+    crate"
   - `tools/strict-gates.sh`, `deny.toml`, `justfile` and the strict crates'
     `Cargo.toml` at `cad8988`, read for this plan; the `list` command and the
     review's probe rerun on this plan's worktree
 - Related:
   - `wiki/roadmaps/framework-v1.roadmap.md`, P22 (this plan)
   - `wiki/decisions/poman-lives-in-this-workspace.decision.md`, "The
-    strictest gates" (the gates this check belongs to)
+    strictest gates" (the gates this check belongs to, and its dated
+    `getrandom` exception)
   - `wiki/plans/poman-workspace-and-strict-gates.plan.md` (PM1, which built
     the gate)
   - `wiki/roadmaps/poman.roadmap.md`, PM8 (llm-wiki's own modules)
@@ -81,7 +85,10 @@ in only by tests fails it like any other; and the gate's description says so.
 - **Said plainly**: the deny gate's comment in `tools/strict-gates.sh` says it
   covers dev-dependencies, through the two keys in `deny.toml`, and that
   `cargo deny list` does not show them. The strict-gates decision says
-  "dependencies checked", which stays true, so it is unchanged.
+  "dependencies checked (advisories, licences, bans with one version of each
+  crate, sources, unused dependencies)", and PM1's plan says the same; the
+  `getrandom` skip is the one exception to "one version of each crate", so
+  both record it as a dated exception (2026-10-07), with its reason.
 
 ## The Proof (2026-10-07, PR #64)
 
@@ -117,11 +124,17 @@ dev-dependencies whatever the configuration says.
 
 ## Open For The Owner
 
-Taken by the coordinator on 2026-10-07 while the owner was away: choice 1, as
-recommended, to be confirmed by the owner's verdict on PR #64. PR #64's review
-then found the duplicate and licence checks did leave dev-dependencies out, so
-the change grew from the comment alone to the two `deny.toml` keys and the
-`getrandom` skip above, as the coordinator directed in the fix round.
+Taken by the coordinator on 2026-10-07 while the owner was away, all to be
+confirmed by the owner's verdict on PR #64:
+
+- choice 1 below, as recommended;
+- after PR #64's review found the duplicate and licence checks left
+  dev-dependencies out, the change grew past the comment alone: the two
+  `deny.toml` keys (`multiple-versions-include-dev` and `include-dev`);
+- the `getrandom` 0.3.4 skip, which the review called the owner's call;
+- the narrower Out Of Scope below, which lets that skip through;
+- the dated exception for that skip in the strict-gates decision and in PM1's
+  plan, after PR #64's second review.
 
 1. **Close P22 with a one-line comment in the gate script**, the proof being
    the run recorded here, rerun on that PR's head. Not chosen: closing P22 on

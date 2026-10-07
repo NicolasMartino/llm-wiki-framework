@@ -1164,11 +1164,13 @@ Proof:
 
 ### P22 - The Dependency Gate Covers Dev-Dependencies
 
-Status: Completed
+Status: Completed (develop)
 Promise: The strict gates' dependency check (`cargo deny check`) covers the
 strict crates' dev-dependencies in all its checks, so a banned, duplicated,
 unlicensed or advised-against crate pulled in only by tests cannot slip past
-it, each shown by a recorded slip, and the gate says so.
+it, each shown by a recorded slip, and the gate says so. The one exception is
+`getrandom` 0.3.4, let through beside 0.4.2 because both come from inside
+proptest.
 Depends On: PM1 (poman roadmap)
 Execution Plan: `wiki/plans/dependency-gate-covers-dev-dependencies.plan.md`
 
